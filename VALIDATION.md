@@ -2,6 +2,8 @@
 
 Validated October 1, 2026. The implementation includes the 16 supplied screen references (1–13, 15–17); Page 14 remains explicitly reserved. Page 16 is an overlay.
 
+The subsequent five-round UI/UX refinement is documented in [QA-REFINEMENT.md](QA-REFINEMENT.md), including the final screen, dialog, keyboard, and stress checks.
+
 ## Passed
 
 - TypeScript check and Vite production build.

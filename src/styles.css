@@ -11,11 +11,11 @@
   font-synthesis: none;
   --paper: #fffef9;
   --ink: #263b32;
-  --muted: #6f7970;
+  --muted: #56634f;
   --green: #254f43;
   --sage: #e4ebdf;
   --line: #e2e5dc;
-  --accent: #b97953;
+  --accent: #94582f;
   --shadow: 0 12px 40px #213d2d0b;
   font-size: 14px;
 }
@@ -135,7 +135,7 @@ legend {
   font-size: 10px;
   letter-spacing: 1.8px;
   font-weight: 700;
-  color: #6e7b69;
+  color: #56634f;
   text-transform: uppercase;
   line-height: 1.5;
   margin-bottom: 12px;
@@ -149,7 +149,7 @@ legend {
 .fine-print {
   font-size: 11px;
   line-height: 1.75;
-  color: #788075;
+  color: #56634f;
 }
 .btn {
   display: inline-flex;
@@ -254,7 +254,7 @@ legend {
   padding: 5px 8px;
   font-size: 10px;
   font-weight: 500;
-  color: #64715f;
+  color: #56634f;
   letter-spacing: 0.1px;
 }
 .badge.green {
@@ -292,7 +292,7 @@ legend {
 }
 .avatar-2 {
   background: #e7dacf;
-  color: #805d49;
+  color: #704c36;
 }
 .avatar-3 {
   background: #d9e0e8;
@@ -359,7 +359,7 @@ legend {
   font-size: 12px;
   line-height: 1.7;
   background: #ecefe5;
-  color: #63735d;
+  color: #56634f;
   display: flex;
   gap: 10px;
   align-items: flex-start;
@@ -567,7 +567,7 @@ legend {
   align-items: center;
   gap: 7px;
   padding: 14px 2px;
-  color: #8a9285;
+  color: #56634f;
   border-bottom: 2px solid transparent;
   font-size: 12px;
 }
@@ -748,7 +748,7 @@ legend {
   display: flex;
   align-items: center;
   gap: 14px;
-  color: #8e9787;
+  color: #56634f;
   font-size: 10px;
   margin: 23px 0;
 }
@@ -795,7 +795,7 @@ legend {
   margin-top: auto;
   text-align: center;
   font-size: 10px;
-  color: #9b9f90;
+  color: #56634f;
 }
 .auth-mobile-logo {
   display: none;
@@ -827,7 +827,7 @@ legend {
   padding: 12px 13px;
   text-align: left;
   margin-bottom: 21px;
-  color: #71806b;
+  color: #56634f;
 }
 .trip-switch {
   background: #f9faf3;
@@ -854,7 +854,7 @@ legend {
 }
 .trip-switch > span:last-child {
   font-size: 10px;
-  color: #7d8a73;
+  color: #56634f;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -873,7 +873,7 @@ legend {
   font-size: 12px;
   min-height: 43px;
   text-align: left;
-  color: #6b7964;
+  color: #56634f;
 }
 .sidebar nav button:hover {
   background: #e9eee1;
@@ -899,11 +899,11 @@ legend {
 .sidebar-note > span {
   font-family: "Fraunces", serif;
   font-size: 17px;
-  color: #71826b;
+  color: #56634f;
 }
 .sidebar-note p {
   font-size: 11px;
-  color: #929c87;
+  color: #56634f;
   line-height: 1.8;
   margin: 9px 0;
 }
@@ -956,13 +956,13 @@ legend {
   align-items: center;
   gap: 11px;
   font-size: 11px;
-  color: #8b9583;
+  color: #56634f;
 }
 .prototype-button {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #829074;
+  color: #56634f;
   border: 1px solid #e0e4d8;
   padding: 6px 9px;
   border-radius: 4px;
@@ -987,14 +987,14 @@ legend {
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
-  color: #9ba18f;
+  color: #56634f;
   font-size: 9px;
   padding: 13px 42px 20px;
   gap: 12px;
 }
 .app-footer button {
   font-size: 9px;
-  color: #83917a;
+  color: #56634f;
   padding: 0;
 }
 .mobile-nav {
@@ -1220,7 +1220,7 @@ legend {
 .permission-line small {
   font-size: 9px;
   margin-left: auto;
-  color: #7f8e72;
+  color: #56634f;
 }
 .small-circle {
   width: 10px;
@@ -1484,7 +1484,7 @@ legend {
   gap: 25px;
   border-bottom: 1px solid var(--line);
   padding: 23px 0;
-  color: #76816e;
+  color: #56634f;
   font-size: 10px;
 }
 .trip-summary > span,
@@ -1531,7 +1531,7 @@ legend {
   background: #eaf0e1;
 }
 .day-chips a span {
-  color: #909b86;
+  color: #56634f;
   font-size: 9px;
 }
 .day-section {
@@ -1547,7 +1547,7 @@ legend {
 .day-number {
   border-radius: 50%;
   background: #e7ecdf;
-  color: #6b8062;
+  color: #56634f;
   width: 35px;
   height: 35px;
   display: grid;
@@ -1560,14 +1560,14 @@ legend {
   font-weight: 500;
 }
 .day-title h3 span {
-  color: #8c9881;
+  color: #56634f;
   font-size: 12px;
   font-weight: 400;
 }
 .day-title p {
   font-size: 10px;
   margin: 0;
-  color: #8d9686;
+  color: #56634f;
 }
 .day-title .text-link {
   font-size: 10px;
@@ -1609,11 +1609,11 @@ legend {
   align-items: center;
   gap: 5px;
   font-size: 9px;
-  color: #899b7d;
+  color: #56634f;
   margin-bottom: 8px;
 }
 .event-time > span {
-  color: #9ca593;
+  color: #56634f;
 }
 .event-info h3 {
   font-size: 14px;
@@ -1627,7 +1627,7 @@ legend {
   gap: 5px;
   line-height: 1.5;
   margin: 0;
-  color: #8c9783;
+  color: #56634f;
 }
 .event-arrow {
   margin: 0 5px;
@@ -1642,12 +1642,12 @@ legend {
 .empty-day > span {
   font-family: "Fraunces", serif;
   font-size: 21px;
-  color: #687f5e;
+  color: #56634f;
 }
 .empty-day p {
   font-size: 11px;
   margin: 8px 0 13px;
-  color: #8d987f;
+  color: #56634f;
 }
 .empty-day .text-link {
   font-size: 11px;
@@ -1691,7 +1691,7 @@ legend {
 .inspiration-card p {
   font-size: 11px;
   margin: 14px 0 20px;
-  color: #859178;
+  color: #56634f;
 }
 .inspiration-card .btn {
   font-size: 10px;
@@ -1797,7 +1797,7 @@ legend {
   align-items: center;
   justify-content: space-between;
   font-size: 10px;
-  color: #6d7d61;
+  color: #56634f;
   margin: 5px 0 14px;
   gap: 8px;
 }
@@ -1811,7 +1811,7 @@ legend {
   display: flex;
   gap: 6px;
   align-items: center;
-  color: #829473;
+  color: #56634f;
 }
 .card-actions {
   display: flex;
@@ -2120,7 +2120,7 @@ legend {
 .collaborator-table-head {
   font-size: 8px;
   letter-spacing: 1.2px;
-  color: #8b987f;
+  color: #56634f;
   padding: 18px 0;
   border-bottom: 1px solid var(--line);
 }
@@ -2149,7 +2149,7 @@ legend {
   display: block;
   font-size: 9px;
   margin: 5px 0;
-  color: #87967a;
+  color: #56634f;
 }
 .member-status {
   font-size: 10px;
@@ -2286,7 +2286,7 @@ legend {
 .budget-stats > div > span {
   font-size: 9px;
   letter-spacing: 1.5px;
-  color: #88977c;
+  color: #56634f;
 }
 .budget-stats strong {
   display: block;
@@ -2349,7 +2349,7 @@ legend {
 }
 .donut span {
   font-size: 9px;
-  color: #8f9b82;
+  color: #56634f;
 }
 .chart-legend {
   display: grid;
@@ -2360,7 +2360,7 @@ legend {
   align-items: center;
   gap: 9px;
   font-size: 10px;
-  color: #849177;
+  color: #56634f;
 }
 .chart-legend strong {
   margin-left: auto;
@@ -2437,12 +2437,12 @@ legend {
 .expense-main > span {
   display: block;
   font-size: 10px;
-  color: #919d85;
+  color: #56634f;
   margin: 6px 0 4px;
 }
 .expense-main > small {
   font-size: 8px;
-  color: #9aa38f;
+  color: #56634f;
 }
 .expense-amount {
   text-align: right;
@@ -2474,7 +2474,7 @@ legend {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #738e60;
+  color: #56634f;
   font-size: 9px;
   min-height: 28px;
 }
@@ -3017,7 +3017,7 @@ legend {
   font-size: 11px;
 }
 .screen-index > button > span {
-  color: #95a787;
+  color: #56634f;
   font-size: 10px;
 }
 .screen-index > button > svg {
@@ -3587,7 +3587,7 @@ legend {
     flex-direction: column;
     gap: 5px;
     font-size: 9px;
-    color: #909e80;
+    color: #56634f;
     min-width: 64px;
     min-height: 42px;
     border-radius: 6px;
@@ -4929,4 +4929,294 @@ legend {
   .form-columns:has(input[type="date"]) {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* First-visit choices stay ahead of the simulated sign-in form. */
+.auth-form-wrap .quick-start {
+  margin: 24px 0;
+}
+.quick-start .btn + .btn {
+  margin-top: 10px;
+}
+.quick-start > small {
+  display: block;
+  text-align: center;
+  margin-top: 12px;
+}
+.auth-form-wrap > .auth-signin-label {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 24px 0 14px;
+  color: var(--ink);
+}
+.password-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.password-control input {
+  width: 100%;
+  padding-right: 48px;
+}
+.password-control .icon-btn {
+  position: absolute;
+  right: 3px;
+}
+
+/* A live trip summary makes the first planning step feel concrete. */
+.form-guidance {
+  margin: -4px 0 24px;
+  font-size: 13px;
+}
+.trip-preview {
+  margin-bottom: 22px;
+  border-top: 3px solid var(--green);
+}
+.trip-preview h2 {
+  overflow-wrap: anywhere;
+  font-size: 26px;
+}
+.trip-preview p {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  overflow-wrap: anywhere;
+}
+.trip-preview .note {
+  font-size: 12px;
+  margin-bottom: 0;
+}
+.success-banner {
+  background: #e7eee2;
+  border-color: #c4d1bd;
+}
+.getting-started {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 30px;
+  align-items: center;
+  margin-bottom: 30px;
+  background: #eef2e8;
+}
+.getting-started h2 {
+  font-size: 26px;
+}
+.getting-started p {
+  max-width: 520px;
+  margin: 0;
+}
+.getting-started-actions {
+  display: grid;
+  gap: 10px;
+}
+@media (max-width: 700px) {
+  .getting-started {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .trip-preview {
+    margin-top: 0;
+  }
+}
+.mobile-trip-preview {
+  display: none;
+}
+.mobile-trip-preview p {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .mobile-trip-preview {
+    display: block;
+    margin-top: 24px;
+  }
+}
+
+/* Readable secondary text, reachable controls, and calm keyboard feedback. */
+.icon-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+.text-link,
+.inline-link,
+.hero-edit,
+.prototype-button {
+  min-height: 36px;
+}
+.chip button {
+  min-width: 28px;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+}
+.toast {
+  pointer-events: none;
+}
+.toast button {
+  pointer-events: auto;
+  min-width: 36px;
+  min-height: 36px;
+}
+#main-content:focus:not(:focus-visible) {
+  outline: none;
+}
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  .text-link,
+  .inline-link,
+  .btn.small {
+    min-height: 44px;
+  }
+  .prototype-button {
+    min-height: 40px;
+  }
+}
+.week-day > span,
+.week-event,
+.nearby-stats > span {
+  color: #56634f;
+}
+.week-day > span {
+  font-size: 10px;
+}
+.week-event {
+  font-size: 10px;
+}
+
+/* Keep the active trip and the way back visible on smaller screens. */
+.mobile-trip-context {
+  display: none;
+}
+.sample-return {
+  margin-bottom: 26px;
+}
+.sample-return .btn {
+  flex-shrink: 0;
+}
+@media (max-width: 767px) {
+  .mobile-trip-context {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 17px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+    width: calc(100% - 34px);
+    text-align: left;
+    min-height: 44px;
+  }
+  .mobile-trip-context > span {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+  }
+  .mobile-trip-context strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+    font-size: 12px;
+  }
+  .sample-return {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .sample-return > span {
+    flex: 1;
+    min-width: 150px;
+  }
+  .sample-return .btn {
+    width: 100%;
+  }
+}
+
+/* Long trip names and destinations should grow or wrap, never cover controls. */
+.topbar-left,
+.desktop-crumb,
+.page-head > div:first-child {
+  min-width: 0;
+}
+.topbar-left {
+  flex: 1;
+  overflow: hidden;
+}
+.topbar-right {
+  flex-shrink: 0;
+}
+.desktop-crumb {
+  overflow: hidden;
+  white-space: nowrap;
+}
+.eyebrow,
+.trip-card h2,
+.trip-card p,
+.trip-switch strong,
+.page-head h1,
+.page-head p {
+  overflow-wrap: anywhere;
+}
+.trip-hero {
+  height: auto;
+  min-height: 310px;
+}
+.trip-hero > img {
+  position: absolute;
+  inset: 0;
+}
+.trip-hero-content {
+  position: relative;
+  inset: auto;
+  min-height: 310px;
+  padding: 29px 35px;
+}
+.trip-hero-content > .row {
+  position: static;
+  flex-shrink: 0;
+  margin-bottom: auto;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.trip-hero h1 {
+  margin-top: 52px;
+  overflow-wrap: anywhere;
+}
+.trip-hero p {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.hero-edit {
+  padding: 6px 10px;
+  background: #193d32;
+  border: 1px solid #ffffff55;
+  border-radius: 6px;
+}
+.map-canvas {
+  overflow: hidden;
+}
+.map-canvas > svg {
+  overflow: hidden;
+}
+@media (max-width: 767px) {
+  .sample-return > .btn {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+  .trip-hero,
+  .trip-hero-content {
+    min-height: 300px;
+  }
+  .trip-hero-content {
+    padding: 24px 22px;
+  }
+}
+/* Route focus helps screen readers without outlining the entire document. */
+#main-content:focus {
+  outline: none;
 }

@@ -73,6 +73,11 @@ export function Budget() {
         d.debtor === s.userId ||
         d.expense.payer === s.userId,
     );
+  const visibleExpenses = t.expenses.filter(
+    (e) =>
+      (filter === "All" || e.category === filter) &&
+      (!individual || e.shares[s.userId!] || e.payer === s.userId),
+  );
   const name = (id: string) =>
     t.members.find((m) => m.id === id)?.name ||
     s.users.find((u) => u.id === id)?.name ||
@@ -250,47 +255,59 @@ export function Budget() {
                 </select>
               </div>
               <div className="expense-list">
-                {t.expenses
-                  .filter((e) => filter === "All" || e.category === filter)
-                  .filter(
-                    (e) =>
-                      !individual ||
-                      e.shares[s.userId!] ||
-                      e.payer === s.userId,
-                  )
-                  .map((e) => (
-                    <div className="expense-row" key={e.id}>
-                      <span className="expense-icon">
-                        <Receipt size={19} />
+                {visibleExpenses.map((e) => (
+                  <div className="expense-row" key={e.id}>
+                    <span className="expense-icon">
+                      <Receipt size={19} />
+                    </span>
+                    <div className="expense-main">
+                      <strong>{e.purpose}</strong>
+                      <span>
+                        {e.category} · paid by {name(e.payer).split(" ")[0]}
                       </span>
-                      <div className="expense-main">
-                        <strong>{e.purpose}</strong>
-                        <span>
-                          {e.category} · paid by {name(e.payer).split(" ")[0]}
-                        </span>
-                        <small>
-                          {e.source} · {e.date}
-                        </small>
-                      </div>
-                      <div className="expense-amount">
-                        <strong>
-                          {money(
-                            individual ? e.shares[s.userId!] || 0 : e.amount,
-                          )}
-                        </strong>
-                        {individual && <small>of {money(e.amount)}</small>}
-                        {e.payer === s.userId && (
-                          <button
-                            className="text-link"
-                            onClick={() => open("expense", { id: e.id })}
-                          >
-                            Edit
-                          </button>
-                        )}
-                      </div>
+                      <small>
+                        {e.source} · {e.date}
+                      </small>
                     </div>
-                  ))}
+                    <div className="expense-amount">
+                      <strong>
+                        {money(
+                          individual ? e.shares[s.userId!] || 0 : e.amount,
+                        )}
+                      </strong>
+                      {individual && <small>of {money(e.amount)}</small>}
+                      {e.payer === s.userId && (
+                        <button
+                          className="text-link"
+                          onClick={() => open("expense", { id: e.id })}
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
+              {!!t.expenses.length && !visibleExpenses.length && (
+                <Empty
+                  title="No expenses in this view."
+                  body={
+                    filter === "All"
+                      ? "You don’t have a share in the logged expenses yet."
+                      : `Nothing has been logged under ${filter.toLowerCase()} yet. Your totals still include all categories.`
+                  }
+                  action={
+                    filter !== "All" ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => setFilter("All")}
+                      >
+                        Show all expenses
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              )}
               {!t.expenses.length && (
                 <Empty
                   title="A fresh start for the budget."

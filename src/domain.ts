@@ -79,6 +79,8 @@ export type Store = {
   time: string;
   location: boolean;
   noticeDismissed: boolean;
+  /** Keep the tester's workspace available while previewing the fictional group. */
+  sampleReturn?: { userId: string; tripId: string | null };
 };
 export const uid = () => crypto.randomUUID();
 export const money = (cents: number) =>

@@ -2,10 +2,12 @@
 
 A responsive, clickable travel-planning prototype with a populated fictional Seattle trip and a separate create-your-own-trip journey. Built for desktop and mobile usability sessions.
 
+[Open the live prototype](https://danieltsao0103.github.io/trip-planner-prototype/).
+
 ## Try the two journeys
 
 - **Explore the sample trip** opens Maya’s four-day Seattle & Bainbridge getaway, with events, an empty day, four participants, preferences, expenses, and reimbursements.
-- **New here? Create an Account** starts the fictional signup and account-connection flow. From Home, choose **New Trip** to create an independent, empty trip with your own dates and destinations.
+- **Start a new trip** starts the fictional signup and account-connection flow. From Home, choose **New Trip** to create an independent, empty trip with your own dates and destinations.
 
 Use fictional information. Demo email login uses `maya@example.com` and `travel123`. New fictional accounts use `travel123` for later demo login; entered signup passwords are not stored. Google and Apple flows are simulated account choices.
 
@@ -38,6 +40,7 @@ Trip times use the selected trip time zone. Costs use USD. Overnight activities 
 
 - [Screen and requirement index](SCREEN-INDEX.md)
 - [Validation and limitations](VALIDATION.md)
+- [Five-round QA and refinement report](QA-REFINEMENT.md)
 - Page 14 is intentionally reserved because it was absent from the requirements. Page 16 is a notification overlay.
 
 ## Before production

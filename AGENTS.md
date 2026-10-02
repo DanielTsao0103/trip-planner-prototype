@@ -12,3 +12,8 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Calendar maps to Page 11 with date navigation; Page 10 is restricted to active dates.
 
 - Prevent the native default action of non-submit buttons: React can reuse a Next button as a submit button during a form-step update, causing premature submission.
+
+- Validate secondary text and dialogs as well as primary screens; combine automated accessibility checks with visual review.
+- Keep a clear return to the tester’s own workspace when entering the sample.
+- Long trip names should expand the hero and wrap within layouts rather than cover controls.
+- A mobile layout must retain access to account settings even when desktop profile controls are hidden.

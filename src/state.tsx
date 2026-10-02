@@ -24,6 +24,7 @@ type Context = {
   updateTrip: (fn: (t: Trip) => void) => void;
   login: (id: string) => void;
   explore: () => void;
+  returnFromSample: () => void;
 };
 const C = createContext<Context>(null!);
 export const useApp = () => useContext(C);
@@ -79,7 +80,10 @@ export function Provider({ children }: { children: ReactNode }) {
     }
   }, [message]);
   const login = (id: string) => {
-    mutate((v) => (v.userId = id));
+    mutate((v) => {
+      v.userId = id;
+      delete v.sampleReturn;
+    });
     const active = s.trips.filter((t) => member(t, id) && isActive(t, s.date));
     if (active.length === 1) {
       mutate((v) => (v.tripId = active[0].id));
@@ -115,11 +119,24 @@ export function Provider({ children }: { children: ReactNode }) {
       }),
     login,
     explore: () => {
+      setMessage("");
       mutate((v) => {
+        if (v.userId && v.userId !== "maya")
+          v.sampleReturn = { userId: v.userId, tripId: v.tripId };
         v.userId = "maya";
         v.tripId = "seattle";
       });
       go(8);
+    },
+    returnFromSample: () => {
+      if (!s.sampleReturn) return;
+      mutate((v) => {
+        v.userId = v.sampleReturn!.userId;
+        v.tripId = v.sampleReturn!.tripId;
+        delete v.sampleReturn;
+      });
+      go(5);
+      setMessage("Back to your trips. Everything is just as you left it.");
     },
   };
   return (

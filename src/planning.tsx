@@ -118,6 +118,43 @@ export function Itinerary() {
       </div>
       {role === "Viewer" && <ReadOnly />}
       {role === "Day Editor" && <ReadOnly day />}
+      {!t.events.length && role !== "Viewer" && (
+        <section
+          className="getting-started card"
+          aria-label="Plan your first day"
+        >
+          <div>
+            <span className="eyebrow">MAKE IT YOURS</span>
+            <h2>A blank page. A good beginning.</h2>
+            <p>
+              Add one thing you’re looking forward to. Your plans, budget, and
+              group preferences can grow from there.
+            </p>
+          </div>
+          <div className="getting-started-actions">
+            <Button
+              onClick={() =>
+                go(7, {
+                  date:
+                    role === "Day Editor"
+                      ? member(t, s.userId)!.days[0] || t.start
+                      : t.start,
+                })
+              }
+            >
+              <Plus size={17} />
+              Add your first plan
+            </Button>
+            <Button variant="outline" onClick={() => go(12)}>
+              <Wallet size={17} />
+              Plan your budget
+            </Button>
+            <Button variant="text" onClick={() => go(15)}>
+              Share your preferences <ArrowRight size={16} />
+            </Button>
+          </div>
+        </section>
+      )}
       <div className="itinerary-layout">
         <div>
           <div className="day-chips">

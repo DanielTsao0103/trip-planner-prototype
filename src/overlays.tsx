@@ -351,6 +351,7 @@ function Demo() {
               mutate((v) => {
                 v.userId = null;
                 v.tripId = null;
+                delete v.sampleReturn;
               });
               go(1);
             }}
@@ -580,6 +581,9 @@ export function Overlays() {
     return (
       <Modal title="Your next stop">
         <div className="menu-links">
+          <button onClick={() => open("account")}>
+            Your account <Users size={17} />
+          </button>
           {[
             [4, "Home"],
             [5, "All trips"],

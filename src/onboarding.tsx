@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -11,6 +11,8 @@ import {
   CalendarDays,
   X,
   Compass,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useApp } from "./state";
 import {
@@ -42,7 +44,14 @@ export function Auth() {
     [password, setPassword] = useState(""),
     [name, setName] = useState(""),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [showPassword, setShowPassword] = useState(false);
+  const nameInput = useRef<HTMLInputElement>(null);
+  const beginSignup = () => {
+    setSignup(true);
+    setError("");
+    requestAnimationFrame(() => nameInput.current?.focus());
+  };
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -138,11 +147,34 @@ export function Auth() {
         </div>
         <div className="auth-form-wrap">
           <div className="eyebrow">YOUR NEXT CHAPTER</div>
-          <h2>{signup ? "Start something good." : "Welcome back."}</h2>
+          <h2>
+            {signup ? "Start something good." : "Your next trip starts here."}
+          </h2>
           <p>
             {signup
               ? "Create a fictional account to try planning a trip."
-              : "Your people. Your places. All in one place."}
+              : "A little planning. More time together."}
+          </p>
+          {!signup && (
+            <div className="auth-demo quick-start">
+              <div>
+                <Compass size={19} />
+                <strong>First time here?</strong>
+              </div>
+              <p>
+                Try a ready-made Seattle getaway, or make a trip of your own.
+              </p>
+              <Button variant="full" onClick={beginSignup}>
+                Start a new trip <ArrowRight size={16} />
+              </Button>
+              <Button variant="outline full" onClick={explore}>
+                Explore the sample trip <ArrowUpRight size={16} />
+              </Button>
+              <small>No real account or connections needed.</small>
+            </div>
+          )}
+          <p className="auth-signin-label">
+            {signup ? "Choose how to join" : "Already tried it? Sign in below."}
           </p>
           <div className="provider-buttons">
             <Button
@@ -151,13 +183,19 @@ export function Auth() {
                 open("authProvider", { service: "Google", signup })
               }
             >
-              <span className="provider-letter">G</span>Continue with Google
+              <span className="provider-letter" aria-hidden="true">
+                G
+              </span>
+              Continue with Google
             </Button>
             <Button
               variant="outline"
               onClick={() => open("authProvider", { service: "Apple", signup })}
             >
-              <span className="apple-mark">●</span>Continue with Apple
+              <span className="apple-mark" aria-hidden="true">
+                ●
+              </span>
+              Continue with Apple
             </Button>
           </div>
           <div className="divider">
@@ -167,6 +205,7 @@ export function Auth() {
             {signup && (
               <Field label="Your fictional name">
                 <input
+                  ref={nameInput}
                   autoComplete="off"
                   required
                   value={name}
@@ -185,15 +224,34 @@ export function Auth() {
                 placeholder="you@example.com"
               />
             </Field>
-            <Field label="Password">
-              <input
-                required
-                type="password"
-                autoComplete="off"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Your demo password"
-              />
+            <Field
+              label="Password"
+              hint={
+                signup
+                  ? "Use any fictional password with 8+ characters. To return later, use travel123."
+                  : "For every demo account, the password is travel123."
+              }
+            >
+              <div className="password-control">
+                <input
+                  aria-label="Password"
+                  required
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="off"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Your demo password"
+                />
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </Field>
             <ErrorBox text={error} />
             <Button type="submit" variant="full" disabled={busy}>
@@ -212,16 +270,6 @@ export function Auth() {
               ? "Already have an account? Log in"
               : "New here? Create an Account"}
           </button>
-          <div className="auth-demo">
-            <div>
-              <Compass size={19} />
-              <strong>Just looking around?</strong>
-            </div>
-            <p>There’s a Seattle getaway already planned for you.</p>
-            <Button variant="outline full" onClick={explore}>
-              Explore the sample trip <ArrowUpRight size={16} />
-            </Button>
-          </div>
           <p className="fine-print">
             Use fictional details only. Demo login:{" "}
             <button
@@ -248,7 +296,7 @@ export function Connections() {
   return (
     <div className="narrow-page">
       <PageHead
-        eyebrow="A LITTLE SETUP · 1 OF 2"
+        eyebrow="OPTIONAL SETUP"
         title="Bring your inspiration along."
         description="Connect what’s useful. You can still plan a great trip without connecting anything."
       />
@@ -289,7 +337,9 @@ export function Connections() {
                       )}
                     </span>
                     {p}
-                    <small>{granted.includes(p) ? "Granted" : "Needed"}</small>
+                    <small>
+                      {granted.includes(p) ? "Granted" : "Optional"}
+                    </small>
                   </p>
                 ))}
               </div>
@@ -499,9 +549,18 @@ export function Home() {
   );
 }
 export function Trips() {
-  const { s, user, mutate, go, open } = useApp();
+  const { s, user, mutate, go, open, route } = useApp();
   const [filter, setFilter] = useState("All");
   const trips = s.trips.filter((t) => member(t, s.userId));
+  const visibleTrips = trips.filter(
+    (t) =>
+      filter === "All" ||
+      (filter === "Past"
+        ? t.end < s.date
+        : filter === "Active"
+          ? isActive(t, s.date)
+          : t.start > s.date),
+  );
   const pending = s.trips.filter((t) =>
     t.members.some((m) => m.id === s.userId && m.status === "pending"),
   );
@@ -518,6 +577,17 @@ export function Trips() {
           </Button>
         }
       />
+      {route.params.get("created") &&
+        trips.some((t) => t.id === route.params.get("created")) && (
+          <div className="info-banner success-banner" role="status">
+            <Check size={20} />
+            <span>
+              <strong>Your trip is ready.</strong> Open its itinerary below to
+              add your first plan. You can invite people and set a budget
+              whenever you’re ready.
+            </span>
+          </div>
+        )}
       {pending.map((t) => (
         <div className="info-banner" key={t.id}>
           <Mail size={20} />
@@ -538,6 +608,7 @@ export function Trips() {
         {["All", "Upcoming", "Active", "Past"].map((f) => (
           <button
             key={f}
+            aria-pressed={filter === f}
             className={filter === f ? "active" : ""}
             onClick={() => setFilter(f)}
           >
@@ -546,84 +617,85 @@ export function Trips() {
         ))}
       </div>
       <div className="trip-grid">
-        {trips
-          .filter(
-            (t) =>
-              filter === "All" ||
-              (filter === "Past"
-                ? t.end < s.date
-                : filter === "Active"
-                  ? isActive(t, s.date)
-                  : t.start > s.date),
-          )
-          .map((t) => (
-            <article className="trip-card" key={t.id}>
-              <button
-                className="trip-photo"
-                onClick={() => {
-                  mutate((v) => (v.tripId = t.id));
-                  go(8);
-                }}
-              >
-                <Photo src={t.image} alt={t.destinations[0]} />
-                <Badge tone="white">
-                  {t.end < s.date
-                    ? "Past trip"
-                    : isActive(t, s.date)
-                      ? "Happening now"
-                      : "On the horizon"}
-                </Badge>
-              </button>
-              <div className="trip-card-body">
-                <div className="eyebrow">
-                  {dateText(t.start, true)} – {dateText(t.end, true)} ·{" "}
-                  {member(t, s.userId)?.role}
-                </div>
-                <h2>
-                  <button
-                    onClick={() => {
-                      mutate((v) => (v.tripId = t.id));
-                      go(8);
-                    }}
-                  >
-                    {t.title}
-                  </button>
-                </h2>
-                <p>
-                  <MapPin size={14} />
-                  {t.destinations.join(" · ")}
-                </p>
-                <div className="row trip-bottom">
-                  <Button
-                    variant="text"
-                    onClick={() => {
-                      mutate((v) => (v.tripId = t.id));
-                      go(8);
-                    }}
-                  >
-                    Open itinerary <ArrowRight size={15} />
-                  </Button>
-                  <Button
-                    variant="outline small"
-                    disabled={member(t, s.userId)?.role === "Viewer"}
-                    onClick={() => {
-                      mutate((v) => (v.tripId = t.id));
-                      go(7, {
-                        date:
-                          member(t, s.userId)?.role === "Day Editor"
-                            ? member(t, s.userId)!.days[0] || t.start
-                            : t.start,
-                      });
-                    }}
-                  >
-                    <Plus size={14} />
-                    Add event
-                  </Button>
-                </div>
+        {visibleTrips.map((t) => (
+          <article className="trip-card" key={t.id}>
+            <button
+              className="trip-photo"
+              onClick={() => {
+                mutate((v) => (v.tripId = t.id));
+                go(8);
+              }}
+            >
+              <Photo src={t.image} alt={t.destinations[0]} />
+              <Badge tone="white">
+                {t.end < s.date
+                  ? "Past trip"
+                  : isActive(t, s.date)
+                    ? "Happening now"
+                    : "On the horizon"}
+              </Badge>
+            </button>
+            <div className="trip-card-body">
+              <div className="eyebrow">
+                {dateText(t.start, true)} – {dateText(t.end, true)} ·{" "}
+                {member(t, s.userId)?.role}
               </div>
-            </article>
-          ))}
+              <h2>
+                <button
+                  onClick={() => {
+                    mutate((v) => (v.tripId = t.id));
+                    go(8);
+                  }}
+                >
+                  {t.title}
+                </button>
+              </h2>
+              <p>
+                <MapPin size={14} />
+                {t.destinations.join(" · ")}
+              </p>
+              <div className="row trip-bottom">
+                <Button
+                  variant="text"
+                  onClick={() => {
+                    mutate((v) => (v.tripId = t.id));
+                    go(8);
+                  }}
+                >
+                  Open itinerary <ArrowRight size={15} />
+                </Button>
+                <Button
+                  variant="outline small"
+                  disabled={member(t, s.userId)?.role === "Viewer"}
+                  onClick={() => {
+                    mutate((v) => (v.tripId = t.id));
+                    go(7, {
+                      date:
+                        member(t, s.userId)?.role === "Day Editor"
+                          ? member(t, s.userId)!.days[0] || t.start
+                          : t.start,
+                    });
+                  }}
+                >
+                  <Plus size={14} />
+                  Add event
+                </Button>
+              </div>
+            </div>
+          </article>
+        ))}
       </div>
+      {!!trips.length && !visibleTrips.length && (
+        <Empty
+          title={`No ${filter.toLowerCase()} trips right now.`}
+          body="Your other trips are still here. Show them all or start planning something new."
+          action={
+            <Button variant="outline" onClick={() => setFilter("All")}>
+              Show all trips
+            </Button>
+          }
+        />
+      )}
       {!trips.length && (
         <Empty
           title="Your first trip is waiting."
@@ -649,6 +721,21 @@ export function TripForm() {
     [invites, setInvites] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  const previewPlaces = Array.from(
+    new Map(
+      [...locations, ...(place.trim() ? [place.trim()] : [])].map((p) => [
+        p.toLowerCase(),
+        p,
+      ]),
+    ).values(),
+  );
+  const tripLength = start && end && end >= start ? days(start, end).length : 0;
+  const addPlace = () => {
+    if (!place.trim()) return;
+    if (!locations.some((p) => p.toLowerCase() === place.trim().toLowerCase()))
+      setLocations([...locations, place.trim()]);
+    setPlace("");
+  };
   if (original && !isOwner(original, s.userId))
     return (
       <Empty
@@ -660,7 +747,11 @@ export function TripForm() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const allPlaces = [...locations, ...(place.trim() ? [place.trim()] : [])];
+    const allPlaces = previewPlaces;
+    if (!title.trim()) {
+      setError("Give your trip a name so it’s easy to find later.");
+      return;
+    }
     if (!allPlaces.length) {
       setError("Add at least one destination.");
       return;
@@ -725,7 +816,7 @@ export function TripForm() {
             start,
             end,
             zone,
-            image: IMAGES.seattle,
+            image: IMAGES.coast,
             members: [
               {
                 id: user!.id,
@@ -762,6 +853,7 @@ export function TripForm() {
           : route.params.get("next")
             ? Number(route.params.get("next"))
             : 5,
+        original ? {} : { created: id },
       );
     }, 450);
   };
@@ -778,6 +870,10 @@ export function TripForm() {
             <span>01</span>
             <h2>The essentials</h2>
           </div>
+          <p className="form-guidance">
+            Start with a name, destination, and dates. Everything else can come
+            later.
+          </p>
           <Field label="Trip title">
             <input
               required
@@ -798,22 +894,15 @@ export function TripForm() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    if (place.trim()) {
-                      setLocations([...locations, place.trim()]);
-                      setPlace("");
-                    }
+                    addPlace();
                   }
                 }}
                 placeholder="A city, a region, somewhere new…"
               />
               <Button
                 variant="outline"
-                onClick={() => {
-                  if (place.trim()) {
-                    setLocations([...locations, place.trim()]);
-                    setPlace("");
-                  }
-                }}
+                onClick={addPlace}
+                disabled={!place.trim()}
               >
                 Add
               </Button>
@@ -842,7 +931,11 @@ export function TripForm() {
                 required
                 type="date"
                 value={start}
-                onChange={(e) => setStart(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setStart(next);
+                  if (!end || end < next) setEnd(next);
+                }}
               />
             </Field>
             <Field label="End date">
@@ -861,17 +954,19 @@ export function TripForm() {
           >
             <select value={zone} onChange={(e) => setZone(e.target.value)}>
               {[
-                "America/Los_Angeles",
-                "America/Denver",
-                "America/Chicago",
-                "America/New_York",
-                "Europe/London",
-                "Europe/Paris",
-                "Asia/Taipei",
-                "Asia/Tokyo",
-                "Australia/Sydney",
-              ].map((z) => (
-                <option key={z}>{z}</option>
+                ["America/Los_Angeles", "Los Angeles · Pacific Time"],
+                ["America/Denver", "Denver · Mountain Time"],
+                ["America/Chicago", "Chicago · Central Time"],
+                ["America/New_York", "New York · Eastern Time"],
+                ["Europe/London", "London · United Kingdom"],
+                ["Europe/Paris", "Paris · Central Europe"],
+                ["Asia/Taipei", "Taipei · Taiwan"],
+                ["Asia/Tokyo", "Tokyo · Japan"],
+                ["Australia/Sydney", "Sydney · Australia"],
+              ].map(([z, label]) => (
+                <option key={z} value={z}>
+                  {label}
+                </option>
               ))}
             </select>
           </Field>
@@ -894,6 +989,18 @@ export function TripForm() {
             Everyone starts as a Viewer. You can assign editing permissions and
             days in The group.
           </div>
+          <section
+            className="mobile-trip-preview note"
+            aria-label="Trip preview"
+          >
+            <strong>{title.trim() || "Your trip"}</strong>
+            <p>{previewPlaces.join(" · ") || "Add a destination"}</p>
+            <p>
+              {tripLength
+                ? `${dateText(start, true)} – ${dateText(end, true)} · ${tripLength} ${tripLength === 1 ? "day" : "days"}`
+                : "Choose your dates"}
+            </p>
+          </section>
           <ErrorBox text={error} />
           <div className="form-actions">
             <Button
@@ -919,6 +1026,23 @@ export function TripForm() {
           </div>
         </div>
         <aside className="form-aside">
+          <section className="card trip-preview" aria-label="Trip preview">
+            <span className="eyebrow">YOUR TRIP, TAKING SHAPE</span>
+            <h2>{title.trim() || "Somewhere good, together."}</h2>
+            <p>
+              <MapPin size={16} />
+              {previewPlaces.join(" · ") || "Your destination goes here"}
+            </p>
+            <p>
+              <CalendarDays size={16} />
+              {tripLength
+                ? `${dateText(start, true)} – ${dateText(end, true)} · ${tripLength} ${tripLength === 1 ? "day" : "days"}`
+                : "Pick your dates to get started"}
+            </p>
+            <div className="note">
+              Your itinerary starts empty. Every plan you add will be your own.
+            </div>
+          </section>
           <div className="postcard">
             <Photo src={IMAGES.coast} alt="Coastal travel inspiration" />
             <div>

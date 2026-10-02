@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { Provider, useApp } from "./state";
 import {
@@ -25,6 +25,14 @@ import { PAGES } from "./data";
 import "./styles.css";
 function App() {
   const { route, user, trip, open, tripGo, go } = useApp();
+  const routeKey = `${route.page}?${route.params}`;
+  const previousRoute = useRef(routeKey);
+  useEffect(() => {
+    if (previousRoute.current !== routeKey && route.page !== 16) {
+      document.getElementById("main-content")?.focus({ preventScroll: true });
+    }
+    previousRoute.current = routeKey;
+  }, [routeKey]);
   useEffect(() => {
     document.title = `${PAGES[route.page] || "Home"} · Trip Planner`;
     if (route.page === 16 && user) open("nearby");

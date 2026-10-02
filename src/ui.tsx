@@ -71,15 +71,26 @@ export function Field({
   hint?: string;
 }) {
   const id = useId();
-  const control =
-    React.isValidElement(children) &&
-    typeof children.type === "string" &&
-    ["input", "select", "textarea"].includes(children.type)
-      ? React.cloneElement(children as React.ReactElement<any>, {
-          "aria-label": label,
-          "aria-describedby": hint ? id : undefined,
-        })
-      : children;
+  // Input-action wrappers (for example, password reveal) still need their hint.
+  const labelControl = (node: ReactNode): ReactNode => {
+    if (!React.isValidElement(node) || typeof node.type !== "string")
+      return node;
+    const element = node as React.ReactElement<any>;
+    if (["input", "select", "textarea"].includes(node.type)) {
+      return React.cloneElement(element, {
+        "aria-label": label,
+        "aria-describedby": hint ? id : undefined,
+      });
+    }
+    return element.props.children
+      ? React.cloneElement(
+          element,
+          {},
+          React.Children.map(element.props.children, labelControl),
+        )
+      : node;
+  };
+  const control = labelControl(children);
   return (
     <label className="field">
       <span>{label}</span>
@@ -89,8 +100,12 @@ export function Field({
   );
 }
 export function ErrorBox({ text }: { text: string }) {
+  const errorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (text) errorRef.current?.focus();
+  }, [text]);
   return text ? (
-    <div className="error" role="alert">
+    <div className="error" role="alert" tabIndex={-1} ref={errorRef}>
       {text}
     </div>
   ) : null;
@@ -231,6 +246,11 @@ export function Modal({
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;
+    const openedOnRoute = location.hash;
+    const background = Array.from(
+      document.querySelectorAll<HTMLElement>(".app-shell, .auth, .skip-link"),
+    );
+    background.forEach((node) => (node.inert = true));
     const el = ref.current!;
     const focus = el.querySelector<HTMLElement>("button,input,select,textarea");
     focus?.focus();
@@ -259,9 +279,12 @@ export function Modal({
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = old;
-      previous?.focus();
+      background.forEach((node) => (node.inert = false));
+      // Navigating away should keep focus in the new page, not the old opener.
+      if (location.hash === openedOnRoute && previous?.isConnected)
+        previous.focus();
     };
-  }, []);
+  }, [title]);
   return (
     <div
       className="overlay"
@@ -302,7 +325,7 @@ export function Logo() {
   );
 }
 export function Shell({ children }: { children: ReactNode }) {
-  const { user, trip, s, route, go, tripGo, open } = useApp();
+  const { user, trip, s, route, go, tripGo, open, returnFromSample } = useApp();
   const active = trip && isActive(trip, s.date);
   const nav = [
     { p: 8, label: "Itinerary", Icon: Route },
@@ -341,6 +364,11 @@ export function Shell({ children }: { children: ReactNode }) {
             .map(({ p, label, Icon }) => (
               <button
                 key={p}
+                aria-current={
+                  route.page === p || (p === 8 && [7, 11].includes(route.page))
+                    ? "page"
+                    : undefined
+                }
                 className={
                   route.page === p || (p === 8 && [7, 11].includes(route.page))
                     ? "active"
@@ -416,11 +444,35 @@ export function Shell({ children }: { children: ReactNode }) {
             </button>
           </div>
         </header>
+        {trip && (
+          <button
+            className="mobile-trip-context"
+            onClick={() => open("tripPicker", { target: 8 })}
+            aria-label={`Switch trip: ${trip.title}`}
+          >
+            <span>
+              <MapPin size={14} />
+              <strong>{trip.title}</strong>
+            </span>
+            <ChevronRight size={16} />
+          </button>
+        )}
         <main
           id="main-content"
           tabIndex={-1}
           className={`main-content page-${route.page}`}
         >
+          {s.sampleReturn && s.userId === "maya" && (
+            <div className="sample-return info-banner">
+              <Compass size={20} />
+              <span>
+                You’re exploring the fictional group. Your own trips are saved.
+              </span>
+              <Button variant="outline small" onClick={returnFromSample}>
+                Back to my trips <ArrowLeft size={15} />
+              </Button>
+            </div>
+          )}
           {children}
         </main>
         <footer className="app-footer">
@@ -433,6 +485,7 @@ export function Shell({ children }: { children: ReactNode }) {
       {trip && (
         <nav className="mobile-nav" aria-label="Mobile navigation">
           <button
+            aria-current={[8, 7, 11].includes(route.page) ? "page" : undefined}
             className={[8, 7, 11].includes(route.page) ? "active" : ""}
             onClick={() => go(8)}
           >
@@ -441,6 +494,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </button>
           {active ? (
             <button
+              aria-current={route.page === 10 ? "page" : undefined}
               className={route.page === 10 ? "active" : ""}
               onClick={() => go(10)}
             >
@@ -449,6 +503,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </button>
           ) : (
             <button
+              aria-current={route.page === 9 ? "page" : undefined}
               className={route.page === 9 ? "active" : ""}
               onClick={() => go(9)}
             >
@@ -457,6 +512,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </button>
           )}
           <button
+            aria-current={route.page === 17 ? "page" : undefined}
             className={route.page === 17 ? "active" : ""}
             onClick={() => go(17)}
           >

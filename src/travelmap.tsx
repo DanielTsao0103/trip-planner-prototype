@@ -51,7 +51,7 @@ export function TravelMap({
         <svg
           viewBox="0 0 1000 620"
           aria-label="Illustrative interactive map"
-          role="img"
+          role="group"
           onPointerDown={(e) => {
             drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
             setDragged(false);
