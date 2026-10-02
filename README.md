@@ -38,6 +38,7 @@ Trip times use the selected trip time zone. Costs use USD. Overnight activities 
 
 ## Product references
 
+- [Zoomable screenshot collage](https://danieltsao0103.github.io/trip-planner-prototype/screens/)
 - [Screen and requirement index](SCREEN-INDEX.md)
 - [Validation and limitations](VALIDATION.md)
 - [Five-round QA and refinement report](QA-REFINEMENT.md)
