@@ -13,6 +13,7 @@ import {
   Compass,
   Eye,
   EyeOff,
+  Trash2,
 } from "lucide-react";
 import { useApp } from "./state";
 import {
@@ -681,6 +682,15 @@ export function Trips() {
                   Add event
                 </Button>
               </div>
+              {isOwner(t, s.userId) && !t.sample && (
+                <Button
+                  variant="text danger small"
+                  aria-label={`Delete trip: ${t.title}`}
+                  onClick={() => open("deleteTrip", { tripId: t.id })}
+                >
+                  <Trash2 size={14} /> Delete trip
+                </Button>
+              )}
             </div>
           </article>
         ))}
@@ -707,7 +717,7 @@ export function Trips() {
   );
 }
 export function TripForm() {
-  const { s, user, trip, route, mutate, go, toast } = useApp();
+  const { s, user, trip, route, mutate, go, toast, open } = useApp();
   const editing = route.params.get("edit") === "true" && trip;
   const original = editing ? trip : undefined;
   const [title, setTitle] = useState(original?.title || ""),
@@ -1024,6 +1034,15 @@ export function TripForm() {
               <ArrowRight size={16} />
             </Button>
           </div>
+          {original && !original.sample && (
+            <Button
+              variant="text danger"
+              disabled={busy}
+              onClick={() => open("deleteTrip", { tripId: original.id })}
+            >
+              <Trash2 size={16} /> Delete trip
+            </Button>
+          )}
         </div>
         <aside className="form-aside">
           <section className="card trip-preview" aria-label="Trip preview">

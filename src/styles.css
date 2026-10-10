@@ -5220,3 +5220,60 @@ legend {
 #main-content:focus {
   outline: none;
 }
+
+/* Authentication is the only active feature in this phase. */
+.account-only .auth-visual > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.account-form { display: grid; gap: 18px; }
+.account-form label { display: grid; gap: 8px; font-weight: 500; }
+.account-form input { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 16px; background: var(--paper); }
+.account-form p { margin: 0; }
+.account-email { overflow-wrap: anywhere; }
+.account-only .auth-form-wrap > .fine-print { margin-block: 24px; }
+
+/* Destructive local trip actions share the standard button sizing. */
+.btn.danger { background: #a02e26; border-color: #a02e26; color: #fff; }
+.btn.danger:hover:not(:disabled) { background: #7d221c; }
+.btn.text.danger { background: transparent; border-color: transparent; color: #a02e26; }
+.btn.text.danger:hover:not(:disabled) { background: #fff0ed; }
+
+.account-only .auth-notice { margin: 14px 0; padding: 12px; background: #eef1e8; border-radius: 7px; line-height: 1.5; }
+.demo-login-option { border-top: 1px solid var(--line); padding-top: 20px; }
+.demo-login-option .fine-print { text-align: center; margin: 10px 0 0; }
+
+/* Provider artwork follows the official guidelines; the preview note stays outside. */
+@font-face {
+  font-family: "Google Sans";
+  src: url("./assets/auth/google-sans-medium.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+.branded-signin { gap: 12px; }
+.brand-signin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 44px;
+  min-width: 200px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.google-signin {
+  background: #fff;
+  border-color: #747775;
+  color: #1f1f1f;
+  font: 500 14px/20px "Google Sans", Arial, sans-serif;
+  gap: 10px;
+}
+.google-signin img { flex: 0 0 20px; width: 20px; height: 20px; }
+.google-signin:hover:not(:disabled) { box-shadow: 0 1px 2px #3c40434d, 0 1px 3px 1px #3c404326; }
+.apple-signin { background: #000; border: 0; padding: 0; }
+.apple-signin img { display: block; width: 200px; height: 44px; object-fit: contain; }
+.apple-signin:hover:not(:disabled) { opacity: .85; }
+.brand-signin:focus-visible { outline: 3px solid #1769ce; outline-offset: 3px; }
+.brand-signin:disabled { cursor: default; opacity: .5; }
+.account-only .provider-preview-note { font-size: 11px; line-height: 1.5; text-align: center; margin: 10px 0 0; color: #56634f; }

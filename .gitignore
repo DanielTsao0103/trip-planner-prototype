@@ -2,3 +2,12 @@ node_modules/
 dist/
 .DS_Store
 *.local
+
+# Real credentials stay on this computer. Only empty templates are tracked.
+.env*
+!.env.example
+!.env.server.example
+!.env.supabase.example
+
+# Supabase CLI machine-local cache and project link.
+supabase/.temp/

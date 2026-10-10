@@ -4,7 +4,7 @@ import {
   type Store,
   type Trip,
   type Member,
-} from "./domain";
+} from "./domain.ts";
 export const IMAGES = {
   seattle: "images/seattle.jpg",
   coast: "images/coast.jpg",
@@ -315,14 +315,4 @@ export function seed(): Store {
     location: true,
     noticeDismissed: false,
   };
-}
-export function loadStore(): Store {
-  try {
-    const raw = localStorage.getItem("trip-planner-v1");
-    if (raw) {
-      const state = JSON.parse(raw);
-      if (state.version === 1) return state;
-    }
-  } catch {}
-  return seed();
 }

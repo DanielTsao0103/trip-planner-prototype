@@ -5,12 +5,13 @@ import React, {
   useState,
   type ReactNode,
 } from "react";
-import { loadStore } from "./data";
+import { demoStorageKey, loadDemoStore, type DemoAccount } from "./demo-store";
 import { type Store, type Trip, type User, isActive, member } from "./domain";
 export type Route = { page: number; params: URLSearchParams };
 export type Overlay = { kind: string; data?: any } | null;
 type Context = {
   s: Store;
+  signOut: () => Promise<void>;
   mutate: (fn: (s: Store) => void) => void;
   trip: Trip | undefined;
   user: User | undefined;
@@ -32,8 +33,18 @@ function readRoute(): Route {
   const [path, query] = location.hash.replace(/^#\/?/, "").split("?");
   return { page: Number(path) || 1, params: new URLSearchParams(query) };
 }
-export function Provider({ children }: { children: ReactNode }) {
-  const [s, setS] = useState(loadStore);
+export function Provider({ children, account, onSignOut, initialTripId }: {
+  children: ReactNode;
+  account: DemoAccount;
+  initialTripId?: string;
+  onSignOut: () => Promise<void>;
+}) {
+  const [s, setS] = useState(() => {
+    const saved = loadDemoStore(account, { getItem: key => window.localStorage.getItem(key) });
+    // First-time demo visitors open the sample; existing local work survives refresh.
+    if (!saved.tripId && initialTripId) saved.tripId = initialTripId;
+    return saved;
+  });
   const [route, setRoute] = useState(readRoute);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [message, setMessage] = useState("");
@@ -57,22 +68,14 @@ export function Provider({ children }: { children: ReactNode }) {
       window.scrollTo(0, 0);
     };
     window.addEventListener("hashchange", handler);
-    if (!location.hash && s.userId) {
-      const active = s.trips.filter(
-        (t) => member(t, s.userId) && isActive(t, s.date),
-      );
-      if (active.length === 1) {
-        mutate((v) => (v.tripId = active[0].id));
-        go(10);
-      } else go(4);
-    }
+    // A successful login opens Home directly. Refreshing a demo route keeps that route.
+    if (readRoute().page === 1) go(4);
     return () => window.removeEventListener("hashchange", handler);
   }, []);
   useEffect(() => {
-    try {
-      localStorage.setItem("trip-planner-v1", JSON.stringify(s));
-    } catch {}
-  }, [s]);
+    try { localStorage.setItem(demoStorageKey(account.id), JSON.stringify(s)); }
+    catch { setMessage("Browser storage is unavailable. Demo changes will last until this page closes."); }
+  }, [s, account.id]);
   useEffect(() => {
     if (message) {
       const id = setTimeout(() => setMessage(""), 5000);
@@ -99,6 +102,10 @@ export function Provider({ children }: { children: ReactNode }) {
   };
   const value: Context = {
     s,
+    signOut: async () => {
+      try { await onSignOut(); }
+      catch { setMessage("Could not sign out. Please try again."); }
+    },
     mutate,
     trip,
     user,
