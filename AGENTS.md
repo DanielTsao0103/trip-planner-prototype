@@ -32,3 +32,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Login entry options (October 10, 2026): provide one-click local Maya demo access without requiring an account. Keep its browser storage separate from real accounts. Google and Apple login buttons are explicitly prototype previews until Dan requests real provider setup.
 
 - Provider button styling: use the official Google/Apple artwork and approved Sign in with wording. Keep prototype badges outside branded button artwork, and preserve logo proportions and brand colors.
+
+- GitHub Pages publishing correction (October 10, 2026): the site serves main:/docs, not src or dist. A source push alone leaves the website stale. Use npm run build:pages, commit docs with the changes, wait for the matching Pages build, and verify the hosted app before reporting it published.

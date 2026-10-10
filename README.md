@@ -34,7 +34,7 @@ The earlier planner persistence was removed: no `planner_accounts`, planner meta
 
 ## Scope and publishing
 
-The source includes real authentication and a local demo mode. The previously published GitHub Pages build in `docs/` has not been replaced; updating repository source does not publish the new app. Prior screen references describe the original prototype.
+GitHub Pages serves `main:/docs`. Run `npm run build:pages` with your local publishable configuration, then commit and push both source changes and `docs/`. The command builds the current app, checks for private credentials, and updates the published assets while preserving the screenshot viewer. Pushing source alone does not update the website. Prior screen references describe the original prototype.
 
 ## Assets
 

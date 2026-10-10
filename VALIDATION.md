@@ -40,7 +40,7 @@ Supabase handles signup, login, sessions, logout, and the minimal account profil
 
 The old fictional Maya credentials remain in the sample data but are not a Supabase account. Use Try demo as Maya on the login page, or Open the sample trip after real login, to explore Maya’s itinerary.
 
-The CLI advisor check could not run because this network lacks IPv6; direct RLS and column-access checks above passed. No new production app build has been deployed. `docs/` still contains the earlier published prototype. Historical screen/journey reports describe that earlier prototype.
+The CLI advisor check could not run because this network lacks IPv6; direct RLS and column-access checks above passed. The current app build is copied to `docs/` with `npm run build:pages` for GitHub Pages publishing. Historical screen/journey reports describe that earlier prototype.
 
 ## Branded sign-in buttons
 
