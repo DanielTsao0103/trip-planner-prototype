@@ -121,7 +121,7 @@ export function AuthApp({ children, renderDemo }: {
           <h2>Couldn’t connect</h2><p role="alert">{problem}</p>
           <button className="btn" onClick={() => location.reload()}>Try again</button>
         </> : <>
-          <h2>{signup ? "Create your account." : "Welcome back."}</h2>
+          <h2>{signup ? "Create your account." : "Welcome to Trip Planner"}</h2>
           <p>{signup ? "A little planning. More time together." : "Log in with your email and password."}</p>
           <div className="provider-buttons branded-signin" aria-label="Prototype sign-in options">
             <button className="brand-signin google-signin" type="button" disabled={busy} aria-describedby="provider-preview-note"
