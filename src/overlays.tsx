@@ -464,12 +464,18 @@ function Demo() {
             key={id}
             onClick={() => {
               const p = Number(id);
+              if (p === 1) {
+                void signOut();
+                return;
+              }
               if (p === 3) {
                 go(3, { service: "Gmail" });
                 return;
               }
               if ([7, 8, 9, 10, 11, 12, 13, 15, 16, 17].includes(p) && !trip) {
                 mutate((v) => {
+                  if (!v.sampleReturn && v.userId && v.userId !== "maya")
+                    v.sampleReturn = { userId: v.userId, tripId: v.tripId };
                   v.userId = "maya";
                   v.tripId = "seattle";
                 });

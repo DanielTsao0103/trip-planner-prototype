@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   test-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
     env:
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
@@ -43,7 +43,7 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: test-build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     permissions:
       contents: read

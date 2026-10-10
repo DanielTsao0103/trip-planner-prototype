@@ -138,12 +138,14 @@ test('created trips survive reload and logout, deletion preserves the samples', 
 });
 
 test('prototype start-at-login actually exits demo and remains signed out after reload', async ({ page }) => {
-  await demo(page);
-  const dialog = await controls(page);
-  await dialog.getByRole('button', { name: 'Start at Log in / Create account', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner' })).toBeVisible();
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner' })).toBeVisible();
+  for (const entry of ['Start at Log in / Create account', '01 Log in / Create account']) {
+    await demo(page);
+    const dialog = await controls(page);
+    await dialog.getByRole('button', { name: entry, exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner' })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner' })).toBeVisible();
+  }
 });
 
 test('switching fictional participants keeps the original account return path', async ({ page }) => {
@@ -171,4 +173,15 @@ test('new release offers reload without interrupting a form', async ({ page }) =
   await page.getByRole('button', { name: 'Reload app', exact: true }).click();
   await expect(page).toHaveURL(/release=ffffffff/);
   await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner' })).toBeVisible();
+});
+
+
+test('screen index sample entry preserves the real account return path', async ({ page }) => {
+  await login(page);
+  const dialog = await controls(page);
+  await dialog.getByRole('button', { name: '08 Itinerary', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Seattle & Bainbridge getaway', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Back to my trips', exact: true }).click();
+  await page.goto('./#/4');
+  await expect(page.getByRole('heading', { name: 'Where to next, QA?' })).toBeVisible();
 });
