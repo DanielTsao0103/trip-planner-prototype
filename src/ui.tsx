@@ -462,7 +462,7 @@ export function Shell({ children }: { children: ReactNode }) {
           tabIndex={-1}
           className={`main-content page-${route.page}`}
         >
-          {s.sampleReturn && s.userId === "maya" && (
+          {s.sampleReturn && (
             <div className="sample-return info-banner">
               <Compass size={20} />
               <span>

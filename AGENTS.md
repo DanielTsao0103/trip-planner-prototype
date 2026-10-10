@@ -33,6 +33,7 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 - Provider button styling: use the official Google/Apple artwork and approved Sign in with wording. Keep prototype badges outside branded button artwork, and preserve logo proportions and brand colors.
 
-- GitHub Pages publishing correction (October 10, 2026): the site serves main:/docs, not src or dist. A source push alone leaves the website stale. Use npm run build:pages, commit docs with the changes, wait for the matching Pages build, and verify the hosted app before reporting it published.
+- GitHub Pages publishing correction (October 10, 2026): deploy current source using .github/workflows/pages.yml and Pages source GitHub Actions. Commit source only; generated docs/dist are not authoritative. Tests and the production build must pass before deployment; verify live version.json matches the deployed commit. This replaces the earlier manual main:/docs workflow.
+- Demo navigation must not clear the participant as a substitute for signing out. Sample return controls must remain reachable after changing fictional participants, and re-entering the sample must preserve the original return account.
 
 - Use a neutral login greeting (Welcome to Trip Planner); the app does not know whether a signed-out visitor is returning.

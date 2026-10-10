@@ -128,7 +128,7 @@ export function Provider({ children, account, onSignOut, initialTripId }: {
     explore: () => {
       setMessage("");
       mutate((v) => {
-        if (v.userId && v.userId !== "maya")
+        if (!v.sampleReturn && v.userId && v.userId !== "maya")
           v.sampleReturn = { userId: v.userId, tripId: v.tripId };
         v.userId = "maya";
         v.tripId = "seattle";

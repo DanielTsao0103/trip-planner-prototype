@@ -11,3 +11,8 @@ dist/
 
 # Supabase CLI machine-local cache and project link.
 supabase/.temp/
+
+# Generated builds and browser QA reports are CI artifacts.
+docs/
+playwright-report/
+test-results/

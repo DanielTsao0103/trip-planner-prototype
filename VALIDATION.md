@@ -48,3 +48,14 @@ The CLI advisor check could not run because this network lacks IPv6; direct RLS 
 - Apple uses unmodified artwork from its official button-image endpoint, white logo/text on black.
 - Both controls are 44px high with the prototype explanation outside their artwork.
 - Desktop and 390px mobile views were visually checked; both preview click responses still work. Production build and whitespace checks pass.
+
+
+## Automated release checks — October 10, 2026
+
+- Local QA passed: 9 domain/storage tests and 14 Playwright checks across desktop Chromium and an iPhone-sized Chromium viewport. TypeScript and production build passed; npm reported no dependency vulnerabilities during install.
+- Browser coverage: neutral login and provider artwork/previews; invalid credentials; signup, persistent session, and logout; 12 core routes; sample preservation; create/cancel-delete/confirm-delete trip with reload and logout persistence; real-account return after fictional participant changes; actual demo exit; update notice and release-specific reload URL. Checks fail on uncaught page errors, missing same-origin assets, and horizontal overflow in covered screens.
+- Auth responses are mocked in automated browser tests. These tests exercise the real Auth SDK and UI but do not certify current Supabase service availability or create real accounts. Mobile uses a Chromium device viewport, not native iOS Safari. Previously recorded live auth verification remains historical evidence.
+- Fixed demo controls that cleared the participant without signing out; kept the real-account return path visible and intact when changing fictional participants or reopening the sample.
+- Source pushes now trigger `.github/workflows/pages.yml`. Only a tested `dist/` artifact deploys; a live check verifies the commit, HTML entry script, and downloaded JavaScript. Generated `docs/` copies are removed; screenshot and photo sources remain under `public/`.
+- Open tabs check release metadata on focus and once a minute. Reload is explicit and uses a release-specific URL; unsaved forms are not automatically discarded.
+- These checks cover the prototype's main paths, not every possible input, browser, or external-service outage.

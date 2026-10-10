@@ -34,7 +34,13 @@ The earlier planner persistence was removed: no `planner_accounts`, planner meta
 
 ## Scope and publishing
 
-GitHub Pages serves `main:/docs`. Run `npm run build:pages` with your local publishable configuration, then commit and push both source changes and `docs/`. The command builds the current app, checks for private credentials, and updates the published assets while preserving the screenshot viewer. Pushing source alone does not update the website. Prior screen references describe the original prototype.
+Every push to `main` runs **Test and deploy Pages** in GitHub Actions: clean dependency install, domain/storage tests, TypeScript and production build, then desktop/mobile browser regression tests. Only a passing build deploys. The workflow checks the live `version.json` against that commit before reporting success. Pull requests run the same checks without publishing.
+
+Commit and push source changes; do not commit generated `docs/` or `dist/`. The Pages source must be **GitHub Actions**. Repository Actions variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` supply public browser configuration. Never add the private secret key or management token to this workflow. If a check fails, the last passing site remains online; inspect the Actions failure and uploaded browser report.
+
+For local release QA: `npm ci`, `npm test`, `npm run build:pages`, `npx playwright install chromium`, then `npm run test:e2e`. Browser tests use isolated storage and mocked Auth responses; they do not create real users or modify Supabase. They verify the actual production bundle at the GitHub Pages subpath. Real provider availability/configuration still needs a live check when changed.
+
+Build assets have content hashes. Open tabs check for a new release on focus and every minute and offer **Reload app**, preserving unsaved forms until the visitor chooses to reload. No service worker caches older builds. Screenshot references are published from `public/screens/`.
 
 ## Assets
 

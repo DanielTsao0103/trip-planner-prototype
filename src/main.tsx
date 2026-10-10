@@ -3,9 +3,10 @@ import { AuthApp } from "./auth";
 import { Provider } from "./state";
 import { PrototypeApp } from "./prototype";
 import "./styles.css";
+import { ReleaseNotice } from "./release-notice";
 
 createRoot(document.getElementById("root")!).render(
-  <AuthApp renderDemo={exitDemo => (
+  <><ReleaseNotice /><AuthApp renderDemo={exitDemo => (
     <Provider key="standalone-demo" account={{ id: "demo-maya", email: "maya@example.com", name: "Maya Chen" }}
       initialTripId="seattle" onSignOut={exitDemo}>
       <PrototypeApp />
@@ -18,5 +19,5 @@ createRoot(document.getElementById("root")!).render(
     }} onSignOut={signOut}>
       <PrototypeApp />
     </Provider>
-  )}</AuthApp>,
+  )}</AuthApp></>,
 );

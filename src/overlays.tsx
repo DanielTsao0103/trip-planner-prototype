@@ -315,7 +315,7 @@ function Gmail() {
   );
 }
 function Demo() {
-  const { s, user, trip, route, mutate, go, close, explore, toast } = useApp();
+  const { s, user, trip, route, mutate, go, close, explore, toast, signOut } = useApp();
   const [date, setDate] = useState(s.date),
     [time, setTime] = useState(s.time);
   const landing = () => {
@@ -347,14 +347,7 @@ function Demo() {
           </Button>
           <Button
             variant="outline full"
-            onClick={() => {
-              mutate((v) => {
-                v.userId = null;
-                v.tripId = null;
-                delete v.sampleReturn;
-              });
-              go(1);
-            }}
+            onClick={() => { void signOut(); }}
           >
             Start at Log in / Create account
           </Button>
