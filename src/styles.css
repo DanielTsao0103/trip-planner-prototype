@@ -2632,6 +2632,29 @@ legend {
   color: #fff;
   transform: translateY(50%) scale(1.2);
 }
+.map-location-prompt {
+  position: absolute;
+  top: 70px;
+  left: 20px;
+  z-index: 2;
+  max-width: min(330px, calc(100% - 40px));
+  padding: 14px 16px;
+  background: #fffef6;
+  border: 1px solid #d7dfcd;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px #23432026;
+  color: #234e43;
+}
+.map-location-prompt p {
+  margin: 4px 0 10px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.map-location-prompt > div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .gmap-you {
   width: 20px;
   height: 20px;

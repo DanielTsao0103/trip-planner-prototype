@@ -32,6 +32,8 @@ function LiveMap({
   areas,
   showLocation,
   onFail,
+  onLocationError,
+  onRequestLocation,
 }: {
   places: string[];
   selected: string;
@@ -39,6 +41,8 @@ function LiveMap({
   areas: string[];
   showLocation: boolean;
   onFail: () => void;
+  onLocationError: () => void;
+  onRequestLocation: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
@@ -137,7 +141,17 @@ function LiveMap({
         bounds.extend(pos);
       });
       setMissing(notFound);
-      if (!bounds.isEmpty()) map.current.fitBounds(bounds, 72);
+      if (!bounds.isEmpty()) {
+        map.current.fitBounds(bounds, 72);
+      } else if (areas[0]) {
+        // No pins to fit (a new trip with no events yet): show the trip's own destination.
+        const home = await locatePlace(areas[0], []);
+        if (cancelled || !map.current) return;
+        if (home) {
+          map.current.setCenter(home);
+          map.current.setZoom(12);
+        }
+      }
       applySelected(false);
     })();
     return () => {
@@ -150,31 +164,88 @@ function LiveMap({
     if (ready) applySelected(true);
   }, [ready, selected]);
 
-  // Show the viewer's real position when they turn location on.
+  // The viewer's real position, once known, and the blue dot that marks it.
+  const you = useRef<LatLng | null>(null);
+  const dot = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+  const centerWhenFound = useRef(false);
+  const alive = useRef(true);
+  const showLocationRef = useRef(showLocation);
+  showLocationRef.current = showLocation;
+  const onLocationErrorRef = useRef(onLocationError);
+  onLocationErrorRef.current = onLocationError;
   useEffect(() => {
-    if (!ready || !showLocation || !navigator.geolocation) return;
-    let cancelled = false,
-      dot: google.maps.marker.AdvancedMarkerElement | null = null;
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
+  function centerOnYou() {
+    if (!you.current || !map.current) return;
+    map.current.panTo(you.current);
+    map.current.setZoom(15);
+  }
+
+  // Ask the browser for the position, put the dot there, and optionally move the map to it.
+  function locate() {
+    if (!navigator.geolocation) {
+      onLocationErrorRef.current();
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        if (cancelled || !map.current) return;
-        const el = document.createElement("div");
-        el.className = "gmap-you";
-        dot = new google.maps.marker.AdvancedMarkerElement({
-          map: map.current,
-          position: { lat: pos.coords.latitude, lng: pos.coords.longitude },
-          content: el,
-          title: "You are here",
-        });
+        // Ignore answers that arrive after the map closed or location was turned off.
+        if (!alive.current || !map.current || !showLocationRef.current) return;
+        you.current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        if (dot.current) {
+          dot.current.position = you.current;
+        } else {
+          const el = document.createElement("div");
+          el.className = "gmap-you";
+          dot.current = new google.maps.marker.AdvancedMarkerElement({
+            map: map.current,
+            position: you.current,
+            content: el,
+            title: "You are here",
+          });
+        }
+        if (centerWhenFound.current) {
+          centerWhenFound.current = false;
+          centerOnYou();
+        }
       },
-      () => {},
+      () => {
+        // Permission blocked, or the position could not be found in time.
+        centerWhenFound.current = false;
+        if (alive.current) onLocationErrorRef.current();
+      },
       { timeout: 8000 },
     );
+  }
+
+  // Show the viewer's real position whenever location is on.
+  useEffect(() => {
+    if (!ready || !showLocation) return;
+    locate();
     return () => {
-      cancelled = true;
-      if (dot) dot.map = null;
+      if (dot.current) dot.current.map = null;
+      dot.current = null;
+      you.current = null;
     };
   }, [ready, showLocation]);
+
+  // The "my location" button: turn location on if needed, then move the map to the dot.
+  function showMe() {
+    if (!showLocation) {
+      centerWhenFound.current = true;
+      onRequestLocation();
+    } else if (you.current) {
+      centerOnYou();
+    } else {
+      centerWhenFound.current = true;
+      locate();
+    }
+  }
 
   return (
     <>
@@ -184,6 +255,16 @@ function LiveMap({
         role="application"
         aria-label="Map of your places"
       />
+      <div className="map-controls">
+        <button
+          type="button"
+          aria-label="Show my location"
+          title="Show my location"
+          onClick={showMe}
+        >
+          <LocateFixed size={19} />
+        </button>
+      </div>
       {missing.length > 0 && (
         <span className="map-disclaimer">
           Could not locate:{" "}
@@ -201,12 +282,15 @@ export function TravelMap({
   compact?: boolean;
   selectedPlace?: string;
 }) {
-  const { trip: t, s, go } = useApp();
+  const { trip: t, s, go, mutate } = useApp();
   const [zoom, setZoom] = useState(1),
     [pan, setPan] = useState({ x: 0, y: 0 }),
     [selected, setSelected] = useState(selectedPlace || ""),
     [expanded, setExpanded] = useState(true),
-    [liveFailed, setLiveFailed] = useState(false);
+    [liveFailed, setLiveFailed] = useState(false),
+    // Asked again each time the map page opens, but not repeatedly while it stays open.
+    [locationDismissed, setLocationDismissed] = useState(false),
+    [locationBlocked, setLocationBlocked] = useState(false);
   // The live Google map is used only when a key is set and it loaded; otherwise the illustrative map stays.
   const live = mapsConfigured && !liveFailed;
   const areas = t?.destinations || [];
@@ -229,6 +313,13 @@ export function TravelMap({
     y: 145 + Math.floor(i / 3) * 142,
   }));
   const target = points[selectedIndex];
+  // Turning the setting on is what makes the map ask the browser for permission.
+  const requestLocation = () => {
+    setLocationBlocked(false);
+    mutate((v) => {
+      v.location = true;
+    });
+  };
   return (
     <div className={`map-layout ${compact ? "compact" : ""}`}>
       <div className="map-canvas">
@@ -240,8 +331,53 @@ export function TravelMap({
             areas={areas}
             showLocation={s.location}
             onFail={() => setLiveFailed(true)}
+            onLocationError={() => {
+              setLocationBlocked(true);
+              setLocationDismissed(false);
+            }}
+            onRequestLocation={requestLocation}
           />
         )}
+        {live && !compact && !s.location && !locationDismissed && (
+          <div
+            className="map-location-prompt"
+            role="dialog"
+            aria-label="Show your location"
+          >
+            <strong>Show your location on the map?</strong>
+            <p>
+              Your browser will ask for permission. Your position stays on your
+              device and is not saved.
+            </p>
+            <div>
+              <Button onClick={requestLocation}>Turn on location</Button>
+              <Button variant="text" onClick={() => setLocationDismissed(true)}>
+                Not now
+              </Button>
+            </div>
+          </div>
+        )}
+        {live &&
+          !compact &&
+          s.location &&
+          locationBlocked &&
+          !locationDismissed && (
+            <div className="map-location-prompt" role="status">
+              <strong>Location is blocked</strong>
+              <p>
+                Allow location for this site in your browser's address bar
+                settings, then reload the page.
+              </p>
+              <div>
+                <Button
+                  variant="text"
+                  onClick={() => setLocationDismissed(true)}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          )}
         {!live && (
           <svg
             viewBox="0 0 1000 620"
