@@ -2608,6 +2608,39 @@ legend {
 .map-canvas > svg:active {
   cursor: grabbing;
 }
+.map-canvas > .gmap-host {
+  position: absolute;
+  inset: 0;
+}
+.gmap-pin {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fffdf8;
+  border: 2px solid #234e43;
+  color: #234e43;
+  font: 700 14px "DM Sans", sans-serif;
+  box-shadow: 0 2px 6px #0003;
+  cursor: pointer;
+  /* Advanced markers anchor at the bottom center; shift so the circle sits on the point. */
+  transform: translateY(50%);
+}
+.gmap-pin.selected {
+  background: #234e43;
+  color: #fff;
+  transform: translateY(50%) scale(1.2);
+}
+.gmap-you {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #3979c0;
+  border: 4px solid #fff;
+  box-shadow: 0 0 0 14px #3b80c91f;
+  transform: translateY(50%);
+}
 .map-label {
   font-family: "DM Sans", sans-serif;
   fill: #a1a497;

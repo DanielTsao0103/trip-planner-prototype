@@ -122,6 +122,16 @@ The displayed name comes from the returned Auth user metadata. The current front
 
 Canvas requires a text entry with the demo video link and the public GitHub repository/README link, one submission per team. The video must be two minutes or less and focus on the vertical slice.
 
+## Google Maps (optional)
+
+The Map page and the Home map card show a real Google map when a Maps key is configured, and fall back to the illustrative demo map when it is not. Places from the trip's events are located with the Geocoding API and shown as numbered pins; the side panel links to walking directions in Google Maps.
+
+1. In Google Cloud Console, create or choose a project, turn on billing, and enable **Maps JavaScript API** and **Geocoding API**.
+2. Create an API key. Under **Application restrictions** choose **Websites** and allow `https://danieltsao0103.github.io/*` and `http://127.0.0.1:5190/*`. Under **API restrictions** limit it to those two APIs. A browser key is visible to anyone who opens the site, so these restrictions are what protect it. Set a low daily quota or budget alert.
+3. Locally, put it in `.env.local` as `VITE_GOOGLE_MAPS_API_KEY` and restart Vite. For the live site, add the same name as a repository Actions variable and redeploy.
+
+If the key is rejected or the script cannot load, the app switches to the demo map instead of showing a broken page.
+
 ## Database and Sample Data
 
 The pre-recording database inspection on October 10, 2026 found 6 `user` rows, 2 `trip` rows, 2 `event` rows, 3 `role` rows, and 5 `trip_member` rows. These are hosted database counts, separate from the fictional fixtures in `src/data.ts`. One public profile matched an Auth account at that inspection; subsequent signups add more accounts and profiles. All five public tables have row-level security enabled; the only public-table browser policy allows a signed-in user to read their own profile. Travel tables have no browser-access policies.
@@ -142,7 +152,7 @@ The pre-recording database inspection on October 10, 2026 found 6 `user` rows, 2
 
 ## Publishing
 
-GitHub Actions runs `.github/workflows/pages.yml` on pushes to `main` and pull requests. It installs the locked dependencies, runs the unit tests, builds the site, and runs desktop/mobile browser tests. A passing main-branch build deploys `dist/` to GitHub Pages and checks the live `version.json` against the deployed commit. Set Pages source to **GitHub Actions** and configure repository Actions variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Never add private credentials to those variables.
+GitHub Actions runs `.github/workflows/pages.yml` on pushes to `main` and pull requests. It installs the locked dependencies, runs the unit tests, builds the site, and runs desktop/mobile browser tests. A passing main-branch build deploys `dist/` to GitHub Pages and checks the live `version.json` against the deployed commit. Set Pages source to **GitHub Actions** and configure repository Actions variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (and optionally `VITE_GOOGLE_MAPS_API_KEY`, see Google Maps above). Never add private credentials to those variables.
 
 Commit source and assignment documentation; `docs/` and `dist/` are generated and ignored. Keep the README image in `assignment/team-erd.png` so it can be committed. Open app tabs offer **Reload app** when they detect a new release.
 
