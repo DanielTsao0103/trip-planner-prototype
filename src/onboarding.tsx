@@ -1,3 +1,4 @@
+import { DestinationInput } from "./destination-input";
 import React, { useRef, useState } from "react";
 import {
   ArrowRight,
@@ -897,26 +898,7 @@ export function TripForm() {
             label="Where are you going?"
             hint="One destination is enough. Add more for a multi-stop trip."
           >
-            <div className="input-action">
-              <input
-                value={place}
-                onChange={(e) => setPlace(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addPlace();
-                  }
-                }}
-                placeholder="A city, a region, somewhere new…"
-              />
-              <Button
-                variant="outline"
-                onClick={addPlace}
-                disabled={!place.trim()}
-              >
-                Add
-              </Button>
-            </div>
+            <DestinationInput value={place} onChange={setPlace} onAdd={addPlace} />
           </Field>
           <div className="chips">
             {locations.map((p, i) => (

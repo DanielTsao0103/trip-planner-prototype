@@ -5337,3 +5337,18 @@ legend {
 /* Keep the update action reachable without covering forms on small screens. */
 .release-notice { position: relative; z-index: 100; display: flex; align-items: center; justify-content: center; gap: 1rem; padding: .8rem 1rem; background: #193d36; color: #fff; flex-wrap: wrap; }
 .release-notice button { color: #193d36; background: #fff; border: 0; border-radius: .4rem; padding: .6rem 1rem; font: inherit; font-weight: 700; cursor: pointer; }
+
+.destination-search { position:relative; width:100%; }
+.destination-menu { position:absolute; top:calc(100% + 7px); left:0; right:0; z-index:30; background:#fffefa; border:1px solid #d8ded3; border-radius:12px; box-shadow:0 16px 38px #25382d24; overflow:hidden; }
+.destination-caption { font-size:10px; letter-spacing:1.7px; color:#65725f; padding:15px 17px 9px; font-weight:600; }
+.destination-option { display:flex; gap:12px; align-items:center; padding:11px 16px; cursor:pointer; color:#344536; }
+.destination-option:hover,.destination-option.active { background:#eef2e7; }
+.destination-icon { display:grid; place-items:center; background:#eef0e7; border-radius:50%; width:36px; height:36px; flex-shrink:0; }
+.destination-name { flex:1; min-width:0; display:grid; gap:2px; }
+.destination-name strong { font-size:14px; font-weight:500; }
+.destination-name small { font-size:12px; color:#66705f; }
+.destination-kind { font-size:10px; color:#65725f; border:1px solid #dde2d5; border-radius:5px; padding:2px 6px; }
+.destination-foot { border-top:1px solid #e8ebdf; color:#67705f; font-size:11px; padding:10px 17px; }
+.destination-menu [role="listbox"] { max-height: min(340px, 37vh); overflow-y: auto; overscroll-behavior: contain; }
+.destination-attribution { font-size: 10px; color: #67705f; padding: 0 17px 10px; }
+.destination-attribution a { color: inherit; text-decoration: underline; }
