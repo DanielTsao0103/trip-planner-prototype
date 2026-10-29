@@ -29,27 +29,25 @@ export function Group() {
     (m) => m.status === "accepted" && t.prefs[m.id],
   );
   const tiles = [
-    { title: "At the table", Icon: Leaf, keys: ["diet"] },
+    { title: "Dietary requirements", Icon: Leaf, keys: ["diet"] },
     {
-      title: "A taste of somewhere",
+      title: "Dining preferences",
       Icon: Utensils,
       keys: ["food", "dining", "atmosphere"],
     },
-    { title: "Spending comfort", Icon: Wallet, keys: ["spending"] },
-    { title: "Getting around", Icon: Accessibility, keys: ["access", "walk"] },
+    { title: "Spending preferences", Icon: Wallet, keys: ["spending"] },
+    { title: "Mobility and accessibility", Icon: Accessibility, keys: ["access", "walk"] },
     {
-      title: "What catches our eye",
+      title: "Interests and destinations",
       Icon: Sparkles,
       keys: ["interests", "destinations"],
     },
-    { title: "A little preparation", Icon: Ticket, keys: ["tickets", "notes"] },
+    { title: "Tickets and notes", Icon: Ticket, keys: ["tickets", "notes"] },
   ];
   return (
     <>
       <PageHead
-        eyebrow="DIFFERENT PEOPLE. A SHARED ADVENTURE."
-        title="Make it good for everyone."
-        description="The little preferences that make a big difference."
+        title="The group"
         action={
           <Button variant="outline" onClick={() => go(15)}>
             My preferences <ArrowRight size={16} />
@@ -58,7 +56,7 @@ export function Group() {
       />
       <div className="section-title">
         <div>
-          <h2>A picture of your people.</h2>
+          <h2>Group preferences</h2>
           <p>
             {responses.length} of{" "}
             {t.members.filter((m) => m.status === "accepted").length} travelers
@@ -113,8 +111,7 @@ export function Group() {
       </div>
       <div className="section-title collaborators-title">
         <div>
-          <span className="eyebrow">THE PEOPLE PART</span>
-          <h2>Your travel circle.</h2>
+          <h2>Travelers</h2>
         </div>
         {owner && (
           <Button onClick={() => open("inviteMember")}>
