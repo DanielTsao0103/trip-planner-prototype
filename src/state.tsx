@@ -415,7 +415,7 @@ export function Provider({
     <C.Provider value={value}>
       {cloud &&
         loadState === "ready" &&
-        (pending.length > 0 || s.userId === account.id) && (
+        (pending.length > 0 || (s.userId === account.id && route.page !== 4)) && (
           <div
             className="account-save-banner"
             role={saveError ? "alert" : "status"}
