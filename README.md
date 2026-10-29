@@ -6,7 +6,24 @@
 
 Planning a group trip often means keeping track of messages, calendars, bookings, and shared expenses in different places. Trip Planner is for friends, families, and other groups who want those plans in one place. The app brings together trip dates, destinations, a day-by-day itinerary, group members, preferences, and budget screens. Travelers can explore a fictional Seattle and Bainbridge trip or create a separate trip in the prototype. Our working backend feature is email and password account creation, login, and sign-out through Supabase. Creating an account saves the account and its name in the database, then opens the planner with that person's name. Creating a trip now saves its name, destinations, dates, and time zone to the signed-in account in Supabase. Saved trips load after sign-in on another browser; editing trip details and deleting a trip also persist. Itinerary events, expenses, and invitation/group controls remain browser-only previews.
 
-## Behavioral requirements and completion status
+## Field limits: behavioral requirements and completion status
+
+Scope: the character and money limits requested in this feature. The end-to-end check covers the existing account-trip save path; converting local event, budget, preference, reminder, or invitation previews into backend features is outside this task.
+
+| Behavioral requirement | Status | Verification |
+| --- | --- | --- |
+| Limit trip/event titles to 100 characters, trip destinations/event locations to 220, names to 90, and email inputs to 280 | Complete | Native input limits plus save-handler validation; email format validation still applies. |
+| Limit event/additional notes to 2,200 characters, preference places to 1,100, expense descriptions to 130, and reminders to 220 | Complete | Desktop/mobile boundary tests check pasted input, saves, and reloads. |
+| Limit bulk invitation text to 5,600 characters and 20 addresses; limit trips to 20 destinations | Complete | Individual addresses, total text length, and item counts are validated before saving. |
+| Show accessible character counts and preserve existing oversized text until the user edits it | Complete | Counters are linked with aria-describedby; oversized saved notes remain intact and cannot be resaved until shortened. |
+| Limit group/individual budgets to $999,999.99 and expenses/event estimates to $99,999.99, with at most two decimal places | Complete | Form and save validation reject excessive amounts, extra decimals, exponents, and non-finite values; free event estimates remain allowed. |
+| Persist the new 100/220 trip limits through User → Frontend → Supabase → PostgreSQL | Complete | Live mobile creation, database readback, fresh-browser sign-in, editing, and reload passed; direct oversized API writes were rejected without changing the saved row. Temporary test records were removed. |
+| Keep changed forms responsive and at or above Lighthouse Accessibility 90 | Complete | Verified desktop/mobile screenshots, 320–1365px layout checks, and Lighthouse results in [field-limit verification](assignment/field-limits-verification.md). |
+| Deliver the field-limit source on main at the public URL | Complete | Implementation commit 9eb8ea6 is on main and live; the Pages workflow verifies the published revision. |
+
+The task's six definition-of-done checks, scores, and repeatable commands are recorded in [field-limit verification](assignment/field-limits-verification.md). Existing backend features outside this task retain their separate **Not complete** statuses below.
+
+## Budget and Suggestions copy cleanup: behavioral requirements
 
 This release is scoped to the **Budget and Suggestions implementation-note cleanup**, not implementing every prototype feature. “Complete” means the behavior below is implemented and verified; it does not turn browser-only data into server data.
 

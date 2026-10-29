@@ -1,0 +1,10 @@
+{
+  "site": "https://danieltsao0103.github.io/trip-planner-prototype/",
+  "checkedAt": "2026-10-29T02:33:01.854Z",
+  "results": [
+    "Live mobile UI caps pasted 101/221 characters; 100/220 characters persist in PostgreSQL with owner membership.",
+    "Bypassing the form cannot save a 101-character title, 221-character destination, or 21 destinations; rejected writes leave the record unchanged.",
+    "Fresh-browser login restores maximum-length details; editing and reloading persist the new title without mobile overflow.",
+    "Temporary account sessions revoked; test Auth account, profile, trip, and membership removed."
+  ]
+}

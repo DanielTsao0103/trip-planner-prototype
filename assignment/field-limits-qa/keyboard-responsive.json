@@ -1,0 +1,8 @@
+{
+  "checkedAt": "2026-10-29T02:35:29.072Z",
+  "results": [
+    "Budget dialog opens with Enter, closes with Escape, and restores keyboard focus.",
+    "Keyboard typing respects the title limit; the counter is exposed as its accessible description and Tab reaches the next field.",
+    "Trip, event, and preference forms have no horizontal overflow at 320, 390, 768, or 1365 CSS pixels."
+  ]
+}

@@ -49,3 +49,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Definition-of-done scope (October 28, 2026): Dan explicitly limited this release to the Budget/Suggestions note cleanup and requested responsive QA, live backend regression, Lighthouse Accessibility >=90, README Complete/Not complete requirements, main-branch integration, and public cloud deployment. This is authorization to publish the verified feature; it is not a request to implement unrelated prototype backends.
 
 - Live-site completion correction (October 28, 2026): navigation fixes requested for the hosted app must be deployed and verified on GitHub Pages before reporting completion. Local build and browser checks alone do not update the site Dan is using.
+
+- Field-limit definition-of-done scope (October 28, 2026): Dan clarified “just the task I gave you for this chat.” Verify and publish the field-limit feature through its existing live account-trip path; do not convert local event, budget, preference, reminder, or invitation previews into backend features for this task.
