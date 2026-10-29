@@ -1,3 +1,5 @@
+/** Implementation status: Account events, todos, and dismissed choices save through updateTrip to Supabase. Confirmation extraction, crowds, costs, and suggestions remain fixtures; uploaded file previews are temporary. See ../IMPLEMENTATION_STATUS.md. */
+import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
 import React, { useState } from "react";
 import {
   ArrowRight,
@@ -52,6 +54,9 @@ export function Itinerary() {
   if (!t) return null;
   const role = member(t, s.userId)!.role;
   const allDays = days(t.start, t.end);
+  const personalBudget = t.budgetMode === "individual";
+  const budget = personalBudget ? (t.individual[s.userId!] ?? null) : t.budget;
+  const totalSpent = spent(t, personalBudget ? s.userId! : undefined);
   return (
     <>
       <div className="trip-hero">
@@ -242,22 +247,22 @@ export function Itinerary() {
           <div className="card budget-peek">
             <span className="eyebrow">THE BIG PICTURE</span>
             <div className="row">
-              <h3>Trip budget</h3>
+              <h3>{personalBudget ? "Your budget" : "Trip budget"}</h3>
               <Wallet size={18} />
             </div>
             <strong>
-              {t.budget !== null ? money(t.budget - spent(t)) : "Not set yet"}
+              {budget !== null ? money(budget - totalSpent) : "Not set yet"}
             </strong>
             <p>
-              {t.budget !== null
+              {budget !== null
                 ? "left for making memories"
                 : "Set a budget when you’re ready."}
             </p>
-            {t.budget !== null && (
+            {budget !== null && (
               <div className="progress">
                 <i
                   style={{
-                    width: `${Math.min(100, (spent(t) / Math.max(t.budget, 1)) * 100)}%`,
+                    width: `${Math.min(100, (totalSpent / Math.max(budget, 1)) * 100)}%`,
                   }}
                 />
               </div>
@@ -337,6 +342,14 @@ export function EventForm() {
   };
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    const inputProblem =
+      textError(name, "Event name", TEXT_LIMITS.eventName, true) ||
+      textError(place, "Location", TEXT_LIMITS.location, true) ||
+      moneyError(cost, MONEY_LIMITS.expense, true);
+    if (inputProblem) {
+      setError(inputProblem);
+      return;
+    }
     const event: Event = {
       id: original?.id || uid(),
       name: name.trim(),
@@ -355,19 +368,17 @@ export function EventForm() {
       return;
     }
     setBusy(true);
-    setTimeout(() => {
-      updateTrip((v) => {
-        const index = v.events.findIndex((e) => e.id === event.id);
-        if (index >= 0) v.events[index] = event;
-        else v.events.push(event);
-      });
-      toast(
-        original
-          ? "Event updated everywhere in your trip."
-          : "A new plan, added to your day.",
-      );
-      go(original && route.params.get("return") === "11" ? 11 : 8, { date });
-    }, 350);
+    updateTrip((v) => {
+      const index = v.events.findIndex((e) => e.id === event.id);
+      if (index >= 0) v.events[index] = event;
+      else v.events.push(event);
+    });
+    toast(
+      original
+        ? "Event updated everywhere in your trip."
+        : "A new plan, added to your day.",
+    );
+    go(original && route.params.get("return") === "11" ? 11 : 8, { date });
   };
   const role = member(t, s.userId)?.role;
   return (
@@ -379,6 +390,24 @@ export function EventForm() {
       />
       <div className="form-layout">
         <form className="card form-card" onSubmit={submit}>
+          {original && canEdit(t, s.userId, original.date) && (
+            <Button
+              variant="text danger"
+              disabled={busy}
+              onClick={() => {
+                if (window.confirm("Delete this event from the trip?")) {
+                  updateTrip((trip) => {
+                    trip.events = trip.events.filter(
+                      (e) => e.id !== original.id,
+                    );
+                  });
+                  go(8);
+                }
+              }}
+            >
+              Delete event
+            </Button>
+          )}
           {role === "Viewer" && <ReadOnly />}
           {role === "Day Editor" && <ReadOnly day />}
           <div className="tabs">
@@ -469,6 +498,7 @@ export function EventForm() {
               <Field label="Event name">
                 <input
                   required
+                  maxLength={TEXT_LIMITS.eventName}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="A morning at the museum"
@@ -477,6 +507,7 @@ export function EventForm() {
               <Field label="Where">
                 <input
                   required
+                  maxLength={TEXT_LIMITS.location}
                   value={place}
                   onChange={(e) => setPlace(e.target.value)}
                   placeholder="Location or meeting point"
@@ -538,11 +569,12 @@ export function EventForm() {
               )}
               <Field
                 label="Estimated cost (USD)"
-                hint="Planning estimate only. Log actual payments in Budget."
+                hint="Up to $99,999.99; maximum 2 decimal places. Log actual payments in Budget."
               >
                 <input
                   required
                   min="0"
+                  max={MONEY_LIMITS.expense / 100}
                   step="0.01"
                   type="number"
                   value={cost}
@@ -576,6 +608,7 @@ export function EventForm() {
               <Field label="Notes (optional)">
                 <textarea
                   rows={3}
+                  maxLength={TEXT_LIMITS.notes}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="A meeting point, ticket details, or a little reminder…"
@@ -681,7 +714,7 @@ export function Suggestions() {
       reason:
         prefs?.food === "Familiar favorites"
           ? "Familiar flavors with a local twist, based on your food preferences."
-          : "Local flavors, with fictional menu options for the group’s saved preferences.",
+          : "Local flavors for the group’s saved preferences.",
     },
   ];
   const dates = days(t.start, t.end).filter((d) => canEdit(t, s.userId, d));
@@ -716,7 +749,7 @@ export function Suggestions() {
       <PageHead
         eyebrow="LEAVE ROOM FOR SOMETHING GOOD"
         title="A little inspiration."
-        description={`${isActive(t, s.date) && s.location ? "Near your simulated location" : "Around your planned stops"}, with your people in mind.`}
+        description={`${isActive(t, s.date) && s.location ? "Near your planned stops" : "Around your planned stops"}, with your people in mind.`}
         action={
           <Button
             variant="outline"
@@ -774,7 +807,7 @@ export function Suggestions() {
                   </div>
                   <div className="compatibility">
                     <Check size={14} />
-                    Sample match · details need checking
+                    Suggested for your group
                   </div>
                   <p className="available-slot">
                     {slot
@@ -831,15 +864,12 @@ export function Suggestions() {
             }
           />
         )}
-      <p className="fine-print">
-        These recommendations, costs, crowd levels, and suitability details are
-        illustrative. No live location or social account is accessed.
-      </p>
     </>
   );
 }
 export function Dashboard() {
   const { trip: t, s, go, open, updateTrip } = useApp();
+  const [todoError, setTodoError] = useState("");
   const [todo, setTodo] = useState(""),
     [weekOffset, setWeekOffset] = useState(0);
   if (!t) return null;
@@ -959,6 +989,22 @@ export function Dashboard() {
                   }
                 />
                 <span className={todo.done ? "done" : ""}>{todo.text}</span>
+                {canEdit(t, s.userId, todo.date) && (
+                  <button
+                    type="button"
+                    aria-label={`Delete reminder: ${todo.text}`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      updateTrip((trip) => {
+                        trip.todos = trip.todos.filter(
+                          (item) => item.id !== todo.id,
+                        );
+                      });
+                    }}
+                  >
+                    Remove
+                  </button>
+                )}
               </label>
             ))}
           {!t.todos.some((x) => x.date === s.date) && (
@@ -969,11 +1015,19 @@ export function Dashboard() {
               className="input-action"
               onSubmit={(e) => {
                 e.preventDefault();
+                const problem = textError(
+                  todo,
+                  "Reminder",
+                  TEXT_LIMITS.todo,
+                  true,
+                );
+                setTodoError(problem);
+                if (problem) return;
                 if (todo.trim()) {
                   updateTrip((t) =>
                     t.todos.push({
                       id: uid(),
-                      text: todo,
+                      text: todo.trim(),
                       date: s.date,
                       done: false,
                     }),
@@ -984,6 +1038,8 @@ export function Dashboard() {
             >
               <input
                 aria-label="New to-do"
+                aria-describedby="todo-limit"
+                maxLength={TEXT_LIMITS.todo}
                 value={todo}
                 onChange={(e) => setTodo(e.target.value)}
                 placeholder="Add a little reminder"
@@ -993,6 +1049,12 @@ export function Dashboard() {
               </button>
             </form>
           )}
+          {canEdit(t, s.userId, s.date) && (
+            <small id="todo-limit">
+              {todo.length} / {TEXT_LIMITS.todo} characters
+            </small>
+          )}
+          <ErrorBox text={todoError} />
           <div className="note">Shared with your group.</div>
         </div>
       </div>

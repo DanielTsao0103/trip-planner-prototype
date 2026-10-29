@@ -828,6 +828,7 @@ legend {
   text-align: left;
   margin-bottom: 21px;
   color: #56634f;
+  border-radius: 6px;
 }
 .trip-switch {
   background: #f9faf3;
@@ -878,7 +879,8 @@ legend {
 .sidebar nav button:hover {
   background: #e9eee1;
 }
-.sidebar nav button.active {
+.sidebar nav button.active,
+.home-link.active {
   color: #274d39;
   background: #e0e8d7;
   font-weight: 600;
@@ -1930,6 +1932,18 @@ legend {
 .todo-item .done {
   text-decoration: line-through;
   color: #9aa58e;
+}
+.todo-item > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.todo-item > input {
+  flex-shrink: 0;
+}
+/* Valid-length user text can still contain one long word or URL. */
+#main-content,
+.modal {
+  overflow-wrap: anywhere;
 }
 .todo-card form {
   margin-top: 25px;
@@ -5337,6 +5351,37 @@ legend {
 /* Keep the update action reachable without covering forms on small screens. */
 .release-notice { position: relative; z-index: 100; display: flex; align-items: center; justify-content: center; gap: 1rem; padding: .8rem 1rem; background: #193d36; color: #fff; flex-wrap: wrap; }
 .release-notice button { color: #193d36; background: #fff; border: 0; border-radius: .4rem; padding: .6rem 1rem; font: inherit; font-weight: 700; cursor: pointer; }
+
+.account-save-banner { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:12px 24px; background:#edf2e9; color:#285648; border-bottom:1px solid #cbd5c3; font-size:14px; }
+.account-save-banner[role="alert"] { background:#fff2e8; color:#8b3524; }
+.account-save-banner span { flex:1 1 250px; overflow-wrap:anywhere; }
+/* Keep save/recovery feedback visible beside the fixed desktop navigation. */
+.account-save-banner { position:sticky; top:0; z-index:35; margin-left:226px; }
+@media (max-width:1199px) { .account-save-banner { margin-left:195px; } }
+@media (max-width:900px) and (min-width:768px) { .account-save-banner { margin-left:174px; } }
+@media (max-width:767px) { .account-save-banner { margin-left:0; padding:10px 17px; } }
+/* Brief confirmation after database writes, clear of mobile navigation. */
+.save-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  max-width: calc(100vw - 32px);
+  border: 1px solid #d3dfd6;
+  border-radius: 10px;
+  background: #f7fbf5;
+  color: #234d41;
+  box-shadow: 0 4px 18px #18372b1a;
+  font-size: 13px;
+  pointer-events: none;
+}
+@media (max-width: 767px) {
+  .save-toast { right: 16px; bottom: calc(80px + env(safe-area-inset-bottom)); }
+}
 
 .destination-search { position:relative; width:100%; }
 .destination-menu { position:absolute; top:calc(100% + 7px); left:0; right:0; z-index:30; background:#fffefa; border:1px solid #d8ded3; border-radius:12px; box-shadow:0 16px 38px #25382d24; overflow:hidden; }

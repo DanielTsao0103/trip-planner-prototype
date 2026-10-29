@@ -1,3 +1,4 @@
+import { TEXT_LIMITS, MONEY_LIMITS, textError } from "./limits.ts";
 /** Domain rules shared by every screen. Amounts are stored in cents. */
 export type Role = "Owner" | "Editor" | "Viewer" | "Day Editor";
 export type Member = {
@@ -6,7 +7,7 @@ export type Member = {
   email: string;
   role: Role;
   days: string[];
-  status: "accepted" | "pending";
+  status: "accepted" | "pending" | "removed";
 };
 export type Preference = {
   diet: string[];
@@ -45,6 +46,10 @@ export type Expense = {
   settled: string[];
 };
 export type Trip = {
+  /** Account trips reload all structured planning details from Supabase. */
+  persistence?: "account";
+  revision?: number;
+  contentVersion?: number;
   id: string;
   title: string;
   destinations: string[];
@@ -140,14 +145,21 @@ export function eventError(
     (original && !canEdit(trip, user, original.date))
   )
     return "You can only change days you have permission to edit.";
-  if (!event.name.trim() || !event.place.trim())
-    return "Add an event name and location.";
+  const problem =
+    textError(event.name, "Event name", TEXT_LIMITS.eventName, true) ||
+    textError(event.place, "Location", TEXT_LIMITS.location, true) ||
+    textError(event.notes, "Notes", TEXT_LIMITS.notes);
+  if (problem) return problem;
   if (event.date < trip.start || event.date > trip.end)
     return "Choose a day within the trip dates.";
   if (event.end <= event.start)
     return "End time must be after start time. Split overnight activities into one event per day.";
-  if (!Number.isFinite(event.cost) || event.cost < 0)
-    return "Cost must be zero or a positive amount.";
+  if (
+    !Number.isSafeInteger(event.cost) ||
+    event.cost < 0 ||
+    event.cost > MONEY_LIMITS.expense
+  )
+    return "Cost must be between $0.00 and $99,999.99 in whole cents.";
   const conflict = trip.events.find(
     (e) =>
       e.id !== event.id &&

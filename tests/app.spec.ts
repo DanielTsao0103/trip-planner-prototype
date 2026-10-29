@@ -7,6 +7,7 @@ const session = () => ({ access_token: 'test-access-token', token_type: 'bearer'
 test.beforeEach(async ({ page }) => {
   await page.route('https://*.supabase.co/**', async route => {
     const url = new URL(route.request().url());
+    if (url.pathname === '/rest/v1/rpc/load_trip_bundles' || (url.pathname === '/rest/v1/trip' && route.request().method() === 'GET')) return route.fulfill({ json: [] });
     if (url.pathname.startsWith('/auth/v1/')) {
       if (url.pathname.endsWith('/logout')) return route.fulfill({ status: 204 });
       if (url.pathname.endsWith('/user')) return route.fulfill({ json: account });
@@ -43,7 +44,7 @@ async function login(page: Page) {
   await expect(page.getByRole('heading', { name: 'Where to next, QA?' })).toBeVisible();
 }
 async function controls(page: Page) {
-  await page.getByRole('button', { name: 'Demo controls & screen index', exact: true }).click();
+  await page.getByRole('button', { name: 'Prototype', exact: true }).click();
   return page.getByRole('dialog', { name: 'Prototype controls' });
 }
 async function openAccount(page: Page) {

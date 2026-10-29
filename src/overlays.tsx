@@ -1,3 +1,5 @@
+/** Implementation status: Account guest details, role/day settings, budgets, and repayment markers persist through updateTrip. Provider/OCR/receipt/transaction previews remain simulations; no external messages are sent. See ../IMPLEMENTATION_STATUS.md. */
+import { TEXT_LIMITS, textError, emailError } from "./limits.ts";
 import React, { useState } from "react";
 import {
   ArrowRight,
@@ -119,48 +121,85 @@ function InviteMember() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          const problem =
+            textError(name, "Name", TEXT_LIMITS.name, true) ||
+            emailError(email);
+          if (problem) {
+            setError(problem);
+            return;
+          }
           const address = email.trim().toLowerCase();
-          if (t.members.some((m) => m.email === address)) {
+          if (
+            t.members.some((m) => m.email === address && m.status !== "removed")
+          ) {
             setError("This person is already invited or part of the trip.");
             return;
           }
-          updateTrip((t) =>
+          updateTrip((t) => {
+            const removed = t.members.find(
+              (m) => m.email === address && m.status === "removed",
+            );
+            if (removed) {
+              removed.name = name.trim();
+              removed.status = "pending";
+              removed.role = "Viewer";
+              removed.days = [];
+              return;
+            }
             t.members.push({
-              id: s.users.find((u) => u.email === address)?.id || uid(),
+              id:
+                t.persistence === "account"
+                  ? uid()
+                  : s.users.find((u) => u.email === address)?.id || uid(),
               name: name.trim(),
               email: address,
               role: "Viewer",
               days: [],
               status: "pending",
-            }),
-          );
-          toast("Fictional invitation created. No email was sent.");
+            });
+          });
+          toast("Traveler saved. No invitation email was sent.");
           close();
         }}
       >
-        <Field label="Fictional name">
+        <Field
+          label={
+            t.persistence === "account" ? "Traveler name" : "Fictional name"
+          }
+        >
           <input
             required
+            maxLength={TEXT_LIMITS.name}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Alex Morgan"
           />
         </Field>
-        <Field label="Fictional email">
+        <Field
+          label={
+            t.persistence === "account" ? "Traveler email" : "Fictional email"
+          }
+        >
           <input
             type="email"
             required
+            maxLength={TEXT_LIMITS.email}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="alex@example.com"
           />
         </Field>
         <p className="note">
-          They’ll start as a Viewer. Adjust their permissions afterward.
+          {t.persistence === "account"
+            ? "This saves a guest traveler. Role settings are stored for future collaboration; they do not grant another account access yet."
+            : "They’ll start as a Viewer. Adjust their permissions afterward."}
         </p>
         <ErrorBox text={error} />
         <Button variant="full" type="submit">
-          Create demo invitation <Mail size={16} />
+          {t.persistence === "account"
+            ? "Save traveler"
+            : "Create demo invitation"}{" "}
+          <Mail size={16} />
         </Button>
       </form>
     </Modal>
@@ -315,7 +354,8 @@ function Gmail() {
   );
 }
 function Demo() {
-  const { s, user, trip, route, mutate, go, close, explore, toast, signOut } = useApp();
+  const { s, user, trip, route, mutate, go, close, explore, toast, signOut } =
+    useApp();
   const [date, setDate] = useState(s.date),
     [time, setTime] = useState(s.time);
   const landing = () => {
@@ -347,7 +387,9 @@ function Demo() {
           </Button>
           <Button
             variant="outline full"
-            onClick={() => { void signOut(); }}
+            onClick={() => {
+              void signOut();
+            }}
           >
             Start at Log in / Create account
           </Button>
@@ -451,8 +493,9 @@ function Demo() {
           </Button>
           <h3>Your testing session</h3>
           <p className="fine-print">
-            New trips are saved only in this browser. Another tester opens their
-            own independent copy. A share link does not synchronize trip edits.
+            Demo trips stay in this browser. Real account trips save to the
+            database. Another tester opens their own independent copy. A share
+            link does not synchronize trip edits.
           </p>
         </div>
       </div>
@@ -498,6 +541,56 @@ function Demo() {
     </Modal>
   );
 }
+function DeleteTrip() {
+  const { s, overlay, deleteTrip, close, go, toast } = useApp();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const target = s.trips.find((t) => t.id === overlay?.data?.tripId);
+  if (!target || target.sample || !isOwner(target, s.userId)) return null;
+  return (
+    <Modal title="Delete this trip?">
+      <p>
+        Delete <strong>{target.title}</strong>{" "}
+        {target.persistence === "account"
+          ? "from your account"
+          : "from this browser"}
+        ? This cannot be undone.
+      </p>
+      <ErrorBox text={error} />
+      <div className="form-actions">
+        <Button variant="outline" disabled={busy} onClick={close}>
+          Keep trip
+        </Button>
+        <Button
+          variant="danger"
+          disabled={busy}
+          onClick={async () => {
+            if (busy) return;
+            setBusy(true);
+            setError("");
+            try {
+              await deleteTrip(target);
+              go(5);
+              if (target.persistence !== "account")
+                toast("Trip deleted from this browser.");
+            } catch (issue) {
+              setError(
+                issue instanceof Error
+                  ? issue.message
+                  : "Could not delete the trip. Please try again.",
+              );
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {busy ? "Deleting…" : "Delete trip"}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
 export function Overlays() {
   const app = useApp();
   const {
@@ -514,38 +607,7 @@ export function Overlays() {
     toast,
   } = app;
   if (!o) return null;
-  if (o.kind === "deleteTrip") {
-    const target = s.trips.find((trip) => trip.id === o.data?.tripId);
-    if (!target || target.sample || !isOwner(target, s.userId)) return null;
-    return (
-      <Modal title="Delete this trip?">
-        <p>
-          Delete <strong>{target.title}</strong> and all its plans and expenses
-          from this browser? This cannot be undone.
-        </p>
-        <div className="form-actions">
-          <Button variant="outline" onClick={close}>Keep trip</Button>
-          <Button
-            variant="danger"
-            onClick={() => {
-              mutate((v) => {
-                // Recheck ownership and remove only the selected local trip.
-                const trip = v.trips.find((trip) => trip.id === target.id);
-                if (!trip || trip.sample || !isOwner(trip, v.userId)) return;
-                v.trips = v.trips.filter((trip) => trip.id !== target.id);
-                if (v.tripId === target.id) v.tripId = null;
-                if (v.sampleReturn?.tripId === target.id) v.sampleReturn.tripId = null;
-              });
-              go(5);
-              toast("Trip deleted from this browser.");
-            }}
-          >
-            Delete trip
-          </Button>
-        </div>
-      </Modal>
-    );
-  }
+  if (o.kind === "deleteTrip") return <DeleteTrip />;
   if (o.kind === "demo") return <Demo />;
   if (o.kind === "authProvider") return <AuthProvider />;
   if (o.kind === "expense") return <ExpenseForm />;
@@ -730,6 +792,31 @@ export function Overlays() {
     const trip = s.trips.find((t) => t.id === o.data.tripId),
       m = trip?.members.find((m) => m.id === o.data.userId);
     if (!trip || !m) return null;
+    if (trip.persistence === "account")
+      return (
+        <Modal title="Traveler details">
+          <h2>{m.name}</h2>
+          <p>
+            {m.email} · {m.role}
+          </p>
+          <p>
+            This traveler is saved with your trip. Adding them as a guest lets
+            you include them in plans and expense splits; it does not give
+            another account access or send an invitation.
+          </p>
+          <Button
+            onClick={() => {
+              updateTrip((t) => {
+                t.members.find((person) => person.id === m.id)!.status =
+                  "accepted";
+              });
+              close();
+            }}
+          >
+            Add as guest traveler
+          </Button>
+        </Modal>
+      );
     return (
       <Modal title="You’re invited">
         <Badge>FICTIONAL INVITATION PREVIEW</Badge>

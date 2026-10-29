@@ -1,4 +1,12 @@
 import { DestinationInput } from "./destination-input";
+/** Implementation status: Real account trip forms persist the complete trip through saveTrip. Standalone demo trips remain browser-local; onboarding guest email lists do not send invitations. See ../IMPLEMENTATION_STATUS.md. */
+import {
+  TEXT_LIMITS,
+  MAX_DESTINATIONS,
+  textError,
+  emailError,
+  invitationsError,
+} from "./limits.ts";
 import React, { useRef, useState } from "react";
 import {
   ArrowRight,
@@ -16,6 +24,7 @@ import {
   EyeOff,
   Trash2,
 } from "lucide-react";
+import { tripDetailsError } from "./account-trips";
 import { useApp } from "./state";
 import {
   Badge,
@@ -57,6 +66,13 @@ export function Auth() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    const problem =
+      (signup ? textError(name, "Your name", TEXT_LIMITS.name, true) : "") ||
+      emailError(email);
+    if (problem) {
+      setError(problem);
+      return;
+    }
     const existing = s.users.find(
       (u) => u.email.toLowerCase() === email.trim().toLowerCase(),
     );
@@ -210,6 +226,7 @@ export function Auth() {
                   ref={nameInput}
                   autoComplete="off"
                   required
+                  maxLength={TEXT_LIMITS.name}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Alex Morgan"
@@ -221,6 +238,7 @@ export function Auth() {
                 required
                 type="email"
                 autoComplete="off"
+                maxLength={TEXT_LIMITS.email}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
@@ -551,7 +569,7 @@ export function Home() {
   );
 }
 export function Trips() {
-  const { s, user, mutate, go, open, route } = useApp();
+  const { s, user, mutate, go, open, route, pendingTripIds } = useApp();
   const [filter, setFilter] = useState("All");
   const trips = s.trips.filter((t) => member(t, s.userId));
   const visibleTrips = trips.filter(
@@ -585,8 +603,7 @@ export function Trips() {
             <Check size={20} />
             <span>
               <strong>Your trip is ready.</strong> Open its itinerary below to
-              add your first plan. You can invite people and set a budget
-              whenever you’re ready.
+              start planning.
             </span>
           </div>
         )}
@@ -652,6 +669,13 @@ export function Trips() {
                   {t.title}
                 </button>
               </h2>
+              <p className="fine-print">
+                {pendingTripIds.includes(t.id)
+                  ? "Not saved yet"
+                  : t.persistence === "account"
+                    ? "Saved to your account"
+                    : "Saved in this browser"}
+              </p>
               <p>
                 <MapPin size={14} />
                 {t.destinations.join(" · ")}
@@ -718,7 +742,10 @@ export function Trips() {
   );
 }
 export function TripForm() {
-  const { s, user, trip, route, mutate, go, toast, open } = useApp();
+  const { s, user, trip, route, saveTrip, accountTrips, go, toast, open } =
+    useApp();
+  const draftId = useRef(uid());
+  const saving = useRef(false);
   const editing = route.params.get("edit") === "true" && trip;
   const original = editing ? trip : undefined;
   const [title, setTitle] = useState(original?.title || ""),
@@ -743,6 +770,21 @@ export function TripForm() {
   const tripLength = start && end && end >= start ? days(start, end).length : 0;
   const addPlace = () => {
     if (!place.trim()) return;
+    const problem = textError(
+      place,
+      "Destination",
+      TEXT_LIMITS.destination,
+      true,
+    );
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    if (locations.length >= MAX_DESTINATIONS) {
+      setError("Add up to 20 destinations.");
+      return;
+    }
+    setError("");
     if (!locations.some((p) => p.toLowerCase() === place.trim().toLowerCase()))
       setLocations([...locations, place.trim()]);
     setPlace("");
@@ -755,29 +797,30 @@ export function TripForm() {
         action={<Button onClick={() => go(8)}>Back to itinerary</Button>}
       />
     );
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving.current) return;
     setError("");
-    const allPlaces = previewPlaces;
-    if (!title.trim()) {
-      setError("Give your trip a name so it’s easy to find later.");
+    const problem = tripDetailsError({
+      title,
+      destinations: previewPlaces,
+      start,
+      end,
+      zone,
+    });
+    if (problem) {
+      setError(problem);
       return;
     }
-    if (!allPlaces.length) {
-      setError("Add at least one destination.");
-      return;
-    }
-    if (end < start || days(start, end).length > 365) {
-      setError("Choose an end date after the start, within one year.");
-      return;
-    }
-    if (
-      original &&
-      original.events.some((e) => e.date < start || e.date > end)
-    ) {
+    if (original?.events.some((e) => e.date < start || e.date > end)) {
       setError(
         "Some events fall outside these dates. Move those events before shortening the trip.",
       );
+      return;
+    }
+    const inviteProblem = invitationsError(invites);
+    if (inviteProblem) {
+      setError(inviteProblem);
       return;
     }
     const emails = invites
@@ -788,85 +831,105 @@ export function TripForm() {
       setError("Use valid fictional email addresses, separated by commas.");
       return;
     }
-    setBusy(true);
-    setTimeout(() => {
-      const id = original?.id || uid();
-      mutate((v) => {
-        const invited = Array.from(new Set(emails))
-          .filter(
-            (email) =>
-              email !== user!.email &&
-              !original?.members.some((m) => m.email === email),
-          )
-          .map((email) => ({
-            id: v.users.find((u) => u.email === email)?.id || uid(),
-            name: email.split("@")[0].replace(/[._]/g, " "),
-            email,
-            role: "Viewer" as const,
-            days: [],
-            status: "pending" as const,
-          }));
-        if (original) {
-          const t = v.trips.find((t) => t.id === id)!;
-          Object.assign(t, {
-            title: title.trim(),
-            destinations: allPlaces,
-            start,
-            end,
-            zone,
-          });
-          t.members.push(...invited);
-          t.members.forEach(
-            (m) => (m.days = m.days.filter((d) => d >= start && d <= end)),
-          );
-        } else {
-          v.trips.push({
-            id,
-            title: title.trim(),
-            destinations: allPlaces,
-            start,
-            end,
-            zone,
-            image: IMAGES.coast,
-            members: [
-              {
-                id: user!.id,
-                name: user!.name,
-                email: user!.email,
-                role: "Owner",
-                days: [],
-                status: "accepted",
-              },
-              ...invited,
-            ],
-            events: [],
-            prefs: {},
-            expenses: [],
-            budget: null,
-            budgetMode: "group",
-            individual: {},
-            todos: [],
-            dismissed: [],
-          });
-        }
-        v.tripId = id;
-      });
-      toast(
-        original
-          ? "Trip details updated."
-          : emails.length
-            ? "Trip created. Invitations are simulated; no email was sent."
-            : "Your new trip is ready.",
+    if (original?.todos.some((todo) => todo.date < start || todo.date > end)) {
+      setError("Move or delete reminders outside the new dates first.");
+      return;
+    }
+    if (
+      original?.members.some(
+        (m) =>
+          m.status !== "removed" &&
+          m.role === "Day Editor" &&
+          !m.days.some((d) => d >= start && d <= end),
+      )
+    ) {
+      setError(
+        "Reassign Day Editor permissions before shortening these dates.",
       );
+      return;
+    }
+    const invited = Array.from(new Set(emails))
+      .filter(
+        (email) =>
+          email !== user!.email &&
+          !original?.members.some((m) => m.email === email),
+      )
+      .map((email) => ({
+        id: accountTrips
+          ? uid()
+          : s.users.find((u) => u.email === email)?.id || uid(),
+        name: email
+          .split("@")[0]
+          .replace(/[._]/g, " ")
+          .slice(0, TEXT_LIMITS.name),
+        email,
+        role: "Viewer" as const,
+        days: [],
+        status: "pending" as const,
+      }));
+    const draft: Trip = original
+      ? structuredClone(original)
+      : {
+          id: draftId.current,
+          title: "",
+          destinations: [],
+          start: "",
+          end: "",
+          zone: "",
+          image: IMAGES.coast,
+          members: [
+            {
+              id: user!.id,
+              name: user!.name,
+              email: user!.email,
+              role: "Owner",
+              days: [],
+              status: "accepted",
+            },
+          ],
+          events: [],
+          prefs: {},
+          expenses: [],
+          budget: null,
+          budgetMode: "group",
+          individual: {},
+          todos: [],
+          dismissed: [],
+        };
+    Object.assign(draft, {
+      title: title.trim(),
+      destinations: previewPlaces,
+      start,
+      end,
+      zone,
+    });
+    draft.members.push(...invited);
+    draft.members.forEach((m) => {
+      m.days = m.days.filter((d) => d >= start && d <= end);
+    });
+    saving.current = true;
+    setBusy(true);
+    try {
+      await saveTrip(draft);
+      if (!accountTrips || draft.sample) toast("Trip saved in this browser.");
       go(
         original
           ? 8
           : route.params.get("next")
             ? Number(route.params.get("next"))
             : 5,
-        original ? {} : { created: id },
+        original ? {} : { created: draft.id },
       );
-    }, 450);
+    } catch (issue) {
+      setError(
+        issue instanceof Error
+          ? issue.message
+          : "Could not save. Your input is still here; please try again.",
+      );
+    } finally {
+      saving.current = false;
+      setBusy(false);
+    }
   };
   return (
     <>
@@ -875,156 +938,166 @@ export function TripForm() {
         title={original ? "A few details, updated." : "Let’s make a trip."}
         description="A place, a few dates, your people. The rest can come together as you go."
       />
-      <form className="form-layout" onSubmit={submit}>
+      <form className="form-layout" onSubmit={submit} aria-busy={busy}>
         <div className="card form-card">
-          <div className="step-heading">
-            <span>01</span>
-            <h2>The essentials</h2>
-          </div>
-          <p className="form-guidance">
-            Start with a name, destination, and dates. Everything else can come
-            later.
-          </p>
-          <Field label="Trip title">
-            <input
-              required
-              maxLength={90}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Bachelorette trip"
-            />
-          </Field>
-          <Field
-            label="Where are you going?"
-            hint="One destination is enough. Add more for a multi-stop trip."
+          <fieldset
+            disabled={busy}
+            style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
           >
-            <DestinationInput value={place} onChange={setPlace} onAdd={addPlace} />
-          </Field>
-          <div className="chips">
-            {locations.map((p, i) => (
-              <span className="chip" key={i}>
-                <MapPin size={13} />
-                {p}
-                <button
-                  type="button"
-                  aria-label={`Remove ${p}`}
-                  onClick={() =>
-                    setLocations(locations.filter((_, n) => n !== i))
-                  }
-                >
-                  <X size={13} />
-                </button>
-              </span>
-            ))}
-          </div>
-          <div className="form-columns">
-            <Field label="Start date">
-              <input
-                required
-                type="date"
-                value={start}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setStart(next);
-                  if (!end || end < next) setEnd(next);
-                }}
-              />
-            </Field>
-            <Field label="End date">
-              <input
-                required
-                type="date"
-                min={start}
-                value={end}
-                onChange={(e) => setEnd(e.target.value)}
-              />
-            </Field>
-          </div>
-          <Field
-            label="Trip time zone"
-            hint="Used for your trip dates and the Today dashboard."
-          >
-            <select value={zone} onChange={(e) => setZone(e.target.value)}>
-              {[
-                ["America/Los_Angeles", "Los Angeles · Pacific Time"],
-                ["America/Denver", "Denver · Mountain Time"],
-                ["America/Chicago", "Chicago · Central Time"],
-                ["America/New_York", "New York · Eastern Time"],
-                ["Europe/London", "London · United Kingdom"],
-                ["Europe/Paris", "Paris · Central Europe"],
-                ["Asia/Taipei", "Taipei · Taiwan"],
-                ["Asia/Tokyo", "Tokyo · Japan"],
-                ["Australia/Sydney", "Sydney · Australia"],
-              ].map(([z, label]) => (
-                <option key={z} value={z}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <div className="step-heading">
-            <span>02</span>
-            <h2>Bring your people</h2>
-          </div>
-          <Field
-            label="Invite by email (optional)"
-            hint="Use fictional addresses, separated by commas. No invitations are actually sent."
-          >
-            <textarea
-              rows={2}
-              value={invites}
-              onChange={(e) => setInvites(e.target.value)}
-              placeholder="friend@example.com, another@example.com"
-            />
-          </Field>
-          <div className="note">
-            Everyone starts as a Viewer. You can assign editing permissions and
-            days in The group.
-          </div>
-          <section
-            className="mobile-trip-preview note"
-            aria-label="Trip preview"
-          >
-            <strong>{title.trim() || "Your trip"}</strong>
-            <p>{previewPlaces.join(" · ") || "Add a destination"}</p>
-            <p>
-              {tripLength
-                ? `${dateText(start, true)} – ${dateText(end, true)} · ${tripLength} ${tripLength === 1 ? "day" : "days"}`
-                : "Choose your dates"}
+            <div className="step-heading">
+              <span>01</span>
+              <h2>The essentials</h2>
+            </div>
+            <p className="form-guidance">
+              Start with a name, destination, and dates. Everything else can
+              come later.
             </p>
-          </section>
-          <ErrorBox text={error} />
-          <div className="form-actions">
-            <Button
-              variant="text"
-              onClick={() => {
-                if (title || locations.length) {
-                  if (
-                    !window.confirm(
-                      "Leave this form? Unsaved changes will be lost.",
+            <Field label="Trip title">
+              <input
+                required
+                maxLength={TEXT_LIMITS.title}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Bachelorette trip"
+              />
+            </Field>
+            <Field
+              label="Where are you going?"
+              hint="One destination is enough. Add more for a multi-stop trip."
+            >
+              <DestinationInput value={place} onChange={setPlace} onAdd={addPlace} />
+            </Field>
+            <div className="chips">
+              {locations.map((p, i) => (
+                <span className="chip" key={i}>
+                  <MapPin size={13} />
+                  {p}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${p}`}
+                    onClick={() =>
+                      setLocations(locations.filter((_, n) => n !== i))
+                    }
+                  >
+                    <X size={13} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="form-columns">
+              <Field label="Start date">
+                <input
+                  required
+                  type="date"
+                  value={start}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setStart(next);
+                    if (!end || end < next) setEnd(next);
+                  }}
+                />
+              </Field>
+              <Field label="End date">
+                <input
+                  required
+                  type="date"
+                  min={start}
+                  value={end}
+                  onChange={(e) => setEnd(e.target.value)}
+                />
+              </Field>
+            </div>
+            <Field
+              label="Trip time zone"
+              hint="Used for your trip dates and the Today dashboard."
+            >
+              <select value={zone} onChange={(e) => setZone(e.target.value)}>
+                {[
+                  ["America/Los_Angeles", "Los Angeles · Pacific Time"],
+                  ["America/Denver", "Denver · Mountain Time"],
+                  ["America/Chicago", "Chicago · Central Time"],
+                  ["America/New_York", "New York · Eastern Time"],
+                  ["Europe/London", "London · United Kingdom"],
+                  ["Europe/Paris", "Paris · Central Europe"],
+                  ["Asia/Taipei", "Taipei · Taiwan"],
+                  ["Asia/Tokyo", "Tokyo · Japan"],
+                  ["Australia/Sydney", "Sydney · Australia"],
+                ].map(([z, label]) => (
+                  <option key={z} value={z}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <div className="step-heading">
+              <span>02</span>
+              <h2>Bring your people</h2>
+            </div>
+            <Field
+              label="Invite by email (optional)"
+              hint={
+                accountTrips
+                  ? "Add guest travelers, separated by commas. Account invitations are not sent yet."
+                  : "Use fictional addresses, separated by commas. No invitations are actually sent."
+              }
+            >
+              <textarea
+                rows={2}
+                maxLength={TEXT_LIMITS.invitations}
+                value={invites}
+                onChange={(e) => setInvites(e.target.value)}
+                placeholder="friend@example.com, another@example.com"
+              />
+            </Field>
+            <div className="note">
+              Everyone starts as a Viewer. You can assign editing permissions
+              and days in The group.
+            </div>
+            <section
+              className="mobile-trip-preview note"
+              aria-label="Trip preview"
+            >
+              <strong>{title.trim() || "Your trip"}</strong>
+              <p>{previewPlaces.join(" · ") || "Add a destination"}</p>
+              <p>
+                {tripLength
+                  ? `${dateText(start, true)} – ${dateText(end, true)} · ${tripLength} ${tripLength === 1 ? "day" : "days"}`
+                  : "Choose your dates"}
+              </p>
+            </section>
+            <ErrorBox text={error} />
+            <div className="form-actions">
+              <Button
+                variant="text"
+                onClick={() => {
+                  if (title || locations.length) {
+                    if (
+                      !window.confirm(
+                        "Leave this form? Unsaved changes will be lost.",
+                      )
                     )
-                  )
-                    return;
-                }
-                go(original ? 8 : 4);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={busy}>
-              {busy ? "Saving…" : original ? "Save changes" : "Create trip"}
-              <ArrowRight size={16} />
-            </Button>
-          </div>
-          {original && !original.sample && (
-            <Button
-              variant="text danger"
-              disabled={busy}
-              onClick={() => open("deleteTrip", { tripId: original.id })}
-            >
-              <Trash2 size={16} /> Delete trip
-            </Button>
-          )}
+                      return;
+                  }
+                  go(original ? 8 : 4);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busy}>
+                {busy ? "Saving…" : original ? "Save changes" : "Create trip"}
+                <ArrowRight size={16} />
+              </Button>
+            </div>
+            {original && !original.sample && (
+              <Button
+                variant="text danger"
+                disabled={busy}
+                onClick={() => open("deleteTrip", { tripId: original.id })}
+              >
+                <Trash2 size={16} /> Delete trip
+              </Button>
+            )}
+          </fieldset>
         </div>
         <aside className="form-aside">
           <section className="card trip-preview" aria-label="Trip preview">
@@ -1064,8 +1137,9 @@ export function TripForm() {
             you want.
           </p>
           <p className="fine-print">
-            This prototype saves on this device only. Use fictional data for
-            testing.
+            {accountTrips
+              ? "Your trip and planning details save to your account."
+              : "Sample trips save on this device only. Use fictional data for testing."}
           </p>
         </aside>
       </form>

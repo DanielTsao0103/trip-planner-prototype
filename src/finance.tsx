@@ -1,3 +1,5 @@
+/** Implementation status: Account budgets, expenses, splits, and repayment markers save through updateTrip to Supabase. Sample trips stay local. Receipt scans/Gmail/bank actions remain fixtures; no messages or money are sent. See ../IMPLEMENTATION_STATUS.md. */
+import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
 import React, { useState } from "react";
 import {
   ArrowDownLeft,
@@ -140,9 +142,6 @@ export function Budget() {
             <ArrowUpRight size={15} />
           </button>
         )}
-        <span className="push fine-print">
-          Demo finances · no accounts linked
-        </span>
       </div>
       {budget === null && (
         <div className="info-banner">
@@ -433,8 +432,9 @@ export function BudgetSetup() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
-            setError("Enter a budget greater than zero.");
+          const problem = moneyError(amount, MONEY_LIMITS.budget);
+          if (problem) {
+            setError(problem);
             return;
           }
           if (mode === "group" && !owner) {
@@ -478,11 +478,13 @@ export function BudgetSetup() {
               ? "Group budget (USD)"
               : "Your individual budget (USD)"
           }
+          hint="Up to $999,999.99; maximum 2 decimal places."
         >
           <input
             required
             type="number"
             min="0.01"
+            max={MONEY_LIMITS.budget / 100}
             step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -546,6 +548,17 @@ export function ExpenseForm() {
             setError("Only the payer can edit this expense.");
             return;
           }
+          const problem =
+            textError(
+              purpose,
+              "Expense description",
+              TEXT_LIMITS.expense,
+              true,
+            ) || moneyError(amount, MONEY_LIMITS.expense);
+          if (problem) {
+            setError(problem);
+            return;
+          }
           const cents = Math.round(Number(amount) * 100);
           if (!Number.isFinite(cents) || cents <= 0) {
             setError("Enter an amount greater than zero.");
@@ -578,7 +591,11 @@ export function ExpenseForm() {
             else t.expenses.unshift(record);
           });
           toast("Expense recorded. Your totals are up to date.");
-          if (shared && people.some((id) => id !== s.userId))
+          if (
+            t.persistence !== "account" &&
+            shared &&
+            people.some((id) => id !== s.userId)
+          )
             open("message", {
               title: "Your group is in the loop",
               body: `Simulated notification: ${people
@@ -591,6 +608,31 @@ export function ExpenseForm() {
           else close();
         }}
       >
+        {original && original.payer === s.userId && (
+          <Button
+            variant="text danger"
+            onClick={() => {
+              if (original.settled.length) {
+                setError(
+                  "Completed repayments must stay in the history. Add an adjustment expense instead.",
+                );
+                return;
+              }
+              if (
+                window.confirm("Delete this expense and its unpaid shares?")
+              ) {
+                updateTrip((trip) => {
+                  trip.expenses = trip.expenses.filter(
+                    (e) => e.id !== original.id,
+                  );
+                });
+                close();
+              }
+            }}
+          >
+            Delete expense
+          </Button>
+        )}
         {scan && (
           <div className="scan-box">
             <ScanLine size={30} />
@@ -639,17 +681,22 @@ export function ExpenseForm() {
         <Field label="What was it for?">
           <input
             required
+            maxLength={TEXT_LIMITS.expense}
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
             placeholder="Lunch by the waterfront"
           />
         </Field>
         <div className="form-columns">
-          <Field label="Amount (USD)">
+          <Field
+            label="Amount (USD)"
+            hint="Up to $99,999.99; maximum 2 decimal places."
+          >
             <input
               required
               type="number"
               min="0.01"
+              max={MONEY_LIMITS.expense / 100}
               step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
@@ -700,9 +747,12 @@ export function ExpenseForm() {
                   <span>{m.name}</span>
                   <strong>
                     {money(
-                      splitCents(Math.round(Number(amount || 0) * 100), people)[
-                        m.id
-                      ] || 0,
+                      splitCents(
+                        moneyError(amount, MONEY_LIMITS.expense)
+                          ? 0
+                          : Math.round(Number(amount) * 100),
+                        people,
+                      )[m.id] || 0,
                     )}
                   </strong>
                 </label>
@@ -715,7 +765,9 @@ export function ExpenseForm() {
             Cancel
           </Button>
           <Button type="submit">
-            {shared ? "Save & simulate notification" : "Save expense"}
+            {shared && t.persistence !== "account"
+              ? "Save & simulate notification"
+              : "Save expense"}
           </Button>
         </div>
       </form>

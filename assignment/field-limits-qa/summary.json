@@ -1,0 +1,306 @@
+{
+  "site": "https://danieltsao0103.github.io/trip-planner-prototype/",
+  "commit": "2313c721740d4be4493b55f79e6013bad2820079",
+  "checkedAt": "2026-10-29T02:41:25.242Z",
+  "lighthouseVersion": "13.6.0",
+  "results": [
+    {
+      "device": "desktop",
+      "name": "login",
+      "mode": "navigation",
+      "score": 100,
+      "auditViewport": 1365,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "signup",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 1365,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "trip-form",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 1365,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "event-form",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 1365,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "preference-places",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 1365,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "preference-notes",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 1365,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "invite-dialog",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 1365,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "budget-dialog",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 1365,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "expense-dialog",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 1365,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "expense-validation",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 1365,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "reminders",
+      "mode": "snapshot",
+      "score": 96,
+      "auditViewport": 1365,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": [
+        {
+          "id": "color-contrast",
+          "title": "Background and foreground colors do not have a sufficient contrast ratio."
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "login",
+      "mode": "navigation",
+      "score": 100,
+      "auditViewport": 390,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "signup",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 390,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "trip-form",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 390,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "event-form",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 390,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "preference-places",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 390,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "preference-notes",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 390,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "invite-dialog",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 390,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "budget-dialog",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 390,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "expense-dialog",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 390,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "expense-validation",
+      "mode": "snapshot",
+      "score": 100,
+      "auditViewport": 390,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "reminders",
+      "mode": "snapshot",
+      "score": 96,
+      "auditViewport": 390,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": [
+        {
+          "id": "color-contrast",
+          "title": "Background and foreground colors do not have a sufficient contrast ratio."
+        }
+      ]
+    }
+  ],
+  "completedAt": "2026-10-29T02:42:24.917Z",
+  "finalCommit": "2313c721740d4be4493b55f79e6013bad2820079"
+}

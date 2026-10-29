@@ -1,0 +1,1345 @@
+{
+  "site": "https://danieltsao0103.github.io/trip-planner-prototype/",
+  "commit": "cdff73bf684021ee1e993b47cc973b92c6e7fe2d",
+  "checkedAt": "2026-10-29T03:01:29.055Z",
+  "lighthouseVersion": "13.6.0",
+  "results": [
+    {
+      "device": "desktop",
+      "name": "login",
+      "mode": "navigation",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "empty-trips",
+      "mode": "snapshot",
+      "score": 98,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": [
+        {
+          "id": "heading-order",
+          "title": "Heading elements are not in a sequentially-descending order",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-H3",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,1,MAIN,3,DIV,1,H3",
+                "selector": "div.main-wrap > main#main-content > div.empty > h3",
+                "boundingRect": {
+                  "top": 490,
+                  "bottom": 525,
+                  "left": 293,
+                  "right": 1298,
+                  "width": 1005,
+                  "height": 35
+                },
+                "snippet": "<h3>",
+                "nodeLabel": "Your first trip is waiting.",
+                "explanation": "Fix any of the following:\n  Heading order invalid"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "saved-trips",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "create-trip",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "edit-trip",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "itinerary",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "day-detail",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "event-editor",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "preferences-food",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "preferences-access",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "preferences-notes",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "group",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "traveler-dialog",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "traveler-status",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "permissions-dialog",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "reminders",
+      "mode": "snapshot",
+      "score": 96,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": [
+        {
+          "id": "color-contrast",
+          "title": "Background and foreground colors do not have a sufficient contrast ratio.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-7-SPAN",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,1,DIV,1,DIV,2,LABEL,1,SPAN",
+                "selector": "div.dashboard-grid > div.card > label.todo-item > span.done",
+                "boundingRect": {
+                  "top": 390,
+                  "bottom": 408,
+                  "left": 1117,
+                  "right": 1184,
+                  "width": 67,
+                  "height": 18
+                },
+                "snippet": "<span class=\"done\">",
+                "nodeLabel": "Pack tickets",
+                "explanation": "Fix any of the following:\n  Element has insufficient color contrast of 2.55 (foreground color: #9aa58e, background color: #fffef9, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+              },
+              "subItems": {
+                "type": "subitems",
+                "items": [
+                  {
+                    "relatedNode": {
+                      "type": "node",
+                      "lhId": "1-8-DIV",
+                      "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,1,DIV,1,DIV",
+                      "selector": "div.main-wrap > main#main-content > div.dashboard-grid > div.card",
+                      "boundingRect": {
+                        "top": 298,
+                        "bottom": 629,
+                        "left": 1058,
+                        "right": 1323,
+                        "width": 265,
+                        "height": 331
+                      },
+                      "snippet": "<div class=\"card todo-card\">",
+                      "nodeLabel": "THE LITTLE THINGS\nBefore you go.\nPack tickets\nRemove\n0 / 220 characters\nShared …"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-9-DIV",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,3,DIV,0,DIV,2,DIV",
+                "selector": "main#main-content > div.map-layout > div.map-canvas > div.map-label-badge",
+                "boundingRect": {
+                  "top": 763,
+                  "bottom": 795,
+                  "left": 289,
+                  "right": 363,
+                  "width": 74,
+                  "height": 32
+                },
+                "snippet": "<div class=\"map-label-badge\">",
+                "nodeLabel": "Live map",
+                "explanation": "Fix any of the following:\n  Element has insufficient color contrast of 3.82 (foreground color: #76856b, background color: #fdfcf4, font size: 6.8pt (9px), font weight: normal). Expected contrast ratio of 4.5:1"
+              },
+              "subItems": {
+                "type": "subitems",
+                "items": [
+                  {
+                    "relatedNode": {
+                      "type": "node",
+                      "lhId": "1-10-DIV",
+                      "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,3,DIV,0,DIV,0,DIV,0,DIV",
+                      "selector": "div.map-layout > div.map-canvas > div.gmap-host > div",
+                      "boundingRect": {
+                        "top": 743,
+                        "bottom": 1041,
+                        "left": 269,
+                        "right": 1322,
+                        "width": 1053,
+                        "height": 298
+                      },
+                      "snippet": "<div style=\"height: 100%; width: 100%; position: absolute; top: 0px; left: 0px;\">",
+                      "nodeLabel": "Map"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-11-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,1,DIV,1,DIV,2,LABEL,2,BUTTON",
+                "selector": "div.dashboard-grid > div.card > label.todo-item > button",
+                "boundingRect": {
+                  "top": 390,
+                  "bottom": 410,
+                  "left": 1193,
+                  "right": 1249,
+                  "width": 56,
+                  "height": 20
+                },
+                "snippet": "<button type=\"button\" aria-label=\"Delete reminder: Pack tickets\">",
+                "nodeLabel": "Remove",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "budget",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "budget-dialog",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "expense-dialog",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "repayments",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "save-recovery",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "login",
+      "mode": "navigation",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "empty-trips",
+      "mode": "snapshot",
+      "score": 98,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": [
+        {
+          "id": "heading-order",
+          "title": "Heading elements are not in a sequentially-descending order",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-H3",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,1,MAIN,3,DIV,1,H3",
+                "selector": "div.main-wrap > main#main-content > div.empty > h3",
+                "boundingRect": {
+                  "top": 538,
+                  "bottom": 573,
+                  "left": 41,
+                  "right": 349,
+                  "width": 308,
+                  "height": 35
+                },
+                "snippet": "<h3>",
+                "nodeLabel": "Your first trip is waiting.",
+                "explanation": "Fix any of the following:\n  Heading order invalid"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "saved-trips",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "create-trip",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "edit-trip",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "itinerary",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "day-detail",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "event-editor",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "preferences-food",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "preferences-access",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "preferences-notes",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "group",
+      "mode": "snapshot",
+      "score": 95,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": [
+        {
+          "id": "target-size",
+          "title": "Touch targets do not have sufficient size or spacing.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-12-SUMMARY",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,1,ARTICLE,2,DIV,0,DETAILS,0,SUMMARY",
+                "selector": "article.card > div.preference-values > details > summary",
+                "boundingRect": {
+                  "top": 646,
+                  "bottom": 662,
+                  "left": 217,
+                  "right": 354,
+                  "width": 137,
+                  "height": 16
+                },
+                "snippet": "<summary>",
+                "nodeLabel": "A little of both\n1",
+                "explanation": "Fix any of the following:\n  Target has insufficient size (137px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+              },
+              "subItems": {
+                "type": "subitems",
+                "items": [
+                  {
+                    "relatedNode": {
+                      "type": "node",
+                      "lhId": "1-13-SUMMARY",
+                      "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,1,ARTICLE,2,DIV,1,DETAILS,0,SUMMARY",
+                      "selector": "article.card > div.preference-values > details > summary",
+                      "boundingRect": {
+                        "top": 669,
+                        "bottom": 685,
+                        "left": 217,
+                        "right": 354,
+                        "width": 137,
+                        "height": 16
+                      },
+                      "snippet": "<summary>",
+                      "nodeLabel": "Casual & simple\n1"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-13-SUMMARY",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,1,ARTICLE,2,DIV,1,DETAILS,0,SUMMARY",
+                "selector": "article.card > div.preference-values > details > summary",
+                "boundingRect": {
+                  "top": 669,
+                  "bottom": 685,
+                  "left": 217,
+                  "right": 354,
+                  "width": 137,
+                  "height": 16
+                },
+                "snippet": "<summary>",
+                "nodeLabel": "Casual & simple\n1",
+                "explanation": "Fix any of the following:\n  Target has insufficient size (137px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+              },
+              "subItems": {
+                "type": "subitems",
+                "items": [
+                  {
+                    "relatedNode": {
+                      "type": "node",
+                      "lhId": "1-12-SUMMARY",
+                      "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,1,ARTICLE,2,DIV,0,DETAILS,0,SUMMARY",
+                      "selector": "article.card > div.preference-values > details > summary",
+                      "boundingRect": {
+                        "top": 646,
+                        "bottom": 662,
+                        "left": 217,
+                        "right": 354,
+                        "width": 137,
+                        "height": 16
+                      },
+                      "snippet": "<summary>",
+                      "nodeLabel": "A little of both\n1"
+                    }
+                  },
+                  {
+                    "relatedNode": {
+                      "type": "node",
+                      "lhId": "1-14-SUMMARY",
+                      "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,1,ARTICLE,2,DIV,2,DETAILS,0,SUMMARY",
+                      "selector": "article.card > div.preference-values > details > summary",
+                      "boundingRect": {
+                        "top": 692,
+                        "bottom": 708,
+                        "left": 217,
+                        "right": 354,
+                        "width": 137,
+                        "height": 16
+                      },
+                      "snippet": "<summary>",
+                      "nodeLabel": "Quiet\n1"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-14-SUMMARY",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,1,ARTICLE,2,DIV,2,DETAILS,0,SUMMARY",
+                "selector": "article.card > div.preference-values > details > summary",
+                "boundingRect": {
+                  "top": 692,
+                  "bottom": 708,
+                  "left": 217,
+                  "right": 354,
+                  "width": 137,
+                  "height": 16
+                },
+                "snippet": "<summary>",
+                "nodeLabel": "Quiet\n1",
+                "explanation": "Fix any of the following:\n  Target has insufficient size (137px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+              },
+              "subItems": {
+                "type": "subitems",
+                "items": [
+                  {
+                    "relatedNode": {
+                      "type": "node",
+                      "lhId": "1-13-SUMMARY",
+                      "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,1,ARTICLE,2,DIV,1,DETAILS,0,SUMMARY",
+                      "selector": "article.card > div.preference-values > details > summary",
+                      "boundingRect": {
+                        "top": 669,
+                        "bottom": 685,
+                        "left": 217,
+                        "right": 354,
+                        "width": 137,
+                        "height": 16
+                      },
+                      "snippet": "<summary>",
+                      "nodeLabel": "Casual & simple\n1"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-15-SUMMARY",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,3,ARTICLE,2,DIV,0,DETAILS,0,SUMMARY",
+                "selector": "article.card > div.preference-values > details > summary",
+                "boundingRect": {
+                  "top": 879,
+                  "bottom": 895,
+                  "left": 217,
+                  "right": 354,
+                  "width": 137,
+                  "height": 16
+                },
+                "snippet": "<summary>",
+                "nodeLabel": "Step-free access\n1",
+                "explanation": "Fix any of the following:\n  Target has insufficient size (137px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+              },
+              "subItems": {
+                "type": "subitems",
+                "items": [
+                  {
+                    "relatedNode": {
+                      "type": "node",
+                      "lhId": "1-16-SUMMARY",
+                      "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,3,ARTICLE,2,DIV,1,DETAILS,0,SUMMARY",
+                      "selector": "article.card > div.preference-values > details > summary",
+                      "boundingRect": {
+                        "top": 902,
+                        "bottom": 918,
+                        "left": 217,
+                        "right": 354,
+                        "width": 137,
+                        "height": 16
+                      },
+                      "snippet": "<summary>",
+                      "nodeLabel": "Walks up to 1500m\n1"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-16-SUMMARY",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,3,ARTICLE,2,DIV,1,DETAILS,0,SUMMARY",
+                "selector": "article.card > div.preference-values > details > summary",
+                "boundingRect": {
+                  "top": 902,
+                  "bottom": 918,
+                  "left": 217,
+                  "right": 354,
+                  "width": 137,
+                  "height": 16
+                },
+                "snippet": "<summary>",
+                "nodeLabel": "Walks up to 1500m\n1",
+                "explanation": "Fix any of the following:\n  Target has insufficient size (137px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+              },
+              "subItems": {
+                "type": "subitems",
+                "items": [
+                  {
+                    "relatedNode": {
+                      "type": "node",
+                      "lhId": "1-15-SUMMARY",
+                      "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,3,ARTICLE,2,DIV,0,DETAILS,0,SUMMARY",
+                      "selector": "article.card > div.preference-values > details > summary",
+                      "boundingRect": {
+                        "top": 879,
+                        "bottom": 895,
+                        "left": 217,
+                        "right": 354,
+                        "width": 137,
+                        "height": 16
+                      },
+                      "snippet": "<summary>",
+                      "nodeLabel": "Step-free access\n1"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-17-SUMMARY",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,5,ARTICLE,2,DIV,0,DETAILS,0,SUMMARY",
+                "selector": "article.card > div.preference-values > details > summary",
+                "boundingRect": {
+                  "top": 1088,
+                  "bottom": 1104,
+                  "left": 217,
+                  "right": 354,
+                  "width": 137,
+                  "height": 16
+                },
+                "snippet": "<summary>",
+                "nodeLabel": "Happy to book ahead\n1",
+                "explanation": "Fix any of the following:\n  Target has insufficient size (137px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+              },
+              "subItems": {
+                "type": "subitems",
+                "items": [
+                  {
+                    "relatedNode": {
+                      "type": "node",
+                      "lhId": "1-18-SUMMARY",
+                      "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,5,ARTICLE,2,DIV,1,DETAILS,0,SUMMARY",
+                      "selector": "article.card > div.preference-values > details > summary",
+                      "boundingRect": {
+                        "top": 1111,
+                        "bottom": 1127,
+                        "left": 217,
+                        "right": 354,
+                        "width": 137,
+                        "height": 16
+                      },
+                      "snippet": "<summary>",
+                      "nodeLabel": "A slower pace\n1"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-18-SUMMARY",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,5,ARTICLE,2,DIV,1,DETAILS,0,SUMMARY",
+                "selector": "article.card > div.preference-values > details > summary",
+                "boundingRect": {
+                  "top": 1111,
+                  "bottom": 1127,
+                  "left": 217,
+                  "right": 354,
+                  "width": 137,
+                  "height": 16
+                },
+                "snippet": "<summary>",
+                "nodeLabel": "A slower pace\n1",
+                "explanation": "Fix any of the following:\n  Target has insufficient size (137px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+              },
+              "subItems": {
+                "type": "subitems",
+                "items": [
+                  {
+                    "relatedNode": {
+                      "type": "node",
+                      "lhId": "1-17-SUMMARY",
+                      "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,2,DIV,5,ARTICLE,2,DIV,0,DETAILS,0,SUMMARY",
+                      "selector": "article.card > div.preference-values > details > summary",
+                      "boundingRect": {
+                        "top": 1088,
+                        "bottom": 1104,
+                        "left": 217,
+                        "right": 354,
+                        "width": 137,
+                        "height": 16
+                      },
+                      "snippet": "<summary>",
+                      "nodeLabel": "Happy to book ahead\n1"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "traveler-dialog",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "traveler-status",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "permissions-dialog",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "reminders",
+      "mode": "snapshot",
+      "score": 96,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": [
+        {
+          "id": "color-contrast",
+          "title": "Background and foreground colors do not have a sufficient contrast ratio.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-23-SPAN",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,1,DIV,1,DIV,2,LABEL,1,SPAN",
+                "selector": "div.dashboard-grid > div.card > label.todo-item > span.done",
+                "boundingRect": {
+                  "top": 763,
+                  "bottom": 781,
+                  "left": 82,
+                  "right": 149,
+                  "width": 67,
+                  "height": 18
+                },
+                "snippet": "<span class=\"done\">",
+                "nodeLabel": "Pack tickets",
+                "explanation": "Fix any of the following:\n  Element has insufficient color contrast of 2.55 (foreground color: #9aa58e, background color: #fffef9, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+              },
+              "subItems": {
+                "type": "subitems",
+                "items": [
+                  {
+                    "relatedNode": {
+                      "type": "node",
+                      "lhId": "1-24-DIV",
+                      "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,1,DIV,1,DIV",
+                      "selector": "div.main-wrap > main#main-content > div.dashboard-grid > div.card",
+                      "boundingRect": {
+                        "top": 667,
+                        "bottom": 937,
+                        "left": 20,
+                        "right": 370,
+                        "width": 350,
+                        "height": 270
+                      },
+                      "snippet": "<div class=\"card todo-card\">",
+                      "nodeLabel": "THE LITTLE THINGS\nBefore you go.\nPack tickets\nRemove\n0 / 220 characters\nShared …"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-25-DIV",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,3,DIV,0,DIV,2,DIV",
+                "selector": "main#main-content > div.map-layout > div.map-canvas > div.map-label-badge",
+                "boundingRect": {
+                  "top": 1080,
+                  "bottom": 1108,
+                  "left": 33,
+                  "right": 97,
+                  "width": 64,
+                  "height": 28
+                },
+                "snippet": "<div class=\"map-label-badge\">",
+                "nodeLabel": "Live map",
+                "explanation": "Fix any of the following:\n  Element has insufficient color contrast of 3.82 (foreground color: #76856b, background color: #fdfcf4, font size: 6.0pt (8px), font weight: normal). Expected contrast ratio of 4.5:1"
+              },
+              "subItems": {
+                "type": "subitems",
+                "items": [
+                  {
+                    "relatedNode": {
+                      "type": "node",
+                      "lhId": "1-26-DIV",
+                      "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,3,DIV,0,DIV,0,DIV,0,DIV",
+                      "selector": "div.map-layout > div.map-canvas > div.gmap-host > div",
+                      "boundingRect": {
+                        "top": 1067,
+                        "bottom": 1367,
+                        "left": 21,
+                        "right": 369,
+                        "width": 348,
+                        "height": 300
+                      },
+                      "snippet": "<div style=\"height: 100%; width: 100%; position: absolute; top: 0px; left: 0px;\">",
+                      "nodeLabel": "1"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-27-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,1,DIV,1,DIV,2,LABEL,2,BUTTON",
+                "selector": "div.dashboard-grid > div.card > label.todo-item > button",
+                "boundingRect": {
+                  "top": 763,
+                  "bottom": 783,
+                  "left": 161,
+                  "right": 217,
+                  "width": 56,
+                  "height": 20
+                },
+                "snippet": "<button type=\"button\" aria-label=\"Delete reminder: Pack tickets\">",
+                "nodeLabel": "Remove",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-28-GMP-ADVANCED-MARKER",
+                "path": "1,HTML,1,BODY,0,DIV,2,DIV,1,DIV,2,MAIN,3,DIV,0,DIV,0,DIV,0,DIV,1,DIV,0,DIV,1,DIV,0,DIV,2,DIV,3,DIV,0,GMP-ADVANCED-MARKER",
+                "selector": "div > div > div > gmp-advanced-marker.yNHHyP-marker-view",
+                "boundingRect": {
+                  "top": 1179,
+                  "bottom": 1217,
+                  "left": 176,
+                  "right": 214,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<gmp-advanced-marker aria-label=\"National museum\" role=\"button\" slot=\"VyEnES-internal-visible-gmp-advanced-markers\" position=\"25.1023554,121.5484925\" class=\"yNHHyP-marker-view\" tabindex=\"0\" style=\"pointer-events: auto; cursor: pointer;\">",
+                "nodeLabel": "1",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "budget",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "budget-dialog",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "expense-dialog",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "repayments",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "save-recovery",
+      "mode": "snapshot",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "passes": true
+      },
+      "failures": []
+    }
+  ],
+  "widthChecks": [
+    {
+      "route": "5",
+      "width": 320,
+      "actualWidth": 320,
+      "passes": true
+    },
+    {
+      "route": "6?edit=true",
+      "width": 320,
+      "actualWidth": 320,
+      "passes": true
+    },
+    {
+      "route": "8",
+      "width": 320,
+      "actualWidth": 320,
+      "passes": true
+    },
+    {
+      "route": "7?event=b4e5fab2-c8cb-4375-8f3e-a072da09c1af",
+      "width": 320,
+      "actualWidth": 320,
+      "passes": true
+    },
+    {
+      "route": "10",
+      "width": 320,
+      "actualWidth": 320,
+      "passes": true
+    },
+    {
+      "route": "12",
+      "width": 320,
+      "actualWidth": 320,
+      "passes": true
+    },
+    {
+      "route": "13",
+      "width": 320,
+      "actualWidth": 320,
+      "passes": true
+    },
+    {
+      "route": "15",
+      "width": 320,
+      "actualWidth": 320,
+      "passes": true
+    },
+    {
+      "route": "5",
+      "width": 390,
+      "actualWidth": 390,
+      "passes": true
+    },
+    {
+      "route": "6?edit=true",
+      "width": 390,
+      "actualWidth": 390,
+      "passes": true
+    },
+    {
+      "route": "8",
+      "width": 390,
+      "actualWidth": 390,
+      "passes": true
+    },
+    {
+      "route": "7?event=b4e5fab2-c8cb-4375-8f3e-a072da09c1af",
+      "width": 390,
+      "actualWidth": 390,
+      "passes": true
+    },
+    {
+      "route": "10",
+      "width": 390,
+      "actualWidth": 390,
+      "passes": true
+    },
+    {
+      "route": "12",
+      "width": 390,
+      "actualWidth": 390,
+      "passes": true
+    },
+    {
+      "route": "13",
+      "width": 390,
+      "actualWidth": 390,
+      "passes": true
+    },
+    {
+      "route": "15",
+      "width": 390,
+      "actualWidth": 390,
+      "passes": true
+    },
+    {
+      "route": "5",
+      "width": 768,
+      "actualWidth": 768,
+      "passes": true
+    },
+    {
+      "route": "6?edit=true",
+      "width": 768,
+      "actualWidth": 768,
+      "passes": true
+    },
+    {
+      "route": "8",
+      "width": 768,
+      "actualWidth": 768,
+      "passes": true
+    },
+    {
+      "route": "7?event=b4e5fab2-c8cb-4375-8f3e-a072da09c1af",
+      "width": 768,
+      "actualWidth": 768,
+      "passes": true
+    },
+    {
+      "route": "10",
+      "width": 768,
+      "actualWidth": 768,
+      "passes": true
+    },
+    {
+      "route": "12",
+      "width": 768,
+      "actualWidth": 768,
+      "passes": true
+    },
+    {
+      "route": "13",
+      "width": 768,
+      "actualWidth": 768,
+      "passes": true
+    },
+    {
+      "route": "15",
+      "width": 768,
+      "actualWidth": 768,
+      "passes": true
+    },
+    {
+      "route": "5",
+      "width": 1365,
+      "actualWidth": 1365,
+      "passes": true
+    },
+    {
+      "route": "6?edit=true",
+      "width": 1365,
+      "actualWidth": 1365,
+      "passes": true
+    },
+    {
+      "route": "8",
+      "width": 1365,
+      "actualWidth": 1365,
+      "passes": true
+    },
+    {
+      "route": "7?event=b4e5fab2-c8cb-4375-8f3e-a072da09c1af",
+      "width": 1365,
+      "actualWidth": 1365,
+      "passes": true
+    },
+    {
+      "route": "10",
+      "width": 1365,
+      "actualWidth": 1365,
+      "passes": true
+    },
+    {
+      "route": "12",
+      "width": 1365,
+      "actualWidth": 1365,
+      "passes": true
+    },
+    {
+      "route": "13",
+      "width": 1365,
+      "actualWidth": 1365,
+      "passes": true
+    },
+    {
+      "route": "15",
+      "width": 1365,
+      "actualWidth": 1365,
+      "passes": true
+    }
+  ],
+  "keyboard": [
+    {
+      "device": "desktop",
+      "openWithEnter": true,
+      "closeWithEscape": true,
+      "focusRestored": true
+    },
+    {
+      "device": "mobile",
+      "openWithEnter": true,
+      "closeWithEscape": true,
+      "focusRestored": true
+    }
+  ],
+  "cleanup": true,
+  "completedAt": "2026-10-29T03:03:35.746Z",
+  "finalCommit": "cdff73bf684021ee1e993b47cc973b92c6e7fe2d"
+}
