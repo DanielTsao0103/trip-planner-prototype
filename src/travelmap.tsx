@@ -606,7 +606,7 @@ export function TravelMap({
             className="route-collapse"
             onClick={() => setExpanded(!expanded)}
           >
-            <span>{selected || "Around you"}</span>
+            <span>{selected || "Places"}</span>
             <ChevronDown size={18} />
           </button>
           <div className="route-content">
@@ -617,7 +617,6 @@ export function TravelMap({
             )}
             {selected && live ? (
               <>
-                <div className="eyebrow">ON THE MAP</div>
                 <h2>{selected}</h2>
                 <a
                   className="btn outline full"
@@ -633,12 +632,11 @@ export function TravelMap({
                   conditions need checking.
                 </p>
                 <Button variant="outline full" onClick={() => setSelected("")}>
-                  Explore other places
+                  Show all places
                 </Button>
               </>
             ) : selected ? (
               <>
-                <div className="eyebrow">A LITTLE WAY FROM HERE</div>
                 <h2>{selected}</h2>
                 <p className="route-stat">
                   <Route size={17} />
@@ -665,17 +663,11 @@ export function TravelMap({
                   </div>
                 </div>
                 <Button variant="outline full" onClick={() => setSelected("")}>
-                  Explore other places
+                  Show all places
                 </Button>
               </>
-            ) : (
-              <>
-                <div className="eyebrow">GET YOUR BEARINGS</div>
-                <h2>Around you.</h2>
-                <p>Your plans and a little nearby inspiration.</p>
-              </>
-            )}
-            <h3>Places on your map</h3>
+            ) : null}
+            <h3>Places</h3>
             <div className="places-list">
               {points.map((p, i) => (
                 <button
@@ -701,12 +693,11 @@ export function MapPage() {
     <>
       <PageHead
         eyebrow={t?.destinations.join(" · ")}
-        title="Find your way to a good day."
-        description="Your places, and the little journeys between them."
+        title="Map"
         action={
           <Button variant="outline" onClick={() => open("nearby")}>
             <Sparkles size={16} />
-            Nearby idea
+            Nearby suggestion
           </Button>
         }
       />
