@@ -67,7 +67,7 @@ test("text controls cap pasted text and expose counts across all forms", async (
   await noOverflow(page);
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
   await page
-    .getByRole("button", { name: "Demo controls & screen index", exact: true })
+    .getByRole("button", { name: "Prototype", exact: true })
     .click();
   await page.getByRole("button", { name: "During", exact: true }).click();
   await page

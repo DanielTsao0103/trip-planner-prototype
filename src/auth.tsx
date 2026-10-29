@@ -1,3 +1,4 @@
+/** Implementation status: email/password uses Supabase Auth. Google/Apple buttons only show a preview notice; they do not run OAuth. Maya uses a separate local session. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, textError, emailError } from "./limits.ts";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";

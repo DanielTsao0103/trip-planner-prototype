@@ -44,7 +44,7 @@ async function login(page: Page) {
   await expect(page.getByRole('heading', { name: 'Where to next, QA?' })).toBeVisible();
 }
 async function controls(page: Page) {
-  await page.getByRole('button', { name: 'Demo controls & screen index', exact: true }).click();
+  await page.getByRole('button', { name: 'Prototype', exact: true }).click();
   return page.getByRole('dialog', { name: 'Prototype controls' });
 }
 async function openAccount(page: Page) {

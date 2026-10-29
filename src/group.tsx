@@ -1,3 +1,4 @@
+/** Implementation status: displayed participants, roles, assigned days, and survey answers are local previews. These controls do not update database memberships or deliver invitations. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, textError } from "./limits.ts";
 import React, { useState } from "react";
 import {

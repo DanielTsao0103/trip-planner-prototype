@@ -1,3 +1,4 @@
+/** Implementation status: only TripForm.saveTrip persists account trip core details. Budget, invitees, connection permissions, and sample trips remain local. The legacy Auth component is not the app entry point. See ../IMPLEMENTATION_STATUS.md. */
 import {
   TEXT_LIMITS,
   MAX_DESTINATIONS,

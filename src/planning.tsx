@@ -1,3 +1,4 @@
+/** Implementation status: events, todos, suggestion choices, and preferences use local updateTrip/mutate only. Confirmation extraction, crowds, costs, and suggestions are fixtures, not OCR or live recommendations. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
 import React, { useState } from "react";
 import {
@@ -694,7 +695,7 @@ export function Suggestions() {
       reason:
         prefs?.food === "Familiar favorites"
           ? "Familiar flavors with a local twist, based on your food preferences."
-          : "Local flavors, with fictional menu options for the group’s saved preferences.",
+          : "Local flavors for the group’s saved preferences.",
     },
   ];
   const dates = days(t.start, t.end).filter((d) => canEdit(t, s.userId, d));
@@ -729,7 +730,7 @@ export function Suggestions() {
       <PageHead
         eyebrow="LEAVE ROOM FOR SOMETHING GOOD"
         title="A little inspiration."
-        description={`${isActive(t, s.date) && s.location ? "Near your simulated location" : "Around your planned stops"}, with your people in mind.`}
+        description={`${isActive(t, s.date) && s.location ? "Near your planned stops" : "Around your planned stops"}, with your people in mind.`}
         action={
           <Button
             variant="outline"
@@ -787,7 +788,7 @@ export function Suggestions() {
                   </div>
                   <div className="compatibility">
                     <Check size={14} />
-                    Sample match · details need checking
+                    Suggested for your group
                   </div>
                   <p className="available-slot">
                     {slot
@@ -844,10 +845,6 @@ export function Suggestions() {
             }
           />
         )}
-      <p className="fine-print">
-        These recommendations, costs, crowd levels, and suitability details are
-        illustrative. No live location or social account is accessed.
-      </p>
     </>
   );
 }

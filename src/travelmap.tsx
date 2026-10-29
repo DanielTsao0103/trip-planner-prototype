@@ -1,3 +1,4 @@
+/** Implementation status: configured Google Maps/geocoding and browser geolocation are real. The SVG fallback, 420/700-foot distances, four-minute route, and nearby fixture are not live navigation. See ../IMPLEMENTATION_STATUS.md. */
 import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,

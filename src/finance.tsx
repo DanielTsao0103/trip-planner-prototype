@@ -1,3 +1,4 @@
+/** Implementation status: budgets, expenses, splits, and repayment markers use local updateTrip only. Receipt scans fill fixed fields; Gmail and bank transaction actions use fixtures. No notifications or payments are sent. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
 import React, { useState } from "react";
 import {
@@ -141,9 +142,6 @@ export function Budget() {
             <ArrowUpRight size={15} />
           </button>
         )}
-        <span className="push fine-print">
-          Demo finances · no accounts linked
-        </span>
       </div>
       {budget === null && (
         <div className="info-banner">

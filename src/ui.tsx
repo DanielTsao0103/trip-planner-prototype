@@ -1,3 +1,4 @@
+/** Budget and Suggestions omit implementation notes; their real/local behavior is documented in ../IMPLEMENTATION_STATUS.md. Other screens retain their existing notes. */
 import React, { useEffect, useRef, useId, type ReactNode } from "react";
 import {
   ArrowUpRight,
@@ -497,15 +498,18 @@ export function Shell({ children }: { children: ReactNode }) {
           )}
           {children}
         </main>
-        <footer className="app-footer">
-          <span>
-            Account trip details sync when saved. Itinerary, budget, and group
-            changes stay in this browser.
-          </span>
-          <button onClick={() => open("demo")}>
-            Demo controls & screen index
-          </button>
-        </footer>
+        {/* Keep implementation commentary off Suggestions and Budget only. */}
+        {![9, 12].includes(route.page) && (
+          <footer className="app-footer">
+            <span>
+              Account trip details sync when saved. Itinerary, budget, and group
+              changes stay in this browser.
+            </span>
+            <button onClick={() => open("demo")}>
+              Demo controls & screen index
+            </button>
+          </footer>
+        )}
       </div>
       {trip && (
         <nav className="mobile-nav" aria-label="Mobile navigation">

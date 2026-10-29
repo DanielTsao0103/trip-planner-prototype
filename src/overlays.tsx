@@ -1,3 +1,4 @@
+/** Implementation status: provider selection, invitations, role edits, receipts, nearby alerts, and repayment actions are local previews. DeleteTrip is an exception: account trips use the server delete handler. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, textError, emailError } from "./limits.ts";
 import React, { useState } from "react";
 import {

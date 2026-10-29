@@ -6,6 +6,24 @@
 
 Planning a group trip often means keeping track of messages, calendars, bookings, and shared expenses in different places. Trip Planner is for friends, families, and other groups who want those plans in one place. The app brings together trip dates, destinations, a day-by-day itinerary, group members, preferences, and budget screens. Travelers can explore a fictional Seattle and Bainbridge trip or create a separate trip in the prototype. Our working backend feature is email and password account creation, login, and sign-out through Supabase. Creating an account saves the account and its name in the database, then opens the planner with that person's name. Creating a trip now saves its name, destinations, dates, and time zone to the signed-in account in Supabase. Saved trips load after sign-in on another browser; editing trip details and deleting a trip also persist. Itinerary events, expenses, and invitation/group controls remain browser-only previews.
 
+## Behavioral requirements and completion status
+
+This release is scoped to the **Budget and Suggestions implementation-note cleanup**, not implementing every prototype feature. “Complete” means the behavior below is implemented and verified; it does not turn browser-only data into server data.
+
+| Behavioral requirement | Status | Verification / boundary |
+| --- | --- | --- |
+| Hide implementation commentary on Suggestions, including its illustrative-data note and shared footer | Complete | Checked on desktop and mobile; suggestion controls remain available. |
+| Hide implementation commentary on Budget, including its demo-finance note and shared footer | Complete | Checked on desktop and mobile; budget and expense controls remain available. |
+| Preserve the existing notes on all other pages and dialogs | Complete | Restored the original copy; the shared footer remains on every other planner route. |
+| Keep real-versus-simulated behavior documented for future development | Complete | [Implementation status](IMPLEMENTATION_STATUS.md) maps every screen to its actual persistence/integration boundary; source comments identify local mutations. |
+| Keep the affected pages responsive and accessible | Complete | Desktop/mobile browser checks, keyboard dialog check, visual review, and Lighthouse results are recorded in [release verification](assignment/note-cleanup-verification.md). |
+| Preserve the existing user → frontend → backend → database trip workflow | Complete | Live Supabase regression checks passed for browser creation, reload, fresh-browser sign-in, deletion, owner membership, validation, and account isolation; temporary test records were removed. This copy-only release needs no new API, table, or migration. |
+| Save itinerary events, budgets, expenses, and survey answers to the backend | Not complete | These existing prototype features still use browser storage and are outside this release. |
+| Deliver invitations/notifications or synchronize collaborator roles between real accounts | Not complete | Existing group controls are local previews; owner membership creation is the separate implemented database behavior. |
+| Use real receipt OCR, Gmail/social integrations, recommendations, or payments | Not complete | Existing fixtures and previews remain; this release changes their visible commentary only on the two requested pages. |
+
+The definition of done for this feature includes passing tests and Lighthouse Accessibility scores of at least 90, source on `main`, and deployment through the [Pages workflow](https://github.com/DanielTsao0103/trip-planner-prototype/actions/workflows/pages.yml) to the [public app](https://danieltsao0103.github.io/trip-planner-prototype/). The workflow verifies that live `version.json`, HTML, and JavaScript match the deployed commit.
+
 ## ERD
 
 ![Trip Planner database: five tables, their attributes, and six labeled foreign-key relationships](assignment/team-erd.png)

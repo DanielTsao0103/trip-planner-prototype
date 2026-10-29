@@ -84,6 +84,7 @@ export function Provider({ children, account, onSignOut, initialTripId, cloud = 
     setOverlay(null);
     window.scrollTo(0, 0);
   };
+  // Local state only: the storage effect below caches this per account; no server write.
   const mutate = (fn: (s: Store) => void) =>
     setS((prev) => {
       const next = structuredClone(prev);
@@ -134,6 +135,7 @@ export function Provider({ children, account, onSignOut, initialTripId, cloud = 
   const value: Context = {
     s,
     accountTrips: cloud && s.userId === account.id,
+    // Server boundary: core trip fields only; see account-trips.ts and IMPLEMENTATION_STATUS.md.
     saveTrip: async (draft) => {
       const saved = cloud && s.userId === account.id && !draft.sample
         ? await saveAccountTrip(getSupabase(), account, draft) : draft;
@@ -173,6 +175,7 @@ export function Provider({ children, account, onSignOut, initialTripId, cloud = 
     open: (kind, data) => setOverlay({ kind, data }),
     close: () => setOverlay(null),
     toast: setMessage,
+    // Events, budgets, members, preferences, and todos never reach Supabase through this helper.
     updateTrip: (fn) =>
       mutate((v) => {
         const t = v.trips.find((t) => t.id === v.tripId);
