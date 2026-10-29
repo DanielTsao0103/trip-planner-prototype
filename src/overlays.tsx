@@ -498,6 +498,30 @@ function Demo() {
     </Modal>
   );
 }
+function DeleteTrip() {
+  const { s, overlay, deleteTrip, close, go, toast } = useApp();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const target = s.trips.find(t => t.id === overlay?.data?.tripId);
+  if (!target || target.sample || !isOwner(target, s.userId)) return null;
+  return <Modal title="Delete this trip?">
+    <p>Delete <strong>{target.title}</strong> {target.persistence === "account" ? "from your account" : "from this browser"}? This cannot be undone.</p>
+    <ErrorBox text={error} />
+    <div className="form-actions">
+      <Button variant="outline" disabled={busy} onClick={close}>Keep trip</Button>
+      <Button variant="danger" disabled={busy} onClick={async () => {
+        if (busy) return;
+        setBusy(true); setError("");
+        try {
+          await deleteTrip(target); go(5);
+          toast(target.persistence === "account" ? "Trip deleted from your account." : "Trip deleted from this browser.");
+        } catch (issue) { setError(issue instanceof Error ? issue.message : "Could not delete the trip. Please try again."); }
+        finally { setBusy(false); }
+      }}>{busy ? "Deleting…" : "Delete trip"}</Button>
+    </div>
+  </Modal>;
+}
+
 export function Overlays() {
   const app = useApp();
   const {
@@ -514,38 +538,7 @@ export function Overlays() {
     toast,
   } = app;
   if (!o) return null;
-  if (o.kind === "deleteTrip") {
-    const target = s.trips.find((trip) => trip.id === o.data?.tripId);
-    if (!target || target.sample || !isOwner(target, s.userId)) return null;
-    return (
-      <Modal title="Delete this trip?">
-        <p>
-          Delete <strong>{target.title}</strong> and all its plans and expenses
-          from this browser? This cannot be undone.
-        </p>
-        <div className="form-actions">
-          <Button variant="outline" onClick={close}>Keep trip</Button>
-          <Button
-            variant="danger"
-            onClick={() => {
-              mutate((v) => {
-                // Recheck ownership and remove only the selected local trip.
-                const trip = v.trips.find((trip) => trip.id === target.id);
-                if (!trip || trip.sample || !isOwner(trip, v.userId)) return;
-                v.trips = v.trips.filter((trip) => trip.id !== target.id);
-                if (v.tripId === target.id) v.tripId = null;
-                if (v.sampleReturn?.tripId === target.id) v.sampleReturn.tripId = null;
-              });
-              go(5);
-              toast("Trip deleted from this browser.");
-            }}
-          >
-            Delete trip
-          </Button>
-        </div>
-      </Modal>
-    );
-  }
+  if (o.kind === "deleteTrip") return <DeleteTrip />;
   if (o.kind === "demo") return <Demo />;
   if (o.kind === "authProvider") return <AuthProvider />;
   if (o.kind === "expense") return <ExpenseForm />;

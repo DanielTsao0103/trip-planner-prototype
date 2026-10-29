@@ -476,7 +476,7 @@ export function Shell({ children }: { children: ReactNode }) {
           {children}
         </main>
         <footer className="app-footer">
-          <span>Plans made here stay in this browser.</span>
+          <span>Account trip details sync when saved. Itinerary, budget, and group changes stay in this browser.</span>
           <button onClick={() => open("demo")}>
             Demo controls & screen index
           </button>

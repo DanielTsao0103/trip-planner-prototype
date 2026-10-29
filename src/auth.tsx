@@ -5,7 +5,7 @@ import { IMAGES } from "./data";
 import googleLogo from "./assets/auth/google-g.svg";
 import appleButton from "./assets/auth/apple-sign-in.png";
 
-/** Supabase authenticates the account; everything rendered afterward is a local demo. */
+/** Supabase authenticates the account; account trip details are stored in PostgreSQL. */
 export function AuthApp({ children, renderDemo }: {
   children: (session: Session, signOut: () => Promise<void>) => ReactNode;
   renderDemo: (exitDemo: () => Promise<void>) => ReactNode;
@@ -146,7 +146,7 @@ export function AuthApp({ children, renderDemo }: {
             <button className="btn full" type="submit" disabled={busy}>{busy ? "Please wait…" : signup ? "Create account" : "Log in"}</button>
           </form>
           <button className="auth-toggle" type="button" disabled={busy} onClick={() => { setSignup(!signup); setPassword(""); setError(""); setNotice(""); }}>{signup ? "Already have an account? Log in" : "New here? Create an account"}</button>
-          <p className="fine-print">Email login uses your real account. Trip changes stay in this browser.</p>
+          <p className="fine-print">Create and save trips to your account. Sample trips are a local preview.</p>
         </>}
         <div className="demo-login-option">
           <button className="btn outline full" type="button" disabled={busy} onClick={enterDemo}>Try demo as Maya</button>

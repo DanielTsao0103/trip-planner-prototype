@@ -12,7 +12,7 @@ createRoot(document.getElementById("root")!).render(
       <PrototypeApp />
     </Provider>
   )}>{(session, signOut) => (
-    <Provider key={session.user.id} account={{
+    <Provider key={session.user.id} cloud account={{
       id: session.user.id,
       email: session.user.email || "",
       name: session.user.user_metadata.name || "Traveler",

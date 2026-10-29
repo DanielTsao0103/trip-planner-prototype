@@ -45,6 +45,9 @@ export type Expense = {
   settled: string[];
 };
 export type Trip = {
+  /** Account trips reload their core details from Supabase. */
+  persistence?: "account";
+  revision?: number;
   id: string;
   title: string;
   destinations: string[];

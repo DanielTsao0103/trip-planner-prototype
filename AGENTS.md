@@ -1,10 +1,10 @@
 # Trip Planner prototype
 
-Build the approved responsive travel prototype. Page numbers 1–13 and 15–17 are stable; Page 14 is reserved. Supabase provides real email/password signup, login, and sign-out. Successful authentication opens the original local demo app. Trip screens and participant controls use fictional browser-only data; do not connect travel tables or add live integrations. Supabase project credentials belong only in the ignored local environment files.
+Build the approved responsive travel prototype. Page numbers 1–13 and 15–17 are stable; Page 14 is reserved. Supabase provides real email/password signup, login, and sign-out. Successful authentication opens the planner. Account trip creation, core-detail editing, listing, and deletion use the existing Supabase trip table. Itinerary, budget, and participant controls remain browser-only previews. Supabase project credentials belong only in the ignored local environment files.
 
 ## Workflow
 
-User approved direct commits to main and public GitHub Pages hosting on October 1, 2026. Keep intermediate QA artifacts out of the published repository. Build and check desktop/mobile core journeys before deployment. Use typed domain rules for dates, permissions, and money. Supabase is used only for authentication and account profiles. Demo trips are stored locally per account; preserve the older trip-planner-v1 browser save when importing it.
+User approved direct commits to main and public GitHub Pages hosting on October 1, 2026. Keep intermediate QA artifacts out of the published repository. Build and check desktop/mobile core journeys before deployment. Use typed domain rules for dates, permissions, and money. Supabase stores authentication, profiles, and account trip details. Demo data stays locally separated per account; preserve the older trip-planner-v1 browser save when importing it.
 
 ## Corrections & Lessons Learned
 
@@ -37,3 +37,7 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Demo navigation must not clear the participant as a substitute for signing out. Sample return controls must remain reachable after changing fictional participants, and re-entering the sample must preserve the original return account.
 
 - Use a neutral login greeting (Welcome to Trip Planner); the app does not know whether a signed-out visitor is returning.
+
+- Scope expanded October 28, 2026: Dan requested a working Create trip / Save trip vertical slice tied to the signed-in account. This supersedes earlier auth-only restrictions. Use the existing trip table, database-enforced ownership, confirmed saves, failure recovery, and reload/fresh-browser verification; preserve old group records and local sample data.
+
+- Schema clarification October 28, 2026: the initial schema may be extended as features need. Keep relational constraints, migrations, validation, and RLS. Trips have one owning Auth account (`owner_id`) and separate account memberships/roles (`trip_member` → `role`); create the owner membership atomically. Future collaborators (Editor/Viewer) must not be modeled as additional owners or inferred from client-only participant data.

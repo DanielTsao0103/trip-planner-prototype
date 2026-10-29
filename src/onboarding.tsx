@@ -15,6 +15,7 @@ import {
   EyeOff,
   Trash2,
 } from "lucide-react";
+import { tripDetailsError } from "./account-trips";
 import { useApp } from "./state";
 import {
   Badge,
@@ -584,8 +585,7 @@ export function Trips() {
             <Check size={20} />
             <span>
               <strong>Your trip is ready.</strong> Open its itinerary below to
-              add your first plan. You can invite people and set a budget
-              whenever you’re ready.
+              start planning.
             </span>
           </div>
         )}
@@ -651,6 +651,7 @@ export function Trips() {
                   {t.title}
                 </button>
               </h2>
+              <p className="fine-print">{t.persistence === "account" ? "Saved to your account" : "Saved in this browser"}</p>
               <p>
                 <MapPin size={14} />
                 {t.destinations.join(" · ")}
@@ -717,7 +718,9 @@ export function Trips() {
   );
 }
 export function TripForm() {
-  const { s, user, trip, route, mutate, go, toast, open } = useApp();
+  const { s, user, trip, route, saveTrip, accountTrips, go, toast, open } = useApp();
+  const draftId = useRef(uid());
+  const saving = useRef(false);
   const editing = route.params.get("edit") === "true" && trip;
   const original = editing ? trip : undefined;
   const [title, setTitle] = useState(original?.title || ""),
@@ -754,118 +757,40 @@ export function TripForm() {
         action={<Button onClick={() => go(8)}>Back to itinerary</Button>}
       />
     );
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving.current) return;
     setError("");
-    const allPlaces = previewPlaces;
-    if (!title.trim()) {
-      setError("Give your trip a name so it’s easy to find later.");
-      return;
+    const problem = tripDetailsError({ title, destinations: previewPlaces, start, end, zone });
+    if (problem) { setError(problem); return; }
+    if (original?.events.some(e => e.date < start || e.date > end)) {
+      setError("Some events fall outside these dates. Move those events before shortening the trip."); return;
     }
-    if (!allPlaces.length) {
-      setError("Add at least one destination.");
-      return;
+    const emails = invites.split(/[,\n]+/).map(x => x.trim().toLowerCase()).filter(Boolean);
+    if (emails.some(email => !/^\S+@\S+\.\S+$/.test(email))) {
+      setError("Use valid fictional email addresses, separated by commas."); return;
     }
-    if (end < start || days(start, end).length > 365) {
-      setError("Choose an end date after the start, within one year.");
-      return;
-    }
-    if (
-      original &&
-      original.events.some((e) => e.date < start || e.date > end)
-    ) {
-      setError(
-        "Some events fall outside these dates. Move those events before shortening the trip.",
-      );
-      return;
-    }
-    const emails = invites
-      .split(/[,\n]+/)
-      .map((x) => x.trim().toLowerCase())
-      .filter(Boolean);
-    if (emails.some((email) => !/^\S+@\S+\.\S+$/.test(email))) {
-      setError("Use valid fictional email addresses, separated by commas.");
-      return;
-    }
+    const invited = Array.from(new Set(emails)).filter(email => email !== user!.email && !original?.members.some(m => m.email === email)).map(email => ({
+      id: s.users.find(u => u.email === email)?.id || uid(), name: email.split("@")[0].replace(/[._]/g, " "),
+      email, role: "Viewer" as const, days: [], status: "pending" as const,
+    }));
+    const draft: Trip = original ? structuredClone(original) : {
+      id: draftId.current, title: "", destinations: [], start: "", end: "", zone: "", image: IMAGES.coast,
+      members: [{ id: user!.id, name: user!.name, email: user!.email, role: "Owner", days: [], status: "accepted" }],
+      events: [], prefs: {}, expenses: [], budget: null, budgetMode: "group", individual: {}, todos: [], dismissed: [],
+    };
+    Object.assign(draft, { title: title.trim(), destinations: previewPlaces, start, end, zone });
+    draft.members.push(...invited);
+    draft.members.forEach(m => { m.days = m.days.filter(d => d >= start && d <= end); });
+    saving.current = true;
     setBusy(true);
-    setTimeout(() => {
-      const id = original?.id || uid();
-      mutate((v) => {
-        const invited = Array.from(new Set(emails))
-          .filter(
-            (email) =>
-              email !== user!.email &&
-              !original?.members.some((m) => m.email === email),
-          )
-          .map((email) => ({
-            id: v.users.find((u) => u.email === email)?.id || uid(),
-            name: email.split("@")[0].replace(/[._]/g, " "),
-            email,
-            role: "Viewer" as const,
-            days: [],
-            status: "pending" as const,
-          }));
-        if (original) {
-          const t = v.trips.find((t) => t.id === id)!;
-          Object.assign(t, {
-            title: title.trim(),
-            destinations: allPlaces,
-            start,
-            end,
-            zone,
-          });
-          t.members.push(...invited);
-          t.members.forEach(
-            (m) => (m.days = m.days.filter((d) => d >= start && d <= end)),
-          );
-        } else {
-          v.trips.push({
-            id,
-            title: title.trim(),
-            destinations: allPlaces,
-            start,
-            end,
-            zone,
-            image: IMAGES.coast,
-            members: [
-              {
-                id: user!.id,
-                name: user!.name,
-                email: user!.email,
-                role: "Owner",
-                days: [],
-                status: "accepted",
-              },
-              ...invited,
-            ],
-            events: [],
-            prefs: {},
-            expenses: [],
-            budget: null,
-            budgetMode: "group",
-            individual: {},
-            todos: [],
-            dismissed: [],
-          });
-        }
-        v.tripId = id;
-      });
-      toast(
-        original
-          ? "Trip details updated."
-          : emails.length
-            ? "Trip created. Invitations are simulated; no email was sent."
-            : "Your new trip is ready.",
-      );
-      go(
-        original
-          ? 8
-          : route.params.get("next")
-            ? Number(route.params.get("next"))
-            : 5,
-        original ? {} : { created: id },
-      );
-    }, 450);
+    try {
+      await saveTrip(draft);
+      toast(accountTrips && !draft.sample ? "Trip saved to your account." : "Trip saved in this browser.");
+      go(original ? 8 : route.params.get("next") ? Number(route.params.get("next")) : 5, original ? {} : { created: draft.id });
+    } catch (issue) {
+      setError(issue instanceof Error ? issue.message : "Could not save. Your input is still here; please try again.");
+    } finally { saving.current = false; setBusy(false); }
   };
   return (
     <>
@@ -874,8 +799,9 @@ export function TripForm() {
         title={original ? "A few details, updated." : "Let’s make a trip."}
         description="A place, a few dates, your people. The rest can come together as you go."
       />
-      <form className="form-layout" onSubmit={submit}>
+      <form className="form-layout" onSubmit={submit} aria-busy={busy}>
         <div className="card form-card">
+          <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <div className="step-heading">
             <span>01</span>
             <h2>The essentials</h2>
@@ -1043,6 +969,7 @@ export function TripForm() {
               <Trash2 size={16} /> Delete trip
             </Button>
           )}
+          </fieldset>
         </div>
         <aside className="form-aside">
           <section className="card trip-preview" aria-label="Trip preview">

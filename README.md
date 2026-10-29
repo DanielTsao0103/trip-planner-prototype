@@ -4,23 +4,23 @@
 
 ## App Summary
 
-Planning a group trip often means keeping track of messages, calendars, bookings, and shared expenses in different places. Trip Planner is for friends, families, and other groups who want those plans in one place. The app brings together trip dates, destinations, a day-by-day itinerary, group members, preferences, and budget screens. Travelers can explore a fictional Seattle and Bainbridge trip or create a separate trip in the prototype. Our working backend feature is email and password account creation, login, and sign-out through Supabase. Creating an account saves the account and its name in the database, then opens the planner with that person's name. Trip edits, expenses, and group controls currently stay in the browser, so those features demonstrate the planned experience without sharing live trip data between users.
+Planning a group trip often means keeping track of messages, calendars, bookings, and shared expenses in different places. Trip Planner is for friends, families, and other groups who want those plans in one place. The app brings together trip dates, destinations, a day-by-day itinerary, group members, preferences, and budget screens. Travelers can explore a fictional Seattle and Bainbridge trip or create a separate trip in the prototype. Our working backend feature is email and password account creation, login, and sign-out through Supabase. Creating an account saves the account and its name in the database, then opens the planner with that person's name. Creating a trip now saves its name, destinations, dates, and time zone to the signed-in account in Supabase. Saved trips load after sign-in on another browser; editing trip details and deleting a trip also persist. Itinerary events, expenses, and invitation/group controls remain browser-only previews.
 
 ## ERD
 
 ![Trip Planner database: five tables, their attributes, and six labeled foreign-key relationships](assignment/team-erd.png)
 
-This is the team's original ERD, corrected in Lucidchart and exported after checking the live Supabase schema on October 10, 2026; see [Lucidchart Page 1](https://lucid.app/lucidchart/03d6d88e-7779-4ff9-ab5c-e40edb375353/edit?page=0_0). The five public tables are:
+This is the team's original ERD, corrected in Lucidchart and exported after checking the live Supabase schema on October 10, 2026; see [Lucidchart Page 1](https://lucid.app/lucidchart/03d6d88e-7779-4ff9-ab5c-e40edb375353/edit?page=0_0). The image is the October 10 baseline. The October 28 account-trip slice adds `trip.owner_id`, `trip.destinations`, `trip.revision`, and an Owner role; the public tables are:
 
 | Entity | What it stores | Screen connection |
 | --- | --- | --- |
 | `user` | Name, email, and provider for a person | Signup and account identity |
-| `trip` | Creator, name, destination, dates, and time zone | Trip creation and trip list |
+| `trip` | Original creator, owning Auth account, name, ordered destinations, dates, time zone, and revision | Trip creation and trip list |
 | `event` | Creator, trip, title, location, date, times, estimated cost, and notes | Itinerary and Add event |
 | `role` | Role name and edit/invite flags | Group permissions |
 | `trip_member` | Trip, user, role, editable date, and membership status | Group travelers and assigned days |
 
-A user can create many trips and events. A trip can contain many events and memberships. A user and a role can each appear in many memberships. `trip_member` connects users and trips as a many-to-many relationship. In crow's-foot notation, a circle means zero, a bar means one, and a crow's foot means many. All six foreign keys currently allow NULL, so each child row has zero or one referenced parent; the diagram labels that optionality explicitly. This is the current implemented model, not a claim that all prototype screens have cloud persistence. Expenses, preference answers, and other browser-only features are outside this five-table backend slice.
+A user can create many trips and events. A trip can contain many events and memberships. A user and a role can each appear in many memberships. `trip_member` connects users and trips as a many-to-many relationship. In crow's-foot notation, a circle means zero, a bar means one, and a crow's foot means many. The original six foreign keys allow NULL for legacy team records. New account trips require an authenticated owner, valid details, and an Owner membership. `owner_id` separately references `auth.users`; `created_by` retains the original creator profile. Legacy trips remain unassigned and are not exposed to new accounts. Each trip has one owner and many potential memberships; each membership links one user to one role. A unique trip/user key prevents duplicate membership, and a private trigger creates the Owner membership in the same transaction as the trip. Editors and viewers will be invited through a later feature; the current browser cannot grant membership or roles. Expenses, preference answers, and itinerary edits remain outside this backend slice.
 
 Supabase also manages `auth.users`. On signup, a private trigger creates a `public.user` profile with the same UUID. Existing fictional group users are not automatically Auth accounts, and there is no foreign-key constraint from `public.user` to `auth.users`. The legacy `user.password` column remains in the team schema but is unused for new accounts; Supabase Auth handles password storage, and the browser cannot read that column.
 
@@ -36,7 +36,7 @@ See [Supabase setup](SUPABASE-SETUP.md) for the existing database configuration 
 | Hosting | GitHub Pages | Hosts the built frontend at the shared live-app link. Supabase runs the backend separately. |
 | Development | Node.js, npm, and GitHub | A committed lockfile gives teammates the same dependencies and source version. |
 
-This approach reuses our existing frontend and lets the team focus on one working backend feature. We can inspect both the code in GitHub and the tables in Supabase. The tradeoff is dependence on Supabase availability and plan limits; teammates should check the project's current usage before expanding it. Node.js runs development and build tools here, not a custom production API server. AI-assisted code generation does not replace the hosted database or backend.
+This approach reuses our existing frontend and lets the team extend the backend one verified feature at a time. We can inspect both the code in GitHub and the tables in Supabase. The tradeoff is dependence on Supabase availability and plan limits; teammates should check the project's current usage before expanding it. Node.js runs development and build tools here, not a custom production API server. AI-assisted code generation does not replace the hosted database or backend.
 
 ## How to Get It Running
 
@@ -89,36 +89,34 @@ The existing hosted database already has the tables, sample rows, and signup tri
 
 ## Verifying the Vertical Slice
 
-The chosen action is **Create account**. Logging in to a pre-existing account alone does not clearly demonstrate the new database write; start the demo with signup.
+The current trip action is **Create trip** under a real signed-in account.
 
-1. Open the live or local app while signed out. Choose **New here? Create an account**.
-2. Enter a recognizable test name, an email you control that is not already registered, and a password of at least eight characters. Do not show the password in the recording.
-3. Select **Create account**. On the team's current configuration, email confirmation is disabled and the app opens Home with the new account's name. If the project later enables confirmation, complete the email confirmation before logging in.
-4. Show the account name on Home. Do not enter Maya's sample or change fictional participants during this proof.
-5. Refresh the page and show the same account name and signed-in Home screen.
-6. For stronger proof that this is database persistence, sign out and log in with the new account in a separate browser or a private window. The account still works even without the first browser's local trip data.
-7. A teammate with Supabase access can confirm the new account in **Authentication > Users**, then check the matching `userID`, `name`, and `email` in the public `user` table. Show only the relevant test row if recording the dashboard.
-
-The request path is:
+1. Create an account or log in with your email and password. Do not enter the Maya demo for this test.
+2. Choose **New trip**, enter a title, destination(s), dates, and time zone, then select **Create trip**.
+3. The form shows **Saving…** and only confirms success after Supabase returns the saved row. The trip card says **Saved to your account**.
+4. Refresh, then sign in with that account in a private window. The trip remains available without the original browser's planner storage.
+5. Open the trip, choose **Edit trip**, and save changed details. These details persist. A stale edit from another tab is rejected instead of overwriting newer changes.
+6. Log in with a different account: it cannot see, edit, or delete the trip. Database row-level security enforces this even if the UI is bypassed.
+7. Delete a test trip and refresh. Both the trip and its membership are removed.
 
 ```text
-Create account form
-  -> src/auth.tsx calls supabase.auth.signUp with email, password, and name
-  -> Supabase Auth writes auth.users
-  -> trip_planner_account_created runs private.create_account_profile
-  -> the trigger inserts public.user with the same UUID and a NULL password
-  -> Supabase returns the user/session
-  -> src/main.tsx passes the returned name into the planner
-  -> Home displays the account; refresh restores the session
+Trip form -> account-trips.ts -> Supabase Data API with the user's JWT
+  -> RLS checks owner_id and created_by against auth.uid()
+  -> database validates trip details
+  -> trip insert + Owner membership trigger commit together
+  -> saved row returns -> trip appears in the account
+Fresh login -> read trips by owner_id -> account trip list
 ```
 
-The displayed name comes from the returned Auth user metadata. The current frontend does not fetch `public.user` on refresh. Both the Auth record and trigger-created profile are stored in PostgreSQL; signing in from a fresh browser distinguishes that persistence from a local browser save. Supabase's [signup API](https://supabase.com/docs/reference/javascript/auth-signup) and [user-management guide](https://supabase.com/docs/guides/auth/managing-user-data) describe this account/profile pattern.
+The database binds ownership to the authenticated UUID, never an email match or fictional participant. Only the browser-safe publishable key ships to the client; privileged keys stay in ignored server files. See [Supabase RLS documentation](https://supabase.com/docs/guides/database/postgres/row-level-security).
 
-**Do not use Add event, Try demo as Maya, or the Google/Apple preview buttons as database proof.** Trip changes survive refresh in the same browser through `localStorage`, but do not update the cloud travel tables. Google and Apple authentication are not connected.
+Failed loads offer retry instead of pretending the account is empty. Failed saves retain form input. A stable draft UUID prevents duplicate creation when a response is lost and retried. A revision check prevents stale edits and deletes. Existing browser-only trips are retained and labeled; saving their details from your real account explicitly stores them in Supabase. Local demo samples are never uploaded automatically.
+
+**Scope:** trip details sync. Events, budgets, preferences, invitations, and fictional participant changes remain local. The Google/Apple buttons remain previews. The account-creation feature also remains active.
 
 ### Demo video and submission
 
-[Watch the demo video](https://www.loom.com/share/be0601e7285d4cf5876df31a91e2bba6). Account creation, the returned account name, and refresh demonstrate the backend feature; the recording also shows the new account in Supabase. Its trip and event walkthrough demonstrates browser-local prototype behavior, not additional Supabase writes.
+[Watch the demo video](https://www.loom.com/share/be0601e7285d4cf5876df31a91e2bba6). Account creation, the returned account name, and refresh demonstrate the backend feature; the recording also shows the new account in Supabase. This historical video predates the account-trip slice; its trip and event walkthrough shows the older browser-local behavior. Record a new Create trip demo to demonstrate the current persistence feature.
 
 Canvas requires a text entry with the demo video link and the public GitHub repository/README link, one submission per team. The video must be two minutes or less and focus on the vertical slice.
 
@@ -134,7 +132,7 @@ If the key is rejected or the script cannot load, the app switches to the demo m
 
 ## Database and Sample Data
 
-The pre-recording database inspection on October 10, 2026 found 6 `user` rows, 2 `trip` rows, 2 `event` rows, 3 `role` rows, and 5 `trip_member` rows. These are hosted database counts, separate from the fictional fixtures in `src/data.ts`. One public profile matched an Auth account at that inspection; subsequent signups add more accounts and profiles. All five public tables have row-level security enabled; the only public-table browser policy allows a signed-in user to read their own profile. Travel tables have no browser-access policies.
+The pre-recording database inspection on October 10, 2026 found 6 `user` rows, 2 `trip` rows, 2 `event` rows, 3 `role` rows, and 5 `trip_member` rows. These are hosted database counts, separate from the fictional fixtures in `src/data.ts`. One public profile matched an Auth account at that inspection; subsequent signups add more accounts and profiles. All five public tables have row-level security enabled. The October 28 migration enables owner-only trip CRUD, own/owned-trip membership reads, and authenticated role-definition reads. The event table remains inaccessible to the browser. Original rows were fingerprint-checked and preserved; the Owner role was added intentionally.
 
 ## Project Files
 
@@ -143,7 +141,8 @@ The pre-recording database inspection on October 10, 2026 found 6 `user` rows, 2
 | `src/auth.tsx`, `src/supabase.ts` | Real email/password signup, login, session handling, and Supabase client |
 | `src/main.tsx` | Connects the Auth session to the existing planner |
 | `src/prototype.tsx`, `src/onboarding.tsx`, `src/planning.tsx` | Planner screens and navigation |
-| `src/demo-store.ts`, `src/state.tsx`, `src/data.ts` | Browser-only trip persistence and fictional sample data |
+| `src/account-trips.ts`, `src/state.tsx` | Account trip persistence, loading, and local preview state |
+| `src/demo-store.ts`, `src/data.ts` | Preserved browser-only saves and fictional samples |
 | `src/finance.tsx`, `src/group.tsx`, `src/travelmap.tsx` | Budget, group, and illustrative map screens |
 | `src/styles.css` | Responsive interface styling |
 | `assignment/team-erd.png` | Team ERD verified against the existing five-table schema |
@@ -166,8 +165,12 @@ npm run test:e2e
 
 For a source archive without Git metadata, set `GITHUB_SHA` to the commit the archive was downloaded from when running `npm run build:pages`. This keeps release metadata tied to the correct source.
 
-The browser suite mocks Auth responses: it tests frontend behavior and session restoration, but does not itself prove a live database write. Separate live Supabase signup, profile, and fresh-client login checks passed on October 10, 2026; the temporary QA account was removed and original records were unchanged. Follow the real-account steps above to verify the backend feature.
+The default browser suite mocks Auth and trip responses: it verifies frontend behavior, failure recovery, and session restoration, but does not itself prove a live database write. The opt-in `npm run test:live-trips` uses temporary accounts against the configured project and a running production preview; it verifies real trip/membership writes, cross-account isolation, fresh-browser persistence, and cleanup. Separate live Supabase signup, profile, and fresh-client login checks passed on October 10, 2026; the temporary QA account was removed and original records were unchanged. Follow the real-account steps above to verify the backend feature.
 
 ## Assets
 
 Travel photos are bundled from Unsplash; [its license](https://unsplash.com/license) applies. Seattle skyline: `photo-1438401171849-74ac270044ee`; ocean: `photo-1518837695005-2083093ee35b`; city: `photo-1477959858617-67f85cf4f1df`; dining: `photo-1414235077428-338989a2e8c0`; artwork: `photo-1561214115-f2f134cc4912`. Other than the skyline, photos are mood imagery rather than verified venue images. DM Sans and Fraunces come from Fontsource; icon artwork uses Lucide. Bundled licenses are in `public/licenses/`, and provider-artwork sources are in `src/assets/auth/SOURCES.md`. Sample travelers, bookings, expenses, and permissions are fictional.
+
+## Account-trip verification (October 28, 2026)
+
+The live SDK/browser checks passed for atomic owner membership, duplicate retries, validation, stale edits, anonymous/cross-account denial, browser creation, fresh-browser login, and deletion. Temporary QA accounts and their data were removed. Supabase's hosted security-advisor endpoint was unavailable to the configured scoped token (`advisors_read` missing); direct database access checks and adversarial API tests were performed. See [Supabase setup](SUPABASE-SETUP.md) for migration boundaries.
