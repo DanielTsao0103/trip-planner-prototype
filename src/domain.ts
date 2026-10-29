@@ -7,7 +7,7 @@ export type Member = {
   email: string;
   role: Role;
   days: string[];
-  status: "accepted" | "pending";
+  status: "accepted" | "pending" | "removed";
 };
 export type Preference = {
   diet: string[];
@@ -46,9 +46,10 @@ export type Expense = {
   settled: string[];
 };
 export type Trip = {
-  /** Account trips reload their core details from Supabase. */
+  /** Account trips reload all structured planning details from Supabase. */
   persistence?: "account";
   revision?: number;
+  contentVersion?: number;
   id: string;
   title: string;
   destinations: string[];

@@ -1,4 +1,4 @@
-/** Implementation status: only TripForm.saveTrip persists account trip core details. Budget, invitees, connection permissions, and sample trips remain local. The legacy Auth component is not the app entry point. See ../IMPLEMENTATION_STATUS.md. */
+/** Implementation status: Real account trip forms persist the complete trip through saveTrip. Standalone demo trips remain browser-local; onboarding guest email lists do not send invitations. See ../IMPLEMENTATION_STATUS.md. */
 import {
   TEXT_LIMITS,
   MAX_DESTINATIONS,
@@ -568,7 +568,7 @@ export function Home() {
   );
 }
 export function Trips() {
-  const { s, user, mutate, go, open, route } = useApp();
+  const { s, user, mutate, go, open, route, pendingTripIds } = useApp();
   const [filter, setFilter] = useState("All");
   const trips = s.trips.filter((t) => member(t, s.userId));
   const visibleTrips = trips.filter(
@@ -669,9 +669,11 @@ export function Trips() {
                 </button>
               </h2>
               <p className="fine-print">
-                {t.persistence === "account"
-                  ? "Saved to your account"
-                  : "Saved in this browser"}
+                {pendingTripIds.includes(t.id)
+                  ? "Not saved yet"
+                  : t.persistence === "account"
+                    ? "Saved to your account"
+                    : "Saved in this browser"}
               </p>
               <p>
                 <MapPin size={14} />
@@ -828,6 +830,23 @@ export function TripForm() {
       setError("Use valid fictional email addresses, separated by commas.");
       return;
     }
+    if (original?.todos.some((todo) => todo.date < start || todo.date > end)) {
+      setError("Move or delete reminders outside the new dates first.");
+      return;
+    }
+    if (
+      original?.members.some(
+        (m) =>
+          m.status !== "removed" &&
+          m.role === "Day Editor" &&
+          !m.days.some((d) => d >= start && d <= end),
+      )
+    ) {
+      setError(
+        "Reassign Day Editor permissions before shortening these dates.",
+      );
+      return;
+    }
     const invited = Array.from(new Set(emails))
       .filter(
         (email) =>
@@ -835,7 +854,9 @@ export function TripForm() {
           !original?.members.some((m) => m.email === email),
       )
       .map((email) => ({
-        id: s.users.find((u) => u.email === email)?.id || uid(),
+        id: accountTrips
+          ? uid()
+          : s.users.find((u) => u.email === email)?.id || uid(),
         name: email
           .split("@")[0]
           .replace(/[._]/g, " ")
@@ -1037,7 +1058,11 @@ export function TripForm() {
             </div>
             <Field
               label="Invite by email (optional)"
-              hint="Use fictional addresses, separated by commas. No invitations are actually sent."
+              hint={
+                accountTrips
+                  ? "Add guest travelers, separated by commas. Account invitations are not sent yet."
+                  : "Use fictional addresses, separated by commas. No invitations are actually sent."
+              }
             >
               <textarea
                 rows={2}
@@ -1135,8 +1160,9 @@ export function TripForm() {
             you want.
           </p>
           <p className="fine-print">
-            This prototype saves on this device only. Use fictional data for
-            testing.
+            {accountTrips
+              ? "Your trip and planning details save to your account."
+              : "Sample trips save on this device only. Use fictional data for testing."}
           </p>
         </aside>
       </form>

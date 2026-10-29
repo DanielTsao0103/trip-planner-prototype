@@ -506,8 +506,8 @@ export function Shell({ children }: { children: ReactNode }) {
         {![9, 12].includes(route.page) && (
           <footer className="app-footer">
             <span>
-              Account trip details sync when saved. Itinerary, budget, and group
-              changes stay in this browser.
+              Account trips, plans, budgets, and travelers save to the database.
+              Sample trips stay in this browser.
             </span>
             <button onClick={() => open("demo")}>
               Demo controls & screen index

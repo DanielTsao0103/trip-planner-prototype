@@ -1,4 +1,4 @@
-/** Implementation status: displayed participants, roles, assigned days, and survey answers are local previews. These controls do not update database memberships or deliver invitations. See ../IMPLEMENTATION_STATUS.md. */
+/** Implementation status: Account survey answers and guest traveler roles/days are database-backed. Guest records do not grant Auth-account access; actual collaborator invitations are not implemented. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, textError } from "./limits.ts";
 import React, { useState } from "react";
 import {
@@ -130,80 +130,88 @@ export function Group() {
           <span>STATUS</span>
           <span />
         </div>
-        {t.members.map((m, i) => (
-          <div className="collaborator-row" key={m.id}>
-            <div className="person">
-              <Avatar name={m.name} index={i} />
+        {t.members
+          .filter((m) => m.status !== "removed")
+          .map((m, i) => (
+            <div className="collaborator-row" key={m.id}>
+              <div className="person">
+                <Avatar name={m.name} index={i} />
+                <div>
+                  <strong>
+                    {m.name}
+                    {m.id === s.userId ? " (you)" : ""}
+                  </strong>
+                  <small>{m.email}</small>
+                </div>
+              </div>
               <div>
-                <strong>
-                  {m.name}
-                  {m.id === s.userId ? " (you)" : ""}
-                </strong>
-                <small>{m.email}</small>
+                <Badge tone={m.role === "Owner" ? "green" : ""}>{m.role}</Badge>
+                {m.role === "Day Editor" && (
+                  <small className="assigned-days">
+                    {m.days.length
+                      ? m.days.map((d) => dateText(d, true)).join(", ")
+                      : "No days assigned"}
+                  </small>
+                )}
+              </div>
+              <span className={`member-status ${m.status}`}>
+                <span className="status-dot" />
+                {m.status === "accepted"
+                  ? "Joined"
+                  : t.persistence === "account"
+                    ? "Pending"
+                    : "Invited · demo"}
+              </span>
+              <div className="collaborator-actions">
+                {owner && m.id !== s.userId && (
+                  <>
+                    <button
+                      className="icon-btn"
+                      aria-label={`Change permissions for ${m.name}`}
+                      onClick={() => open("permissions", { memberId: m.id })}
+                    >
+                      <Settings2 size={17} />
+                    </button>
+                    <button
+                      className="icon-btn"
+                      aria-label={`Remove ${m.name}`}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `Remove ${m.name} from this trip? Their historical records will remain.`,
+                          )
+                        ) {
+                          updateTrip(
+                            (t) =>
+                              (t.members = t.members.filter(
+                                (x) => x.id !== m.id,
+                              )),
+                          );
+                          toast(
+                            "Collaborator removed. Historical expenses are preserved.",
+                          );
+                        }
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </>
+                )}
+                {m.status === "pending" && owner && (
+                  <button
+                    className="text-link"
+                    onClick={() =>
+                      open("invitation", { tripId: t.id, userId: m.id })
+                    }
+                  >
+                    {t.persistence === "account"
+                      ? "Manage traveler"
+                      : "Preview invite"}
+                  </button>
+                )}
               </div>
             </div>
-            <div>
-              <Badge tone={m.role === "Owner" ? "green" : ""}>{m.role}</Badge>
-              {m.role === "Day Editor" && (
-                <small className="assigned-days">
-                  {m.days.length
-                    ? m.days.map((d) => dateText(d, true)).join(", ")
-                    : "No days assigned"}
-                </small>
-              )}
-            </div>
-            <span className={`member-status ${m.status}`}>
-              <span className="status-dot" />
-              {m.status === "accepted" ? "Joined" : "Invited · demo"}
-            </span>
-            <div className="collaborator-actions">
-              {owner && m.id !== s.userId && (
-                <>
-                  <button
-                    className="icon-btn"
-                    aria-label={`Change permissions for ${m.name}`}
-                    onClick={() => open("permissions", { memberId: m.id })}
-                  >
-                    <Settings2 size={17} />
-                  </button>
-                  <button
-                    className="icon-btn"
-                    aria-label={`Remove ${m.name}`}
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          `Remove ${m.name} from this trip? Their historical records will remain.`,
-                        )
-                      ) {
-                        updateTrip(
-                          (t) =>
-                            (t.members = t.members.filter(
-                              (x) => x.id !== m.id,
-                            )),
-                        );
-                        toast(
-                          "Collaborator removed. Historical expenses are preserved.",
-                        );
-                      }
-                    }}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </>
-              )}
-              {m.status === "pending" && owner && (
-                <button
-                  className="text-link"
-                  onClick={() =>
-                    open("invitation", { tripId: t.id, userId: m.id })
-                  }
-                >
-                  Preview invite
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+          ))}
       </div>
       {!owner && (
         <p className="fine-print">

@@ -1,4 +1,4 @@
-/** Implementation status: provider selection, invitations, role edits, receipts, nearby alerts, and repayment actions are local previews. DeleteTrip is an exception: account trips use the server delete handler. See ../IMPLEMENTATION_STATUS.md. */
+/** Implementation status: Account guest details, role/day settings, budgets, and repayment markers persist through updateTrip. Provider/OCR/receipt/transaction previews remain simulations; no external messages are sent. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, textError, emailError } from "./limits.ts";
 import React, { useState } from "react";
 import {
@@ -129,25 +129,44 @@ function InviteMember() {
             return;
           }
           const address = email.trim().toLowerCase();
-          if (t.members.some((m) => m.email === address)) {
+          if (
+            t.members.some((m) => m.email === address && m.status !== "removed")
+          ) {
             setError("This person is already invited or part of the trip.");
             return;
           }
-          updateTrip((t) =>
+          updateTrip((t) => {
+            const removed = t.members.find(
+              (m) => m.email === address && m.status === "removed",
+            );
+            if (removed) {
+              removed.name = name.trim();
+              removed.status = "pending";
+              removed.role = "Viewer";
+              removed.days = [];
+              return;
+            }
             t.members.push({
-              id: s.users.find((u) => u.email === address)?.id || uid(),
+              id:
+                t.persistence === "account"
+                  ? uid()
+                  : s.users.find((u) => u.email === address)?.id || uid(),
               name: name.trim(),
               email: address,
               role: "Viewer",
               days: [],
               status: "pending",
-            }),
-          );
-          toast("Fictional invitation created. No email was sent.");
+            });
+          });
+          toast("Traveler saved. No invitation email was sent.");
           close();
         }}
       >
-        <Field label="Fictional name">
+        <Field
+          label={
+            t.persistence === "account" ? "Traveler name" : "Fictional name"
+          }
+        >
           <input
             required
             maxLength={TEXT_LIMITS.name}
@@ -156,7 +175,11 @@ function InviteMember() {
             placeholder="Alex Morgan"
           />
         </Field>
-        <Field label="Fictional email">
+        <Field
+          label={
+            t.persistence === "account" ? "Traveler email" : "Fictional email"
+          }
+        >
           <input
             type="email"
             required
@@ -167,11 +190,16 @@ function InviteMember() {
           />
         </Field>
         <p className="note">
-          They’ll start as a Viewer. Adjust their permissions afterward.
+          {t.persistence === "account"
+            ? "This saves a guest traveler. Role settings are stored for future collaboration; they do not grant another account access yet."
+            : "They’ll start as a Viewer. Adjust their permissions afterward."}
         </p>
         <ErrorBox text={error} />
         <Button variant="full" type="submit">
-          Create demo invitation <Mail size={16} />
+          {t.persistence === "account"
+            ? "Save traveler"
+            : "Create demo invitation"}{" "}
+          <Mail size={16} />
         </Button>
       </form>
     </Modal>
@@ -465,8 +493,9 @@ function Demo() {
           </Button>
           <h3>Your testing session</h3>
           <p className="fine-print">
-            New trips are saved only in this browser. Another tester opens their
-            own independent copy. A share link does not synchronize trip edits.
+            Demo trips stay in this browser. Real account trips save to the
+            database. Another tester opens their own independent copy. A share
+            link does not synchronize trip edits.
           </p>
         </div>
       </div>
@@ -766,6 +795,31 @@ export function Overlays() {
     const trip = s.trips.find((t) => t.id === o.data.tripId),
       m = trip?.members.find((m) => m.id === o.data.userId);
     if (!trip || !m) return null;
+    if (trip.persistence === "account")
+      return (
+        <Modal title="Traveler details">
+          <h2>{m.name}</h2>
+          <p>
+            {m.email} · {m.role}
+          </p>
+          <p>
+            This traveler is saved with your trip. Adding them as a guest lets
+            you include them in plans and expense splits; it does not give
+            another account access or send an invitation.
+          </p>
+          <Button
+            onClick={() => {
+              updateTrip((t) => {
+                t.members.find((person) => person.id === m.id)!.status =
+                  "accepted";
+              });
+              close();
+            }}
+          >
+            Add as guest traveler
+          </Button>
+        </Modal>
+      );
     return (
       <Modal title="You’re invited">
         <Badge>FICTIONAL INVITATION PREVIEW</Badge>

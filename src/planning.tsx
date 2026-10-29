@@ -1,4 +1,4 @@
-/** Implementation status: events, todos, suggestion choices, and preferences use local updateTrip/mutate only. Confirmation extraction, crowds, costs, and suggestions are fixtures, not OCR or live recommendations. See ../IMPLEMENTATION_STATUS.md. */
+/** Implementation status: Account events, todos, and dismissed choices save through updateTrip to Supabase. Confirmation extraction, crowds, costs, and suggestions remain fixtures; uploaded file previews are temporary. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
 import React, { useState } from "react";
 import {
@@ -54,6 +54,9 @@ export function Itinerary() {
   if (!t) return null;
   const role = member(t, s.userId)!.role;
   const allDays = days(t.start, t.end);
+  const personalBudget = t.budgetMode === "individual";
+  const budget = personalBudget ? (t.individual[s.userId!] ?? null) : t.budget;
+  const totalSpent = spent(t, personalBudget ? s.userId! : undefined);
   return (
     <>
       <div className="trip-hero">
@@ -244,22 +247,22 @@ export function Itinerary() {
           <div className="card budget-peek">
             <span className="eyebrow">THE BIG PICTURE</span>
             <div className="row">
-              <h3>Trip budget</h3>
+              <h3>{personalBudget ? "Your budget" : "Trip budget"}</h3>
               <Wallet size={18} />
             </div>
             <strong>
-              {t.budget !== null ? money(t.budget - spent(t)) : "Not set yet"}
+              {budget !== null ? money(budget - totalSpent) : "Not set yet"}
             </strong>
             <p>
-              {t.budget !== null
+              {budget !== null
                 ? "left for making memories"
                 : "Set a budget when you’re ready."}
             </p>
-            {t.budget !== null && (
+            {budget !== null && (
               <div className="progress">
                 <i
                   style={{
-                    width: `${Math.min(100, (spent(t) / Math.max(t.budget, 1)) * 100)}%`,
+                    width: `${Math.min(100, (totalSpent / Math.max(budget, 1)) * 100)}%`,
                   }}
                 />
               </div>
@@ -365,19 +368,17 @@ export function EventForm() {
       return;
     }
     setBusy(true);
-    setTimeout(() => {
-      updateTrip((v) => {
-        const index = v.events.findIndex((e) => e.id === event.id);
-        if (index >= 0) v.events[index] = event;
-        else v.events.push(event);
-      });
-      toast(
-        original
-          ? "Event updated everywhere in your trip."
-          : "A new plan, added to your day.",
-      );
-      go(original && route.params.get("return") === "11" ? 11 : 8, { date });
-    }, 350);
+    updateTrip((v) => {
+      const index = v.events.findIndex((e) => e.id === event.id);
+      if (index >= 0) v.events[index] = event;
+      else v.events.push(event);
+    });
+    toast(
+      original
+        ? "Event updated everywhere in your trip."
+        : "A new plan, added to your day.",
+    );
+    go(original && route.params.get("return") === "11" ? 11 : 8, { date });
   };
   const role = member(t, s.userId)?.role;
   return (
@@ -389,6 +390,24 @@ export function EventForm() {
       />
       <div className="form-layout">
         <form className="card form-card" onSubmit={submit}>
+          {original && canEdit(t, s.userId, original.date) && (
+            <Button
+              variant="text danger"
+              disabled={busy}
+              onClick={() => {
+                if (window.confirm("Delete this event from the trip?")) {
+                  updateTrip((trip) => {
+                    trip.events = trip.events.filter(
+                      (e) => e.id !== original.id,
+                    );
+                  });
+                  go(8);
+                }
+              }}
+            >
+              Delete event
+            </Button>
+          )}
           {role === "Viewer" && <ReadOnly />}
           {role === "Day Editor" && <ReadOnly day />}
           <div className="tabs">
@@ -970,6 +989,22 @@ export function Dashboard() {
                   }
                 />
                 <span className={todo.done ? "done" : ""}>{todo.text}</span>
+                {canEdit(t, s.userId, todo.date) && (
+                  <button
+                    type="button"
+                    aria-label={`Delete reminder: ${todo.text}`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      updateTrip((trip) => {
+                        trip.todos = trip.todos.filter(
+                          (item) => item.id !== todo.id,
+                        );
+                      });
+                    }}
+                  >
+                    Remove
+                  </button>
+                )}
               </label>
             ))}
           {!t.todos.some((x) => x.date === s.date) && (

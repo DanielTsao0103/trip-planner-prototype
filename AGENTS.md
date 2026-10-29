@@ -1,10 +1,10 @@
 # Trip Planner prototype
 
-Build the approved responsive travel prototype. Page numbers 1–13 and 15–17 are stable; Page 14 is reserved. Supabase provides real email/password signup, login, and sign-out. Successful authentication opens the planner. Account trip creation, core-detail editing, listing, and deletion use the existing Supabase trip table. Itinerary, budget, and participant controls remain browser-only previews. Supabase project credentials belong only in the ignored local environment files.
+Build the approved responsive travel prototype. Page numbers 1–13 and 15–17 are stable; Page 14 is reserved. Supabase provides real email/password signup, login, and sign-out. Successful authentication opens the planner. Account trip creation, editing, listing, deletion, and all structured planning details use Supabase. Sample/demo trips remain browser-only. Supabase project credentials belong only in the ignored local environment files.
 
 ## Workflow
 
-User approved direct commits to main and public GitHub Pages hosting on October 1, 2026. Keep intermediate QA artifacts out of the published repository. Build and check desktop/mobile core journeys before deployment. Use typed domain rules for dates, permissions, and money. Supabase stores authentication, profiles, and account trip details. Demo data stays locally separated per account; preserve the older trip-planner-v1 browser save when importing it.
+User approved direct commits to main and public GitHub Pages hosting on October 1, 2026. Keep intermediate QA artifacts out of the published repository. Build and check desktop/mobile core journeys before deployment. Use typed domain rules for dates, permissions, and money. Supabase stores authentication, profiles, and complete account trip details. Demo data and temporary unsaved recovery drafts stay locally separated per account; preserve the older trip-planner-v1 browser save when importing it.
 
 ## Corrections & Lessons Learned
 
@@ -51,3 +51,7 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Live-site completion correction (October 28, 2026): navigation fixes requested for the hosted app must be deployed and verified on GitHub Pages before reporting completion. Local build and browser checks alone do not update the site Dan is using.
 
 - Field-limit definition-of-done scope (October 28, 2026): Dan clarified “just the task I gave you for this chat.” Verify and publish the field-limit feature through its existing live account-trip path; do not convert local event, budget, preference, reminder, or invitation previews into backend features for this task.
+- Persistence scope expanded October 28, 2026: Dan wants all structured trip details database-savable, with robust tests, while avoiding expansion of auto-suggestions. Persist events/attendees, guest travelers/roles/day assignments, preferences, budgets, expenses/shares/repayment markers, reminders, and dismissed suggestions. Keep actual account invitation delivery and simulated OCR/banking separate.
+- Application revision conflicts must use `PT409`, not PostgreSQL serialization code `40001`: hosted PostgREST may repeatedly retry the latter. Verify conflicts against the real API, not only mocks.
+- Financial participant foreign keys must be deferred for a whole-trip cascade; removing one traveler retains their historical identity and allocations. Test both removal paths.
+- Browser previews from other checkouts can invalidate QA: use `PLAYWRIGHT_PORT` for an isolated port when another task has a preview running. Preserve concurrently published UI changes before deployment.

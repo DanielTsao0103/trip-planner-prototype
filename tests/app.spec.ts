@@ -7,7 +7,7 @@ const session = () => ({ access_token: 'test-access-token', token_type: 'bearer'
 test.beforeEach(async ({ page }) => {
   await page.route('https://*.supabase.co/**', async route => {
     const url = new URL(route.request().url());
-    if (url.pathname === '/rest/v1/trip' && route.request().method() === 'GET') return route.fulfill({ json: [] });
+    if (url.pathname === '/rest/v1/rpc/load_trip_bundles' || (url.pathname === '/rest/v1/trip' && route.request().method() === 'GET')) return route.fulfill({ json: [] });
     if (url.pathname.startsWith('/auth/v1/')) {
       if (url.pathname.endsWith('/logout')) return route.fulfill({ status: 204 });
       if (url.pathname.endsWith('/user')) return route.fulfill({ json: account });

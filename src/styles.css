@@ -5351,3 +5351,12 @@ legend {
 /* Keep the update action reachable without covering forms on small screens. */
 .release-notice { position: relative; z-index: 100; display: flex; align-items: center; justify-content: center; gap: 1rem; padding: .8rem 1rem; background: #193d36; color: #fff; flex-wrap: wrap; }
 .release-notice button { color: #193d36; background: #fff; border: 0; border-radius: .4rem; padding: .6rem 1rem; font: inherit; font-weight: 700; cursor: pointer; }
+
+.account-save-banner { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:12px 24px; background:#edf2e9; color:#285648; border-bottom:1px solid #cbd5c3; font-size:14px; }
+.account-save-banner[role="alert"] { background:#fff2e8; color:#8b3524; }
+.account-save-banner span { flex:1 1 250px; overflow-wrap:anywhere; }
+/* Keep save/recovery feedback visible beside the fixed desktop navigation. */
+.account-save-banner { position:sticky; top:0; z-index:35; margin-left:226px; }
+@media (max-width:1199px) { .account-save-banner { margin-left:195px; } }
+@media (max-width:900px) and (min-width:768px) { .account-save-banner { margin-left:174px; } }
+@media (max-width:767px) { .account-save-banner { margin-left:0; padding:10px 17px; } }

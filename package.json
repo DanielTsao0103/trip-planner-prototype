@@ -6,12 +6,13 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
-    "test": "node --experimental-strip-types --test src/domain.test.ts src/demo-store.test.ts src/account-trips.test.ts src/limits.test.ts",
+    "test": "node --experimental-strip-types --test src/domain.test.ts src/demo-store.test.ts src/account-trips.test.ts src/limits.test.ts src/trip-save-queue.test.ts",
     "supabase:check": "node scripts/check-supabase.mjs",
     "build:pages": "node scripts/build-pages.mjs",
     "test:e2e": "playwright test",
     "preview": "vite preview --host 127.0.0.1",
-    "test:live-trips": "node scripts/test-account-trips.mjs"
+    "test:live-trips": "node scripts/test-account-trips.mjs",
+    "test:live-persistence": "node scripts/test-trip-persistence.mjs"
   },
   "dependencies": {
     "@fontsource/dm-sans": "^5.3.0",

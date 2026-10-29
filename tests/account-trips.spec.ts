@@ -47,45 +47,67 @@ test("account saves recover from lost responses without duplicate trips, reload,
     if (url.pathname.endsWith("/token"))
       return route.fulfill({ json: session() });
     if (url.pathname.endsWith("/user")) return route.fulfill({ json: owner });
-    if (url.pathname === "/rest/v1/trip") {
-      expect(
-        url.searchParams.get("owner_id") ??
-          `eq.${request.postDataJSON()?.owner_id}`,
-      ).toBe(`eq.${owner.id}`);
-      if (request.method() === "POST") {
-        const draft = request.postDataJSON();
-        ids.push(draft.tripID);
-        expect(draft.created_by).toBe(owner.id);
-        if (!rows.length) rows.push({ ...draft, revision: 1 });
-        if (loseResponse) {
-          loseResponse = false;
-          return route.abort("failed");
-        }
-        return route.fulfill({ status: 201, body: "" });
-      }
-      if (request.method() === "PATCH") {
-        if (conflict) return route.fulfill({ json: null });
-        expect(url.searchParams.get("revision")).toBe(`eq.${rows[0].revision}`);
-        Object.assign(rows[0], request.postDataJSON(), {
-          revision: rows[0].revision + 1,
-        });
-        return route.fulfill({ json: rows[0] });
-      }
-      if (request.method() === "DELETE") {
-        if (failDelete) {
-          failDelete = false;
-          return route.fulfill({
-            status: 503,
-            json: { message: "Unavailable" },
-          });
-        }
-        const deleted = rows.splice(0);
+    if (url.pathname === "/rest/v1/rpc/load_trip_bundles")
+      return route.fulfill({ json: rows });
+    if (url.pathname === "/rest/v1/rpc/save_trip_bundle") {
+      const requestData = request.postDataJSON();
+      const draft = requestData.p_data;
+      ids.push(draft.id);
+      if (conflict)
         return route.fulfill({
-          json: deleted.map((r) => ({ tripID: r.tripID })),
+          status: 409,
+          json: {
+            code: "PT409",
+            message:
+              "This trip changed or was deleted elsewhere. Reload before editing it again.",
+          },
         });
+      const row = {
+        tripID: draft.id,
+        owner_id: owner.id,
+        created_by: owner.id,
+        trip_name: draft.title,
+        destination: draft.destinations[0],
+        destinations: draft.destinations,
+        start_date: draft.start,
+        end_date: draft.end,
+        timezone: draft.zone,
+        revision: rows[0]?.revision ?? 1,
+        content_version: 1,
+        content: {
+          image: draft.image,
+          members: draft.members,
+          events: draft.events,
+          expenses: draft.expenses,
+          prefs: draft.prefs,
+          budget: draft.budget,
+          budgetMode: draft.budgetMode,
+          individual: draft.individual,
+          todos: draft.todos,
+          dismissed: draft.dismissed,
+        },
+      };
+      if (
+        rows[0] &&
+        JSON.stringify(rows[0].content) !== JSON.stringify(row.content)
+      )
+        row.revision++;
+      rows[0] = row;
+      if (loseResponse) {
+        loseResponse = false;
+        return route.abort("failed");
       }
+      return route.fulfill({ json: row });
+    }
+    if (url.pathname === "/rest/v1/trip" && request.method() === "DELETE") {
+      expect(url.searchParams.get("owner_id")).toBe(`eq.${owner.id}`);
+      if (failDelete) {
+        failDelete = false;
+        return route.fulfill({ status: 503, json: { message: "Unavailable" } });
+      }
+      const deleted = rows.splice(0);
       return route.fulfill({
-        json: url.searchParams.has("tripID") ? rows[0] : rows,
+        json: deleted.map((r) => ({ tripID: r.tripID })),
       });
     }
     throw new Error(`Unexpected request ${request.method()} ${url.pathname}`);
@@ -105,7 +127,9 @@ test("account saves recover from lost responses without duplicate trips, reload,
     fullPage: true,
   });
   await page.getByRole("button", { name: "Create trip", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Could not save");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Could not save" }).first(),
+  ).toContainText("Could not save");
   await expect(page.getByLabel("Trip title", { exact: true })).toHaveValue(
     "Account weekend",
   );
@@ -154,8 +178,18 @@ test("account saves recover from lost responses without duplicate trips, reload,
   await page.getByRole("button", { name: "Edit trip", exact: true }).click();
   await page.getByLabel("Trip title", { exact: true }).fill("Conflicting edit");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText(
-    "changed or was deleted elsewhere",
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "changed or was deleted elsewhere" })
+      .first(),
+  ).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page
+    .getByRole("button", { name: "Reload saved version", exact: true })
+    .click();
+  await expect(page.getByLabel("Trip title", { exact: true })).toHaveValue(
+    "Updated account trip",
   );
   expect(rows[0].trip_name).toBe("Updated account trip");
   await page.goto("./#/5");
@@ -189,7 +223,7 @@ test("failed account load offers retry and never pretends the account is empty",
     if (url.pathname.endsWith("/token"))
       return route.fulfill({ json: session() });
     if (url.pathname.endsWith("/user")) return route.fulfill({ json: owner });
-    if (url.pathname === "/rest/v1/trip") {
+    if (url.pathname === "/rest/v1/rpc/load_trip_bundles") {
       if (fail)
         return route.fulfill({ status: 400, json: { message: "Unavailable" } });
       return route.fulfill({ json: [] });

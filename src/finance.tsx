@@ -1,4 +1,4 @@
-/** Implementation status: budgets, expenses, splits, and repayment markers use local updateTrip only. Receipt scans fill fixed fields; Gmail and bank transaction actions use fixtures. No notifications or payments are sent. See ../IMPLEMENTATION_STATUS.md. */
+/** Implementation status: Account budgets, expenses, splits, and repayment markers save through updateTrip to Supabase. Sample trips stay local. Receipt scans/Gmail/bank actions remain fixtures; no messages or money are sent. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
 import React, { useState } from "react";
 import {
@@ -591,7 +591,11 @@ export function ExpenseForm() {
             else t.expenses.unshift(record);
           });
           toast("Expense recorded. Your totals are up to date.");
-          if (shared && people.some((id) => id !== s.userId))
+          if (
+            t.persistence !== "account" &&
+            shared &&
+            people.some((id) => id !== s.userId)
+          )
             open("message", {
               title: "Your group is in the loop",
               body: `Simulated notification: ${people
@@ -604,6 +608,31 @@ export function ExpenseForm() {
           else close();
         }}
       >
+        {original && original.payer === s.userId && (
+          <Button
+            variant="text danger"
+            onClick={() => {
+              if (original.settled.length) {
+                setError(
+                  "Completed repayments must stay in the history. Add an adjustment expense instead.",
+                );
+                return;
+              }
+              if (
+                window.confirm("Delete this expense and its unpaid shares?")
+              ) {
+                updateTrip((trip) => {
+                  trip.expenses = trip.expenses.filter(
+                    (e) => e.id !== original.id,
+                  );
+                });
+                close();
+              }
+            }}
+          >
+            Delete expense
+          </Button>
+        )}
         {scan && (
           <div className="scan-box">
             <ScanLine size={30} />
@@ -736,7 +765,9 @@ export function ExpenseForm() {
             Cancel
           </Button>
           <Button type="submit">
-            {shared ? "Save & simulate notification" : "Save expense"}
+            {shared && t.persistence !== "account"
+              ? "Save & simulate notification"
+              : "Save expense"}
           </Button>
         </div>
       </form>
