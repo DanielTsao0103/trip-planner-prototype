@@ -47,3 +47,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - UI copy scope correction (October 28, 2026): Dan wants implementation notes removed only from Budget and Suggestions, including the shared footer on those routes. Restore and preserve notes on all other pages and dialogs. Keep real versus simulated behavior documented in source comments and IMPLEMENTATION_STATUS.md; update that reference when wiring real services.
 
 - Definition-of-done scope (October 28, 2026): Dan explicitly limited this release to the Budget/Suggestions note cleanup and requested responsive QA, live backend regression, Lighthouse Accessibility >=90, README Complete/Not complete requirements, main-branch integration, and public cloud deployment. This is authorization to publish the verified feature; it is not a request to implement unrelated prototype backends.
+
+- Live-site completion correction (October 28, 2026): navigation fixes requested for the hosted app must be deployed and verified on GitHub Pages before reporting completion. Local build and browser checks alone do not update the site Dan is using.

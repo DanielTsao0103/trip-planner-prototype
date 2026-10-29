@@ -828,6 +828,7 @@ legend {
   text-align: left;
   margin-bottom: 21px;
   color: #56634f;
+  border-radius: 6px;
 }
 .trip-switch {
   background: #f9faf3;
@@ -878,7 +879,8 @@ legend {
 .sidebar nav button:hover {
   background: #e9eee1;
 }
-.sidebar nav button.active {
+.sidebar nav button.active,
+.home-link.active {
   color: #274d39;
   background: #e0e8d7;
   font-weight: 600;

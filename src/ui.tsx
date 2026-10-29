@@ -364,7 +364,11 @@ export function Shell({ children }: { children: ReactNode }) {
         <button className="brand-button" onClick={() => go(4)}>
           <Logo />
         </button>
-        <button className="home-link" onClick={() => go(4)}>
+        <button
+          className={`home-link${route.page === 4 ? " active" : ""}`}
+          aria-current={route.page === 4 ? "page" : undefined}
+          onClick={() => go(4)}
+        >
           <House size={18} />
           Home
         </button>
