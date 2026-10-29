@@ -6,6 +6,24 @@
 
 Planning a group trip often means keeping track of messages, calendars, bookings, and shared expenses in different places. Trip Planner is for friends, families, and other groups who want those plans in one place. The app brings together trip dates, destinations, a day-by-day itinerary, group members, preferences, and budget screens. Travelers can explore a fictional Seattle and Bainbridge trip or create a separate trip in the prototype. Our working backend feature is email and password account creation, login, and sign-out through Supabase. Creating an account saves the account and its name in the database, then opens the planner with that person's name. Creating a trip now saves its name, destinations, dates, and time zone to the signed-in account in Supabase. Saved trips load after sign-in on another browser; editing trip details and deleting a trip also persist. Events and attendees, guest travelers and role/day settings, preferences, budgets, expenses and split/repayment records, reminders, and dismissed suggestions also save to the account. Sample trips remain local; actual collaborator invitations and simulated integrations are separate future work.
 
+## Trip persistence: behavioral requirements and completion status
+
+Scope: the full account-trip persistence task only. The six definition-of-done checks and their evidence are recorded in [trip-persistence verification](assignment/trip-persistence-verification.md). This does not expand the suggestion engine or implement unrelated integrations.
+
+**Definition of done: Complete.** Desktop/mobile layouts passed 42 state audits and 32 width checks; the hosted user-to-database flow passed 90 checks; Lighthouse Accessibility scored **95–100** across 42 checks. The behavioral requirements are marked below, the implementation is on `main`, and the [public app](https://danieltsao0103.github.io/trip-planner-prototype/) serves it. See the linked report for exact versions and remaining out-of-scope work.
+
+| Behavioral requirement | Status | Verification / boundary |
+| --- | --- | --- |
+| Create, list, edit and delete a trip under the signed-in owning account | Complete | Live UI → Supabase API → PostgreSQL checks; exactly one owner membership and account isolation. |
+| Save destinations, dates, time zone, image URL, events, locations, times, costs, notes and attendees | Complete | Complete database round-trip; event add/edit/delete and fresh-browser reads. |
+| Save guest travelers, names/emails, roles, editable days and removal state | Complete | Guest IDs remain separate from Auth IDs; removed travelers retain financial history. |
+| Save all survey answers, group/individual budgets, expenses, split shares and repayment markers | Complete | Live field-by-field readback, odd-cent splits, budget-mode switching and protected completed repayments. |
+| Save reminders, completion state and existing dismissed suggestion IDs | Complete | Create/update/delete, reload and database checks. Recommendation generation is unchanged. |
+| Replace permanent browser copies of account trips with database storage | Complete | Samples remain local; only unsaved recovery drafts are retained for account trips, then removed on success. |
+| Preserve older browser details for an already-owned database trip | Complete | One-time import remaps legacy IDs and preserves historical allocations; email does not establish ownership. |
+| Prevent partial writes and silent overwrites; visibly recover from failed saves | Complete | Transaction rollback, concurrent revisions, lost responses, explicit retry/reload and draft download tested. |
+| Deliver actual collaborator invitations, cross-account editing, file uploads/OCR, messages or payments | Not complete | Outside this task; stored guest roles do not grant another account access, and uploaded file previews are temporary. |
+
 ## Field limits: behavioral requirements and completion status
 
 Historical field-limit release scope: character and money limits, verified through the account-trip save path. The separate persistence release below now extends database saving to events, budgets, preferences, guest travelers, and reminders.

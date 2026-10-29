@@ -2,6 +2,76 @@
 
 Date: October 28, 2026 (America/Denver). Scope: persist existing structured trip details, preserve the published UI changes, and test failures. No suggestion-engine expansion.
 
+## Definition of done: this task only
+
+Verified against public application revision `cdff73bf684021ee1e993b47cc973b92c6e7fe2d`. The live revision was unchanged before and after the audit. This follow-up changes verification scripts and documentation only; it does not add new product features.
+
+| Requirement | Status | Evidence |
+| --- | --- | --- |
+| Responsive, usable desktop and mobile pages | Complete | Visual review at 1365×900 and 390×844; all 42 audited states fit their viewport. Another 32 checks cover eight account-trip routes at 320, 390, 768 and 1365 pixels. Keyboard dialog opening, Escape closing and focus restoration pass on both sizes. |
+| User → Frontend → Backend → Database functionality | Complete | The fresh hosted run passed all 90 checks, including full trip detail edits through the UI, direct database readback, fresh-browser restoration, isolation, rollback, conflicts and cleanup. The Lighthouse journey also created and edited real database trips on desktop and mobile. |
+| Lighthouse Accessibility score ≥90 | Complete | Lighthouse 13.6.0: 42 checks scored 95–100. The actual authenticated account-trip pages, dialogs and failed-save banner were audited. |
+| README behavioral requirements marked Complete / Not complete | Complete | The README now has a dedicated [trip-persistence table](../README.md#trip-persistence-behavioral-requirements-and-completion-status), separate from other tasks. Unimplemented integrations are explicitly outside scope. |
+| Code merged into main | Complete | Implementation `cdff73b` is on main using the approved direct-to-main workflow. This evidence and repeatable audit script are committed to the same branch. |
+| Live public cloud URL | Complete | [GitHub Pages app](https://danieltsao0103.github.io/trip-planner-prototype/) serves the implementation; the [successful implementation deployment](https://github.com/DanielTsao0103/trip-planner-prototype/actions/runs/40809068497) verified version.json, HTML and JavaScript against the commit. The evidence-only release uses the same Pages verification gate. |
+
+Fresh unit and browser verification passed: **21 unit tests, 36 desktop/mobile tests**, and the production build. All generated functional/audit accounts and associated records were removed. No existing user trip was used as test data.
+
+### Lighthouse results
+
+| Screen or state | Audit mode | Desktop | Mobile |
+| --- | --- | ---: | ---: |
+| Login | Navigation | 100 | 100 |
+| Empty account trip list | Snapshot | 98 | 98 |
+| Saved trip list | Snapshot | 100 | 100 |
+| Create trip | Snapshot | 100 | 100 |
+| Edit trip | Snapshot | 100 | 100 |
+| Itinerary | Snapshot | 100 | 100 |
+| Day detail | Snapshot | 100 | 100 |
+| Event editor | Snapshot | 100 | 100 |
+| Food preferences | Snapshot | 100 | 100 |
+| Access and interests | Snapshot | 100 | 100 |
+| Preference notes | Snapshot | 100 | 100 |
+| Group summary | Snapshot | 100 | 95 |
+| Add guest traveler | Snapshot | 100 | 100 |
+| Guest status | Snapshot | 100 | 100 |
+| Role and day settings | Snapshot | 100 | 100 |
+| Reminders / Today | Snapshot | 96 | 96 |
+| Budget overview | Snapshot | 100 | 100 |
+| Budget settings | Snapshot | 100 | 100 |
+| Add expense | Snapshot | 100 | 100 |
+| Repayment history | Snapshot | 100 | 100 |
+| Save failure and recovery | Snapshot | 100 | 100 |
+
+[Machine-readable results](trip-persistence-qa/summary.json) include every score, viewport check, keyboard result and cleanup status. Login uses navigation mode; the authenticated routes/dialogs use Lighthouse snapshot mode to audit the actual open UI without losing account state. These are Lighthouse Accessibility scores, not relabeled axe results. Only generated QA data was used.
+
+The residual findings are an empty-state heading order (98), mobile group touch-target spacing (95), and reminder-page contrast/visible-label naming (96). All scores meet the requested threshold. These automated and Codex-operated checks do not claim perfect accessibility, full WCAG certification, or personal manual testing by Dan.
+
+### Reviewed visual evidence
+
+| State | Desktop | Mobile |
+| --- | --- | --- |
+| Structured trip/event form | [Event editor](trip-persistence-qa/desktop-event-editor.png) | [Create trip](trip-persistence-qa/mobile-create-trip.png) |
+| Failed save and recovery actions | [Recovery banner](trip-persistence-qa/desktop-save-recovery.png) | [Recovery banner](trip-persistence-qa/mobile-save-recovery.png) |
+| Individual budget dialog | — | [Budget settings](trip-persistence-qa/mobile-budget-dialog.png) |
+
+Full-page captures place fixed mobile navigation at its viewport position within the long image; the page scrolls normally. Lighthouse can leave keyboard focus on the skip link or close button, which is visible in some screenshots.
+
+### Repeat this verification
+
+Run from the repository root with the existing ignored QA credentials and Playwright Chromium installed:
+
+```sh
+npm test
+npm run build:pages
+PLAYWRIGHT_PORT=4187 npm run test:e2e
+TRIP_QA_URL=https://danieltsao0103.github.io/trip-planner-prototype/ npm run test:live-persistence
+npm install --prefix /tmp/trip-dod-tools --no-save --ignore-scripts lighthouse@13.6.0
+node scripts/audit-trip-persistence.mjs
+```
+
+The scoped audit writes full Lighthouse HTML/JSON and screenshots to `/tmp/trip-persistence-dod`; selected final evidence is committed here. It fails below 90, on horizontal overflow or viewport drift, if cleanup fails, or if the deployed revision changes during the run. `QA_TOOLS_ROOT` and the URL/output-directory arguments can override defaults. The app dependency tree is not changed by installing audit tools separately.
+
 ## Completed behavior
 
 | Trip data | Database representation | Verified behavior |
@@ -26,7 +96,7 @@ Date: October 28, 2026 (America/Denver). Scope: persist existing structured trip
 - The original live account-trip regression also passed after the new column grants, including metadata API compatibility and browser deletion.
 - Generated test accounts, trips and associated records were removed. No existing user trip was edited for testing.
 
-The automated browser suite mocks API responses; it is separate from the live SDK/browser integration script. Test screenshots/logs and private test credentials stay outside the repository. `scripts/test-trip-persistence.mjs` is opt-in, requires ignored server credentials, and cleans up generated data in `finally`.
+The automated browser suite mocks API responses; it is separate from the live SDK/browser integration script. Intermediate screenshots/logs and all private test credentials stay outside the repository; the selected final evidence above is public. `scripts/test-trip-persistence.mjs` is opt-in, requires ignored server credentials, and cleans up generated data in `finally`.
 
 ## Bugs fixed during verification
 

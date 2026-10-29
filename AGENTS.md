@@ -55,3 +55,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Application revision conflicts must use `PT409`, not PostgreSQL serialization code `40001`: hosted PostgREST may repeatedly retry the latter. Verify conflicts against the real API, not only mocks.
 - Financial participant foreign keys must be deferred for a whole-trip cascade; removing one traveler retains their historical identity and allocations. Test both removal paths.
 - Browser previews from other checkouts can invalidate QA: use `PLAYWRIGHT_PORT` for an isolated port when another task has a preview running. Preserve concurrently published UI changes before deployment.
+
+- Trip-persistence definition-of-done scope (October 28, 2026): Dan explicitly requires responsive desktop/mobile pages, end-to-end user/frontend/backend/database behavior, Lighthouse Accessibility >=90, README Complete/Not complete requirements, main-branch integration, and public deployment for this specific persistence task only. Verify the real account-trip states, including save recovery; do not expand recommendations or unrelated integrations.
