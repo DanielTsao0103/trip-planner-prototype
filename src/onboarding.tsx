@@ -489,14 +489,10 @@ export function ConnectProvider() {
   );
 }
 export function Home() {
-  const { user, go, explore, open } = useApp();
+  const { go, explore } = useApp();
   return (
     <>
-      <PageHead
-        eyebrow="A WORLD OF POSSIBILITIES"
-        title={`Where to next, ${user?.name.split(" ")[0]}?`}
-        description="Good trips start with a little possibility."
-      />
+      <PageHead title="Home" />
       <div className="home-actions">
         <Button onClick={() => go(6)}>
           <Plus size={20} />
@@ -510,11 +506,10 @@ export function Home() {
       </div>
       <div className="sample-feature">
         <div>
-          <Badge tone="green">READY TO EXPLORE</Badge>
-          <h2>A few days in the Pacific Northwest.</h2>
+          <Badge tone="green">Sample trip</Badge>
+          <h2>Seattle & Bainbridge Island</h2>
           <p>
-            Meet Maya and friends. Their fictional Seattle trip has plans,
-            preferences, and a little room to wander.
+            Preview a sample itinerary, budget, and traveler preferences.
           </p>
           <Button variant="light" onClick={explore}>
             Open the sample trip <ArrowUpRight size={16} />
@@ -524,8 +519,7 @@ export function Home() {
       </div>
       <div className="section-title">
         <div>
-          <span className="eyebrow">A LITTLE INSPIRATION</span>
-          <h2>Somewhere worth going.</h2>
+          <h2>Destinations</h2>
         </div>
         <span className="muted">Illustrative trip estimates</span>
       </div>
@@ -533,30 +527,26 @@ export function Home() {
         {[
           {
             name: "Seattle",
-            tag: "City days, island escapes",
             image: IMAGES.seattle,
             cost: "$750",
             days: "4 days",
           },
           {
             name: "San Diego",
-            tag: "A slower kind of sunshine",
             image: IMAGES.coast,
             cost: "$920",
             days: "5 days",
           },
           {
             name: "Chicago",
-            tag: "Art, architecture & good food",
             image: IMAGES.city,
             cost: "$680",
             days: "3 days",
           },
         ].map((d) => (
           <article className="destination-card" key={d.name}>
-            <Photo src={d.image} alt={`${d.name} travel inspiration`} />
+            <Photo src={d.image} alt={d.name} />
             <div>
-              <span className="eyebrow">{d.tag}</span>
               <h3>{d.name}</h3>
               <p>
                 <strong>{d.cost}</strong> / person <span>{d.days}</span>

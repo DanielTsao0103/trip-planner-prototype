@@ -31,7 +31,7 @@ try {
     await page.getByLabel('Email', { exact: true }).fill(email);
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Log in', exact: true }).click();
-    await page.getByRole('heading', { name: 'Where to next, Limit?', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'Home', exact: true }).waitFor();
     return { context, page };
   }
   const first = await login();

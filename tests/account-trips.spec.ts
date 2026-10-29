@@ -114,7 +114,7 @@ test("account saves recover from lost responses without duplicate trips, reload,
   });
   await login(page);
   await expect(
-    page.getByRole("heading", { name: "Where to next, Owner?" }),
+    page.getByRole("heading", { name: "Home" }),
   ).toBeVisible();
   await fillTrip(page);
   expect(
@@ -240,6 +240,6 @@ test("failed account load offers retry and never pretends the account is empty",
   fail = false;
   await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Where to next, Owner?" }),
+    page.getByRole("heading", { name: "Home" }),
   ).toBeVisible();
 });

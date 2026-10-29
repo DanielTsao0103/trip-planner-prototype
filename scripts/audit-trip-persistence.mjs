@@ -183,7 +183,7 @@ try {
       await field("Email").fill(email);
       await field("Password").fill(password);
       await button("Log in").click();
-      await page.getByRole("heading", { name: "Where to next, QA?", exact: true }).waitFor();
+      await page.getByRole("heading", { name: "Home", exact: true }).waitFor();
       await goto("5");
       await audit("empty-trips");
       await detailJourney(page, site);

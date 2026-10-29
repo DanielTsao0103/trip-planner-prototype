@@ -41,7 +41,7 @@ async function login(page: Page) {
   await page.getByLabel('Email', { exact: true }).fill(account.email);
   await page.getByLabel('Password', { exact: true }).fill('prototype-test-password');
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Where to next, QA?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
 }
 async function controls(page: Page) {
   await page.getByRole('button', { name: 'Prototype', exact: true }).click();
@@ -84,9 +84,9 @@ test('signup opens the app immediately, persists the session, and signs out', as
   await page.getByLabel('Email', { exact: true }).fill(account.email);
   await page.getByLabel('Password', { exact: true }).fill('prototype-test-password');
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Where to next, QA?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Where to next, QA?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
   await openAccount(page);
   await page.getByRole('button', { name: 'Log out', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner' })).toBeVisible();
@@ -160,7 +160,7 @@ test('switching fictional participants keeps the original account return path', 
   await dialog.getByRole('button', { name: 'Explore the sample trip', exact: true }).click();
   await page.getByRole('button', { name: 'Back to my trips', exact: true }).click();
   await page.goto('./#/4');
-  await expect(page.getByRole('heading', { name: 'Where to next, QA?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
 });
 
 test('new release offers reload without interrupting a form', async ({ page }) => {
@@ -184,5 +184,5 @@ test('screen index sample entry preserves the real account return path', async (
   await expect(page.getByRole('heading', { name: 'Seattle & Bainbridge getaway', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Back to my trips', exact: true }).click();
   await page.goto('./#/4');
-  await expect(page.getByRole('heading', { name: 'Where to next, QA?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
 });

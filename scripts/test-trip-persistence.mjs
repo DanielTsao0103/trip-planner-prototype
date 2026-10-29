@@ -408,7 +408,7 @@ try {
         await page.getByLabel("Email", { exact: true }).fill(owner.email);
         await page.getByLabel("Password", { exact: true }).fill(owner.password);
         await page.getByRole("button", { name: "Log in", exact: true }).click();
-        await page.getByRole("heading", { name: "Where to next, QA?", exact: true }).waitFor();
+        await page.getByRole("heading", { name: "Home", exact: true }).waitFor();
       };
       const context = await browser.newContext();
       const page = await context.newPage();

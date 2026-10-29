@@ -183,7 +183,7 @@ try {
     await page.getByLabel("Email", { exact: true }).fill(account.email);
     await page.getByLabel("Password", { exact: true }).fill(account.password);
     await page.getByRole("button", { name: "Log in", exact: true }).click();
-    await page.getByRole("heading", { name: "Where to next, QA?" }).waitFor();
+    await page.getByRole("heading", { name: "Home" }).waitFor();
     return { page, context };
   }
   const first = await openAccount(owner);

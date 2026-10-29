@@ -410,14 +410,6 @@ export function Shell({ children }: { children: ReactNode }) {
             ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="sidebar-note">
-            <span>Better, together.</span>
-            <p>
-              A little planning.
-              <br />
-              More being there.
-            </p>
-          </div>
           <button className="profile" onClick={() => open("account")}>
             <Avatar name={user?.name || "Guest"} />
             <span>

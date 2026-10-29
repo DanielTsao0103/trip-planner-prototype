@@ -74,7 +74,7 @@ async function backend(page: Page) {
   await page.getByLabel("Password", { exact: true }).fill("qa-password");
   await page.getByRole("button", { name: "Log in", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Where to next, QA?" }),
+    page.getByRole("heading", { name: "Home" }),
   ).toBeVisible();
   return {
     rows,
