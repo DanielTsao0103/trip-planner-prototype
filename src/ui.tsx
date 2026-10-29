@@ -347,6 +347,72 @@ export function Logo() {
     </span>
   );
 }
+
+/** Parent links follow the screen hierarchy, even after a refresh or direct visit. */
+function Breadcrumbs() {
+  const { route, trip, s } = useApp();
+  const page = route.page;
+  const crumbs: { label: string; href: string }[] = [
+    { label: "Your workspace", href: "#/4" },
+  ];
+  const add = (label: string, target: number, params?: Record<string, string>) =>
+    crumbs.push({
+      label,
+      href: `#/${target}${params ? `?${new URLSearchParams(params)}` : ""}`,
+    });
+  const tripPage = [7, 8, 9, 10, 11, 12, 13, 15, 16, 17].includes(page);
+  const editingTrip = page === 6 && route.params.get("edit") === "true" && trip;
+
+  if (page === 2 || page === 3) {
+    add("Connected accounts", 2);
+    if (page === 3) add(route.params.get("service") || "Connect provider", 3);
+  } else if (page === 5 || page === 6 || tripPage) {
+    add("My trips", 5);
+    if (trip && (tripPage || editingTrip)) {
+      add(trip.title, 8);
+      if (page === 7 || page === 11) {
+        const requested = route.params.get("date");
+        const date = requested && requested >= trip.start && requested <= trip.end
+          ? requested : page === 11 && isActive(trip, s.date) ? s.date : trip.start;
+        if (page === 11 || route.params.get("return") === "11")
+          add(dateText(date, true), 11, { date });
+        if (page === 7)
+          add(route.params.has("event") ? "Edit event" : "Add event", 7);
+      } else if (page === 15) {
+        add("The group", 13);
+        add("My preferences", 15);
+      } else if (page === 16) {
+        add("Today", 10);
+        add("Nearby", 16);
+      } else {
+        const sections: Record<number, string> = {
+          9: "Suggestions", 10: "Today", 12: "Budget", 13: "The group", 17: "Map",
+        };
+        if (sections[page]) add(sections[page], page);
+      }
+    } else if (tripPage) {
+      add("Choose a trip", page);
+    }
+    if (page === 6) add(editingTrip ? "Edit trip" : "Create trip", 6);
+  }
+
+  return (
+    <nav className="breadcrumbs" aria-label="Breadcrumb">
+      <ol>
+        {crumbs.map((crumb, index) => (
+          <li key={`${index}-${crumb.href}`}>
+            {index > 0 && <ChevronRight size={13} aria-hidden="true" />}
+            {index === crumbs.length - 1 ? (
+              <span aria-current="page" title={crumb.label}>{crumb.label}</span>
+            ) : (
+              <a href={crumb.href} title={crumb.label}>{crumb.label}</a>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
 export function Shell({ children }: { children: ReactNode }) {
   const { user, trip, s, route, go, tripGo, open, returnFromSample } = useApp();
   const active = trip && isActive(trip, s.date);
@@ -432,13 +498,7 @@ export function Shell({ children }: { children: ReactNode }) {
             >
               <Menu size={21} />
             </button>
-            <span className="desktop-crumb">
-              Your workspace <ChevronRight size={13} />{" "}
-              {trip?.destinations[0] || "Make room for a getaway"}
-            </span>
-            <button className="mobile-brand brand-button" onClick={() => go(4)}>
-              <Logo />
-            </button>
+            <Breadcrumbs />
           </div>
           <div className="topbar-right">
             <button className="prototype-button" onClick={() => open("demo")}>

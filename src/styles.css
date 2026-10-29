@@ -953,12 +953,55 @@ legend {
   align-items: center;
   gap: 17px;
 }
-.desktop-crumb {
-  display: flex;
-  align-items: center;
-  gap: 11px;
+.breadcrumbs {
+  min-width: 0;
+  overflow-x: auto;
+  padding: 4px;
   font-size: 11px;
   color: #56634f;
+}
+.breadcrumbs ol {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.breadcrumbs li {
+  display: flex;
+  align-items: center;
+}
+.breadcrumbs li + li {
+  margin-left: 11px;
+  gap: 11px;
+}
+.breadcrumbs a,
+.breadcrumbs span {
+  display: block;
+  max-width: 210px;
+  padding: 8px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.breadcrumbs a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: #b3bcaa;
+  text-underline-offset: 4px;
+}
+.breadcrumbs a:hover {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+.breadcrumbs a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.breadcrumbs [aria-current="page"] {
+  font-weight: 600;
 }
 .prototype-button {
   display: flex;
@@ -974,9 +1017,6 @@ legend {
 .menu-button {
   width: 31px;
   height: 31px;
-}
-.mobile-brand {
-  display: none;
 }
 .main-content {
   max-width: 1350px;
@@ -3596,21 +3636,12 @@ legend {
     width: 36px;
     height: 36px;
   }
-  .desktop-crumb {
-    display: none;
+  .breadcrumbs {
+    font-size: 12px;
   }
-  .mobile-brand {
-    display: block;
-  }
-  .mobile-brand .logo {
-    font-size: 20px;
-    gap: 0;
-  }
-  .mobile-brand .logo-icon {
-    display: none;
-  }
-  .mobile-brand .logo-dot {
-    margin: 0;
+  .breadcrumbs a,
+  .breadcrumbs span {
+    max-width: 160px;
   }
   .topbar-right .avatar-stack {
     display: none;
@@ -5209,7 +5240,6 @@ legend {
 
 /* Long trip names and destinations should grow or wrap, never cover controls. */
 .topbar-left,
-.desktop-crumb,
 .page-head > div:first-child {
   min-width: 0;
 }
@@ -5219,10 +5249,6 @@ legend {
 }
 .topbar-right {
   flex-shrink: 0;
-}
-.desktop-crumb {
-  overflow: hidden;
-  white-space: nowrap;
 }
 .eyebrow,
 .trip-card h2,
@@ -5397,3 +5423,19 @@ legend {
 .destination-menu [role="listbox"] { max-height: min(340px, 37vh); overflow-y: auto; overscroll-behavior: contain; }
 .destination-attribution { font-size: 10px; color: #67705f; padding: 0 17px 10px; }
 .destination-attribution a { color: inherit; text-decoration: underline; }
+
+/* Give the full parent trail its own row when the header becomes crowded. */
+@media (max-width: 1100px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    height: auto;
+    min-height: 67px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .topbar-left { display: contents; }
+  .topbar-right { grid-column: 2; grid-row: 1; }
+  .breadcrumbs { grid-column: 1 / -1; grid-row: 2; }
+  .breadcrumbs ol { width: auto; flex-wrap: wrap; }
+}
