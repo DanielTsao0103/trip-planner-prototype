@@ -1931,6 +1931,18 @@ legend {
   text-decoration: line-through;
   color: #9aa58e;
 }
+.todo-item > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.todo-item > input {
+  flex-shrink: 0;
+}
+/* Valid-length user text can still contain one long word or URL. */
+#main-content,
+.modal {
+  overflow-wrap: anywhere;
+}
 .todo-card form {
   margin-top: 25px;
 }

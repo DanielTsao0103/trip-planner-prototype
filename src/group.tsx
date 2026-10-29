@@ -1,3 +1,4 @@
+import { TEXT_LIMITS, textError } from "./limits.ts";
 import React, { useState } from "react";
 import {
   ArrowRight,
@@ -259,7 +260,17 @@ export function Survey() {
     setP({ ...p, [key]: value });
   const save = (e: React.FormEvent) => {
     e.preventDefault();
-    if (p.walk < 0 || p.walk > 100000) {
+    const problem =
+      textError(
+        p.destinations,
+        "Places to include",
+        TEXT_LIMITS.preferencePlaces,
+      ) || textError(p.notes, "Additional notes", TEXT_LIMITS.notes);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    if (!Number.isFinite(p.walk) || p.walk < 0 || p.walk > 100000) {
       setError("Enter a walking limit between 0 and 100,000 meters.");
       return;
     }
@@ -406,6 +417,7 @@ export function Survey() {
               <Field label="Places you’d love to include">
                 <textarea
                   rows={3}
+                  maxLength={TEXT_LIMITS.preferencePlaces}
                   value={p.destinations}
                   onChange={(e) => set("destinations", e.target.value)}
                   placeholder="A neighborhood, a museum, a little place you heard about…"
@@ -461,6 +473,7 @@ export function Survey() {
               <Field label="Anything else the group should know?">
                 <textarea
                   rows={5}
+                  maxLength={TEXT_LIMITS.notes}
                   value={p.notes}
                   onChange={(e) => set("notes", e.target.value)}
                   placeholder="Other food needs, a slower pace, timing constraints…"

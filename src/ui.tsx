@@ -71,15 +71,36 @@ export function Field({
   hint?: string;
 }) {
   const id = useId();
+  let counter: ReactNode = null;
   // Input-action wrappers (for example, password reveal) still need their hint.
   const labelControl = (node: ReactNode): ReactNode => {
     if (!React.isValidElement(node) || typeof node.type !== "string")
       return node;
     const element = node as React.ReactElement<any>;
     if (["input", "select", "textarea"].includes(node.type)) {
+      const max = element.props.maxLength;
+      const limited = typeof max === "number";
+      const length = String(element.props.value ?? "").length;
+      if (limited)
+        counter = (
+          <small id={`${id}-count`} className="character-count">
+            {length.toLocaleString("en-US")} / {max.toLocaleString("en-US")}{" "}
+            characters
+            {length > max ? " — shorten this before saving" : ""}
+          </small>
+        );
       return React.cloneElement(element, {
         "aria-label": label,
-        "aria-describedby": hint ? id : undefined,
+        "aria-describedby":
+          [
+            element.props["aria-describedby"],
+            hint ? id : "",
+            limited ? `${id}-count` : "",
+          ]
+            .filter(Boolean)
+            .join(" ") || undefined,
+        "aria-invalid":
+          limited && length > max ? true : element.props["aria-invalid"],
       });
     }
     return element.props.children
@@ -96,6 +117,7 @@ export function Field({
       <span>{label}</span>
       {control}
       {hint && <small id={id}>{hint}</small>}
+      {counter}
     </label>
   );
 }
@@ -476,7 +498,10 @@ export function Shell({ children }: { children: ReactNode }) {
           {children}
         </main>
         <footer className="app-footer">
-          <span>Account trip details sync when saved. Itinerary, budget, and group changes stay in this browser.</span>
+          <span>
+            Account trip details sync when saved. Itinerary, budget, and group
+            changes stay in this browser.
+          </span>
           <button onClick={() => open("demo")}>
             Demo controls & screen index
           </button>

@@ -1,3 +1,4 @@
+import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
 import React, { useState } from "react";
 import {
   ArrowRight,
@@ -337,6 +338,14 @@ export function EventForm() {
   };
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    const inputProblem =
+      textError(name, "Event name", TEXT_LIMITS.eventName, true) ||
+      textError(place, "Location", TEXT_LIMITS.location, true) ||
+      moneyError(cost, MONEY_LIMITS.expense, true);
+    if (inputProblem) {
+      setError(inputProblem);
+      return;
+    }
     const event: Event = {
       id: original?.id || uid(),
       name: name.trim(),
@@ -469,6 +478,7 @@ export function EventForm() {
               <Field label="Event name">
                 <input
                   required
+                  maxLength={TEXT_LIMITS.eventName}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="A morning at the museum"
@@ -477,6 +487,7 @@ export function EventForm() {
               <Field label="Where">
                 <input
                   required
+                  maxLength={TEXT_LIMITS.location}
                   value={place}
                   onChange={(e) => setPlace(e.target.value)}
                   placeholder="Location or meeting point"
@@ -538,11 +549,12 @@ export function EventForm() {
               )}
               <Field
                 label="Estimated cost (USD)"
-                hint="Planning estimate only. Log actual payments in Budget."
+                hint="Up to $99,999.99; maximum 2 decimal places. Log actual payments in Budget."
               >
                 <input
                   required
                   min="0"
+                  max={MONEY_LIMITS.expense / 100}
                   step="0.01"
                   type="number"
                   value={cost}
@@ -576,6 +588,7 @@ export function EventForm() {
               <Field label="Notes (optional)">
                 <textarea
                   rows={3}
+                  maxLength={TEXT_LIMITS.notes}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="A meeting point, ticket details, or a little reminder…"
@@ -840,6 +853,7 @@ export function Suggestions() {
 }
 export function Dashboard() {
   const { trip: t, s, go, open, updateTrip } = useApp();
+  const [todoError, setTodoError] = useState("");
   const [todo, setTodo] = useState(""),
     [weekOffset, setWeekOffset] = useState(0);
   if (!t) return null;
@@ -969,11 +983,19 @@ export function Dashboard() {
               className="input-action"
               onSubmit={(e) => {
                 e.preventDefault();
+                const problem = textError(
+                  todo,
+                  "Reminder",
+                  TEXT_LIMITS.todo,
+                  true,
+                );
+                setTodoError(problem);
+                if (problem) return;
                 if (todo.trim()) {
                   updateTrip((t) =>
                     t.todos.push({
                       id: uid(),
-                      text: todo,
+                      text: todo.trim(),
                       date: s.date,
                       done: false,
                     }),
@@ -984,6 +1006,8 @@ export function Dashboard() {
             >
               <input
                 aria-label="New to-do"
+                aria-describedby="todo-limit"
+                maxLength={TEXT_LIMITS.todo}
                 value={todo}
                 onChange={(e) => setTodo(e.target.value)}
                 placeholder="Add a little reminder"
@@ -993,6 +1017,12 @@ export function Dashboard() {
               </button>
             </form>
           )}
+          {canEdit(t, s.userId, s.date) && (
+            <small id="todo-limit">
+              {todo.length} / {TEXT_LIMITS.todo} characters
+            </small>
+          )}
+          <ErrorBox text={todoError} />
           <div className="note">Shared with your group.</div>
         </div>
       </div>

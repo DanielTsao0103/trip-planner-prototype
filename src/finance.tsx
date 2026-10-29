@@ -1,3 +1,4 @@
+import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
 import React, { useState } from "react";
 import {
   ArrowDownLeft,
@@ -433,8 +434,9 @@ export function BudgetSetup() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
-            setError("Enter a budget greater than zero.");
+          const problem = moneyError(amount, MONEY_LIMITS.budget);
+          if (problem) {
+            setError(problem);
             return;
           }
           if (mode === "group" && !owner) {
@@ -478,11 +480,13 @@ export function BudgetSetup() {
               ? "Group budget (USD)"
               : "Your individual budget (USD)"
           }
+          hint="Up to $999,999.99; maximum 2 decimal places."
         >
           <input
             required
             type="number"
             min="0.01"
+            max={MONEY_LIMITS.budget / 100}
             step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -544,6 +548,17 @@ export function ExpenseForm() {
           e.preventDefault();
           if (original && original.payer !== s.userId) {
             setError("Only the payer can edit this expense.");
+            return;
+          }
+          const problem =
+            textError(
+              purpose,
+              "Expense description",
+              TEXT_LIMITS.expense,
+              true,
+            ) || moneyError(amount, MONEY_LIMITS.expense);
+          if (problem) {
+            setError(problem);
             return;
           }
           const cents = Math.round(Number(amount) * 100);
@@ -639,17 +654,22 @@ export function ExpenseForm() {
         <Field label="What was it for?">
           <input
             required
+            maxLength={TEXT_LIMITS.expense}
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
             placeholder="Lunch by the waterfront"
           />
         </Field>
         <div className="form-columns">
-          <Field label="Amount (USD)">
+          <Field
+            label="Amount (USD)"
+            hint="Up to $99,999.99; maximum 2 decimal places."
+          >
             <input
               required
               type="number"
               min="0.01"
+              max={MONEY_LIMITS.expense / 100}
               step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
@@ -700,9 +720,12 @@ export function ExpenseForm() {
                   <span>{m.name}</span>
                   <strong>
                     {money(
-                      splitCents(Math.round(Number(amount || 0) * 100), people)[
-                        m.id
-                      ] || 0,
+                      splitCents(
+                        moneyError(amount, MONEY_LIMITS.expense)
+                          ? 0
+                          : Math.round(Number(amount) * 100),
+                        people,
+                      )[m.id] || 0,
                     )}
                   </strong>
                 </label>

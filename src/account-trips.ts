@@ -1,3 +1,4 @@
+import { TEXT_LIMITS, MAX_DESTINATIONS, textError } from "./limits.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Trip } from "./domain.ts";
 import type { DemoAccount } from "./demo-store.ts";
@@ -22,14 +23,21 @@ const columns =
 export function tripDetailsError(
   trip: Pick<Trip, "title" | "destinations" | "start" | "end" | "zone">,
 ): string {
-  if (!trip.title.trim() || trip.title.trim().length > 90)
-    return "Use a trip name between 1 and 90 characters.";
+  const titleProblem = textError(
+    trip.title,
+    "Trip title",
+    TEXT_LIMITS.title,
+    true,
+  );
+  if (titleProblem) return titleProblem;
   if (
     !trip.destinations.length ||
-    trip.destinations.length > 20 ||
-    trip.destinations.some((p) => !p.trim() || p.trim().length > 200)
+    trip.destinations.length > MAX_DESTINATIONS ||
+    trip.destinations.some((place) =>
+      textError(place, "Destination", TEXT_LIMITS.destination, true),
+    )
   )
-    return "Add 1–20 destinations, each under 201 characters.";
+    return `Add 1–${MAX_DESTINATIONS} destinations, each ${TEXT_LIMITS.destination} characters or fewer.`;
   const validDate = (value: string) =>
     /^\d{4}-\d{2}-\d{2}$/.test(value) &&
     Number.isFinite(Date.parse(value)) &&
@@ -135,17 +143,15 @@ export async function saveAccountTrip(
     return tripFromRow(data as TripRow, account, trip);
   }
   // Keep the same UUID across retries. An interrupted response must not create two trips.
-  const { error } = await client
-    .from("trip")
-    .upsert(
-      {
-        ...details,
-        tripID: trip.id,
-        created_by: account.id,
-        owner_id: account.id,
-      },
-      { onConflict: "tripID", ignoreDuplicates: true },
-    );
+  const { error } = await client.from("trip").upsert(
+    {
+      ...details,
+      tripID: trip.id,
+      created_by: account.id,
+      owner_id: account.id,
+    },
+    { onConflict: "tripID", ignoreDuplicates: true },
+  );
   if (error)
     throw new Error(
       "Could not save your trip. Your input is still here; please try again.",

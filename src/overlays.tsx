@@ -1,3 +1,4 @@
+import { TEXT_LIMITS, textError, emailError } from "./limits.ts";
 import React, { useState } from "react";
 import {
   ArrowRight,
@@ -119,6 +120,13 @@ function InviteMember() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          const problem =
+            textError(name, "Name", TEXT_LIMITS.name, true) ||
+            emailError(email);
+          if (problem) {
+            setError(problem);
+            return;
+          }
           const address = email.trim().toLowerCase();
           if (t.members.some((m) => m.email === address)) {
             setError("This person is already invited or part of the trip.");
@@ -141,6 +149,7 @@ function InviteMember() {
         <Field label="Fictional name">
           <input
             required
+            maxLength={TEXT_LIMITS.name}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Alex Morgan"
@@ -150,6 +159,7 @@ function InviteMember() {
           <input
             type="email"
             required
+            maxLength={TEXT_LIMITS.email}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="alex@example.com"
@@ -315,7 +325,8 @@ function Gmail() {
   );
 }
 function Demo() {
-  const { s, user, trip, route, mutate, go, close, explore, toast, signOut } = useApp();
+  const { s, user, trip, route, mutate, go, close, explore, toast, signOut } =
+    useApp();
   const [date, setDate] = useState(s.date),
     [time, setTime] = useState(s.time);
   const landing = () => {
@@ -347,7 +358,9 @@ function Demo() {
           </Button>
           <Button
             variant="outline full"
-            onClick={() => { void signOut(); }}
+            onClick={() => {
+              void signOut();
+            }}
           >
             Start at Log in / Create account
           </Button>
@@ -502,24 +515,53 @@ function DeleteTrip() {
   const { s, overlay, deleteTrip, close, go, toast } = useApp();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const target = s.trips.find(t => t.id === overlay?.data?.tripId);
+  const target = s.trips.find((t) => t.id === overlay?.data?.tripId);
   if (!target || target.sample || !isOwner(target, s.userId)) return null;
-  return <Modal title="Delete this trip?">
-    <p>Delete <strong>{target.title}</strong> {target.persistence === "account" ? "from your account" : "from this browser"}? This cannot be undone.</p>
-    <ErrorBox text={error} />
-    <div className="form-actions">
-      <Button variant="outline" disabled={busy} onClick={close}>Keep trip</Button>
-      <Button variant="danger" disabled={busy} onClick={async () => {
-        if (busy) return;
-        setBusy(true); setError("");
-        try {
-          await deleteTrip(target); go(5);
-          toast(target.persistence === "account" ? "Trip deleted from your account." : "Trip deleted from this browser.");
-        } catch (issue) { setError(issue instanceof Error ? issue.message : "Could not delete the trip. Please try again."); }
-        finally { setBusy(false); }
-      }}>{busy ? "Deleting…" : "Delete trip"}</Button>
-    </div>
-  </Modal>;
+  return (
+    <Modal title="Delete this trip?">
+      <p>
+        Delete <strong>{target.title}</strong>{" "}
+        {target.persistence === "account"
+          ? "from your account"
+          : "from this browser"}
+        ? This cannot be undone.
+      </p>
+      <ErrorBox text={error} />
+      <div className="form-actions">
+        <Button variant="outline" disabled={busy} onClick={close}>
+          Keep trip
+        </Button>
+        <Button
+          variant="danger"
+          disabled={busy}
+          onClick={async () => {
+            if (busy) return;
+            setBusy(true);
+            setError("");
+            try {
+              await deleteTrip(target);
+              go(5);
+              toast(
+                target.persistence === "account"
+                  ? "Trip deleted from your account."
+                  : "Trip deleted from this browser.",
+              );
+            } catch (issue) {
+              setError(
+                issue instanceof Error
+                  ? issue.message
+                  : "Could not delete the trip. Please try again.",
+              );
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {busy ? "Deleting…" : "Delete trip"}
+        </Button>
+      </div>
+    </Modal>
+  );
 }
 
 export function Overlays() {
