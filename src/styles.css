@@ -5360,3 +5360,25 @@ legend {
 @media (max-width:1199px) { .account-save-banner { margin-left:195px; } }
 @media (max-width:900px) and (min-width:768px) { .account-save-banner { margin-left:174px; } }
 @media (max-width:767px) { .account-save-banner { margin-left:0; padding:10px 17px; } }
+/* Brief confirmation after database writes, clear of mobile navigation. */
+.save-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  max-width: calc(100vw - 32px);
+  border: 1px solid #d3dfd6;
+  border-radius: 10px;
+  background: #f7fbf5;
+  color: #234d41;
+  box-shadow: 0 4px 18px #18372b1a;
+  font-size: 13px;
+  pointer-events: none;
+}
+@media (max-width: 767px) {
+  .save-toast { right: 16px; bottom: calc(80px + env(safe-area-inset-bottom)); }
+}

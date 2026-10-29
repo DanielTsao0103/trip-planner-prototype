@@ -1,9 +1,11 @@
 /** Shared browser journey, run with both mocked responses and real QA accounts. */
 import { expect } from "@playwright/test";
-export const saved = (page) =>
-  expect(
-    page.getByText("All trip changes saved to your account.", { exact: true }),
-  ).toBeVisible({ timeout: 15000 });
+export const saved = async (page) => {
+  await expect(page.locator("#main-content")).toBeVisible({ timeout: 15000 });
+  await expect(page.locator(".account-save-banner")).toHaveCount(0, {
+    timeout: 15000,
+  });
+};
 export async function detailJourney(page, base) {
   const goto = (route) => page.goto(`${base}#/${route}`);
   const button = (name) => page.getByRole("button", { name, exact: true });

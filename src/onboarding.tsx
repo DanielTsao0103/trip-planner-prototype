@@ -910,11 +910,7 @@ export function TripForm() {
     setBusy(true);
     try {
       await saveTrip(draft);
-      toast(
-        accountTrips && !draft.sample
-          ? "Trip saved to your account."
-          : "Trip saved in this browser.",
-      );
+      if (!accountTrips || draft.sample) toast("Trip saved in this browser.");
       go(
         original
           ? 8

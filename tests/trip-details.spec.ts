@@ -12,6 +12,7 @@ const owner = {
 async function backend(page: Page) {
   const rows: any[] = [];
   let fail = false;
+  let held: Promise<void> | undefined;
   await page.route("https://*.supabase.co/**", async (route) => {
     const req = route.request(),
       path = new URL(req.url()).pathname;
@@ -29,6 +30,7 @@ async function backend(page: Page) {
     if (path.endsWith("/load_trip_bundles"))
       return route.fulfill({ json: rows });
     if (path.endsWith("/save_trip_bundle")) {
+      if (held) await held;
       if (fail) return route.abort("failed");
       const { p_data: d, p_expected_revision: r } = req.postDataJSON();
       const old = rows.find((x) => x.tripID === d.id);
@@ -76,6 +78,16 @@ async function backend(page: Page) {
   ).toBeVisible();
   return {
     rows,
+    holdSave: () => {
+      let release!: () => void;
+      held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return () => {
+        held = undefined;
+        release();
+      };
+    },
     setFail: (value: boolean) => {
       fail = value;
     },
@@ -154,10 +166,6 @@ test("all detail screens persist changes and preserve financial history", async 
       () => document.documentElement.scrollWidth <= innerWidth + 1,
     ),
   ).toBe(true);
-  const banner = await page.locator(".account-save-banner").boundingBox();
-  const sidebar = await page.locator(".sidebar").boundingBox();
-  if (sidebar && banner)
-    expect(banner.x).toBeGreaterThanOrEqual(sidebar.x + sidebar.width);
   await page.screenshot({
     path: test.info().outputPath("saved-details.png"),
     fullPage: true,
@@ -186,6 +194,7 @@ test("failed detail saves recover after reload and can be retried without losing
     .getByRole("button", { name: "Add to itinerary", exact: true })
     .click();
   await expect(page.getByRole("alert")).toContainText("Not saved:");
+  await expect(page.getByText("Changes saved", { exact: true })).toHaveCount(0);
   expect(api.rows[0].content.events).toEqual([]);
   await page.reload();
   await expect(page.getByRole("alert")).toContainText(
@@ -293,4 +302,37 @@ test("legacy browser trip details import once into the owned database trip", asy
   await page.reload();
   await saved(page);
   expect(api.rows[0].revision).toBe(revision);
+});
+
+test("save popup waits for confirmation, sits bottom-right, then disappears", async ({
+  page,
+}) => {
+  const api = await backend(page);
+  await expect(page.locator(".account-save-banner")).toHaveCount(0);
+  await expect(page.getByText("Changes saved", { exact: true })).toHaveCount(0);
+  await page.goto("./#/6");
+  await page.getByLabel("Trip title", { exact: true }).fill("Save feedback");
+  await page.getByLabel("Where are you going?", { exact: true }).fill("Taipei");
+  await page.getByLabel("Start date", { exact: true }).fill("2027-05-01");
+  await page.getByLabel("End date", { exact: true }).fill("2027-05-04");
+  const release = api.holdSave();
+  await page.getByRole("button", { name: "Create trip", exact: true }).click();
+  await expect(page.locator(".account-save-banner")).toContainText(
+    "Saving trip changes",
+  );
+  await expect(page.getByText("Changes saved", { exact: true })).toHaveCount(0);
+  release();
+  const toast = page.getByText("Changes saved", { exact: true });
+  await expect(toast).toBeVisible();
+  await expect(page.locator(".account-save-banner")).toHaveCount(0);
+  const box = await toast.boundingBox();
+  const viewport = page.viewportSize()!;
+  expect(box!.x).toBeGreaterThan(viewport.width / 2);
+  expect(box!.y).toBeGreaterThan(viewport.height / 2);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width - 15);
+  await page.screenshot({ path: test.info().outputPath("changes-saved.png") });
+  await expect(toast).toHaveCount(0, { timeout: 5000 });
+  await page.reload();
+  await saved(page);
+  await expect(toast).toHaveCount(0);
 });

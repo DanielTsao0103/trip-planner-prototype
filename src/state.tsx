@@ -6,6 +6,7 @@ import React, {
   useState,
   type ReactNode,
 } from "react";
+import { Check } from "lucide-react";
 import { demoStorageKey, loadDemoStore, type DemoAccount } from "./demo-store";
 import { type Store, type Trip, type User, isActive, member } from "./domain";
 import { TripSaveQueue, type PendingTrip } from "./trip-save-queue";
@@ -81,6 +82,13 @@ export function Provider({
   const legacyTrips = useRef(s.trips);
   const recoveryKey = `trip-planner-pending-v1:${account.id}`;
   const [, setSaveTick] = useState(0);
+  const [message, setMessage] = useState("");
+  const [saveNotice, setSaveNotice] = useState(0);
+  const noticeSequence = useRef(0);
+  const notifySaved = () => {
+    setMessage("");
+    setSaveNotice(++noticeSequence.current);
+  };
   const queueRef = useRef<TripSaveQueue | null>(null);
   const commit = (next: Store) => {
     stateRef.current = next;
@@ -92,6 +100,7 @@ export function Provider({
       () => {
         if (!mounted.current) return;
         setSaveTick((n) => n + 1);
+        if (queueRef.current!.pending.size) setSaveNotice(0);
         try {
           const drafts = [...queueRef.current!.pending.values()].map(
             (entry) => ({ draft: entry.draft, retryDraft: entry.retryDraft }),
@@ -116,6 +125,7 @@ export function Provider({
               : t,
           ),
         });
+        if (!newer && !queueRef.current!.pending.size) notifySaved();
       },
     );
   const queue = queueRef.current;
@@ -211,7 +221,6 @@ export function Provider({
   }, [cloud, account.id, loadAttempt]);
   const [route, setRoute] = useState(readRoute);
   const [overlay, setOverlay] = useState<Overlay>(null);
-  const [message, setMessage] = useState("");
   const go = (page: number, params: Record<string, string> = {}) => {
     location.hash = `/${page}${Object.keys(params).length ? "?" + new URLSearchParams(params) : ""}`;
     setOverlay(null);
@@ -295,6 +304,11 @@ export function Provider({
       return () => clearTimeout(id);
     }
   }, [message]);
+  useEffect(() => {
+    if (!saveNotice) return;
+    const timer = setTimeout(() => setSaveNotice(0), 3000);
+    return () => clearTimeout(timer);
+  }, [saveNotice]);
   const login = (id: string) => {
     mutate((v) => {
       v.userId = id;
@@ -340,6 +354,7 @@ export function Provider({
     },
     deleteTrip: async (target) => {
       if (target.persistence === "account") {
+        setSaveNotice(0);
         if (!cloud || stateRef.current.userId !== account.id)
           throw new Error("Return to your account to delete this trip.");
         await queue.wait(target.id);
@@ -354,6 +369,7 @@ export function Provider({
       if (next.sampleReturn?.tripId === target.id)
         next.sampleReturn.tripId = null;
       commit(next);
+      if (target.persistence === "account") notifySaved();
     },
     signOut: async () => {
       if (
@@ -413,71 +429,67 @@ export function Provider({
   };
   return (
     <C.Provider value={value}>
-      {cloud &&
-        loadState === "ready" &&
-        (pending.length > 0 || (s.userId === account.id && route.page !== 4)) && (
-          <div
-            className="account-save-banner"
-            role={saveError ? "alert" : "status"}
-          >
-            <span>
-              {saveError
-                ? `Not saved: ${saveError}`
-                : pending.length
-                  ? "Saving trip changes… Keep this page open."
-                  : "All trip changes saved to your account."}
-            </span>
-            {saveError && (
-              <>
-                <button
-                  className="btn outline small"
-                  onClick={() => queue.retry()}
-                >
-                  Retry save
-                </button>
-                <button
-                  className="btn outline small"
-                  onClick={() => {
-                    const blob = new Blob(
-                      [
-                        JSON.stringify(
-                          pending.map((p) => p.draft),
-                          null,
-                          2,
-                        ),
-                      ],
-                      { type: "application/json" },
-                    );
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement("a");
-                    link.href = url;
-                    link.download = "unsaved-trip-changes.json";
-                    link.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                >
-                  Download unsaved copy
-                </button>
-                <button
-                  className="btn outline small"
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        "Discard unsaved changes and reload the database version? Download your unsaved copy first if you want to keep it.",
-                      )
-                    ) {
-                      queue.pending.clear();
-                      localStorage.removeItem(recoveryKey);
-                      location.reload();
-                    }
-                  }}
-                >
-                  Reload saved version
-                </button>
-              </>
-            )}
-          </div>
-        )}
+      {cloud && loadState === "ready" && pending.length > 0 && (
+        <div
+          className="account-save-banner"
+          role={saveError ? "alert" : "status"}
+        >
+          <span>
+            {saveError
+              ? `Not saved: ${saveError}`
+              : "Saving trip changes… Keep this page open."}
+          </span>
+          {saveError && (
+            <>
+              <button
+                className="btn outline small"
+                onClick={() => queue.retry()}
+              >
+                Retry save
+              </button>
+              <button
+                className="btn outline small"
+                onClick={() => {
+                  const blob = new Blob(
+                    [
+                      JSON.stringify(
+                        pending.map((p) => p.draft),
+                        null,
+                        2,
+                      ),
+                    ],
+                    { type: "application/json" },
+                  );
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = "unsaved-trip-changes.json";
+                  link.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                Download unsaved copy
+              </button>
+              <button
+                className="btn outline small"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Discard unsaved changes and reload the database version? Download your unsaved copy first if you want to keep it.",
+                    )
+                  ) {
+                    queue.pending.clear();
+                    localStorage.removeItem(recoveryKey);
+                    location.reload();
+                  }
+                }}
+              >
+                Reload saved version
+              </button>
+            </>
+          )}
+        </div>
+      )}
       {loadState === "ready" ? (
         children
       ) : (
@@ -505,6 +517,12 @@ export function Provider({
             Log out
           </button>
         </main>
+      )}
+      {saveNotice > 0 && (
+        <div className="save-toast" role="status" aria-live="polite">
+          <Check size={16} aria-hidden="true" />
+          Changes saved
+        </div>
       )}
       {message && (
         <div className="toast" role="status">

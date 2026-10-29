@@ -571,11 +571,8 @@ function DeleteTrip() {
             try {
               await deleteTrip(target);
               go(5);
-              toast(
-                target.persistence === "account"
-                  ? "Trip deleted from your account."
-                  : "Trip deleted from this browser.",
-              );
+              if (target.persistence !== "account")
+                toast("Trip deleted from this browser.");
             } catch (issue) {
               setError(
                 issue instanceof Error

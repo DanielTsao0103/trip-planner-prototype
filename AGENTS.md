@@ -59,3 +59,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Trip-persistence definition-of-done scope (October 28, 2026): Dan explicitly requires responsive desktop/mobile pages, end-to-end user/frontend/backend/database behavior, Lighthouse Accessibility >=90, README Complete/Not complete requirements, main-branch integration, and public deployment for this specific persistence task only. Verify the real account-trip states, including save recovery; do not expand recommendations or unrelated integrations.
 
 - Home copy correction (October 28, 2026): hide the idle “All trip changes saved to your account” message on Home only. Keep saving/error recovery feedback and the other pages unchanged.
+
+- Save-feedback correction (October 28, 2026): Dan expanded the request to remove the permanent saved banner everywhere and show a small bottom-right “Changes saved” notification after confirmed account writes. Show no success on initial load or failed/pending saves; retain recovery controls.
