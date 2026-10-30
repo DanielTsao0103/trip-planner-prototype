@@ -18,7 +18,9 @@ export async function searchDestinationPhotos(query: string, signal?: AbortSigna
   const { data: { session } } = await client.auth.getSession();
   const url = new URL(endpoint);
   url.searchParams.set("query", query);
-  url.searchParams.set("per_page", "5");
+  // The deployed search proxy currently ignores Unsplash's orientation filter.
+  // Request more metadata so filtering portraits still leaves up to five choices.
+  url.searchParams.set("per_page", "30");
   const response = await fetch(url, {
     signal,
     headers: {
@@ -30,7 +32,8 @@ export async function searchDestinationPhotos(query: string, signal?: AbortSigna
   const body = await response.json();
   const results = Array.isArray(body) ? body : body.results ?? body.photos ?? body.data?.results ?? [];
   if (!Array.isArray(results)) throw new Error("Photo search returned an unexpected response.");
-  return results.slice(0, 5).flatMap((photo: any) => {
+  const photos: UnsplashPhoto[] = results.flatMap((photo: any) => {
+    if (typeof photo?.width !== "number" || typeof photo?.height !== "number" || photo.width <= photo.height) return [];
     if (!photo?.id || !photo?.urls?.regular || !photo?.user?.name || !photo?.user?.links?.html || !photo?.links?.html) return [];
     return [{
       id: photo.id,
@@ -40,6 +43,7 @@ export async function searchDestinationPhotos(query: string, signal?: AbortSigna
       credit: { name: photo.user.name, profileUrl: credited(photo.user.links.html), photoUrl: credited(photo.links.html) },
     }];
   });
+  return photos.length >= 2 ? photos.slice(0, 5) : [];
 }
 
 export async function trackUnsplashSelection(photoId: string): Promise<void> {
