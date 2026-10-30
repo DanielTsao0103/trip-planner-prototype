@@ -17,6 +17,7 @@ export type TripRow = {
   timezone: string;
   revision: number;
   content_version?: number;
+  photoCredit?: { source: "unsplash" | "upload"; photographer_name: string | null; photographer_profile_url: string | null; photo_url: string | null };
   content?: Pick<
     Trip,
     | "image"
@@ -85,6 +86,12 @@ export function tripFromRow(
       persistence: "account",
       revision: row.revision,
       contentVersion: 1,
+      imageSource: row.photoCredit?.source,
+      imageCredit: row.photoCredit?.source === "unsplash" ? {
+        name: row.photoCredit.photographer_name!,
+        profileUrl: row.photoCredit.photographer_profile_url!,
+        photoUrl: row.photoCredit.photo_url!,
+      } : undefined,
     };
   }
   if (local) local = migrateLegacyDetails(local, account.id);
@@ -189,8 +196,17 @@ export async function loadAccountTrips(
         "Could not load your saved trips. Check your connection and try again.",
       );
     rows.push(...(data as TripRow[]));
-    if (data.length < 500) return rows;
+    if (data.length < 500) break;
   }
+  if (rows.length) {
+    const { data, error } = await client.from("trip_photo_credit")
+      .select("trip_id,source,photographer_name,photographer_profile_url,photo_url")
+      .eq("owner_id", accountId).in("trip_id", rows.map((row) => row.tripID));
+    if (error) throw new Error("Could not load trip photo credits. Apply the trip photo migration.");
+    const credits = new Map((data ?? []).map((credit) => [credit.trip_id, credit]));
+    rows.forEach((row) => { row.photoCredit = credits.get(row.tripID) as TripRow["photoCredit"]; });
+  }
+  return rows;
 }
 
 export async function saveAccountTrip(
@@ -201,7 +217,7 @@ export async function saveAccountTrip(
   const problem = tripDetailsError(trip);
   if (problem) throw new Error(problem);
   // Send the complete trip in one transaction; the server normalizes each entity.
-  const { persistence, revision, contentVersion, sample, ...content } = trip;
+  const { persistence, revision, contentVersion, sample, imageSource, imageCredit, ...content } = trip;
   const { data, error, status } = await client.rpc("save_trip_bundle", {
     p_trip_id: trip.id,
     p_expected_revision: trip.revision ?? null,
@@ -218,7 +234,25 @@ export async function saveAccountTrip(
       { retryOriginal: status === 0 || status >= 500 },
     );
   }
-  return tripFromRow(data as TripRow, account);
+  if ((data as TripRow).content?.image !== trip.image)
+    throw new Error("The trip photo was not confirmed by Supabase. Please retry.");
+  if (imageSource) {
+    const { error: creditError } = await client.from("trip_photo_credit").upsert({
+      trip_id: trip.id,
+      owner_id: account.id,
+      source: imageSource,
+      photographer_name: imageCredit?.name ?? null,
+      photographer_profile_url: imageCredit?.profileUrl ?? null,
+      photo_url: imageCredit?.photoUrl ?? null,
+    }, { onConflict: "trip_id" });
+    if (creditError) throw new Error("Trip saved, but its photo credit could not be saved. Please retry.");
+  }
+  return tripFromRow({ ...(data as TripRow), photoCredit: imageSource ? {
+    source: imageSource,
+    photographer_name: imageCredit?.name ?? null,
+    photographer_profile_url: imageCredit?.profileUrl ?? null,
+    photo_url: imageCredit?.photoUrl ?? null,
+  } : undefined }, account);
 }
 
 export async function deleteAccountTrip(

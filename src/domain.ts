@@ -57,6 +57,8 @@ export type Trip = {
   end: string;
   zone: string;
   image: string;
+  imageCredit?: { name: string; profileUrl: string; photoUrl: string };
+  imageSource?: "unsplash" | "upload";
   sample?: boolean;
   members: Member[];
   events: Event[];

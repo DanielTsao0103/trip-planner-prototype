@@ -30,6 +30,7 @@ import {
   Field,
   PageHead,
   Photo,
+  PhotoCredit,
   ReadOnly,
 } from "./ui";
 import { IMAGES } from "./data";
@@ -61,6 +62,7 @@ export function Itinerary() {
     <>
       <div className="trip-hero">
         <Photo src={t.image} alt={t.destinations.join(" and ")} />
+        <PhotoCredit credit={t.imageCredit} />
         <div className="trip-hero-shade" />
         <div className="trip-hero-content">
           <div className="row">

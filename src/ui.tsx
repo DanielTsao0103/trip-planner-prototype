@@ -223,6 +223,10 @@ export function Photo({
     />
   );
 }
+export function PhotoCredit({ credit }: { credit?: { name: string; profileUrl: string; photoUrl: string } }) {
+  if (!credit) return null;
+  return <span className="photo-credit">Photo by <a href={credit.profileUrl} target="_blank" rel="noreferrer">{credit.name}</a> on <a href={credit.photoUrl} target="_blank" rel="noreferrer">Unsplash</a></span>;
+}
 export function EventCard({
   event,
   edit = false,

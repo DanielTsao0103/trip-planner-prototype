@@ -1,5 +1,11 @@
 # Trip Planner
 
+## Trip photos
+
+The trip form searches the first added destination through the Supabase `unsplash-search` Edge Function and offers up to five photos. The user can select one or upload a JPEG, PNG, or WebP photo under 5 MB. Uploaded photos go to the public `trip-photos` Supabase Storage bucket, and the selected URL is saved with the account trip. Unsplash photographer and photo links are saved in `trip_photo_credit` and shown beside the cover. The `unsplash-track` Edge Function registers the Unsplash download event when an image is chosen as a cover.
+
+Apply `supabase/migrations/20261029120000_trip_photos.sql`, set `Unsplash_Key` as a Supabase Edge Function secret, and deploy `supabase/functions/unsplash-track`. The existing `unsplash-search` function must accept a GET request with `query` and `per_page` and return Unsplash's `results` array (or the array directly). The browser needs the usual `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` values. Do not put the Unsplash key in a `VITE_` variable or commit it. A public Storage bucket means anyone with an uploaded photo's URL can view that photo.
+
 [Live app](https://danieltsao0103.github.io/trip-planner-prototype/) · [GitHub repository](https://github.com/DanielTsao0103/trip-planner-prototype) · [Demo video](https://www.loom.com/share/be0601e7285d4cf5876df31a91e2bba6)
 
 ## App Summary

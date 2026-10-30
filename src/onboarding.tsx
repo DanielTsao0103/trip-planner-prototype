@@ -7,7 +7,7 @@ import {
   emailError,
   invitationsError,
 } from "./limits.ts";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -23,6 +23,7 @@ import {
   Eye,
   EyeOff,
   Trash2,
+  ImagePlus,
 } from "lucide-react";
 import { tripDetailsError } from "./account-trips";
 import { useApp } from "./state";
@@ -35,9 +36,11 @@ import {
   Logo,
   PageHead,
   Photo,
+  PhotoCredit,
   Avatar,
 } from "./ui";
 import { IMAGES, SERVICES, PERMISSIONS } from "./data";
+import { searchDestinationPhotos, trackUnsplashSelection, uploadTripPhoto, type UnsplashPhoto } from "./trip-photos";
 import {
   uid,
   days,
@@ -644,6 +647,7 @@ export function Trips() {
                     : "On the horizon"}
               </Badge>
             </button>
+            <PhotoCredit credit={t.imageCredit} />
             <div className="trip-card-body">
               <div className="eyebrow">
                 {dateText(t.start, true)} – {dateText(t.end, true)} ·{" "}
@@ -749,6 +753,31 @@ export function TripForm() {
     [invites, setInvites] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  const [photoResults, setPhotoResults] = useState<UnsplashPhoto[]>([]);
+  const [photoStatus, setPhotoStatus] = useState("");
+  const [selectedPhoto, setSelectedPhoto] = useState<UnsplashPhoto | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadPreview, setUploadPreview] = useState("");
+  const firstDestination = locations[0] || "";
+  const previousDestination = useRef(firstDestination);
+  useEffect(() => {
+    if (previousDestination.current !== firstDestination) {
+      setSelectedPhoto(null);
+      previousDestination.current = firstDestination;
+    }
+  }, [firstDestination]);
+  useEffect(() => {
+    if (!firstDestination) { setPhotoResults([]); setPhotoStatus(""); return; }
+    const controller = new AbortController();
+    setPhotoStatus("Finding destination photos…");
+    const timer = window.setTimeout(() => {
+      searchDestinationPhotos(firstDestination, controller.signal)
+        .then((photos) => { setPhotoResults(photos); setPhotoStatus(photos.length ? "" : "No matching photos found. You can upload your own."); })
+        .catch(() => { if (!controller.signal.aborted) setPhotoStatus("Photo suggestions are unavailable right now. You can upload your own."); });
+    }, 350);
+    return () => { controller.abort(); window.clearTimeout(timer); };
+  }, [firstDestination]);
+  useEffect(() => () => { if (uploadPreview) URL.revokeObjectURL(uploadPreview); }, [uploadPreview]);
   const previewPlaces = Array.from(
     new Map(
       [...locations, ...(place.trim() ? [place.trim()] : [])].map((p) => [
@@ -893,6 +922,11 @@ export function TripForm() {
       end,
       zone,
     });
+    if (selectedPhoto) {
+      draft.image = selectedPhoto.url;
+      draft.imageSource = "unsplash";
+      draft.imageCredit = selectedPhoto.credit;
+    }
     draft.members.push(...invited);
     draft.members.forEach((m) => {
       m.days = m.days.filter((d) => d >= start && d <= end);
@@ -900,6 +934,13 @@ export function TripForm() {
     saving.current = true;
     setBusy(true);
     try {
+      if (uploadFile) {
+        if (!accountTrips || !user) throw new Error("Sign in to your account to upload a trip photo.");
+        draft.image = await uploadTripPhoto(uploadFile, user.id, draft.id);
+        draft.imageSource = "upload";
+        draft.imageCredit = undefined;
+      }
+      if (selectedPhoto) await trackUnsplashSelection(selectedPhoto.id);
       await saveTrip(draft);
       if (!accountTrips || draft.sample) toast("Trip saved in this browser.");
       go(
@@ -974,6 +1015,40 @@ export function TripForm() {
                 </span>
               ))}
             </div>
+            <section className="trip-photo-picker" aria-label="Choose a trip photo">
+              <h3>Trip photo</h3>
+              <p>Photos for {firstDestination || "your first destination"}. Choose one or upload your own.</p>
+              {photoStatus && <p role="status">{photoStatus}</p>}
+              {photoResults.length > 0 && <div className="trip-photo-options">
+                {photoResults.map((photo) => <div key={photo.id}>
+                  <button type="button"
+                    className={selectedPhoto?.id === photo.id ? "selected" : ""}
+                    aria-label={`Choose photo by ${photo.credit.name}`}
+                    aria-pressed={selectedPhoto?.id === photo.id}
+                    onClick={() => { setSelectedPhoto(photo); setUploadFile(null); setUploadPreview(""); }}>
+                    <img src={photo.thumb} alt={photo.alt} />
+                  </button>
+                  <PhotoCredit credit={photo.credit} />
+                </div>)}
+              </div>}
+              <label className="trip-photo-upload">
+                <ImagePlus size={20} aria-hidden="true" />
+                <span>Or Upload Your Own Photo<small>JPEG, PNG, or WebP · up to 5 MB</small></span>
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  if (!file) return;
+                  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+                    setError("Choose a JPEG, PNG, or WebP image under 5 MB."); return;
+                  }
+                  setUploadFile(file); setUploadPreview(URL.createObjectURL(file)); setSelectedPhoto(null); setError("");
+                }} />
+              </label>
+              {(uploadPreview || selectedPhoto?.url || original?.image) && <div className="trip-photo-selection">
+                <img src={uploadPreview || selectedPhoto?.url || original?.image} alt="Selected trip cover" />
+                {selectedPhoto && <a href={selectedPhoto.credit.profileUrl} target="_blank" rel="noreferrer">Photo by {selectedPhoto.credit.name} on Unsplash</a>}
+                {!selectedPhoto && !uploadFile && original?.imageCredit && <a href={original.imageCredit.profileUrl} target="_blank" rel="noreferrer">Photo by {original.imageCredit.name} on Unsplash</a>}
+              </div>}
+            </section>
             <div className="form-columns">
               <Field label="Start date">
                 <input
@@ -1108,7 +1183,9 @@ export function TripForm() {
             </div>
           </section>
           <div className="postcard">
-            <Photo src={IMAGES.coast} alt="Coastal travel inspiration" />
+            <Photo src={uploadPreview || selectedPhoto?.url || original?.image || IMAGES.coast} alt="Trip photo preview" />
+            {selectedPhoto && <PhotoCredit credit={selectedPhoto.credit} />}
+            {!selectedPhoto && !uploadPreview && <PhotoCredit credit={original?.imageCredit} />}
             <div>
               <span className="eyebrow">ROOM FOR POSSIBILITY</span>
               <h2>

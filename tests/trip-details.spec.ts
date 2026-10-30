@@ -29,6 +29,8 @@ async function backend(page: Page) {
     if (path.endsWith("/user")) return route.fulfill({ json: owner });
     if (path.endsWith("/load_trip_bundles"))
       return route.fulfill({ json: rows });
+    if (path === "/rest/v1/trip_photo_credit" && req.method() === "GET")
+      return route.fulfill({ json: [] });
     if (path.endsWith("/save_trip_bundle")) {
       if (held) await held;
       if (fail) return route.abort("failed");

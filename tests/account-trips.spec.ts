@@ -49,6 +49,10 @@ test("account saves recover from lost responses without duplicate trips, reload,
     if (url.pathname.endsWith("/user")) return route.fulfill({ json: owner });
     if (url.pathname === "/rest/v1/rpc/load_trip_bundles")
       return route.fulfill({ json: rows });
+    if (url.pathname === "/rest/v1/trip_photo_credit" && request.method() === "GET")
+      return route.fulfill({ json: [] });
+    if (url.pathname === "/functions/v1/unsplash-search" && request.method() === "GET")
+      return route.fulfill({ json: { results: [] } });
     if (url.pathname === "/rest/v1/rpc/save_trip_bundle") {
       const requestData = request.postDataJSON();
       const draft = requestData.p_data;

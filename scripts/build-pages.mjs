@@ -17,7 +17,9 @@ if (url.protocol !== 'https:' || !url.hostname.endsWith('.supabase.co')) {
 }
 const commit = process.env.GITHUB_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error('Missing valid build commit.');
-const build = spawnSync('npm', ['run', 'build', '--', '--base=/trip-planner-prototype/'], {
+const npmCommand = process.env.npm_execpath ? process.execPath : 'npm';
+const npmArgs = process.env.npm_execpath ? [process.env.npm_execpath] : [];
+const build = spawnSync(npmCommand, [...npmArgs, 'run', 'build', '--', '--base=/trip-planner-prototype/'], {
   cwd: root, stdio: 'inherit', env: { ...process.env, ...env, VITE_BUILD_SHA: commit },
 });
 if (build.status !== 0) process.exit(build.status ?? 1);
