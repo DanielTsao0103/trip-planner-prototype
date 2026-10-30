@@ -81,14 +81,14 @@ export function DatePicker({
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const [text, setText] = useState(value ? dateText(value) + ", " + value.slice(0, 4) : "");
+  const [text, setText] = useState(value ? dateText(value) : "");
   const [focused, setFocused] = useState(false);
   const seed = validIso(value) ? value : min && validIso(min) ? min : new Date().toISOString().slice(0, 10);
   const [view, setView] = useState({ y: Number(seed.slice(0, 4)), m: Number(seed.slice(5, 7)) - 1 });
 
   // Keep the visible text in step with the real value unless the person is typing.
   useEffect(() => {
-    if (!focused) setText(value ? dateText(value) + ", " + value.slice(0, 4) : "");
+    if (!focused) setText(value ? dateText(value) : "");
   }, [value, focused]);
   // Jump the calendar to the chosen month when the value changes from outside.
   useEffect(() => {
@@ -136,7 +136,7 @@ export function DatePicker({
             setFocused(false);
             const next = parseTyped(text);
             if (next && next !== value) onChange(next);
-            else setText(value ? dateText(value) + ", " + value.slice(0, 4) : "");
+            else setText(value ? dateText(value) : "");
           }}
           onClick={() => setOpen(true)}
           onKeyDown={(e) => {
@@ -195,7 +195,7 @@ export function DatePicker({
                   key={date}
                   disabled={blocked}
                   title={holiday}
-                  aria-label={`${dateText(date)}, ${view.y}${holiday ? `, ${holiday}` : ""}`}
+                  aria-label={`${dateText(date)}${holiday ? `, ${holiday}` : ""}`}
                   aria-pressed={date === value}
                   className={[
                     "date-day",
