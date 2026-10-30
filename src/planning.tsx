@@ -108,8 +108,7 @@ export function Itinerary() {
       </div>
       <div className="section-title itinerary-heading">
         <div>
-          <span className="eyebrow">ONE DAY AT A TIME</span>
-          <h2>Your days, taking shape.</h2>
+          <h2>Add Events to Trip</h2>
         </div>
         <Button
           disabled={role === "Viewer"}
@@ -237,7 +236,6 @@ export function Itinerary() {
             <span className="little-icon">
               <Sparkles size={22} />
             </span>
-            <span className="eyebrow">A LITTLE LOCAL KNOW-HOW</span>
             <h3>
               Good things <br />
               around the corner.
@@ -250,7 +248,6 @@ export function Itinerary() {
             </Button>
           </div>
           <div className="card budget-peek">
-            <span className="eyebrow">THE BIG PICTURE</span>
             <div className="row">
               <h3>{personalBudget ? "Your budget" : "Trip budget"}</h3>
               <Wallet size={18} />
