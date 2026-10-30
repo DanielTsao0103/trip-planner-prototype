@@ -1,3 +1,4 @@
+import { DatePicker } from "./date-picker";
 import { DestinationInput } from "./destination-input";
 /** Implementation status: Real account trip forms persist the complete trip through saveTrip. Standalone demo trips remain browser-local; onboarding guest email lists do not send invitations. See ../IMPLEMENTATION_STATUS.md. */
 import {
@@ -951,7 +952,6 @@ export function TripForm() {
       }
       if (selectedPhoto) await trackUnsplashSelection(selectedPhoto.downloadLocation);
       await saveTrip(draft);
-      if (!accountTrips || draft.sample) toast("Trip saved in this browser.");
       go(
         original
           ? 8
@@ -988,10 +988,6 @@ export function TripForm() {
               <span>01</span>
               <h2>The essentials</h2>
             </div>
-            <p className="form-guidance">
-              Start with a name, destination, and dates. Everything else can
-              come later.
-            </p>
             <Field label="Trip title">
               <input
                 required
@@ -1001,10 +997,7 @@ export function TripForm() {
                 placeholder="Bachelorette trip"
               />
             </Field>
-            <Field
-              label="Where are you going?"
-              hint="One destination is enough. Add more for a multi-stop trip."
-            >
+            <Field label="Where are you going?">
               <DestinationInput value={place} onChange={setPlace} onAdd={addPlace} />
             </Field>
             <div className="chips">
@@ -1073,32 +1066,25 @@ export function TripForm() {
               </div>}
             </section>
             <div className="form-columns">
-              <Field label="Start date">
-                <input
-                  required
-                  type="date"
-                  value={start}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setStart(next);
-                    if (!end || end < next) setEnd(next);
-                  }}
-                />
-              </Field>
-              <Field label="End date">
-                <input
-                  required
-                  type="date"
-                  min={start}
-                  value={end}
-                  onChange={(e) => setEnd(e.target.value)}
-                />
-              </Field>
+              <DatePicker
+                label="Start date"
+                required
+                value={start}
+                onChange={(next) => {
+                  setStart(next);
+                  if (!end || end < next) setEnd(next);
+                }}
+              />
+              <DatePicker
+                label="End date"
+                required
+                min={start}
+                align="right"
+                value={end}
+                onChange={setEnd}
+              />
             </div>
-            <Field
-              label="Trip time zone"
-              hint="Used for your trip dates and the Today dashboard."
-            >
+            <Field label="Trip time zone">
               <select value={zone} onChange={(e) => setZone(e.target.value)}>
                 {[
                   ["America/Los_Angeles", "Los Angeles · Pacific Time"],
@@ -1121,14 +1107,7 @@ export function TripForm() {
               <span>02</span>
               <h2>Bring your people</h2>
             </div>
-            <Field
-              label="Invite by email (optional)"
-              hint={
-                accountTrips
-                  ? "Add guest travelers, separated by commas. Account invitations are not sent yet."
-                  : "Use fictional addresses, separated by commas. No invitations are actually sent."
-              }
-            >
+            <Field label="Invite by email (optional)">
               <textarea
                 rows={2}
                 maxLength={TEXT_LIMITS.invitations}
@@ -1137,10 +1116,6 @@ export function TripForm() {
                 placeholder="friend@example.com, another@example.com"
               />
             </Field>
-            <div className="note">
-              Everyone starts as a Viewer. You can assign editing permissions
-              and days in The group.
-            </div>
             <section
               className="mobile-trip-preview note"
               aria-label="Trip preview"
@@ -1201,9 +1176,6 @@ export function TripForm() {
                 ? `${dateText(start, true)} – ${dateText(end, true)} · ${tripLength} ${tripLength === 1 ? "day" : "days"}`
                 : "Pick your dates to get started"}
             </p>
-            <div className="note">
-              Your itinerary starts empty. Every plan you add will be your own.
-            </div>
           </section>
           <div className="postcard">
             <Photo src={uploadPreview || selectedPhoto?.url || original?.image || IMAGES.coast} alt="Trip photo preview" />
@@ -1218,19 +1190,6 @@ export function TripForm() {
               </h2>
             </div>
           </div>
-          <p>
-            <CalendarDays size={17} /> Dates turn your itinerary into an on-trip
-            dashboard when the time comes.
-          </p>
-          <p>
-            <Check size={17} /> Your new trip starts empty. Add only the plans
-            you want.
-          </p>
-          <p className="fine-print">
-            {accountTrips
-              ? "Your trip and planning details save to your account."
-              : "Sample trips save on this device only. Use fictional data for testing."}
-          </p>
         </aside>
       </form>
     </>

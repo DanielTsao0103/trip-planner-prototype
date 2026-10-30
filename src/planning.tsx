@@ -1,4 +1,5 @@
 /** Implementation status: Account events, todos, and dismissed choices save through updateTrip to Supabase. Confirmation extraction, crowds, costs, and suggestions remain fixtures; uploaded file previews are temporary. See ../IMPLEMENTATION_STATUS.md. */
+import { DatePicker } from "./date-picker";
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
 import React, { useState } from "react";
 import {
@@ -38,6 +39,8 @@ import {
   days,
   dateText,
   timeText,
+  durationText,
+  zoneText,
   canEdit,
   eventError,
   member,
@@ -544,7 +547,7 @@ export function EventForm() {
                 </Field>
               </div>
               <p className="fine-print">
-                Times in {t.zone}. For overnight activities, add one event per
+                Times in {zoneText(t.zone)}. For overnight activities, add one event per
                 day.
               </p>
               {place && (
@@ -1110,7 +1113,7 @@ export function DayDetail() {
           ", " +
           dateText(date, true)
         }
-        description={`A closer look at your day · ${t.zone}`}
+        description={`A closer look at your day · ${zoneText(t.zone)}`}
         action={
           <Button disabled={!allowed} onClick={() => go(7, { date })}>
             <Plus size={17} />
@@ -1127,18 +1130,15 @@ export function DayDetail() {
         >
           <ChevronLeft size={18} />
         </Button>
-        <Field label="Choose a day">
-          <input
-            type="date"
-            min={t.start}
-            max={t.end}
-            value={date}
-            onChange={(e) => {
-              if (e.target.value >= t.start && e.target.value <= t.end)
-                go(11, { date: e.target.value });
-            }}
-          />
-        </Field>
+        <DatePicker
+          label="Choose a day"
+          min={t.start}
+          max={t.end}
+          value={date}
+          onChange={(next) => {
+            if (next >= t.start && next <= t.end) go(11, { date: next });
+          }}
+        />
         <Button
           variant="outline"
           aria-label="Next day"
@@ -1156,8 +1156,15 @@ export function DayDetail() {
           {events.map((e, i) => (
             <div className="timeline-item" key={e.id}>
               <div className="timeline-hour">
-                {timeText(e.start)}
+                <small>Start</small>
+                <span>{timeText(e.start)}</span>
+                <small>End</small>
                 <span>{timeText(e.end)}</span>
+                {durationText(e.start, e.end) && (
+                  <span className="duration">
+                    {durationText(e.start, e.end)}
+                  </span>
+                )}
               </div>
               <div className="timeline-dot" />
               <article
@@ -1166,7 +1173,8 @@ export function DayDetail() {
                 <Photo src={e.image} alt={e.place} />
                 <div>
                   <span className="eyebrow">
-                    {e.end} · {e.attendees.length} TRAVELERS
+                    {e.attendees.length}{" "}
+                    {e.attendees.length === 1 ? "TRAVELER" : "TRAVELERS"}
                   </span>
                   <h2>{e.name}</h2>
                   <button

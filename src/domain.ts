@@ -116,6 +116,29 @@ export const timeText = (t: string) => {
   const [h, m] = t.split(":").map(Number);
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
 };
+export const durationText = (start: string, end: string) => {
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  const mins = eh * 60 + em - (sh * 60 + sm);
+  if (!(mins > 0)) return "";
+  const h = Math.floor(mins / 60),
+    m = mins % 60;
+  return [h ? `${h} hr` : "", m ? `${m} min` : ""].filter(Boolean).join(" ");
+};
+const ZONE_LABELS: Record<string, string> = {
+  "America/Los_Angeles": "Los Angeles · Pacific Time",
+  "America/Denver": "Denver · Mountain Time",
+  "America/Chicago": "Chicago · Central Time",
+  "America/New_York": "New York · Eastern Time",
+  "Europe/London": "London · United Kingdom",
+  "Europe/Paris": "Paris · Central Europe",
+  "Asia/Taipei": "Taipei · Taiwan",
+  "Asia/Tokyo": "Tokyo · Japan",
+  "Australia/Sydney": "Sydney · Australia",
+};
+export const zoneText = (zone: string) =>
+  ZONE_LABELS[zone] ||
+  zone.split("/").pop()!.replace(/_/g, " ");
 export const member = (trip: Trip, user: string | null) =>
   trip.members.find((m) => m.id === user && m.status === "accepted");
 export const canEdit = (trip: Trip, user: string | null, date: string) => {
