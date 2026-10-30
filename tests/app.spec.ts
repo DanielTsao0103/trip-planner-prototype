@@ -59,6 +59,53 @@ async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 }
 
+test('trip photo search follows the chosen destination and keeps two to five options', async ({ page }) => {
+  const searches: string[] = [];
+  await page.route('**/functions/v1/unsplash-search?**', route => {
+    const searchUrl = new URL(route.request().url());
+    const destination = searchUrl.searchParams.get('query') || '';
+    expect(searchUrl.searchParams.get('per_page')).toBe('30');
+    searches.push(destination);
+    const count = destination === 'Spain' ? 6 : destination === 'France' ? 2 : 1;
+    return route.fulfill({ json: { results: Array.from({ length: count }, (_, index) => ({
+      id: `${destination}-${index}`,
+      width: destination === 'Spain' && index === 0 ? 600 : 1200,
+      height: 800,
+      urls: { regular: `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg"/>')}` },
+      alt_description: `${destination} photo ${index + 1}`,
+      user: { name: `Photographer ${index + 1}`, links: { html: `https://unsplash.com/@photographer${index + 1}` } },
+      links: { html: `https://unsplash.com/photos/${destination}-${index}` },
+    })) } });
+  });
+  await demo(page);
+  await page.goto('./#/6');
+  const destinationInput = page.getByLabel('Where are you going?', { exact: true });
+  await destinationInput.fill('Spain');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(page.getByLabel('Photos for')).toHaveCount(0);
+  await expect(page.locator('.trip-photo-options button')).toHaveCount(5);
+  await expect(page.locator('.trip-photo-options img').first()).toHaveAttribute('alt', 'Spain photo 2');
+  await destinationInput.fill('France');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(page.getByLabel('Photos for')).toHaveValue('Spain');
+  await page.getByLabel('Photos for').selectOption('France');
+  await expect(page.locator('.trip-photo-options button')).toHaveCount(2);
+  await expect(page.locator('.trip-photo-options img').first()).toHaveAttribute('alt', 'France photo 1');
+  await expect(page.getByText('Photos on Unsplash. Choose one or upload your own.')).toBeVisible();
+  expect(searches).toEqual(['Spain', 'France']);
+  await page.screenshot({ path: test.info().outputPath('destination-photo-picker.png'), fullPage: true });
+  await destinationInput.fill('Italy');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByLabel('Photos for').selectOption('Italy');
+  await expect(page.locator('.trip-photo-options button')).toHaveCount(0);
+  await expect(page.getByRole('status')).toContainText('Not enough matching photos found');
+  await page.getByRole('button', { name: 'Remove Italy' }).click();
+  await expect(page.getByLabel('Photos for')).toHaveValue('Spain');
+  await page.getByRole('button', { name: 'Remove France' }).click();
+  await expect(page.getByLabel('Photos for')).toHaveCount(0);
+  await expect(page.locator('.trip-photo-options button')).toHaveCount(5);
+});
+
 test('login shows neutral copy, branded buttons, an Apple preview, and recoverable auth errors', async ({ page }) => {
   await page.goto('./');
   await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner', exact: true })).toBeVisible();

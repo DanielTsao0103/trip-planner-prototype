@@ -5076,6 +5076,12 @@ legend {
 }
 .trip-photo-picker { margin: 24px 0; }
 .trip-photo-picker h3 { margin-bottom: 4px; }
+.trip-photo-intro { margin-bottom: 12px; color: var(--muted); }
+.trip-photo-intro a { color: var(--green); text-decoration: underline; text-underline-offset: 2px; }
+.trip-photo-destination { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; }
+.trip-photo-destination label { flex: none; color: var(--muted); font-size: 12px; font-weight: 600; }
+.trip-photo-destination select { width: min(100%, 240px); min-height: 40px; padding: 8px 30px 8px 12px; border: 1px solid #dce1d6; border-radius: 7px; background: #fffefb; color: var(--ink); cursor: pointer; }
+.trip-photo-destination select:hover { border-color: #9daf9e; }
 .trip-photo-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 14px 0; }
 .trip-photo-options button { padding: 5px; border: 2px solid var(--line); border-radius: 8px; background: var(--paper); text-align: left; cursor: pointer; }
 .trip-photo-options button.selected { border-color: var(--green); }

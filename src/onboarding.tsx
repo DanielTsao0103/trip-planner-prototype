@@ -761,24 +761,31 @@ export function TripForm() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadPreview, setUploadPreview] = useState("");
   const firstDestination = locations[0] || "";
-  const previousDestination = useRef(firstDestination);
+  const [photoDestination, setPhotoDestination] = useState(firstDestination);
+  const activePhotoDestination = locations.includes(photoDestination) ? photoDestination : firstDestination;
+  const previousDestination = useRef(activePhotoDestination);
   useEffect(() => {
-    if (previousDestination.current !== firstDestination) {
+    if (previousDestination.current !== activePhotoDestination) {
       setSelectedPhoto(null);
-      previousDestination.current = firstDestination;
+      previousDestination.current = activePhotoDestination;
     }
-  }, [firstDestination]);
+  }, [activePhotoDestination]);
   useEffect(() => {
-    if (!firstDestination) { setPhotoResults([]); setPhotoStatus(""); return; }
+    setPhotoResults([]);
+    if (!activePhotoDestination) { setPhotoStatus(""); return; }
     const controller = new AbortController();
     setPhotoStatus("Finding destination photos…");
     const timer = window.setTimeout(() => {
-      searchDestinationPhotos(firstDestination, controller.signal)
-        .then((photos) => { setPhotoResults(photos); setPhotoStatus(photos.length ? "" : "No matching photos found. You can upload your own."); })
+      searchDestinationPhotos(activePhotoDestination, controller.signal)
+        .then((photos) => {
+          if (controller.signal.aborted) return;
+          setPhotoResults(photos);
+          setPhotoStatus(photos.length ? "" : "Not enough matching photos found. You can upload your own.");
+        })
         .catch(() => { if (!controller.signal.aborted) setPhotoStatus("Photo suggestions are unavailable right now. You can upload your own."); });
     }, 350);
     return () => { controller.abort(); window.clearTimeout(timer); };
-  }, [firstDestination]);
+  }, [activePhotoDestination]);
   useEffect(() => () => { if (uploadPreview) URL.revokeObjectURL(uploadPreview); }, [uploadPreview]);
   const previewPlaces = Array.from(
     new Map(
@@ -1008,9 +1015,14 @@ export function TripForm() {
                   <button
                     type="button"
                     aria-label={`Remove ${p}`}
-                    onClick={() =>
-                      setLocations(locations.filter((_, n) => n !== i))
-                    }
+                    onClick={() => {
+                      const remaining = locations.filter((_, n) => n !== i);
+                      setLocations(remaining);
+                      if (p === activePhotoDestination) {
+                        setPhotoDestination(remaining[0] || "");
+                        setSelectedPhoto(null);
+                      }
+                    }}
                   >
                     <X size={13} />
                   </button>
@@ -1019,7 +1031,16 @@ export function TripForm() {
             </div>
             <section className="trip-photo-picker" aria-label="Choose a trip photo">
               <h3>Trip photo</h3>
-              <p>Photos for {firstDestination || "your first destination"}. Choose one or upload your own.</p>
+              <p className="trip-photo-intro">Photos on <a href="https://unsplash.com/?utm_source=trip_planner_prototype&utm_medium=referral" target="_blank" rel="noreferrer">Unsplash</a>. Choose one or upload your own.</p>
+              {locations.length > 1 && <div className="trip-photo-destination">
+                <label htmlFor="trip-photo-destination">Photos for</label>
+                <select id="trip-photo-destination" value={activePhotoDestination} onChange={(event) => {
+                  setPhotoDestination(event.target.value);
+                  setSelectedPhoto(null);
+                }}>
+                  {locations.map((location) => <option key={location} value={location}>{location}</option>)}
+                </select>
+              </div>}
               {photoStatus && <p role="status">{photoStatus}</p>}
               {photoResults.length > 0 && <div className="trip-photo-options">
                 {photoResults.map((photo) => <div key={photo.id}>
@@ -1030,7 +1051,7 @@ export function TripForm() {
                     onClick={() => { setSelectedPhoto(photo); setUploadFile(null); setUploadPreview(""); }}>
                     <img src={photo.thumb} alt={photo.alt} />
                   </button>
-                  <PhotoCredit credit={photo.credit} />
+                  <PhotoCredit credit={photo.credit} compact />
                 </div>)}
               </div>}
               <label className="trip-photo-upload">
@@ -1047,8 +1068,8 @@ export function TripForm() {
               </label>
               {(uploadPreview || selectedPhoto?.url || original?.image) && <div className="trip-photo-selection">
                 <img src={uploadPreview || selectedPhoto?.url || original?.image} alt="Selected trip cover" />
-                {selectedPhoto && <a href={selectedPhoto.credit.profileUrl} target="_blank" rel="noreferrer">Photo by {selectedPhoto.credit.name} on Unsplash</a>}
-                {!selectedPhoto && !uploadFile && original?.imageCredit && <a href={original.imageCredit.profileUrl} target="_blank" rel="noreferrer">Photo by {original.imageCredit.name} on Unsplash</a>}
+                {selectedPhoto && <PhotoCredit credit={selectedPhoto.credit} compact />}
+                {!selectedPhoto && !uploadFile && <PhotoCredit credit={original?.imageCredit} compact />}
               </div>}
             </section>
             <div className="form-columns">

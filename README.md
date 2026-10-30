@@ -1,10 +1,17 @@
 # Trip Planner
 
-## Trip photos
+## Trip photos: behavioral requirements and completion status
 
-The trip form searches the first added destination through the Supabase `unsplash-search` Edge Function and offers up to five photos. The user can select one or upload a JPEG, PNG, or WebP photo under 5 MB. Uploaded photos go to the public `trip-photos` Supabase Storage bucket, and the selected URL is saved with the account trip. Unsplash photographer and photo links are saved in `trip_photo_credit` and shown beside the cover. The `unsplash-track` Edge Function registers the Unsplash download event when an image is chosen as a cover.
+The trip form searches the first added destination through the Supabase `unsplash-search` Edge Function by default. For a trip with multiple destinations, the user can choose which destination to search. It offers two to five landscape photos when enough matches are available, or the user can upload a JPEG, PNG, or WebP photo under 5 MB. The client requests up to 30 search results and filters by photo dimensions because the deployed search function does not currently forward Unsplash's orientation filter. Uploaded photos go to the public `trip-photos` Supabase Storage bucket, and the selected URL is saved with the account trip. Unsplash photographer and photo links are saved in `trip_photo_credit` and shown beside the cover. The `unsplash-track` Edge Function registers the Unsplash download event when an image is chosen as a cover.
 
 Apply `supabase/migrations/20261029120000_trip_photos.sql`, set `Unsplash_Key` as a Supabase Edge Function secret, and deploy `supabase/functions/unsplash-track`. The existing `unsplash-search` function must accept a GET request with `query` and `per_page` and return Unsplash's `results` array (or the array directly). The browser needs the usual `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` values. Do not put the Unsplash key in a `VITE_` variable or commit it. A public Storage bucket means anyone with an uploaded photo's URL can view that photo.
+
+| Behavioral requirement | Status | Verification / boundary |
+| --- | --- | --- |
+| Search the first added destination automatically; show a destination dropdown only when two or more destinations are added | Complete | Desktop/mobile browser tests check the dropdown, default choice, switching, and removal. |
+| Offer two to five landscape Unsplash photos for the chosen destination | Complete | The client requests up to 30 results, rejects images whose width is not greater than their height, and displays at most five. Browser tests cover portrait rejection and both result limits. The deployed search proxy ignores `orientation`, so the filtering currently happens in the client. |
+| Keep photo selection optional and allow a custom cover upload | Complete | The form accepts JPEG, PNG, or WebP files up to 5 MB. Account uploads use the `trip-photos` bucket; the browser-only demo requires sign-in before an upload can be saved. If fewer than two suitable Unsplash photos remain or search fails, the upload control stays available. |
+| Save the chosen cover with the trip and retain Unsplash credit | Complete | Account saves send the image URL through `save_trip_bundle` to the trip's `image_url`, retain photographer and photo links in `trip_photo_credit`, and register a selected Unsplash photo through `unsplash-track`. The picker shows one linked Unsplash caption above the grid and linked photographer names under photos. Existing covers and custom uploads are not automatically cropped or replaced. |
 
 [Live app](https://danieltsao0103.github.io/trip-planner-prototype/) · [GitHub repository](https://github.com/DanielTsao0103/trip-planner-prototype) · [Demo video](https://www.loom.com/share/be0601e7285d4cf5876df31a91e2bba6)
 
