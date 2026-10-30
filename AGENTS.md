@@ -63,3 +63,6 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Save-feedback correction (October 28, 2026): Dan expanded the request to remove the permanent saved banner everywhere and show a small bottom-right “Changes saved” notification after confirmed account writes. Show no success on initial load or failed/pending saves; retain recovery controls.
 
 - Breadcrumb navigation (October 29, 2026): the top bar must link back to actual parent screens, not display a decorative destination. Derive the trail from the current route, preserve date context for event parents, and keep all levels reachable on tablet and mobile.
+
+- Forwarded bookings (October 29, 2026): Dan approved a free Mailtrap inbound inbox plus a Supabase Edge Function and `forwarded_booking` table so accounts can forward confirmation emails. No custom domain, no AI parsing, no spending. Store extracted fields only. Secrets stay in Supabase and GitHub settings, never in `VITE_` variables or chat.
+

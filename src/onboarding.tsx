@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { tripDetailsError } from "./account-trips";
 import { useApp } from "./state";
+import { ImportedBookings } from "./imported-bookings";
 import {
   Badge,
   Button,
@@ -492,7 +493,7 @@ export function ConnectProvider() {
   );
 }
 export function Home() {
-  const { go, explore } = useApp();
+  const { go, explore, accountTrips } = useApp();
   return (
     <>
       <PageHead title="Home" />
@@ -520,6 +521,7 @@ export function Home() {
         </div>
         <Photo src={IMAGES.seattle} alt="Seattle skyline" />
       </div>
+      {accountTrips && <ImportedBookings />}
       <div className="section-title">
         <div>
           <h2>Destinations</h2>
