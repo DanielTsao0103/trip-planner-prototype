@@ -974,9 +974,7 @@ export function TripForm() {
   return (
     <>
       <PageHead
-        eyebrow={original ? "MAKE IT YOURS" : "THE FIRST STEP"}
-        title={original ? "A few details, updated." : "Let’s make a trip."}
-        description="A place, a few dates, your people. The rest can come together as you go."
+        title={original ? "Edit your Trip" : "Make your Trip"}
       />
       <form className="form-layout" onSubmit={submit} aria-busy={busy}>
         <div className="card form-card">
@@ -997,7 +995,10 @@ export function TripForm() {
                 placeholder="Bachelorette trip"
               />
             </Field>
-            <Field label="Where are you going?">
+            <Field
+              label="Where are you going?"
+              hint="Add one or more destinations"
+            >
               <DestinationInput value={place} onChange={setPlace} onAdd={addPlace} />
             </Field>
             <div className="chips">
@@ -1107,7 +1108,10 @@ export function TripForm() {
               <span>02</span>
               <h2>Bring your people</h2>
             </div>
-            <Field label="Invite by email (optional)">
+            <Field
+              label="Invite by email (optional)"
+              hint={accountTrips ? "Add guests separated by commas, invites will send when you save your trip" : "Use fictional addresses, separated by commas. No invitations are actually sent."}
+            >
               <textarea
                 rows={2}
                 maxLength={TEXT_LIMITS.invitations}
@@ -1163,33 +1167,14 @@ export function TripForm() {
           </fieldset>
         </div>
         <aside className="form-aside">
-          <section className="card trip-preview" aria-label="Trip preview">
-            <span className="eyebrow">YOUR TRIP, TAKING SHAPE</span>
-            <h2>{title.trim() || "Somewhere good, together."}</h2>
-            <p>
-              <MapPin size={16} />
-              {previewPlaces.join(" · ") || "Your destination goes here"}
-            </p>
-            <p>
-              <CalendarDays size={16} />
-              {tripLength
-                ? `${dateText(start, true)} – ${dateText(end, true)} · ${tripLength} ${tripLength === 1 ? "day" : "days"}`
-                : "Pick your dates to get started"}
-            </p>
-          </section>
-          <div className="postcard">
-            <Photo src={uploadPreview || selectedPhoto?.url || original?.image || IMAGES.coast} alt="Trip photo preview" />
-            {selectedPhoto && <PhotoCredit credit={selectedPhoto.credit} />}
-            {!selectedPhoto && !uploadPreview && <PhotoCredit credit={original?.imageCredit} />}
-            <div>
-              <span className="eyebrow">ROOM FOR POSSIBILITY</span>
-              <h2>
-                The best parts
-                <br />
-                aren’t always planned.
-              </h2>
-            </div>
-          </div>
+          <p>
+            <CalendarDays size={17} /> Dates turn your itinerary into an on-trip
+            dashboard when the time comes.
+          </p>
+          <p>
+            <Check size={17} /> Your new trip starts empty. Add only the plans
+            you want.
+          </p>
         </aside>
       </form>
     </>

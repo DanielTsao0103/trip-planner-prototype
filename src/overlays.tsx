@@ -695,7 +695,6 @@ export function Overlays() {
               }
             >
               {label}
-              <ArrowRight size={17} />
             </button>
           ))}
           <button

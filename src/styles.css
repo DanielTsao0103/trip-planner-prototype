@@ -876,7 +876,8 @@ legend {
   text-align: left;
   color: #56634f;
 }
-.sidebar nav button:hover {
+.sidebar nav button:hover,
+.home-link:hover {
   background: #e9eee1;
 }
 .sidebar nav button.active,
@@ -3066,6 +3067,10 @@ legend {
   font-size: 13px;
   text-align: left;
   gap: 12px;
+}
+.menu-links > button:hover,
+.menu-links > button:focus-visible {
+  background: #e9eee1;
 }
 .menu-links > button:last-child {
   border: 0;
