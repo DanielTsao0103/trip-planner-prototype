@@ -14,7 +14,7 @@ Source and live database audit: October 28, 2026. Full account-trip persistence 
 
 | Page / area | What exists | What is still local or simulated | Where to implement the next real change |
 | --- | --- | --- | --- |
-| 1: Account entry | Supabase email/password auth and profile trigger | Google/Apple buttons only show a preview notice; Maya is a local session | `auth.tsx`, `main.tsx`; wire OAuth before claiming provider sign-in |
+| 1: Account entry | Supabase email/password auth, Google sign-in (Supabase OAuth, PKCE), and profile trigger | Apple button only shows a preview notice; Maya is a local session. Google needs the provider enabled in Supabase and the Google profile migration applied | `auth.tsx`, `supabase.ts`, `main.tsx`; wire Apple OAuth before claiming it |
 | 2–3: Connections and consent | Selectable service permission controls | `user.connections` stores local strings; no OAuth scopes, tokens, Gmail reads, or social reads | `onboarding.tsx` Connections/ConnectProvider; replace local grants with provider authorization |
 | 4: Home | Account context, trip navigation | Destination cards, imagery, and travel estimates come from fixtures | `onboarding.tsx` Home; add a sourced destination/price service |
 | 5–6: Trips and trip form | Full account trip create/read/update/delete, atomic saves, validation, recovery; worldwide destination autocomplete using GeoNames plus Photon/OpenStreetMap | Samples are local; image URLs save but there is no custom trip-image upload feature. Destination search sends only the typed place query to Photon; coverage/availability depend on upstream data and the public endpoint | `account-trips.ts`, `state.tsx`, `onboarding.tsx`; add collaboration-aware updates later |

@@ -59,22 +59,49 @@ async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 }
 
-test('login shows neutral copy, branded previews, and recoverable auth errors', async ({ page }) => {
+test('login shows neutral copy, branded buttons, an Apple preview, and recoverable auth errors', async ({ page }) => {
   await page.goto('./');
   await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner', exact: true })).toBeVisible();
   for (const provider of ['Google', 'Apple']) {
     const button = page.getByRole('button', { name: `Sign in with ${provider}`, exact: true });
     await expect(button.locator('img')).toBeVisible();
     expect(await button.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
-    await button.click();
-    await expect(page.getByRole('status')).toContainText(`${provider} sign-in is a prototype preview`);
   }
+  await page.getByRole('button', { name: 'Sign in with Apple', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Apple sign-in is a prototype preview');
   await page.getByLabel('Email', { exact: true }).fill(account.email);
   await page.getByLabel('Password', { exact: true }).fill('wrong-password');
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Invalid login credentials');
   await expect(page.getByRole('button', { name: 'Log in', exact: true })).toBeEnabled();
   await noOverflow(page);
+});
+
+test('Google sign-in starts Supabase OAuth with PKCE and returns to this page', async ({ page }) => {
+  let authorize: URL | undefined;
+  // Registered after the shared mock, so it wins. Stop at Supabase instead of reaching Google.
+  await page.route('https://*.supabase.co/auth/v1/authorize**', route => {
+    authorize = new URL(route.request().url());
+    return route.fulfill({ contentType: 'text/html', body: '<h1>Google consent screen</h1>' });
+  });
+  await page.goto('./');
+  await page.getByRole('button', { name: 'Sign in with Google', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Google consent screen' })).toBeVisible();
+  expect(authorize?.searchParams.get('provider')).toBe('google');
+  const returnTo = new URL(authorize!.searchParams.get('redirect_to')!);
+  const base = new URL(test.info().project.use.baseURL!);
+  expect(returnTo.origin).toBe(base.origin);
+  expect(returnTo.pathname).toBe(base.pathname);
+  // PKCE keeps the result in ?code=..., so it cannot collide with #/page routing.
+  expect(authorize?.searchParams.get('code_challenge')).toBeTruthy();
+  expect(authorize?.searchParams.get('code_challenge_method')).toBe('s256');
+});
+
+test('a failed Google return shows the reason and cleans the address bar', async ({ page }) => {
+  await page.goto('./?error=access_denied&error_code=bad_oauth_callback&error_description=Access+blocked');
+  await expect(page.getByRole('alert')).toContainText('Google sign-in didn’t finish: Access blocked');
+  expect(page.url()).not.toContain('error_description');
+  await expect(page.getByRole('button', { name: 'Sign in with Google', exact: true })).toBeEnabled();
 });
 
 test('signup opens the app immediately, persists the session, and signs out', async ({ page }) => {

@@ -67,3 +67,16 @@ The public RPC wrappers run as invoker. Only their specific private implementati
 Only unsaved recovery drafts and independent demo state remain in local storage after loading account trips. Old fixture participant/event IDs are remapped during one-time import, without claiming accounts. Conflicts require explicit user retry/reload; failed writes never silently overwrite the server. Actual upload storage/OCR, notification delivery, and payment movement are not part of this persistence feature.
 
 Do not raise `40001` for business conflicts: [Supabase documents a PostgREST retry-loop issue](https://supabase.com/kb/troubleshooting/high-cpu-and-infinite-transaction-retries-when-using-custom-error-codes-in-rpc-functions). The live regression verifies `PT409` returns promptly. All migrations above were applied transactionally through the Management API, with no reset or inference of legacy ownership.
+
+## Google sign-in (October 29, 2026)
+
+The **Sign in with Google** button runs Supabase OAuth with the PKCE flow (`src/supabase.ts`), so Google returns to the app as `?code=...` and never touches the `#/page` routing. Apple stays a prototype preview.
+
+One-time setup, done in dashboards (no secrets go in this repo):
+
+1. Google Cloud: OAuth consent screen (External, scopes `openid`, `email`, `profile` only), then an OAuth client of type Web application. Authorized JavaScript origins: `https://danieltsao0103.github.io` and `http://127.0.0.1:5190`. Authorized redirect URI: `https://mzwydinhvgmwhnwlomnn.supabase.co/auth/v1/callback`. While the app is in Testing mode, add each teammate as a test user.
+2. Supabase: Authentication, Sign In / Providers, Google: enable it and paste the Client ID and Client secret.
+3. Supabase: Authentication, URL Configuration: allow `https://danieltsao0103.github.io/trip-planner-prototype/` and `http://127.0.0.1:5190/`.
+4. Run `supabase/migrations/20261030022000_google_signin_profile.sql` once (same Management API or SQL editor route as the earlier migrations). It only replaces the profile trigger function so new Google accounts store `provider = 'google'` and use Google's name when the form name is missing. Not applied until someone runs it.
+
+A Google account whose email matches an existing email/password account is linked to it by Supabase and keeps that account's profile row. Gmail reading is not part of this slice.

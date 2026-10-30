@@ -15,6 +15,9 @@ export function getSupabase(): SupabaseClient {
   }
   // Supabase uses the signed-in user's token and your existing row-level security policies.
   client = createClient(url, key, {
+    // PKCE returns OAuth results as ?code=... in the query string. The default flow puts tokens in
+    // the URL hash, which would collide with this app's #/page routing.
+    auth: { flowType: "pkce" },
     global: { fetch: (input, init) => fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(20000) }) },
   });
   return client;

@@ -169,7 +169,7 @@ The database binds ownership to the authenticated UUID, never an email match or 
 
 Failed loads offer retry instead of pretending the account is empty. Failed saves retain form input. A stable draft UUID prevents duplicate creation when a response is lost and retried. A revision check prevents stale edits and deletes. Existing browser-only trips are retained and labeled; saving their details from your real account explicitly stores them in Supabase. Local demo samples are never uploaded automatically.
 
-**Scope:** all structured account trip details sync, including events, guests, preferences, budgets, expenses, and reminders. Browser storage holds sample trips and temporary unsaved recovery only. Real collaborator invitations, Google/Apple sign-in, OCR, and financial integrations remain previews or future features.
+**Scope:** all structured account trip details sync, including events, guests, preferences, budgets, expenses, and reminders. Browser storage holds sample trips and temporary unsaved recovery only. Real collaborator invitations, Apple sign-in, OCR, and financial integrations remain previews or future features.
 
 ### Demo video and submission
 

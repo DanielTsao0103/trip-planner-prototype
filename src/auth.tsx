@@ -1,4 +1,4 @@
-/** Implementation status: email/password uses Supabase Auth. Google/Apple buttons only show a preview notice; they do not run OAuth. Maya uses a separate local session. See ../IMPLEMENTATION_STATUS.md. */
+/** Implementation status: email/password and Google sign-in use Supabase Auth (Google needs the provider enabled in the Supabase dashboard). The Apple button only shows a preview notice; it does not run OAuth. Maya uses a separate local session. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, textError, emailError } from "./limits.ts";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
@@ -74,6 +74,24 @@ export function AuthApp({
   }, []);
 
   useEffect(() => {
+    // Google/Supabase send failures back as ?error_description=... on the return trip.
+    const params = new URLSearchParams(location.search);
+    const reason = params.get("error_description");
+    if (reason) {
+      setError(`Google sign-in didn’t finish: ${reason}`);
+      for (const key of ["error", "error_code", "error_description"]) params.delete(key);
+      const rest = params.toString();
+      history.replaceState(null, "", `${location.pathname}${rest ? `?${rest}` : ""}${location.hash}`);
+    }
+    // Coming back with the browser's Back button should not leave the buttons stuck on "busy".
+    const reset = (event: PageTransitionEvent) => {
+      if (event.persisted) setBusy(false);
+    };
+    window.addEventListener("pageshow", reset);
+    return () => window.removeEventListener("pageshow", reset);
+  }, []);
+
+  useEffect(() => {
     if (!session && !demo)
       document.title = `${signup ? "Create account" : "Log in"} · Trip Planner`;
   }, [session, signup, demo]);
@@ -125,6 +143,28 @@ export function AuthApp({
       );
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function signInWithGoogle(): Promise<void> {
+    setError("");
+    setNotice("");
+    setBusy(true);
+    try {
+      const { error } = await getSupabase().auth.signInWithOAuth({
+        provider: "google",
+        // Come back to this exact page (with its base path); the PKCE code arrives as ?code=...
+        options: { redirectTo: `${location.origin}${location.pathname}` },
+      });
+      if (error) throw error;
+      // The browser is now leaving for Google, so the buttons stay disabled until we return.
+    } catch (issue) {
+      setBusy(false);
+      setError(
+        issue instanceof Error
+          ? issue.message
+          : "Could not start Google sign-in. Please try again.",
+      );
     }
   }
 
@@ -210,19 +250,13 @@ export function AuthApp({
               </p>
               <div
                 className="provider-buttons branded-signin"
-                aria-label="Prototype sign-in options"
+                aria-label="Sign-in options"
               >
                 <button
                   className="brand-signin google-signin"
                   type="button"
                   disabled={busy}
-                  aria-describedby="provider-preview-note"
-                  onClick={() => {
-                    setError("");
-                    setNotice(
-                      "Google sign-in is a prototype preview. No Google account is connected. Use the demo below to explore.",
-                    );
-                  }}
+                  onClick={() => void signInWithGoogle()}
                 >
                   <img
                     src={googleLogo}
@@ -256,7 +290,7 @@ export function AuthApp({
                 </button>
               </div>
               <p id="provider-preview-note" className="provider-preview-note">
-                Google and Apple sign-in are prototype previews.
+                Apple sign-in is a prototype preview.
               </p>
               {notice && (
                 <p className="auth-notice" role="status">
