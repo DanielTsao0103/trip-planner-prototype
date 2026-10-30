@@ -104,9 +104,21 @@ Deno.serve(async (request) => {
 
     let owners: { userID: string }[] = [];
     if (address) {
-      const found = await db(`user?select=%22userID%22&email=eq.${encodeURIComponent(address)}&limit=2`);
+      // The legacy user table can hold several rows for one email (old team records), so only count
+      // rows that belong to a real sign-in account.
+      const found = await db(`user?select=%22userID%22&email=eq.${encodeURIComponent(address)}&limit=10`);
       if (!found.ok) return reply("Database error", 502);
-      owners = await found.json();
+      const candidates = (await found.json()) as { userID: string }[];
+      for (const candidate of candidates) {
+        if (!/^[0-9a-f-]{36}$/i.test(candidate.userID)) continue;
+        const account = await fetch(`${supabaseUrl}/auth/v1/admin/users/${candidate.userID}`, {
+          headers: { apikey: dbKey, Authorization: `Bearer ${dbKey}` },
+        });
+        if (account.status === 404) continue;
+        if (!account.ok) return reply("Database error", 502);
+        const info = (await account.json()) as { email?: string };
+        if ((info.email ?? "").toLowerCase() === address) owners.push(candidate);
+      }
     }
     if (owners.length !== 1) {
       await log(owners.length > 1 ? "ambiguous" : "unmatched");
