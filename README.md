@@ -251,3 +251,11 @@ TRIP_QA_URL=http://127.0.0.1:4188/trip-planner-prototype/ npm run test:live-pers
 ```
 
 The live test uses generated accounts, checks complete round-trips, rejected-write rollback, cross-account isolation, concurrent edits, completed repayments, deletion cascades, and fresh-browser reload. It removes its generated records in `finally`. See [persistence QA](assignment/trip-persistence-verification.md) and [implementation status](IMPLEMENTATION_STATUS.md) for exact scope and limitations.
+
+## Forwarded booking emails
+
+Signed-in accounts see a "Forwarded booking" section on Home. Forward a confirmation email from the address on your account to the inbox shown there and it appears as a card (type, dates, place, confirmation code). Setup is in SUPABASE-SETUP.md.
+
+- Complete: table with row-level security, Edge Function, parser with unit tests, Home list with remove.
+- Not complete: bookings are not yet attached to a trip. The sender check trusts the From address, which can be faked, so entries are unverified. Parsing is rule based (schema.org data when the email has it, otherwise labels like "Check-in:"), so unusual emails may only get a title.
+

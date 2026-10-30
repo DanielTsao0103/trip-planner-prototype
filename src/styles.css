@@ -5456,3 +5456,47 @@ legend {
   .breadcrumbs { grid-column: 1 / -1; grid-row: 2; }
   .breadcrumbs ol { width: auto; flex-wrap: wrap; }
 }
+
+.booking-inbox {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+}
+.booking-inbox > div {
+  flex: 1;
+  min-width: 0;
+}
+.booking-address {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.booking-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.booking-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 20px;
+}
+.booking-item > div {
+  flex: 1;
+  min-width: 0;
+}
+.booking-item h3 {
+  margin: 2px 0 6px;
+  overflow-wrap: anywhere;
+}
+.booking-item p {
+  margin: 3px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}

@@ -80,3 +80,19 @@ One-time setup, done in dashboards (no secrets go in this repo):
 4. Run `supabase/migrations/20261030022000_google_signin_profile.sql` once (same Management API or SQL editor route as the earlier migrations). It only replaces the profile trigger function so new Google accounts store `provider = 'google'` and use Google's name when the form name is missing. Not applied until someone runs it.
 
 A Google account whose email matches an existing email/password account is linked to it by Supabase and keeps that account's profile row. Gmail reading is not part of this slice.
+
+## Forwarded booking emails (October 29, 2026)
+
+Dan approved this on October 29, 2026. People forward a confirmation email to a Mailtrap inbound address; an Edge Function saves the extracted fields; Home shows them. Free tiers only, no custom domain, no AI parsing.
+
+How it works: Mailtrap receives the email and calls the `inbound-email` Edge Function as a nudge. The function ignores the webhook body, asks the Mailtrap API for the newest messages, skips ones already in `inbound_email_log`, and saves a booking only when the sender address equals exactly one account's email. Only the extracted fields (type, title, dates, place, confirmation code) are stored, never the whole email. Sender addresses can be faked, so this proves "someone knew this account's email", not identity. Treat saved bookings as unverified notes.
+
+One-time setup:
+1. Run `supabase/migrations/20261030031500_forwarded_bookings.sql` (SQL editor). Creates `forwarded_booking` and `inbound_email_log` with row-level security: accounts can read and delete only their own rows, and only the function can add rows. Not applied until someone runs it.
+2. Deploy `supabase/functions/inbound-email` (dashboard: Edge Functions, Deploy a new function, paste `index.ts` and `parse.ts`). Turn **Verify JWT** off, because Mailtrap cannot send a Supabase login; the secret key in the URL protects it instead.
+3. Edge Functions, Secrets: add `MAILTRAP_API_TOKEN` (account-level token with Inbound access), `MAILTRAP_INBOX_ID`, and `INBOUND_WEBHOOK_KEY` (a long random string, 32+ characters). Never put these in chat, in the repo, or in any `VITE_` variable.
+4. Mailtrap, Webhooks, Create New Webhook, Inbound Inboxes: URL `https://<project-ref>.supabase.co/functions/v1/inbound-email?key=<INBOUND_WEBHOOK_KEY>`.
+5. GitHub, Settings, Variables: set `VITE_BOOKINGS_INBOX_ADDRESS` to the inbox address so Home shows where to forward.
+
+Limits: Mailtrap's free plan is shared with sending (about 4,000 per month, 150 per day). Supabase free projects pause after a week of inactivity, which also pauses this.
+
