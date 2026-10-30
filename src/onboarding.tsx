@@ -947,7 +947,7 @@ export function TripForm() {
         draft.imageSource = "upload";
         draft.imageCredit = undefined;
       }
-      if (selectedPhoto) await trackUnsplashSelection(selectedPhoto.id);
+      if (selectedPhoto) await trackUnsplashSelection(selectedPhoto.downloadLocation);
       await saveTrip(draft);
       if (!accountTrips || draft.sample) toast("Trip saved in this browser.");
       go(

@@ -61,6 +61,11 @@ async function noOverflow(page: Page) {
 
 test('trip photo search follows the chosen destination and keeps two to five options', async ({ page }) => {
   const searches: string[] = [];
+  let trackedLocation = '';
+  await page.route('**/functions/v1/unsplash-track', route => {
+    trackedLocation = route.request().postDataJSON().downloadLocation;
+    return route.fulfill({ json: { tracked: true } });
+  });
   await page.route('**/functions/v1/unsplash-search?**', route => {
     const searchUrl = new URL(route.request().url());
     const destination = searchUrl.searchParams.get('query') || '';
@@ -74,7 +79,10 @@ test('trip photo search follows the chosen destination and keeps two to five opt
       urls: { regular: `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg"/>')}` },
       alt_description: `${destination} photo ${index + 1}`,
       user: { name: `Photographer ${index + 1}`, links: { html: `https://unsplash.com/@photographer${index + 1}` } },
-      links: { html: `https://unsplash.com/photos/${destination}-${index}` },
+      links: {
+        html: `https://unsplash.com/photos/${destination}-${index}`,
+        download_location: `https://api.unsplash.com/photos/${destination}-${index}/download?ixid=${destination}-${index}`,
+      },
     })) } });
   });
   await demo(page);
@@ -104,6 +112,13 @@ test('trip photo search follows the chosen destination and keeps two to five opt
   await page.getByRole('button', { name: 'Remove France' }).click();
   await expect(page.getByLabel('Photos for')).toHaveCount(0);
   await expect(page.locator('.trip-photo-options button')).toHaveCount(5);
+  await page.locator('.trip-photo-options button').first().click();
+  await page.getByLabel('Trip title', { exact: true }).fill('Spain escape');
+  await page.getByLabel('Start date', { exact: true }).fill('2027-05-01');
+  await page.getByLabel('End date', { exact: true }).fill('2027-05-04');
+  await page.getByRole('button', { name: 'Create trip', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Spain escape' })).toBeVisible();
+  expect(trackedLocation).toBe('https://api.unsplash.com/photos/Spain-1/download?ixid=Spain-1');
 });
 
 test('login shows neutral copy, branded buttons, an Apple preview, and recoverable auth errors', async ({ page }) => {

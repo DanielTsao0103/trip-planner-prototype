@@ -5,6 +5,7 @@ export type UnsplashPhoto = {
   url: string;
   thumb: string;
   alt: string;
+  downloadLocation: string;
   credit: { name: string; profileUrl: string; photoUrl: string };
 };
 
@@ -34,21 +35,26 @@ export async function searchDestinationPhotos(query: string, signal?: AbortSigna
   if (!Array.isArray(results)) throw new Error("Photo search returned an unexpected response.");
   const photos: UnsplashPhoto[] = results.flatMap((photo: any) => {
     if (typeof photo?.width !== "number" || typeof photo?.height !== "number" || photo.width <= photo.height) return [];
-    if (!photo?.id || !photo?.urls?.regular || !photo?.user?.name || !photo?.user?.links?.html || !photo?.links?.html) return [];
+    if (!photo?.id || !photo?.urls?.regular || !photo?.user?.name || !photo?.user?.links?.html || !photo?.links?.html || !photo?.links?.download_location) return [];
     return [{
       id: photo.id,
       url: photo.urls.regular,
       thumb: photo.urls.small ?? photo.urls.regular,
       alt: photo.alt_description ?? `Photo of ${query}`,
+      downloadLocation: photo.links.download_location,
       credit: { name: photo.user.name, profileUrl: credited(photo.user.links.html), photoUrl: credited(photo.links.html) },
     }];
   });
   return photos.length >= 2 ? photos.slice(0, 5) : [];
 }
 
-export async function trackUnsplashSelection(photoId: string): Promise<void> {
-  const { error } = await getSupabase().functions.invoke("unsplash-track", { body: { photoId } });
-  if (error) throw new Error("Could not register this Unsplash photo. Please try again.");
+export async function trackUnsplashSelection(downloadLocation: string): Promise<void> {
+  const { error } = await getSupabase().functions.invoke("unsplash-track", { body: { downloadLocation } });
+  if (error) {
+    const response = error.context instanceof Response ? error.context : null;
+    const detail = response ? await response.text() : error.message;
+    throw new Error(`Could not register this Unsplash photo (${response?.status ?? "network error"}: ${detail}). Please try again.`);
+  }
 }
 
 export async function uploadTripPhoto(file: File, ownerId: string, tripId: string): Promise<string> {
