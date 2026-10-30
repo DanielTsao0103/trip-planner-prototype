@@ -32,13 +32,14 @@ function dateRange(b: ForwardedBooking): string {
 export function ImportedBookings() {
   const [items, setItems] = useState<ForwardedBooking[] | null>(null);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let live = true;
     loadForwardedBookings().then(
       (rows) => live && setItems(rows),
-      () => live && setError("We could not load your forwarded bookings. Try again in a moment."),
+      () => live && setLoadError("We could not load your forwarded bookings right now."),
     );
     return () => {
       live = false;
@@ -91,6 +92,7 @@ export function ImportedBookings() {
         <p className="muted">Email forwarding is not set up for this site yet.</p>
       )}
       <ErrorBox text={error} />
+      {loadError && <p className="muted">{loadError}</p>}
       {items && items.length === 0 && !error && (
         <p className="muted">Nothing forwarded yet. Bookings usually appear within a minute.</p>
       )}

@@ -16,6 +16,8 @@ async function backend(page: Page) {
   await page.route("https://*.supabase.co/**", async (route) => {
     const req = route.request(),
       path = new URL(req.url()).pathname;
+    if (path === "/rest/v1/forwarded_booking")
+      return route.fulfill({ json: [] });
     if (path.endsWith("/token"))
       return route.fulfill({
         json: {

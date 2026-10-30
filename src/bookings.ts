@@ -59,7 +59,7 @@ export async function loadForwardedBookings(): Promise<ForwardedBooking[]> {
     .order("received_at", { ascending: false })
     .limit(50);
   if (error) throw new Error(error.message);
-  return (data as Row[]).map((r) => ({
+  return (Array.isArray(data) ? (data as Row[]) : []).map((r) => ({
     bookingId: r.booking_id,
     kind: r.kind,
     title: r.title,
