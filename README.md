@@ -21,7 +21,7 @@ Planning a group trip often means keeping track of messages, calendars, bookings
 
 ## System Architecture
 
-![Trip Planner system architecture: customer React app on GitHub Pages uses Supabase and map services; planned AWS admin portal connects approved expenses to Supabase; travelers email receipts to a planned Gmail and AI extraction workflow. All arrows label the data exchanged.](assignment/system-architecture.png)
+![Trip Planner system architecture and planned receipt flow: customer emails a receipt, AI extracts an expense, admin reviews it, Supabase saves it, and the customer sees it in the app. Customer and AWS admin components, external services, and data exchanged are labeled.](assignment/system-architecture.png)
 
 [Open full-size diagram](assignment/system-architecture.png) · [Scalable SVG copy](assignment/system-architecture.svg) · [FigJam board — Diagram frame](https://www.figma.com/board/I4HBVhgTCyki0lvjDZyMZ8/Untitled?node-id=44-271)
 

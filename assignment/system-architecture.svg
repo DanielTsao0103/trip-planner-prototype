@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="2520" height="2040" viewBox="0 0 2520 2040">
 <rect width="100%" height="100%" fill="white"/>
+<g transform="translate(227,0) scale(0.82)">
 <text x="60" y="84.16" font-family="Arial, sans-serif" font-size="48" font-weight="700" text-anchor="start" fill="#19343f">Trip Planner | System architecture</text>
 <text x="60" y="135.84" font-family="Arial, sans-serif" font-size="27" font-weight="400" text-anchor="start" fill="#19343f">Solid = built in code     Dashed + PLANNED = future work     Double arrows = data sent and returned</text>
 <text x="60" y="215.36" font-family="Arial, sans-serif" font-size="33" font-weight="700" text-anchor="start" fill="#19343f">CUSTOMER-FACING APP</text>
@@ -113,6 +114,44 @@
 <polygon points="1290,1685 1275.0810964478637,1693.1502341562714 1275.0810964478637,1676.8497658437286" fill="#956214"/>
 <rect x="427.5" y="1636" width="585.0" height="41" fill="white"/>
 <text x="720" y="1663.0" font-family="Arial, sans-serif" font-size="25" font-weight="400" text-anchor="middle" fill="#956214">Customer emails receipt + trip reference (planned)</text>
-<text x="60" y="1874.84" font-family="Arial, sans-serif" font-size="27" font-weight="400" text-anchor="start" fill="#19343f">Email receipt → AI extracts expense → admin reviews → expense saved to Supabase → customer sees it in the app.</text>
-<text x="60" y="1910.48" font-family="Arial, sans-serif" font-size="27" font-weight="400" text-anchor="start" fill="#19343f">AWS admin + Gmail receipt AI are planned. Existing integrations may require service setup; Mailtrap booking parsing is rule based.</text>
+</g>
+<text x="60" y="1595.36" font-family="Arial, sans-serif" font-size="33" font-weight="700" text-anchor="start" fill="#19343f">RECEIPT FLOW | PLANNED</text>
+<text x="60" y="1638.92" font-family="Arial, sans-serif" font-size="26" font-weight="400" text-anchor="start" fill="#19343f">The same components above, shown in the order a receipt moves through the product.</text>
+<rect x="60" y="1745" width="350" height="180" rx="16" fill="#10958c" stroke="#10958c" stroke-width="3"/>
+<text x="235.0" y="1809.04" font-family="Arial, sans-serif" font-size="37" font-weight="700" text-anchor="middle" fill="white">Email receipt</text>
+<text x="235.0" y="1859.84" font-family="Arial, sans-serif" font-size="27" font-weight="400" text-anchor="middle" fill="white">Customer sends it</text>
+<text x="235.0" y="1895.48" font-family="Arial, sans-serif" font-size="27" font-weight="400" text-anchor="middle" fill="white">to the Gmail inbox</text>
+<rect x="555" y="1745" width="350" height="180" rx="16" fill="#10958c" stroke="#10958c" stroke-width="3"/>
+<text x="730.0" y="1809.04" font-family="Arial, sans-serif" font-size="37" font-weight="700" text-anchor="middle" fill="white">AI extracts</text>
+<text x="730.0" y="1859.84" font-family="Arial, sans-serif" font-size="27" font-weight="400" text-anchor="middle" fill="white">Receipt becomes</text>
+<text x="730.0" y="1895.48" font-family="Arial, sans-serif" font-size="27" font-weight="400" text-anchor="middle" fill="white">an expense draft</text>
+<rect x="1050" y="1745" width="350" height="180" rx="16" fill="#6b7280" stroke="#6b7280" stroke-width="3"/>
+<text x="1225.0" y="1809.04" font-family="Arial, sans-serif" font-size="37" font-weight="700" text-anchor="middle" fill="white">Admin reviews</text>
+<text x="1225.0" y="1859.84" font-family="Arial, sans-serif" font-size="27" font-weight="400" text-anchor="middle" fill="white">Corrects details</text>
+<text x="1225.0" y="1895.48" font-family="Arial, sans-serif" font-size="27" font-weight="400" text-anchor="middle" fill="white">and approves</text>
+<rect x="1545" y="1745" width="350" height="180" rx="16" fill="#06345e" stroke="#06345e" stroke-width="3"/>
+<text x="1720.0" y="1809.04" font-family="Arial, sans-serif" font-size="37" font-weight="700" text-anchor="middle" fill="white">Save expense</text>
+<text x="1720.0" y="1859.84" font-family="Arial, sans-serif" font-size="27" font-weight="400" text-anchor="middle" fill="white">Approved expense</text>
+<text x="1720.0" y="1895.48" font-family="Arial, sans-serif" font-size="27" font-weight="400" text-anchor="middle" fill="white">goes to Supabase</text>
+<rect x="2040" y="1745" width="350" height="180" rx="16" fill="#6025b5" stroke="#6025b5" stroke-width="3"/>
+<text x="2215.0" y="1809.04" font-family="Arial, sans-serif" font-size="37" font-weight="700" text-anchor="middle" fill="white">Customer sees it</text>
+<text x="2215.0" y="1859.84" font-family="Arial, sans-serif" font-size="27" font-weight="400" text-anchor="middle" fill="white">Expense appears</text>
+<text x="2215.0" y="1895.48" font-family="Arial, sans-serif" font-size="27" font-weight="400" text-anchor="middle" fill="white">when the trip loads</text>
+<polyline points="410,1835 555,1835" fill="none" stroke="#956214" stroke-width="4" stroke-dasharray="13 9"/>
+<polygon points="555,1835 540.0810964478636,1843.1502341562714 540.0810964478636,1826.8497658437286" fill="#956214"/>
+<rect x="380.0" y="1684" width="204.0" height="41" fill="white"/>
+<text x="482" y="1711.0" font-family="Arial, sans-serif" font-size="25" font-weight="400" text-anchor="middle" fill="#956214">Receipt + trip ID</text>
+<polyline points="905,1835 1050,1835" fill="none" stroke="#956214" stroke-width="4" stroke-dasharray="13 9"/>
+<polygon points="1050,1835 1035.0810964478637,1843.1502341562714 1035.0810964478637,1826.8497658437286" fill="#956214"/>
+<rect x="888.0" y="1684" width="178.0" height="41" fill="white"/>
+<text x="977" y="1711.0" font-family="Arial, sans-serif" font-size="25" font-weight="400" text-anchor="middle" fill="#956214">Expense draft</text>
+<polyline points="1400,1835 1545,1835" fill="none" stroke="#956214" stroke-width="4" stroke-dasharray="13 9"/>
+<polygon points="1545,1835 1530.0810964478637,1843.1502341562714 1530.0810964478637,1826.8497658437286" fill="#956214"/>
+<rect x="1355.5" y="1684" width="233.0" height="41" fill="white"/>
+<text x="1472" y="1711.0" font-family="Arial, sans-serif" font-size="25" font-weight="400" text-anchor="middle" fill="#956214">Approved expense</text>
+<polyline points="1895,1835 2040,1835" fill="none" stroke="#956214" stroke-width="4" stroke-dasharray="13 9"/>
+<polygon points="2040,1835 2025.0810964478637,1843.1502341562714 2025.0810964478637,1826.8497658437286" fill="#956214"/>
+<rect x="1868.5" y="1684" width="197.0" height="41" fill="white"/>
+<text x="1967" y="1711.0" font-family="Arial, sans-serif" font-size="25" font-weight="400" text-anchor="middle" fill="#956214">Saved expense</text>
+<text x="60" y="1988.92" font-family="Arial, sans-serif" font-size="26" font-weight="400" text-anchor="start" fill="#19343f">AWS admin + Gmail receipt AI are planned. Existing integrations may require setup; Mailtrap booking parsing is rule based.</text>
 </svg>
