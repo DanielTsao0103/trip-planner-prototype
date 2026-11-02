@@ -8,6 +8,8 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 ## Corrections & Lessons Learned
 
+- Receipt automation clarification (November 2, 2026): travelers must email receipts to a dedicated Gmail inbox. Model the planned workflow as emailed receipt ingestion, not scanning a traveler's connected personal inbox. The admin portal and automation remain planned.
+
 - A populated fictional trip must coexist with a genuinely empty new-trip flow for usability testing.
 - Calendar maps to Page 11 with date navigation; Page 10 is restricted to active dates.
 
