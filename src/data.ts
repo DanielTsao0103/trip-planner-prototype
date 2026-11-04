@@ -93,19 +93,20 @@ export function seed(): Store {
     prefs: {
       maya: {
         ...blankPrefs(),
-        diet: ["Vegetarian"],
+        diet: ["Vegetarian", "Gluten avoidance"],
         food: "Local favorites",
         interests: ["Culture", "Art"],
         walk: 1500,
       },
       eli: {
         ...blankPrefs(),
+        diet: ["Vegan", "Gluten avoidance"],
         food: "Local favorites",
         interests: ["Modern architecture", "Art"],
       },
       nora: {
         ...blankPrefs(),
-        diet: ["Peanut avoidance"],
+        diet: ["Peanut avoidance", "Halal"],
         food: "Familiar favorites",
         atmosphere: "Quiet",
         spending: "Budget-conscious",
@@ -113,6 +114,7 @@ export function seed(): Store {
       },
       sam: {
         ...blankPrefs(),
+        diet: ["Dairy avoidance", "Kosher"],
         access: ["Step-free access"],
         walk: 400,
         interests: ["Culture", "History"],
