@@ -21,6 +21,7 @@ Use the Prototype button inside the app for clickable page references and scenar
 | 15 | Food/diet/restrictions, spending/dining/atmosphere, activity/destination, accessibility/walking, tickets and other constraints; save/edit updates group |
 | 16 | Nearby suggestion overlay; separate straight-line and walking measurements; Go → selected map route; No dismiss; location/active-date/walking-limit gating |
 | 17 | Interactive illustrative map; places, simulated position, selected route; pan/zoom/recenter/marker selection; desktop side panel and mobile expandable route panel |
+| 18 | Style: choose a color theme, light/dark (or match the device), heading font and corner shape with a live preview; Apply restyles every page and saves to the account |
 
 ## Overlay index
 

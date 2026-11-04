@@ -4,6 +4,10 @@ import { Provider } from "./state";
 import { PrototypeApp } from "./prototype";
 import "./styles.css";
 import { ReleaseNotice } from "./release-notice";
+import { StyleSync } from "./style-sync-mount";
+import { startSiteStyle } from "./theme";
+
+startSiteStyle();
 
 createRoot(document.getElementById("root")!).render(
   <><ReleaseNotice /><AuthApp renderDemo={exitDemo => (
@@ -17,6 +21,7 @@ createRoot(document.getElementById("root")!).render(
       email: session.user.email || "",
       name: session.user.user_metadata.name || "Traveler",
     }} onSignOut={signOut}>
+      <StyleSync userId={session.user.id} />
       <PrototypeApp />
     </Provider>
   )}</AuthApp></>,

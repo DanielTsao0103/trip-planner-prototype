@@ -41,6 +41,7 @@ import {
   PhotoCredit,
   Avatar,
 } from "./ui";
+import { HERO_IMAGE, HERO_ALT } from "./hero";
 import { IMAGES, SERVICES, PERMISSIONS } from "./data";
 import { searchDestinationPhotos, trackUnsplashSelection, uploadTripPhoto, type UnsplashPhoto } from "./trip-photos";
 import {
@@ -132,27 +133,14 @@ export function Auth() {
     <div className="auth">
       <div className="auth-visual">
         <Photo
-          src={IMAGES.seattle}
-          alt="Seattle skyline and Mount Rainier at dusk"
+          src={HERO_IMAGE}
+          alt={HERO_ALT}
         />
         <div className="auth-visual-shade" />
         <Logo />
         <div className="auth-story">
-          <span className="eyebrow light">THE GOOD PART STARTS TOGETHER</span>
-          <h1>
-            Less back and forth.
-            <br />
-            <em>More out there.</em>
-          </h1>
-          <p>
-            Make a plan everyone can be part of.
-            <br />
-            Then make some memories.
-          </p>
-          <div className="photo-location">
-            <MapPin size={16} />
-            Seattle, Washington
-          </div>
+          <h1>The world is huge, go out and explore it.</h1>
+          <p>All your plans, in one place.</p>
         </div>
         <div className="auth-caption">
           A place for every plan. And everyone in it.

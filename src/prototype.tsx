@@ -18,6 +18,7 @@ import { Budget } from "./finance";
 import { Group, Survey } from "./group";
 import { MapPage } from "./travelmap";
 import { Overlays } from "./overlays";
+import { StylePage } from "./style-page";
 import { Shell, Empty, Button } from "./ui";
 import { PAGES } from "./data";
 export function PrototypeApp() {
@@ -65,6 +66,7 @@ export function PrototypeApp() {
       15: <Survey key={user.id} />,
       16: <Dashboard />,
       17: <MapPage />,
+      18: <StylePage />,
     };
     content = (
       <Shell>
