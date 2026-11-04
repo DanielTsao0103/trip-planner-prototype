@@ -46,6 +46,8 @@ test("account saves recover from lost responses without duplicate trips, reload,
     const url = new URL(request.url());
     if (url.pathname === "/rest/v1/forwarded_booking")
       return route.fulfill({ json: [] });
+    if (url.pathname === "/rest/v1/user_style")
+      return route.fulfill({ json: [] });
     if (url.pathname.endsWith("/token"))
       return route.fulfill({ json: session() });
     if (url.pathname.endsWith("/user")) return route.fulfill({ json: owner });
@@ -227,6 +229,8 @@ test("failed account load offers retry and never pretends the account is empty",
   await page.route("https://*.supabase.co/**", async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname === "/rest/v1/forwarded_booking")
+      return route.fulfill({ json: [] });
+    if (url.pathname === "/rest/v1/user_style")
       return route.fulfill({ json: [] });
     if (url.pathname.endsWith("/token"))
       return route.fulfill({ json: session() });

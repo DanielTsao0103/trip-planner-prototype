@@ -18,6 +18,8 @@ async function backend(page: Page) {
       path = new URL(req.url()).pathname;
     if (path === "/rest/v1/forwarded_booking")
       return route.fulfill({ json: [] });
+    if (path === "/rest/v1/user_style")
+      return route.fulfill({ json: [] });
     if (path.endsWith("/token"))
       return route.fulfill({
         json: {
