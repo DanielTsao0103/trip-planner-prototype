@@ -26,20 +26,14 @@ import {
   Modal,
   PageHead,
 } from "./ui";
+import { useChartColors } from "./theme";
 import { money, spent, isOwner, uid, splitCents, type Expense } from "./domain";
 export const CATEGORIES = ["Stay", "Food", "Transport", "Activities", "Other"];
-const COLORS = [
-  "#285648",
-  "#ce865e",
-  "#a7bba3",
-  "#deb86f",
-  "#aaa4b3",
-  "#ebe9df",
-];
 export function Budget() {
   const { trip: t, s, user, open, updateTrip, toast } = useApp();
   const [tab, setTab] = useState("Expenses"),
     [filter, setFilter] = useState("All");
+  const COLORS = useChartColors();
   if (!t) return null;
   const individual = t.budgetMode === "individual",
     total = spent(t, individual ? s.userId! : undefined),

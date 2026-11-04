@@ -448,7 +448,7 @@ export function TravelMap({
               />
               <path
                 d="M540 40h180v75H540zM760 390h160v108H760z"
-                fill="#c3d2b2"
+                fill="#afbfd5"
               />
               <path d="M355 390l-115 38-10-22 130-41" fill="#e9e4d8" />
               <text x="95" y="265" className="water-label">
@@ -486,7 +486,7 @@ export function TravelMap({
                   />
                   <path
                     d={`M475 475L510 438L${target.x} 438L${target.x} ${target.y}`}
-                    stroke="#3d7666"
+                    stroke="#396094"
                     strokeWidth="6"
                     fill="none"
                     strokeLinecap="round"
@@ -513,15 +513,15 @@ export function TravelMap({
                 >
                   <circle
                     r={selected === p.place ? 23 : 19}
-                    fill={selected === p.place ? "#234e43" : "#fffdf8"}
-                    stroke="#234e43"
+                    fill={selected === p.place ? "#20406a" : "#fffdf8"}
+                    stroke="#20406a"
                     strokeWidth="2"
                   />
                   <text
                     textAnchor="middle"
                     y="5"
                     fontSize="14"
-                    fill={selected === p.place ? "white" : "#234e43"}
+                    fill={selected === p.place ? "white" : "#20406a"}
                     fontWeight="700"
                   >
                     {i + 1}

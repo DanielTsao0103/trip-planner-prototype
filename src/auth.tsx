@@ -3,7 +3,7 @@ import { TEXT_LIMITS, textError, emailError } from "./limits.ts";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabase } from "./supabase";
-import { IMAGES } from "./data";
+import { HERO_IMAGE, HERO_ALT } from "./hero";
 import { Field } from "./ui";
 import googleLogo from "./assets/auth/google-g.svg";
 import appleButton from "./assets/auth/apple-sign-in.png";
@@ -209,20 +209,11 @@ export function AuthApp({
   return (
     <main className="auth account-only">
       <div className="auth-visual">
-        <img src={IMAGES.seattle} alt="Seattle skyline and Mount Rainier" />
+        <img src={HERO_IMAGE} alt={HERO_ALT} />
         <div className="auth-visual-shade" />
         <div className="auth-story">
-          <span className="eyebrow light">THE GOOD PART STARTS TOGETHER</span>
-          <h1>
-            Less back and forth.
-            <br />
-            <em>More out there.</em>
-          </h1>
-          <p>
-            Make a plan everyone can be part of.
-            <br />
-            Then make some memories.
-          </p>
+          <h1>The world is huge, go out and explore it.</h1>
+          <p>All your plans, in one place.</p>
         </div>
       </div>
       <section className="auth-panel" aria-label="Your account">

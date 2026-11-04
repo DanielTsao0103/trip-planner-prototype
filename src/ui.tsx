@@ -347,7 +347,7 @@ export function Logo() {
       <span className="logo-icon">
         <Compass size={23} strokeWidth={1.7} />
       </span>
-      trip planner<span className="logo-dot">.</span>
+      trip planner
     </span>
   );
 }
@@ -475,7 +475,6 @@ export function Shell({ children }: { children: ReactNode }) {
               >
                 <Icon size={19} />
                 {label}
-                {p === 9 && <span className="new-dot" />}
               </button>
             ))}
         </nav>

@@ -10,6 +10,7 @@ import {
   LogOut,
   Mail,
   MapPin,
+  Palette,
   Plus,
   Settings2,
   Sparkles,
@@ -728,6 +729,10 @@ export function Overlays() {
           <button onClick={() => go(5)}>
             My trips
             <ArrowRight size={16} />
+          </button>
+          <button onClick={() => go(18)}>
+            Style
+            <Palette size={16} />
           </button>
           <button onClick={() => open("demo")}>
             Switch demo participant
