@@ -1,3 +1,4 @@
+import { EventLocationInput } from "./event-location-input";
 import { WeeklyCalendar } from "./weekly-calendar";
 /** Implementation status: Account events, todos, and dismissed choices save through updateTrip to Supabase. Confirmation extraction, crowds, costs, and suggestions remain fixtures; uploaded file previews are temporary. See ../IMPLEMENTATION_STATUS.md. */
 import { DatePicker } from "./date-picker";
@@ -513,13 +514,7 @@ export function EventForm() {
                 />
               </Field>
               <Field label="Where">
-                <input
-                  required
-                  maxLength={TEXT_LIMITS.location}
-                  value={place}
-                  onChange={(e) => setPlace(e.target.value)}
-                  placeholder="Location or meeting point"
-                />
+                <EventLocationInput value={place} onChange={setPlace} />
               </Field>
               <Field label="Day">
                 <select value={date} onChange={(e) => setDate(e.target.value)}>

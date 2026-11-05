@@ -380,3 +380,26 @@ test('weekly calendar reschedules through the save API, reloads, and recovers fa
   await expect.poll(()=>api.rows[0].content.events[0].date).toBe('2027-06-04');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth+1)).toBe(true);
 });
+
+test('event location autocomplete selects a worldwide landmark, saves, reloads, and keeps manual entry on outage',async({page})=>{
+ const api=await backend(page);
+ await page.route('https://photon.komoot.io/api/**',route=>route.fulfill({json:{features:[{properties:{osm_type:'W',osm_id:1,name:'Eiffel Tower',housenumber:'5',street:'Avenue Anatole France',city:'Paris',country:'France'}}]}}));
+ const id='77777777-7777-4777-8777-777777777777';
+ api.rows.push({tripID:id,owner_id:owner.id,created_by:owner.id,trip_name:'Location test',destinations:['Paris, France'],start_date:'2027-06-01',end_date:'2027-06-03',timezone:'Europe/Paris',revision:1,content_version:1,content:{image:'',members:[{id:owner.id,name:'QA Traveler',email:owner.email,role:'Owner',status:'accepted',days:[]}],events:[],expenses:[],prefs:{},budget:null,budgetMode:'group',individual:{},todos:[],dismissed:[]}});
+ await page.goto('./#/5');await page.reload();await page.getByRole('button',{name:'Open itinerary',exact:true}).click();await page.getByRole('button',{name:'Add event',exact:true}).click();
+ await page.getByLabel('Event name',{exact:true}).fill('Eiffel visit');
+ const input=page.getByRole('combobox',{name:'Where',exact:true});
+ await input.fill('Eiffe');await expect(page.getByRole('option',{name:/Eiffel Tower/})).toBeVisible();
+ await input.press('ArrowDown');await input.press('Enter');
+ const label='Eiffel Tower, 5 Avenue Anatole France, Paris, France';await expect(input).toHaveValue(label);
+ expect(api.rows[0].content.events).toHaveLength(0);
+ await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
+ await expect.poll(()=>api.rows[0].content.events[0]?.place).toBe(label);
+ const event=api.rows[0].content.events[0];
+ await page.goto(`./#/7?event=${event.id}`);await page.reload();await expect(page.getByLabel('Where',{exact:true})).toHaveValue(label);
+ await page.unroute('https://photon.komoot.io/api/**');await page.route('https://photon.komoot.io/api/**',route=>route.abort('failed'));
+ await page.getByLabel('Where',{exact:true}).fill('Our hotel lobby');await expect(page.getByText('Search unavailable',{exact:true})).toBeVisible();
+ await page.getByLabel('Where',{exact:true}).press('Escape');await page.getByRole('button',{name:'Save changes',exact:true}).click();
+ await expect.poll(()=>api.rows[0].content.events[0]?.place).toBe('Our hotel lobby');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+});

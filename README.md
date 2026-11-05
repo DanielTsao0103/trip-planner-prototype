@@ -294,3 +294,16 @@ Signed-in accounts see a "Forwarded booking" section on Home. Forward a confirma
 | Verify database round-trip and public deployment | Complete — release is gated by the Pages tests and live-revision check |
 
 On narrow screens the calendar scrolls horizontally within its own region. Drag/drop snaps to 30-minute slots; the Move dialog accepts exact start times. Times use the trip time zone.
+
+## Event location autocomplete requirements
+
+| Requirement | Status |
+| --- | --- |
+| Search landmarks, venues and street addresses worldwide while typing in Where | Complete |
+| Select using pointer/touch or arrow keys and Enter, with Escape to dismiss | Complete |
+| Keep manual entry available when search fails or returns no matches | Complete |
+| Debounce requests, cancel stale responses and bound the session cache | Complete |
+| Preserve the 220-character location limit and character count | Complete |
+| Save the selected full place/address string through the existing event database path | Complete; verified during release QA |
+
+Search uses Photon/OpenStreetMap with no country or bounding-box restriction. Only the typed search query is sent; no device location is requested. Coverage and availability depend on the upstream map data and public endpoint. Before substantial production traffic, use a hosted provider or your own Photon instance.

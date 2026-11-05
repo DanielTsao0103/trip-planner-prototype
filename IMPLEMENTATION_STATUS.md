@@ -40,3 +40,7 @@ Source and live database audit: October 28, 2026. Full account-trip persistence 
 ## Seven-day itinerary calendar
 
 The itinerary can display a list or a seven-day time grid. Calendar drag/drop and the keyboard/touch Move dialog change the same event date/start/end fields through `updateTrip`, the existing save queue, and Supabase `save_trip_bundle`. Duration and event metadata are preserved. Existing trip date limits, source/target edit permissions, overlap validation, database ownership and revision conflict checks remain enforced. Failed account writes retain the recovery controls; sample trips stay browser-local. No parallel calendar data store or schema migration is needed.
+
+## Event location search
+
+`EventLocationInput` provides worldwide venue/landmark/street-address suggestions from Photon/OpenStreetMap. Selected results populate the existing `Event.place` field and persist through the unchanged Supabase save queue and relational event location column. Manual entry is retained; no new API keys, database schema, or device location permissions are needed. This lookup does not provide business reviews, accessibility facts, or restaurant recommendations.
