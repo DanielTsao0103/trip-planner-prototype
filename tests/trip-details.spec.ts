@@ -352,9 +352,9 @@ test('weekly calendar reschedules through the save API, reloads, and recovers fa
   await page.getByRole('button',{name:'Open itinerary',exact:true}).click();
   await page.getByRole('button',{name:'Calendar',exact:true}).click();
   await expect(page.getByRole('region',{name:'Scrollable seven-day calendar'})).toBeVisible();
-  await expect(page.locator('.week-day-header')).toHaveCount(7);
+  await expect(page.locator('.itcal-day-header')).toHaveCount(7);
   await page.getByRole('button',{name:'Next seven days',exact:true}).click();
-  await expect(page.locator('.week-day-header').first()).toContainText('Jun 8');
+  await expect(page.locator('.itcal-day-header').first()).toContainText('Jun 8');
   await page.getByRole('button',{name:'Previous seven days',exact:true}).click();
   await page.getByRole('button',{name:'Move Calendar museum',exact:true}).click();
   await page.getByLabel('New event date',{exact:true}).fill('2027-06-02');
@@ -363,9 +363,9 @@ test('weekly calendar reschedules through the save API, reloads, and recovers fa
   await expect.poll(()=>api.rows[0].content.events[0].date).toBe('2027-06-02');
   expect(api.rows[0].content.events[0]).toMatchObject({...event,date:'2027-06-02',start:'13:00',end:'14:30'});
   await page.reload();
-  await expect(page.locator('[data-calendar-date="2027-06-02"] .week-event')).toContainText('Calendar museum');
+  await expect(page.locator('[data-calendar-date="2027-06-02"] .itcal-event')).toContainText('Calendar museum');
   if(testInfo.project.name==='desktop') {
-    await page.locator('.week-event').dragTo(page.locator('[data-calendar-date="2027-06-03"]'), {targetPosition:{x:50,y:432}});
+    await page.locator('.itcal-event').dragTo(page.locator('[data-calendar-date="2027-06-03"]'), {targetPosition:{x:50,y:432}});
     await expect.poll(()=>api.rows[0].content.events[0].date).toBe('2027-06-03');
     expect(api.rows[0].content.events[0].end).toBe('14:30');
   }

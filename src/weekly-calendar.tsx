@@ -62,8 +62,8 @@ export function WeeklyCalendar() {
     setDragging(null);
   }
   return <section className="weekly-calendar" aria-label="Seven-day itinerary calendar">
-    <div className="week-toolbar">
-      <div className="week-navigation">
+    <div className="itcal-toolbar">
+      <div className="itcal-navigation">
         <Button variant="outline" aria-label="Previous seven days" disabled={safePage === 0} onClick={() => { setPage(safePage - 1); setError(''); }}><ChevronLeft size={18}/></Button>
         <h3 aria-live="polite">{dateText(firstDate, true)} – {dateText(dates[6], true)}</h3>
         <Button variant="outline" aria-label="Next seven days" disabled={safePage === lastPage} onClick={() => { setPage(safePage + 1); setError(''); }}><ChevronRight size={18}/></Button>
@@ -73,36 +73,36 @@ export function WeeklyCalendar() {
     <p className="calendar-help">Drag an event to change its day or time, or choose Move. Scroll sideways to see all seven days on smaller screens.</p>
     {!moving && <ErrorBox text={error}/>}
     <p className="sr-only" role="status" aria-live="polite">{notice}</p>
-    <div className="week-scroll" tabIndex={0} role="region" aria-label="Scrollable seven-day calendar">
-      <div className="week-grid">
-        <div className="week-corner" aria-hidden="true">Time</div>
+    <div className="itcal-scroll" tabIndex={0} role="region" aria-label="Scrollable seven-day calendar">
+      <div className="itcal-grid">
+        <div className="itcal-corner" aria-hidden="true">Time</div>
         {dates.map(date => {
           const inside = date <= trip.end;
-          return <div className={`week-day-header ${inside ? '' : 'outside-trip'}`} key={date}>
+          return <div className={`itcal-day-header ${inside ? '' : 'outside-trip'}`} key={date}>
             <strong>{new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}</strong>
             <span>{dateText(date, true)}</span>
             {inside ? <button type="button" className="text-link" disabled={!canEdit(trip,s.userId,date)} aria-label={`Add event on ${date}`} onClick={() => go(7,{date, view:"calendar"})}><Plus size={13}/> Add</button> : <small>Outside trip</small>}
           </div>;
         })}
-        <div className="week-time-axis" style={{height}} aria-hidden="true">
+        <div className="itcal-time-axis" style={{height}} aria-hidden="true">
           {hours.map(hour => <span key={hour} style={{top:(hour-firstHour)*HOUR_HEIGHT}}>{timeText(clock(hour*60))}</span>)}
         </div>
         {dates.map(date => <div key={date} data-calendar-date={date}
-          className={`week-day ${date > trip.end ? 'outside-trip' : ''} ${dragging && canEdit(trip,s.userId,date) ? 'can-drop' : ''}`}
+          className={`itcal-day ${date > trip.end ? 'outside-trip' : ''} ${dragging && canEdit(trip,s.userId,date) ? 'can-drop' : ''}`}
           style={{height}} onDragOver={event => { if (dragging && canEdit(trip,s.userId,date)) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }}
           onDrop={event => drop(event,date)} aria-label={`Events on ${date}`}>
-          {hours.map(hour => <div key={hour} className="week-hour-line" style={{top:(hour-firstHour)*HOUR_HEIGHT}} aria-hidden="true"/>)}
+          {hours.map(hour => <div key={hour} className="itcal-hour-line" style={{top:(hour-firstHour)*HOUR_HEIGHT}} aria-hidden="true"/>)}
           {orderedEvents(trip,date).map(event => {
             const editable = canEdit(trip,s.userId,event.date);
-            return <article key={event.id} className={`week-event ${dragging === event.id ? 'is-dragging' : ''}`}
+            return <article key={event.id} className={`itcal-event ${dragging === event.id ? 'is-dragging' : ''}`}
               data-event-id={event.id} draggable={editable} aria-label={`${event.name}, ${timeText(event.start)} to ${timeText(event.end)}`}
               style={{top:(minutes(event.start)-firstHour*60)/60*HOUR_HEIGHT,height:Math.max(46,(minutes(event.end)-minutes(event.start))/60*HOUR_HEIGHT-3)}}
               onDragStart={e => { e.dataTransfer.setData('application/x-trip-event',event.id); e.dataTransfer.effectAllowed='move'; setDragging(event.id); setError(''); }}
               onDragEnd={() => setDragging(null)}>
-              <button type="button" className="week-event-title" onClick={() => go(7,{event:event.id,date:event.date,view:"calendar"})}>{event.name}</button>
-              <span className="week-event-time">{timeText(event.start)}–{timeText(event.end)}</span>
-              <span className="week-event-place">{event.place}</span>
-              {editable && <button type="button" className="week-move" aria-label={`Move ${event.name}`} onClick={e => {
+              <button type="button" className="itcal-event-title" onClick={() => go(7,{event:event.id,date:event.date,view:"calendar"})}>{event.name}</button>
+              <span className="itcal-event-time">{timeText(event.start)}–{timeText(event.end)}</span>
+              <span className="itcal-event-place">{event.place}</span>
+              {editable && <button type="button" className="itcal-move" aria-label={`Move ${event.name}`} onClick={e => {
                 returnFocus.current=e.currentTarget; setMoving(event.id); setMoveDate(event.date); setMoveStart(event.start); setError('');
               }}><GripVertical size={16}/><span className="sr-only">Move</span></button>}
             </article>;
