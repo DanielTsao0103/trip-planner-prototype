@@ -1,3 +1,4 @@
+import { WeeklyCalendar } from "./weekly-calendar";
 /** Implementation status: Account events, todos, and dismissed choices save through updateTrip to Supabase. Confirmation extraction, crowds, costs, and suggestions remain fixtures; uploaded file previews are temporary. See ../IMPLEMENTATION_STATUS.md. */
 import { DatePicker } from "./date-picker";
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
@@ -54,7 +55,8 @@ import {
 } from "./domain";
 import { TravelMap } from "./travelmap";
 export function Itinerary() {
-  const { trip: t, s, go, open } = useApp();
+  const { trip: t, s, go, open, route } = useApp();
+  const view = route.params.get("view") === "calendar" ? "calendar" : "list";
   if (!t) return null;
   const role = member(t, s.userId)!.role;
   const allDays = days(t.start, t.end);
@@ -125,6 +127,10 @@ export function Itinerary() {
           Add event
         </Button>
       </div>
+      <div className="itinerary-view-switch" role="group" aria-label="Itinerary view">
+        <button type="button" aria-pressed={view === "list"} onClick={() => go(8, { view: "list" })}>List</button>
+        <button type="button" aria-pressed={view === "calendar"} onClick={() => go(8, { view: "calendar" })}>Calendar</button>
+      </div>
       {role === "Viewer" && <ReadOnly />}
       {role === "Day Editor" && <ReadOnly day />}
       {!t.events.length && role !== "Viewer" && (
@@ -164,7 +170,7 @@ export function Itinerary() {
           </div>
         </section>
       )}
-      <div className="itinerary-layout">
+      {view === "calendar" ? <WeeklyCalendar key={t.id} /> : <div className="itinerary-layout">
         <div>
           <div className="day-chips">
             {allDays.map((date, i) => (
@@ -288,7 +294,7 @@ export function Itinerary() {
             </button>
           </div>
         </aside>
-      </div>
+      </div>}
     </>
   );
 }
@@ -380,7 +386,7 @@ export function EventForm() {
         ? "Event updated everywhere in your trip."
         : "A new plan, added to your day.",
     );
-    go(original && route.params.get("return") === "11" ? 11 : 8, { date });
+    go(original && route.params.get("return") === "11" ? 11 : 8, { date, ...(route.params.get("view") === "calendar" ? { view: "calendar" } : {}) });
   };
   const role = member(t, s.userId)?.role;
   return (

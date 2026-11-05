@@ -342,3 +342,41 @@ test("save popup waits for confirmation, sits bottom-right, then disappears", as
   await saved(page);
   await expect(toast).toHaveCount(0);
 });
+
+test('weekly calendar reschedules through the save API, reloads, and recovers failed writes', async ({page}, testInfo) => {
+  const api = await backend(page);
+  const id='55555555-5555-4555-8555-555555555555';
+  const event={id:'66666666-6666-4666-8666-666666666666',name:'Calendar museum',place:'City museum',date:'2027-06-01',start:'10:00',end:'11:30',cost:1250,attendees:[owner.id],notes:'Keep these notes',image:''};
+  api.rows.push({tripID:id,owner_id:owner.id,created_by:owner.id,trip_name:'Calendar test',destinations:['Seattle'],start_date:'2027-06-01',end_date:'2027-06-20',timezone:'America/Los_Angeles',revision:1,content_version:1,content:{image:'',members:[{id:owner.id,name:'QA Traveler',email:owner.email,role:'Owner',status:'accepted',days:[]}],events:[event],expenses:[],prefs:{},budget:null,budgetMode:'group',individual:{},todos:[],dismissed:[]}});
+  await page.goto('./#/5'); await page.reload();
+  await page.getByRole('button',{name:'Open itinerary',exact:true}).click();
+  await page.getByRole('button',{name:'Calendar',exact:true}).click();
+  await expect(page.getByRole('region',{name:'Scrollable seven-day calendar'})).toBeVisible();
+  await expect(page.locator('.week-day-header')).toHaveCount(7);
+  await page.getByRole('button',{name:'Next seven days',exact:true}).click();
+  await expect(page.locator('.week-day-header').first()).toContainText('Jun 8');
+  await page.getByRole('button',{name:'Previous seven days',exact:true}).click();
+  await page.getByRole('button',{name:'Move Calendar museum',exact:true}).click();
+  await page.getByLabel('New event date',{exact:true}).fill('2027-06-02');
+  await page.getByLabel('New start time',{exact:true}).fill('13:00');
+  await page.getByRole('button',{name:'Move event',exact:true}).click();
+  await expect.poll(()=>api.rows[0].content.events[0].date).toBe('2027-06-02');
+  expect(api.rows[0].content.events[0]).toMatchObject({...event,date:'2027-06-02',start:'13:00',end:'14:30'});
+  await page.reload();
+  await expect(page.locator('[data-calendar-date="2027-06-02"] .week-event')).toContainText('Calendar museum');
+  if(testInfo.project.name==='desktop') {
+    await page.locator('.week-event').dragTo(page.locator('[data-calendar-date="2027-06-03"]'), {targetPosition:{x:50,y:432}});
+    await expect.poll(()=>api.rows[0].content.events[0].date).toBe('2027-06-03');
+    expect(api.rows[0].content.events[0].end).toBe('14:30');
+  }
+  api.setFail(true);
+  await page.getByRole('button',{name:'Move Calendar museum',exact:true}).click();
+  await page.getByLabel('New event date',{exact:true}).fill('2027-06-04');
+  await page.getByRole('button',{name:'Move event',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Retry save',exact:true})).toBeVisible();
+  expect(api.rows[0].content.events[0].date).not.toBe('2027-06-04');
+  api.setFail(false);
+  await page.getByRole('button',{name:'Retry save',exact:true}).click();
+  await expect.poll(()=>api.rows[0].content.events[0].date).toBe('2027-06-04');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth+1)).toBe(true);
+});

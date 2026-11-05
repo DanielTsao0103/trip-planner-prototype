@@ -36,3 +36,7 @@ Source and live database audit: October 28, 2026. Full account-trip persistence 
 2. Do not infer database authorization from the local participant selector, role flags, or matching email addresses.
 3. Before marking a feature server-backed, add its persistence/integration and verify reload plus a fresh browser/account where applicable, including failed writes and permission checks.
 4. Update this file and the nearby source comments with that feature. Keep ordinary validation, save-failure recovery, unavailable-action feedback, and clearly named sample actions in the UI. Hide implementation notes only on Budget and Suggestions; preserve the other pages and dialogs, including their shared footer.
+
+## Seven-day itinerary calendar
+
+The itinerary can display a list or a seven-day time grid. Calendar drag/drop and the keyboard/touch Move dialog change the same event date/start/end fields through `updateTrip`, the existing save queue, and Supabase `save_trip_bundle`. Duration and event metadata are preserved. Existing trip date limits, source/target edit permissions, overlap validation, database ownership and revision conflict checks remain enforced. Failed account writes retain the recovery controls; sample trips stay browser-local. No parallel calendar data store or schema migration is needed.

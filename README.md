@@ -280,3 +280,17 @@ Signed-in accounts see a "Forwarded booking" section on Home. Forward a confirma
 - Complete: table with row-level security, Edge Function, parser with unit tests, Home list with remove.
 - Not complete: bookings are not yet attached to a trip. The sender check trusts the From address, which can be faked, so entries are unverified. Parsing is rule based (schema.org data when the email has it, otherwise labels like "Check-in:"), so unusual emails may only get a title.
 
+
+## Seven-day calendar requirements
+
+| Requirement | Status |
+| --- | --- |
+| Switch between itinerary List and Calendar views, including after reload | Complete |
+| Display seven days, navigate earlier/later weeks, and show event times | Complete |
+| Reschedule by dragging to a day/time or using the keyboard/touch Move dialog | Complete |
+| Preserve duration, identity, attendees, notes, and cost | Complete |
+| Enforce trip dates, edit permissions, and overlapping-event checks | Complete |
+| Save account reschedules through the existing Supabase save/recovery path | Complete — calendar UI move verified against the live relational event table |
+| Verify database round-trip and public deployment | Complete — release is gated by the Pages tests and live-revision check |
+
+On narrow screens the calendar scrolls horizontally within its own region. Drag/drop snaps to 30-minute slots; the Move dialog accepts exact start times. Times use the trip time zone.
