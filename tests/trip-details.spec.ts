@@ -365,7 +365,7 @@ test('weekly calendar reschedules through the save API, reloads, and recovers fa
   await page.reload();
   await expect(page.locator('[data-calendar-date="2027-06-02"] .itcal-event')).toContainText('Calendar museum');
   if(testInfo.project.name==='desktop') {
-    await page.locator('.itcal-event').dragTo(page.locator('[data-calendar-date="2027-06-03"]'), {targetPosition:{x:50,y:432}});
+    await page.locator('.itcal-event').dragTo(page.locator('[data-calendar-date="2027-06-03"]'), {targetPosition:{x:50,y:450}});
     await expect.poll(()=>api.rows[0].content.events[0].date).toBe('2027-06-03');
     expect(api.rows[0].content.events[0].end).toBe('14:30');
   }
