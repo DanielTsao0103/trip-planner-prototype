@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {locationQuery,meetingPlacesFromResponse,searchMeetingPlaces} from './event-location-search.ts';
+import {locationQuery,locationSearchKey,resolveSearchFocus,meetingPlacesFromResponse,searchMeetingPlaces} from './event-location-search.ts';
 
 test('meeting instructions are reduced to a worldwide place query',()=>{
  assert.equal(locationQuery(' meet at the Eiffel Tower '),'the Eiffel Tower');
@@ -27,4 +27,45 @@ test('search includes all place/address layers with no geography restriction and
   assert.deepEqual(await searchMeetingPlaces('meet at Eiffel Tower',controller.signal),[]);
   globalThis.fetch=async()=>new Response('',{status:503});await assert.rejects(searchMeetingPlaces('Eiffel Tower',controller.signal));
  }finally{globalThis.fetch=original;}
+});
+
+
+test('destination bias changes ranking without excluding worldwide results',async()=>{
+ const original=globalThis.fetch,signal=new AbortController().signal;
+ const focus={latitude:33.427,longitude:-117.612,zoom:12,approximate:false};
+ try{
+  globalThis.fetch=async(input)=>{
+   const url=new URL(String(input));
+   assert.equal(url.searchParams.get('lat'),'33.427');assert.equal(url.searchParams.get('lon'),'-117.612');
+   assert.equal(url.searchParams.has('bbox'),false);assert.equal(url.searchParams.has('countrycode'),false);
+   return new Response(JSON.stringify({features:[
+    {properties:{name:'T Street Beach',city:'Other city',country:'Mexico',osm_id:11},geometry:{coordinates:[-99,19]}},
+    {properties:{name:'T Street Beach',city:'San Clemente',state:'California',country:'United States',osm_id:12},geometry:{coordinates:[-117.617,33.416]}}
+   ]}));
+  };
+  const results=await searchMeetingPlaces('T Street',signal,focus);
+  assert.match(results[0].label,/San Clemente/);assert.ok(results.some(result=>result.label.includes('Mexico')));
+ }finally{globalThis.fetch=original;}
+});
+test('trip destinations resolve to geographic focus points and are cached',async()=>{
+ const original=globalThis.fetch,signal=new AbortController().signal;let calls=0;
+ try{
+  globalThis.fetch=async(input)=>{calls++;const url=new URL(String(input));assert.equal(url.searchParams.get('q'),'San Clemente, California, US (test)');return new Response(JSON.stringify({features:[{properties:{name:'San Clemente',type:'city'},geometry:{coordinates:[-117.612,33.427]}}]}));};
+  const focus=await resolveSearchFocus('San Clemente, California, US (test)',signal);
+  assert.equal(focus?.latitude,33.427);assert.equal(focus?.longitude,-117.612);
+  await resolveSearchFocus('San Clemente, California, US (test)',signal);assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});
+test('informal directional regions use an approximate parent region focus',async()=>{
+ const original=globalThis.fetch,signal=new AbortController().signal;
+ try{
+  globalThis.fetch=async(input)=>{const q=new URL(String(input)).searchParams.get('q');return new Response(JSON.stringify({features:q==='Southern California (test)'?[]:[{properties:{name:'California (test)',type:'state',extent:[-125,42,-114,32]},geometry:{coordinates:[-119,37]}}]}));};
+  const focus=await resolveSearchFocus('Southern California (test)',signal);
+  assert.equal(focus?.approximate,true);assert.equal(focus?.latitude,34.5);assert.equal(focus?.zoom,7);
+ }finally{globalThis.fetch=original;}
+});
+test('cache keys isolate destinations and preserve meaningful address punctuation',()=>{
+ assert.notEqual(locationSearchKey('T Street','Paris'),locationSearchKey('T Street','San Clemente'));
+ assert.notEqual(locationSearchKey('12/3 Main Street','Paris'),locationSearchKey('123 Main Street','Paris'));
+ assert.equal(locationSearchKey(' T Street ','PARIS'),locationSearchKey('t street','paris'));
 });

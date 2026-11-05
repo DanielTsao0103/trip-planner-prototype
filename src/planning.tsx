@@ -513,9 +513,7 @@ export function EventForm() {
                   placeholder="A morning at the museum"
                 />
               </Field>
-              <Field label="Where">
-                <EventLocationInput value={place} onChange={setPlace} />
-              </Field>
+              <EventLocationInput value={place} onChange={setPlace} destinations={t.destinations} />
               <Field label="Day">
                 <select value={date} onChange={(e) => setDate(e.target.value)}>
                   {days(t.start, t.end).map((d, i) => (

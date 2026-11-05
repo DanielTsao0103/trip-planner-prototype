@@ -1,14 +1,18 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { TEXT_LIMITS } from './limits';
-import { locationQuery, searchMeetingPlaces, type MeetingPlace } from './event-location-search';
+import { locationQuery, locationSearchKey, resolveSearchFocus, searchMeetingPlaces, type MeetingPlace } from './event-location-search';
 
-const cache = new Map<string, MeetingPlace[]>();
-export function EventLocationInput({value,onChange}: {value:string;onChange:(value:string)=>void}) {
+const cache = new Map<string, {places:MeetingPlace[];biased:boolean;approximate:boolean}>();
+export function EventLocationInput({value,onChange,destinations=[]}: {value:string;onChange:(value:string)=>void;destinations?:string[]}) {
   const id=useId(), list=useRef<HTMLDivElement>(null);
   const [open,setOpen]=useState(false), [active,setActive]=useState(-1);
   const [results,setResults]=useState<MeetingPlace[]>([]);
   const [status,setStatus]=useState<'loading'|'ready'|'error'>('ready');
+  const [near,setNear]=useState<string|null>(null);
+  const stops=[...new Set(destinations.filter(Boolean))];
+  const destination=near===''?'':near && stops.includes(near)?near:stops[0]||'';
+  const [biased,setBiased]=useState(false),[approximate,setApproximate]=useState(false);
   const query=locationQuery(value);
   useEffect(()=>{
     setResults([]);setActive(-1);
@@ -19,26 +23,39 @@ export function EventLocationInput({value,onChange}: {value:string;onChange:(val
     const timer=setTimeout(async()=>{
       let timeout: ReturnType<typeof setTimeout> | undefined;
       try {
-        const key=query.toLocaleLowerCase();
+        const key=locationSearchKey(query,destination);
         let matches=cache.get(key);
         if(!matches){
-          timeout=setTimeout(()=>controller.abort(),7000);
-          matches=await searchMeetingPlaces(query,controller.signal);
+          timeout=setTimeout(()=>controller.abort(),12000);
+          let focus=null;
+          try{focus=await resolveSearchFocus(destination,controller.signal);}catch{if(controller.signal.aborted)throw new Error('Search cancelled');}
+          const places=await searchMeetingPlaces(query,controller.signal,focus);
+          matches={places,biased:!!focus,approximate:focus?.approximate||false};
           if(cancelled)return;
           if(cache.size>=50)cache.delete(cache.keys().next().value!);
           cache.set(key,matches);
         }
-        if(!cancelled){setResults(matches);setStatus('ready');}
+        if(!cancelled){setResults(matches.places);setBiased(matches.biased);setApproximate(matches.approximate);setStatus('ready');}
       }catch{if(!cancelled)setStatus('error');}
       finally{if(timeout)clearTimeout(timeout);}
     },350);
     return()=>{cancelled=true;clearTimeout(timer);controller.abort();};
-  },[query,open]);
+  },[query,open,destination]);
   useEffect(()=>{if(active>=0)list.current?.children[active]?.scrollIntoView({block:'nearest'});},[active]);
   function select(index:number){const result=results[index];if(result){onChange(result.label);setOpen(false);setActive(-1);}}
   const expanded=open && query.length>=2;
-  return <div className="event-location-input" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setOpen(false);}}>
-    <input required maxLength={TEXT_LIMITS.location} value={value} role="combobox" aria-label="Where"
+  return <div className="field event-location-field">
+    <div className="event-location-bias">
+      <label htmlFor={`${id}-near`}>Search near</label>
+      <select id={`${id}-near`} aria-label="Prioritize locations near" value={destination} onChange={e=>{setNear(e.target.value);setActive(-1);setResults([]);setOpen(true);}}>
+        {stops.map(stop=><option key={stop} value={stop}>{stop}</option>)}
+        <option value="">Worldwide (no preference)</option>
+      </select>
+      <small>Nearby matches first. Other locations are still included.</small>
+    </div>
+    <label htmlFor={`${id}-input`}>Where</label>
+    <div className="event-location-input" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setOpen(false);}}>
+    <input id={`${id}-input`} required maxLength={TEXT_LIMITS.location} value={value} role="combobox" aria-label="Where"
       aria-autocomplete="list" aria-expanded={expanded} aria-controls={`${id}-list`}
       aria-activedescendant={expanded && active>=0 ? `${id}-${active}` : undefined}
       aria-describedby={`${id}-count`} aria-invalid={value.length>TEXT_LIMITS.location || undefined}
@@ -54,7 +71,7 @@ export function EventLocationInput({value,onChange}: {value:string;onChange:(val
       }}/>
     <small id={`${id}-count`} className="character-count">{value.length} / {TEXT_LIMITS.location} characters{value.length>TEXT_LIMITS.location?' — shorten this before saving':''}</small>
     {expanded && <div className="event-location-menu">
-      <div className="event-location-caption">{status==='loading'?'Searching worldwide…':status==='error'?'Search unavailable':results.length?'Suggested locations':'No locations found'}</div>
+      <div className="event-location-caption">{status==='loading'?'Searching worldwide…':status==='error'?'Search unavailable':results.length?(destination && biased?`Near ${destination}${approximate?' (approximate area)':''}`:'Suggested locations'):'No locations found'}</div>
       <div ref={list} id={`${id}-list`} role="listbox" aria-label="Location suggestions">
         {results.map((place,i)=><div key={place.id} role="option" id={`${id}-${i}`} aria-selected={i===active}
           className={`event-location-option ${i===active?'active':''}`} onMouseDown={e=>e.preventDefault()}
@@ -63,9 +80,9 @@ export function EventLocationInput({value,onChange}: {value:string;onChange:(val
         </div>)}
       </div>
       <div className="event-location-footer" role="status" aria-live="polite">
-        {status==='loading'?'Finding places…':status==='error'?'You can still type a location and save it.':results.length?'↑ ↓ to navigate · Enter to select':'Try another spelling, or enter the location manually.'}
+        {status==='loading'?'Finding places…':status==='error'?'You can still type a location and save it.':results.length?(destination && !biased?'Destination lookup unavailable; showing worldwide matches.':'↑ ↓ to navigate · Enter to select'):'Try another spelling, or enter the location manually.'}
       </div>
       <div className="event-location-source">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a> · Photon</div>
     </div>}
-  </div>;
+  </div></div>;
 }

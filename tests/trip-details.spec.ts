@@ -403,3 +403,36 @@ test('event location autocomplete selects a worldwide landmark, saves, reloads, 
  await expect.poll(()=>api.rows[0].content.events[0]?.place).toBe('Our hotel lobby');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
 });
+
+test('location suggestions prioritize the selected trip stop and retain worldwide search',async({page})=>{
+ const api=await backend(page);
+ const stops=['San Clemente, California, United States','Paris, France'];
+ const requests:URL[]=[];
+ await page.route('https://photon.komoot.io/api/**',route=>{
+  const url=new URL(route.request().url());requests.push(url);
+  const q=url.searchParams.get('q');
+  const feature=(name:string,city:string,coordinates:number[])=>({properties:{name,city,country:city==='San Clemente'?'United States':'France',type:'city'},geometry:{coordinates}});
+  const features=q===stops[0]?[feature('San Clemente','San Clemente',[-117.61,33.42])]:q===stops[1]?[feature('Paris','Paris',[2.35,48.85])]:[feature('T Street','Paris',[2.35,48.85]),feature('T Street Beach','San Clemente',[-117.61,33.42])];
+  return route.fulfill({json:{features}});
+ });
+ api.rows.push({tripID:'88888888-8888-4888-8888-888888888888',owner_id:owner.id,created_by:owner.id,trip_name:'Nearby locations',destinations:stops,start_date:'2027-06-01',end_date:'2027-06-03',timezone:'America/Los_Angeles',revision:1,content_version:1,content:{image:'',members:[{id:owner.id,name:'QA Traveler',email:owner.email,role:'Owner',status:'accepted',days:[]}],events:[],expenses:[],prefs:{},budget:null,budgetMode:'group',individual:{},todos:[],dismissed:[]}});
+ await page.goto('./#/5');await page.reload();await page.getByRole('button',{name:'Open itinerary',exact:true}).click();await page.getByRole('button',{name:'Add event',exact:true}).click();
+ await page.getByLabel('Event name',{exact:true}).fill('Beach walk');
+ const input=page.getByRole('combobox',{name:'Where',exact:true});
+ const near=page.getByRole('combobox',{name:'Prioritize locations near'});
+ await input.fill('T Street');
+ await expect(page.locator('[role="listbox"] [role="option"]').first()).toContainText('T Street Beach');
+ await near.selectOption(stops[1]);
+ await expect(page.locator('[role="listbox"] [role="option"]').first()).toContainText('Paris');
+ await near.selectOption('');
+ await expect.poll(()=>requests.filter(r=>r.searchParams.get('q')==='T Street').at(-1)?.searchParams.has('lat')).toBe(false);
+ await near.selectOption(stops[0]);
+ await expect(page.locator('[role="listbox"] [role="option"]').first()).toContainText('T Street Beach');
+ await page.screenshot({path:test.info().outputPath('nearby-location-suggestions.png'),fullPage:true});
+ await page.getByRole('option',{name:/T Street Beach/}).click();
+ await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
+ await expect.poll(()=>api.rows[0].content.events[0]?.place).toBe('T Street Beach, San Clemente, United States');
+ const event=api.rows[0].content.events[0];
+ await page.goto(`./#/7?event=${event.id}`);await page.reload();await expect(page.getByLabel('Where',{exact:true})).toHaveValue(event.place);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+});

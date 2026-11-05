@@ -6507,3 +6507,8 @@ legend {
 .event-location-source { padding:0 14px 10px; font-size:10px; color:var(--muted); }
 .event-location-source a { color:inherit; }
 @media(max-width:767px) { .event-location-menu [role="listbox"] { max-height:200px; } }
+.event-location-bias { display:grid; grid-template-columns:auto minmax(0,1fr); gap:6px 12px; align-items:center; margin-bottom:10px; }
+.event-location-bias label { font-size:12px; color:var(--muted); }
+.event-location-bias select { min-width:0; width:100%; padding:8px 10px; font-size:12px; }
+.event-location-bias small { grid-column:1/-1; }
+.event-location-field > label { font-size:12px; }
