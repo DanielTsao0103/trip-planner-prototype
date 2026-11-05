@@ -546,26 +546,18 @@ export function EventForm() {
                 Times in {zoneText(t.zone)}. For overnight activities, add one event per
                 day.
               </p>
-              {place && (
-                <div className="crowd-card">
-                  <div>
-                    <strong>
-                      Usually{" "}
-                      {Number(start.slice(0, 2)) >= 12 &&
-                      Number(start.slice(0, 2)) <= 14
-                        ? "a little busy"
-                        : "pretty relaxed"}
-                    </strong>
-                    <p>Illustrative crowd estimate · not live data</p>
-                  </div>
-                  <div className="crowd-bars">
-                    {[24, 42, 65, 85, 56, 35, 20].map((h, i) => (
-                      <i
-                        key={i}
-                        style={{ height: h + "%", opacity: i === 3 ? 1 : 0.25 }}
-                      />
-                    ))}
-                  </div>
+              {place.trim() && (
+                <div className="place-popular-times">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.trim())}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Check popular times on Google Maps
+                    <ArrowUpRight size={16} aria-hidden="true" />
+                    <span className="sr-only"> (opens in a new tab)</span>
+                  </a>
+                  <small>Popular times are available for some places.</small>
                 </div>
               )}
               <Field

@@ -1416,36 +1416,23 @@ legend {
   height: 150px;
   margin: 15px auto;
 }
-.crowd-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 17px 19px;
-  background: hsl(calc(var(--hue) + -1.7) calc(35.1% * var(--sm)) calc(var(--la) + var(--lb) * 92.7%));
-  border-radius: calc(8px * var(--rs));
+.place-popular-times {
+  display: grid;
+  gap: 6px;
   margin: 20px 0;
-  gap: 16px;
 }
-.crowd-card strong {
-  font-size: 12px;
+.place-popular-times a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  color: var(--green);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
-.crowd-card p {
-  font-size: 9px;
-  margin: 5px 0 0;
-}
-.crowd-bars {
-  display: flex;
-  align-items: flex-end;
-  height: 44px;
-  gap: 4px;
-  width: 85px;
-  flex-shrink: 0;
-}
-.crowd-bars i {
-  width: 8px;
-  background: hsl(calc(var(--hue) + -0.5) calc(29.6% * var(--sm)) calc(var(--la) + var(--lb) * 45.1%));
-  border-radius: calc(3px * var(--rs)) calc(3px * var(--rs)) 0 0;
-}
+.place-popular-times a svg { flex-shrink: 0; }
+.place-popular-times small { color: var(--muted); }
 .attendee-list {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -4484,20 +4471,6 @@ legend {
   .attendee input {
     width: 17px;
     height: 17px;
-  }
-  .crowd-card {
-    padding: 14px;
-    gap: 9px;
-  }
-  .crowd-card strong {
-    font-size: 11px;
-  }
-  .crowd-card p {
-    font-size: 8px;
-  }
-  .crowd-bars {
-    width: 68px;
-    gap: 3px;
   }
   .page-8 {
     padding: 18px 17px 25px;

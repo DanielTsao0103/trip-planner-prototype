@@ -392,6 +392,12 @@ test('event location autocomplete selects a worldwide landmark, saves, reloads, 
  await input.fill('Eiffe');await expect(page.getByRole('option',{name:/Eiffel Tower/})).toBeVisible();
  await input.press('ArrowDown');await input.press('Enter');
  const label='Eiffel Tower, 5 Avenue Anatole France, Paris, France';await expect(input).toHaveValue(label);
+ const popularTimes=page.getByRole('link',{name:/Check popular times on Google Maps/});
+ await expect(popularTimes).toHaveAttribute('href',`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(label)}`);
+ await expect(popularTimes).toHaveAttribute('target','_blank');
+ await expect(page.locator('.crowd-card,.crowd-bars')).toHaveCount(0);
+ await input.fill('');await expect(popularTimes).toHaveCount(0);await input.fill(label);await input.press('Escape');
+
  expect(api.rows[0].content.events).toHaveLength(0);
  await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
  await expect.poll(()=>api.rows[0].content.events[0]?.place).toBe(label);

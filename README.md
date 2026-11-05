@@ -308,3 +308,13 @@ On narrow screens the calendar scrolls horizontally within its own region. Drag/
 | Save the selected full place/address string through the existing event database path | Complete; verified during release QA |
 
 Search uses Photon/OpenStreetMap with no country or bounding-box restriction. The typed query and selected trip destination are sent to resolve a geographic search bias; no device location is requested. Nearby matches are prioritized without excluding worldwide alternatives. Search near defaults to the first trip stop and allows switching stops or choosing Worldwide. Informal directional regions use an approximate area within the parent region; unresolved destinations fall back to worldwide search. Coverage and availability depend on the upstream map data and public endpoint. Before substantial production traffic, use a hosted provider or your own Photon instance.
+
+## Popular times link
+
+| Requirement | Status |
+| --- | --- |
+| Replace the event editor’s simulated crowd estimate with a Google Maps search for the entered location | Complete |
+| Open Google Maps in a new tab without API keys or additional billing | Complete |
+| Hide the link when the location is blank and explain that coverage varies | Complete |
+
+The link opens Google Maps search results; it cannot force Google Maps to display popular times for a place.
