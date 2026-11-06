@@ -1,5 +1,5 @@
 /** Budget and Suggestions omit implementation notes; their real/local behavior is documented in ../IMPLEMENTATION_STATUS.md. Other screens retain their existing notes. */
-import React, { useEffect, useRef, useId, type ReactNode } from "react";
+import React, { useEffect, useRef, useId, useState, type ReactNode } from "react";
 import {
   ArrowUpRight,
   ArrowLeft,
@@ -139,14 +139,38 @@ export function Badge({
 }) {
   return <span className={`badge ${tone}`}>{children}</span>;
 }
-export function Avatar({ name, index = 0 }: { name: string; index?: number }) {
+/** Shows the account's picture when this id is the signed-in account, otherwise initials. */
+export function Avatar({
+  name,
+  index = 0,
+  id,
+  large = false,
+}: {
+  name: string;
+  index?: number;
+  id?: string;
+  large?: boolean;
+}) {
+  const src = useApp()?.avatarFor(id);
+  const [failed, setFailed] = useState("");
+  const showImage = Boolean(src) && failed !== src;
   return (
-    <span className={`avatar avatar-${index % 4}`} title={name}>
-      {name
-        .split(" ")
-        .map((n) => n[0])
-        .slice(0, 2)
-        .join("")}
+    <span className={`avatar avatar-${index % 4}${large ? " avatar-large" : ""}`} title={name}>
+      {showImage ? (
+        <img
+          src={src}
+          alt=""
+          // Google photo hosts can reject requests that carry a referrer; initials show if it fails.
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(src!)}
+        />
+      ) : (
+        name
+          .split(" ")
+          .map((n) => n[0])
+          .slice(0, 2)
+          .join("")
+      )}
     </span>
   );
 }
@@ -476,7 +500,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </nav>
         <div className="sidebar-bottom">
           <button className="profile" onClick={() => open("account")}>
-            <Avatar name={user?.name || "Guest"} />
+            <Avatar name={user?.name || "Guest"} id={user?.id} />
             <span>
               <strong>{user?.name || "Guest"}</strong>
               <small>
@@ -509,7 +533,7 @@ export function Shell({ children }: { children: ReactNode }) {
                   .filter((m) => m.status === "accepted")
                   .slice(0, 4)
                   .map((m, i) => (
-                    <Avatar key={m.id} name={m.name} index={i} />
+                    <Avatar key={m.id} name={m.name} index={i} id={m.accountId || m.id} />
                   ))}
               </div>
             )}

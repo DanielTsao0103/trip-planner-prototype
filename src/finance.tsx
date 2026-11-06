@@ -321,7 +321,7 @@ export function Budget() {
               <div className="debt-list">
                 {debts.map(({ expense: e, debtor, amount }) => (
                   <div className="debt-row" key={e.id + debtor}>
-                    <Avatar name={name(debtor)} />
+                    <Avatar name={name(debtor)} id={debtor} />
                     <div>
                       <strong>
                         {name(debtor)} owes {name(e.payer)} {money(amount)}

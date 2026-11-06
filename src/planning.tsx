@@ -287,7 +287,7 @@ export function Itinerary() {
               {t.members
                 .filter((m) => m.status === "accepted")
                 .map((m, i) => (
-                  <Avatar key={m.id} name={m.name} index={i} />
+                  <Avatar key={m.id} name={m.name} index={i} id={m.accountId || m.id} />
                 ))}
             </div>
             <h3>Everyone gets a say.</h3>
@@ -646,7 +646,7 @@ export function EventForm() {
                             )
                           }
                         />
-                        <Avatar name={m.name} />
+                        <Avatar name={m.name} id={m.accountId || m.id} />
                         {m.name}
                       </label>
                     ))}

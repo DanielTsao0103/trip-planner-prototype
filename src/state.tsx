@@ -12,6 +12,7 @@ import { demoStorageKey, loadDemoStore, type DemoAccount } from "./demo-store";
 import { type Store, type Preference, type Trip, type User, isActive, isOwner, member } from "./domain";
 import { TripSaveQueue, type PendingTrip } from "./trip-save-queue";
 import { getSupabase, sendTripSignupLink } from "./supabase";
+import { useProfilePicture, type ProfilePicture } from "./use-profile-picture";
 import {
   loadAccountTrips,
   saveAccountTrip,
@@ -30,6 +31,10 @@ type Context = {
   saveTrip: (trip: Trip) => Promise<void>;
   deleteTrip: (trip: Trip) => Promise<void>;
   signOut: () => Promise<void>;
+  /** The signed-in account's own picture (uploaded, else Google, else initials). */
+  picture: ProfilePicture;
+  /** Picture URL for this account id; other people always show initials for now. */
+  avatarFor: (id?: string) => string | undefined;
   mutate: (fn: (s: Store) => void) => void;
   trip: Trip | undefined;
   user: User | undefined;
@@ -57,10 +62,12 @@ export function Provider({
   onSignOut,
   initialTripId,
   cloud = false,
+  googlePicture,
 }: {
   children: ReactNode;
   account: DemoAccount;
   cloud?: boolean;
+  googlePicture?: string;
   initialTripId?: string;
   onSignOut: () => Promise<void>;
 }) {
@@ -133,6 +140,7 @@ export function Provider({
       },
     );
   const queue = queueRef.current;
+  const picture = useProfilePicture(cloud, account.id, googlePicture);
   const pending = [...queue.pending.values()];
   const saveError = pending.find((entry) => entry.error)?.error;
   const [loadState, setLoadState] = useState(cloud ? "loading" : "ready");
@@ -497,6 +505,8 @@ export function Provider({
         setMessage("Could not sign out. Please try again.");
       }
     },
+    picture,
+    avatarFor: (id) => (cloud && id === account.id ? picture.url : undefined),
     mutate,
     trip,
     user,

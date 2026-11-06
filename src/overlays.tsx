@@ -43,6 +43,7 @@ import {
   type Role,
 } from "./domain";
 import { BudgetSetup, ExpenseForm } from "./finance";
+import { ProfilePictureEditor } from "./profile-picture-editor";
 function AuthProvider() {
   const { overlay, s, mutate, go, login, close } = useApp();
   const { service, signup } = overlay!.data;
@@ -659,12 +660,13 @@ export function Overlays() {
     return (
       <Modal title="Your corner of the trip">
         <div className="person">
-          <Avatar name={user?.name || "Guest"} />
+          <Avatar name={user?.name || "Guest"} id={user?.id} large />
           <div>
             <strong>{user?.name}</strong>
             <small>{user?.email}</small>
           </div>
         </div>
+        <ProfilePictureEditor />
         <div className="menu-links">
           <button onClick={() => tripGo(15)}>
             My travel preferences

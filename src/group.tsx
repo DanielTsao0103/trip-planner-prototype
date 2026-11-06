@@ -709,7 +709,7 @@ export function Group() {
           .map((m, i) => (
             <div className="collaborator-row" key={m.id}>
               <div className="person">
-                <Avatar name={m.name} index={i} />
+                <Avatar name={m.name} index={i} id={m.accountId || m.id} />
                 <div>
                   <strong>
                     {m.name}
