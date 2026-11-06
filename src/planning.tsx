@@ -372,6 +372,7 @@ export function EventForm() {
       id: original?.id || uid(),
       name: name.trim(),
       place: place.trim(),
+      googlePlaceId: original?.place === place.trim() && !point ? original.googlePlaceId : null,
       point,
       date,
       start,

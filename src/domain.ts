@@ -37,6 +37,7 @@ export type Event = {
   notes: string;
   place: string;
   point?: MapPoint | null;
+  googlePlaceId?: string | null;
 };
 export type Expense = {
   id: string;

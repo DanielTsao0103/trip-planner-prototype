@@ -206,7 +206,7 @@ Canvas requires a text entry with the demo video link and the public GitHub repo
 
 ## Trip map
 
-The Map tab and active-trip dashboard use the Google Maps JavaScript API. Set the website-restricted browser key in `VITE_GOOGLE_MAPS_API_KEY` for local builds and in the matching GitHub Actions variable for Pages. An optional `VITE_GOOGLE_MAP_ID` selects a custom Google map style. Selecting a Photon address saves its coordinates with the event. A unique street-address match can also place a typed address. For an older or ambiguous address, select the event on the map, choose **Place pin**, and confirm the spot. Choose **Adjust pin** to move it to an entrance or meeting point.
+The Map tab and active-trip dashboard use the Google Maps JavaScript API. Set the website-restricted browser key in `VITE_GOOGLE_MAPS_API_KEY` for local builds and in the matching GitHub Actions variable for Pages. An optional `VITE_GOOGLE_MAP_ID` selects a custom Google map style. Selecting a Photon address saves its coordinates with the event. A unique street-address match can also place a typed address. Opening the map automatically looks up unpinned itinerary addresses with Google, including older events. Accepted travelers see the pins. The trip stores the matched Google place ID, and a saved manual position takes priority. If Google cannot identify a specific location, use **Place pin**. Choose **Adjust pin** to move it to an entrance or meeting point.
 
 Accepted travelers read the same event records. An open map refreshes on focus and every 15 seconds while visible. Device location and viewport stay local. Directions open in Google Maps at the saved coordinates.
 

@@ -5,6 +5,9 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
   page,
 }) => {
   const store = seed();
+  const stops = store.trips.find((t) => t.id === "seattle")!.events;
+  stops[0].place = "400 Broad St, Seattle, WA";
+  stops[1].place = "85 Pike St, Seattle, WA";
   store.tripId = "seattle";
   store.userId = "maya";
   await page.addInitScript((value) => {
@@ -19,6 +22,42 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
   // checked separately with the published origin and its restricted browser key.
   await page.addInitScript(() => {
     type Point = { lat: number; lng: number };
+    class Geocoder {
+      async geocode(request: { address?: string; placeId?: string }) {
+        const places = [
+          {
+            address: "400 Broad St, Seattle, WA",
+            id: "needle",
+            lat: 47.62,
+            lng: -122.349,
+          },
+          {
+            address: "85 Pike St, Seattle, WA",
+            id: "market",
+            lat: 47.609,
+            lng: -122.342,
+          },
+        ];
+        const place = places.find(
+          (p) => request.address === p.address || request.placeId === p.id,
+        );
+        return {
+          results: place
+            ? [
+                {
+                  place_id: place.id,
+                  types: ["street_address"],
+                  geometry: {
+                    location: {
+                      toJSON: () => ({ lat: place.lat, lng: place.lng }),
+                    },
+                  },
+                },
+              ]
+            : [],
+        };
+      }
+    }
     class TestMap {
       center: Point = { lat: 0, lng: 0 };
       zoom = 2;
@@ -81,7 +120,7 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
     Object.assign(window, {
       google: {
         maps: {
-          importLibrary: async () => ({ Map: TestMap }),
+          importLibrary: async () => ({ Map: TestMap, Geocoder }),
           marker: { AdvancedMarkerElement: TestMarker },
           LatLngBounds: Bounds,
           event: { clearInstanceListeners() {} },
@@ -93,6 +132,29 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
     route.fulfill({ json: { features: [] } }),
   );
   await page.goto("./#/17");
+  await expect(
+    page.getByRole("button", {
+      name: "Select 400 Broad St, Seattle, WA",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Select 85 Pike St, Seattle, WA",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          JSON.parse(
+            localStorage.getItem("trip-planner-demo-v1:demo-maya")!,
+          ).trips.find((t: { id: string }) => t.id === "seattle").events[0]
+            .googlePlaceId,
+      ),
+    )
+    .toBe("needle");
   const museum = page.getByRole("button", {
     name: "Select Seattle Art Museum",
     exact: true,

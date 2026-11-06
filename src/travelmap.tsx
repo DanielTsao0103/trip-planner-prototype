@@ -1,3 +1,4 @@
+import { useItineraryPins } from "./use-itinerary-pins";
 import React, { useEffect, useRef, useState } from "react";
 import { authFailureEvent, loadGoogleMaps, mapId } from "./google-maps";
 import "./trip-map.css";
@@ -17,11 +18,7 @@ import {
 import { useApp } from "./state";
 import { Button, PageHead } from "./ui";
 import { canEdit, type Event, type MapPoint } from "./domain";
-import {
-  exactAddressPoint,
-  searchMeetingPlaces,
-  resolveSearchFocus,
-} from "./event-location-search";
+import { resolveSearchFocus } from "./event-location-search";
 import { EventLocationInput } from "./event-location-input";
 
 function showStops(map: google.maps.Map, points: MapPoint[]) {
@@ -67,8 +64,13 @@ export function TravelMap({
   const [query, setQuery] = useState("");
   const [locationStatus, setLocationStatus] = useState("");
   const [locating, setLocating] = useState(false);
-  const selection = trip?.events.find((e) => e.id === selectedId);
-  const events = trip?.events ?? [];
+  const { events, statusFor, retryLookup } = useItineraryPins(
+    trip,
+    s.userId,
+    ready && !loadError,
+    updateTrip,
+  );
+  const selection = events.find((e) => e.id === selectedId);
   // Keep markers and the visitor's viewport stable through unrelated trip saves.
   const pinKey = JSON.stringify(events.map((e) => [e.id, e.place, e.point]));
   const destination = trip?.destinations[0] ?? "";
@@ -112,6 +114,9 @@ export function TravelMap({
         tilt: 0,
       });
       map.current = view;
+      view.addListener("dragstart", () => {
+        initialFocus.current = false;
+      });
       view.addListener("zoom_changed", () =>
         setPreciseZoom((view.getZoom() ?? 0) >= 15),
       );
@@ -180,10 +185,12 @@ export function TravelMap({
       });
       markers.current.set(event.id, marker);
     });
-    if (initialFocus.current) {
+    if (initialFocus.current && !selection?.point && !editing) {
       if (points.length) {
         showStops(view, points);
-        initialFocus.current = false;
+        initialFocus.current = events.some(
+          (e) => !e.point && statusFor(e) === undefined,
+        );
       } else if (destination) {
         const center = view.getCenter(),
           zoom = view.getZoom();
@@ -220,49 +227,6 @@ export function TravelMap({
     const point = selection?.point;
     if (point && map.current) focusPoint(map.current, point);
   }, [ready, selectedId, selection?.point?.lat, selection?.point?.lng]);
-
-  // Existing text-only events can acquire a shared pin when their owner opens a
-  // fully specified address. An ambiguous result stays available for manual placement.
-  const mayPlace =
-    !!trip && !!selection && canEdit(trip, s.userId, selection.date);
-  useEffect(() => {
-    if (
-      !mayPlace ||
-      !selection ||
-      selection.point ||
-      editing ||
-      !/\d/.test(selection.place)
-    )
-      return;
-    const { id, place } = selection;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    void searchMeetingPlaces(place, controller.signal)
-      .then((matches) => {
-        const point = exactAddressPoint(place, matches);
-        if (!point || controller.signal.aborted) return;
-        updateTrip((draft) => {
-          if (draft.id !== trip?.id) return;
-          const event = draft.events.find(
-            (e) => e.id === id && e.place === place,
-          );
-          if (event && !event.point) event.point = point;
-        });
-      })
-      .catch(() => {})
-      .finally(() => clearTimeout(timeout));
-    return () => {
-      controller.abort();
-      clearTimeout(timeout);
-    };
-  }, [
-    trip?.id,
-    mayPlace,
-    selection?.id,
-    selection?.place,
-    !!selection?.point,
-    editing,
-  ]);
 
   const overview = () => {
     select("");
@@ -314,6 +278,7 @@ export function TravelMap({
     );
   }
   function choose(event: Event) {
+    initialFocus.current = false;
     setEditing(false);
     select(event.id);
     if (event.point && map.current) focusPoint(map.current, event.point);
@@ -333,14 +298,25 @@ export function TravelMap({
       const event = draft.events.find(
         (e) => e.id === selection.id && e.place === selection.place,
       );
-      if (event) event.point = { lat: center.lat, lng: center.lng };
+      if (event) {
+        event.point = { lat: center.lat, lng: center.lng };
+        event.googlePlaceId = null;
+      }
     });
     setEditing(false);
   }
   const editingPin = ready && !loadError && editing && !!selection;
   return (
     <div className={`map-layout trip-map ${compact ? "compact" : ""}`}>
-      <div className="map-canvas">
+      <div
+        className="map-canvas"
+        onPointerDownCapture={() => {
+          initialFocus.current = false;
+        }}
+        onKeyDownCapture={() => {
+          initialFocus.current = false;
+        }}
+      >
         <div
           ref={host}
           className="trip-map-host"
@@ -493,12 +469,27 @@ export function TravelMap({
                 <span>
                   <strong>{event.name}</strong>
                   <small>{event.place}</small>
-                  {!event.point && <em>Pin needed</em>}
+                  {!event.point && (
+                    <em>
+                      {!ready
+                        ? "Address only"
+                        : statusFor(event) === undefined
+                          ? "Finding address…"
+                          : statusFor(event) === "error"
+                            ? "Lookup unavailable"
+                            : "Address needs confirmation"}
+                    </em>
+                  )}
                 </span>
                 <ChevronRight size={15} />
               </button>
               {selection?.id === event.id && (
                 <div className="place-actions">
+                  {!event.point && statusFor(event) === "error" && (
+                    <button onClick={() => retryLookup(event)}>
+                      Retry lookup
+                    </button>
+                  )}
                   {event.point && (
                     <a
                       href={`https://www.google.com/maps/dir/?${new URLSearchParams({ api: "1", destination: `${event.point.lat},${event.point.lng}`, travelmode: "walking" })}`}
