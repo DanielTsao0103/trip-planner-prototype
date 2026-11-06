@@ -18,6 +18,10 @@ export function AuthApp({
 }) {
   const [demo, setDemo] = useState(() => {
     try {
+      if (new URLSearchParams(location.hash.slice(1)).get("type") === "invite") {
+        sessionStorage.removeItem("trip-planner-demo-session");
+        return false;
+      }
       return sessionStorage.getItem("trip-planner-demo-session") === "active";
     } catch {
       return false;
@@ -204,7 +208,35 @@ export function AuthApp({
   }
 
   if (demo) return renderDemo(exitDemo);
-  if (ready && session && !problem) return children(session, signOut);
+  if (ready && session && !problem) {
+    if (session.user.invited_at && !session.user.user_metadata.name) return <main className="auth account-only">
+      <section className="auth-panel"><div className="auth-form-wrap">
+        <h1>Set up your account</h1>
+        <p>Your trip was shared with {session.user.email}.</p>
+        <form className="account-form" onSubmit={async e => {
+          e.preventDefault();
+          if (busy) return;
+          const issue = textError(name, "Your name", TEXT_LIMITS.name, true);
+          if (issue) { setError(issue); return; }
+          setBusy(true);
+          try {
+            const result = await getSupabase().auth.updateUser({ password, data: { name: name.trim() } });
+            if (result.error) throw result.error;
+            setSession({ ...session, user: result.data.user });
+            setPassword("");
+            location.hash = "/5";
+          } catch (error) { setError(error instanceof Error ? error.message : "Could not finish setup. Try again."); }
+          finally { setBusy(false); }
+        }}>
+          <Field label="Your name"><input required autoComplete="name" maxLength={TEXT_LIMITS.name} value={name} onChange={e => setName(e.target.value)}/></Field>
+          <Field label="Choose a password"><input type="password" required minLength={8} autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)}/></Field>
+          {error && <p role="alert">{error}</p>}
+          <button className="btn full" disabled={busy}>{busy ? "Saving…" : "Open my trips"}</button>
+        </form>
+      </div></section>
+    </main>;
+    return children(session, signOut);
+  }
 
   return (
     <main className="auth account-only">

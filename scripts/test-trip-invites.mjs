@@ -1,0 +1,153 @@
+/** Opt-in hosted integration check. Uses disposable accounts and generates an invite link without sending mail. */
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+import { createClient } from "@supabase/supabase-js";
+
+const env = {
+  ...parseEnv(readFileSync(".env.local", "utf8")),
+  ...parseEnv(readFileSync(".env.server.local", "utf8")),
+};
+const client = (key) =>
+  createClient(env.VITE_SUPABASE_URL, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+const admin = client(env.SUPABASE_SECRET_KEY);
+const owner = client(env.VITE_SUPABASE_PUBLISHABLE_KEY);
+const guest = client(env.VITE_SUPABASE_PUBLISHABLE_KEY);
+const check = (response) => {
+  if (response.error) throw new Error(response.error.message);
+  return response.data;
+};
+const tripId = randomUUID();
+const accountIds = [];
+const makeEmail = () => `trip-invite-qa-${randomUUID()}@example.com`;
+
+try {
+  const email = makeEmail();
+  const password = randomUUID();
+  const { user } = check(
+    await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name: "QA Owner" },
+    }),
+  );
+  accountIds.push(user.id);
+  check(await owner.auth.signInWithPassword({ email, password }));
+  const draft = {
+    id: tripId,
+    title: "Invitation QA",
+    destinations: ["Taipei"],
+    start: "2027-01-01",
+    end: "2027-01-02",
+    zone: "Asia/Taipei",
+    image: "test",
+    budget: null,
+    budgetMode: "group",
+    members: [
+      {
+        id: user.id,
+        name: "QA Owner",
+        email,
+        role: "Owner",
+        status: "accepted",
+        days: [],
+      },
+    ],
+    events: [],
+    expenses: [],
+    prefs: {},
+    individual: {},
+    todos: [],
+    dismissed: [],
+  };
+  const save = (content, revision) =>
+    owner.rpc("save_trip_bundle", {
+      p_trip_id: tripId,
+      p_expected_revision: revision,
+      p_request_id: randomUUID(),
+      p_data: content,
+    });
+  check(await save(draft, null));
+  const recipient = makeEmail();
+  const share = (delivered = false) =>
+    owner.rpc("share_trip_recipient", {
+      p_trip: tripId,
+      p_email: recipient,
+      p_delivered: delivered,
+    });
+  assert.equal(check(await share()), "needs_email");
+  const target = "https://danieltsao0103.github.io/trip-planner-prototype/";
+  const invitation = check(
+    await admin.auth.admin.generateLink({
+      type: "invite",
+      email: recipient,
+      options: { redirectTo: target },
+    }),
+  );
+  accountIds.push(invitation.user.id);
+  assert.equal(check(await share(true)), "shared");
+  const first = await fetch(invitation.properties.action_link, {
+    redirect: "manual",
+  });
+  const destination = new URL(first.headers.get("location"));
+  const tokens = new URLSearchParams(destination.hash.slice(1));
+  assert.equal(tokens.get("type"), "invite");
+  check(
+    await guest.auth.setSession({
+      access_token: tokens.get("access_token"),
+      refresh_token: tokens.get("refresh_token"),
+    }),
+  );
+  check(
+    await guest.auth.updateUser({
+      password: randomUUID(),
+      data: { name: "Invited Traveler" },
+    }),
+  );
+  const names = check(
+    await owner.rpc("resolve_trip_emails", { p_emails: [recipient] }),
+  );
+  assert.equal(names[recipient], "Invited Traveler");
+  assert.equal(check(await share()), "shared");
+  const row = check(await guest.rpc("read_invited_trip", { p_trip: tripId }));
+  assert.equal(row.content.members.length, 2);
+  assert.equal(row.content.members[1].name, "Invited Traveler");
+  assert.equal(row.content.members[1].accountId, invitation.user.id);
+  assert.ok(
+    (
+      await guest.rpc("share_trip_recipient", {
+        p_trip: tripId,
+        p_email: makeEmail(),
+      })
+    ).error,
+  );
+  draft.members = row.content.members;
+  draft.title = "Edited after sharing";
+  const edited = check(await save(draft, row.revision));
+  assert.ok(
+    check(await guest.rpc("load_trip_bundles")).some(
+      (t) => t.tripID === tripId,
+    ),
+  );
+  draft.members[1].status = "removed";
+  check(await save(draft, edited.revision));
+  assert.ok((await guest.rpc("read_invited_trip", { p_trip: tripId })).error);
+  console.log(
+    "Account setup, registered name lookup, sharing, owner edits, duplicate handling and revocation passed.",
+  );
+  assert.equal(
+    destination.origin + destination.pathname,
+    target,
+    "Add the published app URL to Supabase Auth redirect URLs.",
+  );
+} finally {
+  check(await admin.from("trip").delete().eq("tripID", tripId));
+  for (const id of accountIds) {
+    check(await admin.from("user").delete().eq("userID", id));
+    check(await admin.auth.admin.deleteUser(id));
+  }
+}

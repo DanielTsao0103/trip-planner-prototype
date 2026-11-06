@@ -76,6 +76,10 @@ try {
       }),
     );
     accounts.push(user.id);
+    const guestEmail = `invite-audit-${randomUUID()}@example.invalid`;
+    const guest = check(await admin.auth.admin.createUser({email: guestEmail, password: randomUUID(),
+      email_confirm: true, user_metadata: {name: "Guest Traveler"}}));
+    accounts.push(guest.user.id);
     const browser = await puppeteer.launch({
       executablePath: chromium.executablePath(),
       headless: true,
@@ -186,7 +190,7 @@ try {
       await page.getByRole("heading", { name: "Home", exact: true }).waitFor();
       await goto("5");
       await audit("empty-trips");
-      await detailJourney(page, site);
+      await detailJourney(page, site, guestEmail);
       const rows = check(
         await admin.from("trip").select("tripID").eq("owner_id", user.id),
       );
@@ -220,17 +224,10 @@ try {
       await audit("group");
       await button("Invite someone").click();
       await audit("traveler-dialog");
-      await field("Traveler name").fill("Guest Traveler");
-      await field("Traveler email").fill("guest@example.com");
-      await button("Save traveler").click();
-      await saved(page);
-      await button("Manage traveler").click();
-      await audit("traveler-status");
-      await button("Add as guest traveler").click();
-      await saved(page);
-      await button("Change permissions for Guest Traveler").click();
-      await field("Role").selectOption("Day Editor");
-      await audit("permissions-dialog");
+      await field("Email addresses").fill(guestEmail);
+      await field("Email addresses").press("Enter");
+      await expect(page.locator(".recipient-chip")).toHaveText("Guest Traveler");
+      await audit("matched-recipient");
       await button("Close dialog").click();
       await goto("10");
       await audit("reminders");

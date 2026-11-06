@@ -1,5 +1,6 @@
-/** Implementation status: Account guest details, role/day settings, budgets, and repayment markers persist through updateTrip. Provider/OCR/receipt/transaction previews remain simulations; no external messages are sent. See ../IMPLEMENTATION_STATUS.md. */
-import { TEXT_LIMITS, textError, emailError } from "./limits.ts";
+/** Implementation status: Account guest details, role/day settings, budgets, and repayment markers persist through updateTrip. Invitations use Supabase. Provider/OCR/receipt/transaction previews remain simulations. See ../IMPLEMENTATION_STATUS.md. */
+import { RecipientField, useRecipients } from "./recipient-field";
+import { TEXT_LIMITS, textError } from "./limits.ts";
 import React, { useState } from "react";
 import {
   ArrowRight,
@@ -112,99 +113,42 @@ function AuthProvider() {
   );
 }
 function InviteMember() {
-  const { trip: t, s, updateTrip, close, toast } = useApp();
-  const [email, setEmail] = useState(""),
-    [name, setName] = useState(""),
-    [error, setError] = useState("");
-  if (!t || !isOwner(t, s.userId)) return null;
-  return (
-    <Modal title="A trip is better together">
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const problem =
-            textError(name, "Name", TEXT_LIMITS.name, true) ||
-            emailError(email);
-          if (problem) {
-            setError(problem);
-            return;
-          }
-          const address = email.trim().toLowerCase();
-          if (
-            t.members.some((m) => m.email === address && m.status !== "removed")
-          ) {
-            setError("This person is already invited or part of the trip.");
-            return;
-          }
-          updateTrip((t) => {
-            const removed = t.members.find(
-              (m) => m.email === address && m.status === "removed",
-            );
-            if (removed) {
-              removed.name = name.trim();
-              removed.status = "pending";
-              removed.role = "Viewer";
-              removed.days = [];
-              return;
-            }
-            t.members.push({
-              id:
-                t.persistence === "account"
-                  ? uid()
-                  : s.users.find((u) => u.email === address)?.id || uid(),
-              name: name.trim(),
-              email: address,
-              role: "Viewer",
-              days: [],
-              status: "pending",
-            });
-          });
-          toast("Traveler saved. No invitation email was sent.");
+  const { trip, s, invite, close, toast } = useApp();
+  const recipients = useRecipients();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  if (!trip || !isOwner(trip, s.userId)) return null;
+  const live = trip.persistence === "account";
+  return <Modal title="Invite travelers">
+    <form onSubmit={async e => {
+      e.preventDefault();
+      if (busy) return;
+      const emails = recipients.commit();
+      if (!emails?.length) {
+        if (emails) recipients.setError("Add at least one email address.");
+        return;
+      }
+      setBusy(true);
+      setError("");
+      try {
+        const failed = await invite(trip.id, emails);
+        if (failed.length) {
+          recipients.setEmails(failed.map(f => f.email));
+          setError(failed.map(f => f.email + " — " + f.error).join(" "));
+        } else {
+          toast(live ? "Trip shared with your travelers." : "Demo invitations added.");
           close();
-        }}
-      >
-        <Field
-          label={
-            t.persistence === "account" ? "Traveler name" : "Fictional name"
-          }
-        >
-          <input
-            required
-            maxLength={TEXT_LIMITS.name}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Alex Morgan"
-          />
-        </Field>
-        <Field
-          label={
-            t.persistence === "account" ? "Traveler email" : "Fictional email"
-          }
-        >
-          <input
-            type="email"
-            required
-            maxLength={TEXT_LIMITS.email}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="alex@example.com"
-          />
-        </Field>
-        <p className="note">
-          {t.persistence === "account"
-            ? "This saves a guest traveler. Role settings are stored for future collaboration; they do not grant another account access yet."
-            : "They’ll start as a Viewer. Adjust their permissions afterward."}
-        </p>
-        <ErrorBox text={error} />
-        <Button variant="full" type="submit">
-          {t.persistence === "account"
-            ? "Save traveler"
-            : "Create demo invitation"}{" "}
-          <Mail size={16} />
-        </Button>
-      </form>
-    </Modal>
-  );
+        }
+      } catch (issue) { setError(issue instanceof Error ? issue.message : "Could not invite travelers."); }
+      finally { setBusy(false); }
+    }}>
+      <RecipientField recipients={recipients} live={live} users={s.users} disabled={busy}/>
+      <ErrorBox text={error}/>
+      <Button variant="full" type="submit" disabled={busy || (!recipients.emails.length && !recipients.draft.trim())}>
+        <Mail size={16}/> {busy ? "Inviting…" : live ? "Send invitations" : "Invite in demo"}
+      </Button>
+    </form>
+  </Modal>;
 }
 function Permissions() {
   const { trip: t, s, overlay, updateTrip, close, toast } = useApp();

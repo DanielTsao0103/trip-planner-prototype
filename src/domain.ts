@@ -2,6 +2,7 @@ import { TEXT_LIMITS, MONEY_LIMITS, textError } from "./limits.ts";
 /** Domain rules shared by every screen. Amounts are stored in cents. */
 export type Role = "Owner" | "Editor" | "Viewer" | "Day Editor";
 export type Member = {
+  accountId?: string | null;
   id: string;
   name: string;
   email: string;
@@ -140,7 +141,7 @@ export const zoneText = (zone: string) =>
   ZONE_LABELS[zone] ||
   zone.split("/").pop()!.replace(/_/g, " ");
 export const member = (trip: Trip, user: string | null) =>
-  trip.members.find((m) => m.id === user && m.status === "accepted");
+  trip.members.find((m) => (m.id === user || (!!user && m.accountId === user)) && m.status === "accepted");
 export const canEdit = (trip: Trip, user: string | null, date: string) => {
   const m = member(trip, user);
   return (

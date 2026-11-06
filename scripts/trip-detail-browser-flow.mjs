@@ -6,7 +6,7 @@ export const saved = async (page) => {
     timeout: 15000,
   });
 };
-export async function detailJourney(page, base) {
+export async function detailJourney(page, base, travelerEmail) {
   const goto = (route) => page.goto(`${base}#/${route}`);
   const button = (name) => page.getByRole("button", { name, exact: true });
   const field = (name) => page.getByLabel(name, { exact: true });
@@ -25,17 +25,11 @@ export async function detailJourney(page, base) {
   await saved(page);
   await goto("13");
   await button("Invite someone").click();
-  await field("Traveler name").fill("Guest Traveler");
-  await field("Traveler email").fill("guest@example.com");
-  await button("Save traveler").click();
-  await saved(page);
-  await button("Manage traveler").click();
-  await button("Add as guest traveler").click();
-  await saved(page);
-  await button("Change permissions for Guest Traveler").click();
-  await field("Role").selectOption("Day Editor");
-  await page.getByRole("checkbox", { name: /Day 1/ }).check();
-  await button("Save permissions").click();
+  await field("Email addresses").fill(travelerEmail);
+  await field("Email addresses").press("Enter");
+  await expect(page.locator(".recipient-chip")).toHaveText("Guest Traveler");
+  await button("Send invitations").click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await saved(page);
   await goto("7");
   await field("Event name").fill("Museum visit");

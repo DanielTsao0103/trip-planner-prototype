@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { Check } from "lucide-react";
 import { demoStorageKey, loadDemoStore, type DemoAccount } from "./demo-store";
-import { type Store, type Trip, type User, isActive, member } from "./domain";
+import { type Store, type Trip, type User, isActive, isOwner, member } from "./domain";
 import { TripSaveQueue, type PendingTrip } from "./trip-save-queue";
 import { getSupabase } from "./supabase";
 import {
@@ -23,6 +23,7 @@ type Context = {
   s: Store;
   accountTrips: boolean;
   pendingTripIds: string[];
+  invite: (tripId: string, emails: string[]) => Promise<{ email: string; error: string }[]>;
   saveTrip: (trip: Trip) => Promise<void>;
   deleteTrip: (trip: Trip) => Promise<void>;
   signOut: () => Promise<void>;
@@ -242,6 +243,10 @@ export function Provider({
         setMessage("Return to your account before changing a saved trip.");
         return;
       }
+      if (old && !isOwner(old, account.id)) {
+        setMessage("You have Viewer access to this trip.");
+        return;
+      }
       // Keep removed travelers for historical allocations, but hide them from active groups.
       for (const removed of old?.members ?? []) {
         if (!trip.members.some((m) => m.id === removed.id))
@@ -331,6 +336,52 @@ export function Provider({
     s,
     accountTrips: cloud && s.userId === account.id,
     pendingTripIds: [...queue.pending.keys()],
+    invite: async (tripId, emails) => {
+      const current = stateRef.current;
+      const target = current.trips.find(t => t.id === tripId);
+      if (!target || !isOwner(target, current.userId)) throw new Error("Only the trip owner can invite travelers.");
+      if (target.persistence !== "account") {
+        mutate(store => {
+          const trip = store.trips.find(t => t.id === tripId)!;
+          for (const email of emails) {
+            const existing = trip.members.find(m => m.email.toLowerCase() === email);
+            if (existing && existing.status !== "removed") continue;
+            const user = store.users.find(u => u.email.toLowerCase() === email);
+            const guest = { id: existing?.id || user?.id || crypto.randomUUID(), name: user?.name || email.split("@")[0].slice(0,90),
+              email, role: "Viewer" as const, days: [], status: "pending" as const };
+            if (existing) Object.assign(existing,guest);
+            else trip.members.push(guest);
+          }
+        });
+        return [];
+      }
+      if (!cloud || current.userId !== account.id) throw new Error("Return to your account to invite travelers.");
+      await queue.wait(tripId);
+      const client = getSupabase();
+      const failures: { email: string; error: string }[] = [];
+      const unknown: string[] = [];
+      for (const email of emails) {
+        const { data, error } = await client.rpc("share_trip_recipient", { p_trip: tripId, p_email: email });
+        if (error) failures.push({ email, error: error.message });
+        else if (data === "needs_email") unknown.push(email);
+      }
+      if (unknown.length) {
+        const { data, error } = await client.functions.invoke("invite-travelers", { body: { tripId, emails: unknown } });
+        for (const email of unknown) {
+          const result = data?.results?.find((item: { email: string }) => item.email === email);
+          if (error || !result?.ok) failures.push({ email, error: result?.error || "Account invitation could not be sent. Try again." });
+        }
+      }
+      const { data, error } = await client.rpc("read_invited_trip", { p_trip: tripId });
+      if (error) throw new Error("Could not refresh the traveler list. Retry to confirm the invitations.");
+      if (mounted.current && !queue.pending.has(tripId)) {
+        const latest = stateRef.current;
+        const refreshed = tripFromRow(data, account);
+        commit({ ...latest, trips: latest.trips.map(t => t.id === tripId && (t.revision ?? 0) <= (refreshed.revision ?? 0)
+          ? { ...refreshed, imageSource: t.imageSource, imageCredit: t.imageCredit } : t) });
+      }
+      return failures;
+    },
     saveTrip: async (draft) => {
       if (cloud && stateRef.current.userId === account.id && !draft.sample) {
         const pendingDraft = { ...draft, persistence: "account" as const };

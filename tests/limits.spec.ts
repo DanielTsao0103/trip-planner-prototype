@@ -41,7 +41,7 @@ test("text controls cap pasted text and expose counts across all forms", async (
   await page.goto("./#/6");
   await capped(page, "Trip title", 100);
   await capped(page, "Where are you going?", 220);
-  await capped(page, "Invite by email (optional)", 5600);
+  await expect(page.getByLabel("Invite by email (optional)")).toHaveAttribute("maxlength", "5600");
   await noOverflow(page);
   await page.goto("./#/7");
   await capped(page, "Event name", 100);
@@ -58,8 +58,15 @@ test("text controls cap pasted text and expose counts across all forms", async (
   await page
     .getByRole("button", { name: "Invite someone", exact: true })
     .click();
-  await capped(page, "Fictional name", 90);
-  await capped(page, "Fictional email", 280);
+  const recipient = page.getByLabel("Email addresses");
+  await recipient.fill("x".repeat(280) + "@example.com");
+  await recipient.press("Enter");
+  await expect(page.getByRole("alert")).toContainText("280");
+  await recipient.fill("alex@example.com; sam@example.com, ALEX@example.com");
+  await recipient.press("Enter");
+  await expect(page.locator(".recipient-chip")).toHaveCount(2);
+  await page.getByRole("button", {name:"Remove alex@example.com"}).click();
+  await expect(page.locator(".recipient-chip")).toHaveCount(1);
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
   await page.goto("./#/12");
   await page.getByRole("button", { name: "Add expense", exact: true }).click();

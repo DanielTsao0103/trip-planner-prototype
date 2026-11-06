@@ -1,4 +1,4 @@
-/** Implementation status: Account survey answers and guest traveler roles/days are database-backed. Guest records do not grant Auth-account access; actual collaborator invitations are not implemented. See ../IMPLEMENTATION_STATUS.md. */
+/** Implementation status: Account survey answers and guest traveler roles/days are database-backed. Invited accounts have Viewer access. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, textError } from "./limits.ts";
 import React, { useState } from "react";
 import {
@@ -712,7 +712,7 @@ export function Group() {
                 <div>
                   <strong>
                     {m.name}
-                    {m.id === s.userId ? " (you)" : ""}
+                    {(m.id === s.userId || m.accountId === s.userId) ? " (you)" : ""}
                   </strong>
                   <small>{m.email}</small>
                 </div>
@@ -730,7 +730,7 @@ export function Group() {
               <span className={`member-status ${m.status}`}>
                 <span className="status-dot" />
                 {m.status === "accepted"
-                  ? "Joined"
+                  ? (m.accountId ? "Shared" : "Joined")
                   : t.persistence === "account"
                     ? "Pending"
                     : "Invited · demo"}
@@ -738,13 +738,13 @@ export function Group() {
               <div className="collaborator-actions">
                 {owner && m.id !== s.userId && (
                   <>
-                    <button
+                    {!m.accountId && <button
                       className="icon-btn"
                       aria-label={`Change permissions for ${m.name}`}
                       onClick={() => open("permissions", { memberId: m.id })}
                     >
                       <Settings2 size={17} />
-                    </button>
+                    </button>}
                     <button
                       className="icon-btn"
                       aria-label={`Remove ${m.name}`}

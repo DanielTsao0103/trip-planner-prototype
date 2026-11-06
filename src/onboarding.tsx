@@ -1,12 +1,12 @@
+import { RecipientField, useRecipients } from "./recipient-field";
 import { DatePicker } from "./date-picker";
 import { DestinationInput } from "./destination-input";
-/** Implementation status: Real account trip forms persist the complete trip through saveTrip. Standalone demo trips remain browser-local; onboarding guest email lists do not send invitations. See ../IMPLEMENTATION_STATUS.md. */
+/** Implementation status: Real account trip forms persist the complete trip through saveTrip. Standalone demo trips remain browser-local; account invitations run after the trip save succeeds. See ../IMPLEMENTATION_STATUS.md. */
 import {
   TEXT_LIMITS,
   MAX_DESTINATIONS,
   textError,
   emailError,
-  invitationsError,
 } from "./limits.ts";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -727,7 +727,7 @@ export function Trips() {
   );
 }
 export function TripForm() {
-  const { s, user, trip, route, saveTrip, accountTrips, go, toast, open } =
+  const { s, user, trip, route, saveTrip, invite, accountTrips, go, toast, open } =
     useApp();
   const draftId = useRef(uid());
   const saving = useRef(false);
@@ -741,9 +741,10 @@ export function TripForm() {
     [start, setStart] = useState(original?.start || ""),
     [end, setEnd] = useState(original?.end || ""),
     [zone, setZone] = useState(original?.zone || "America/Los_Angeles"),
-    [invites, setInvites] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  const recipients = useRecipients();
+  const [savedId, setSavedId] = useState("");
   const [photoResults, setPhotoResults] = useState<UnsplashPhoto[]>([]);
   const [photoStatus, setPhotoStatus] = useState("");
   const [selectedPhoto, setSelectedPhoto] = useState<UnsplashPhoto | null>(null);
@@ -835,19 +836,8 @@ export function TripForm() {
       );
       return;
     }
-    const inviteProblem = invitationsError(invites);
-    if (inviteProblem) {
-      setError(inviteProblem);
-      return;
-    }
-    const emails = invites
-      .split(/[,\n]+/)
-      .map((x) => x.trim().toLowerCase())
-      .filter(Boolean);
-    if (emails.some((email) => !/^\S+@\S+\.\S+$/.test(email))) {
-      setError("Use valid fictional email addresses, separated by commas.");
-      return;
-    }
+    const emails = recipients.commit();
+    if (!emails) return;
     if (original?.todos.some((todo) => todo.date < start || todo.date > end)) {
       setError("Move or delete reminders outside the new dates first.");
       return;
@@ -865,25 +855,6 @@ export function TripForm() {
       );
       return;
     }
-    const invited = Array.from(new Set(emails))
-      .filter(
-        (email) =>
-          email !== user!.email &&
-          !original?.members.some((m) => m.email === email),
-      )
-      .map((email) => ({
-        id: accountTrips
-          ? uid()
-          : s.users.find((u) => u.email === email)?.id || uid(),
-        name: email
-          .split("@")[0]
-          .replace(/[._]/g, " ")
-          .slice(0, TEXT_LIMITS.name),
-        email,
-        role: "Viewer" as const,
-        days: [],
-        status: "pending" as const,
-      }));
     const draft: Trip = original
       ? structuredClone(original)
       : {
@@ -925,21 +896,31 @@ export function TripForm() {
       draft.imageSource = "unsplash";
       draft.imageCredit = selectedPhoto.credit;
     }
-    draft.members.push(...invited);
     draft.members.forEach((m) => {
       m.days = m.days.filter((d) => d >= start && d <= end);
     });
     saving.current = true;
     setBusy(true);
     try {
-      if (uploadFile) {
+      if (!savedId && uploadFile) {
         if (!accountTrips || !user) throw new Error("Sign in to your account to upload a trip photo.");
         draft.image = await uploadTripPhoto(uploadFile, user.id, draft.id);
         draft.imageSource = "upload";
         draft.imageCredit = undefined;
       }
-      if (selectedPhoto) await trackUnsplashSelection(selectedPhoto.downloadLocation);
-      await saveTrip(draft);
+      if (!savedId && selectedPhoto) await trackUnsplashSelection(selectedPhoto.downloadLocation);
+      if (!savedId) {
+        await saveTrip(draft);
+        setSavedId(draft.id);
+      }
+      if (emails.length) {
+        const failed = await invite(draft.id, emails);
+        if (failed.length) {
+          recipients.setEmails(failed.map(f => f.email));
+          setError("Trip saved. " + failed.map(f => f.email + " — " + f.error).join(" "));
+          return;
+        }
+      }
       go(
         original
           ? 8
@@ -967,7 +948,7 @@ export function TripForm() {
       <form className="form-layout" onSubmit={submit} aria-busy={busy}>
         <div className="card form-card">
           <fieldset
-            disabled={busy}
+            disabled={busy || !!savedId}
             style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
           >
             <div className="step-heading">
@@ -1092,22 +1073,13 @@ export function TripForm() {
                 ))}
               </select>
             </Field>
+          </fieldset>
+          <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
             <div className="step-heading">
               <span>02</span>
               <h2>Bring your people</h2>
             </div>
-            <Field
-              label="Invite by email (optional)"
-              hint={accountTrips ? "Add guests separated by commas, invites will send when you save your trip" : "Use fictional addresses, separated by commas. No invitations are actually sent."}
-            >
-              <textarea
-                rows={2}
-                maxLength={TEXT_LIMITS.invitations}
-                value={invites}
-                onChange={(e) => setInvites(e.target.value)}
-                placeholder="friend@example.com, another@example.com"
-              />
-            </Field>
+            <RecipientField recipients={recipients} live={accountTrips} users={s.users} label="Invite by email (optional)" disabled={busy}/>
             <section
               className="mobile-trip-preview note"
               aria-label="Trip preview"
@@ -1139,7 +1111,7 @@ export function TripForm() {
                 Cancel
               </Button>
               <Button type="submit" disabled={busy}>
-                {busy ? "Saving…" : original ? "Save changes" : "Create trip"}
+                {busy ? "Saving…" : savedId ? (recipients.emails.length || recipients.draft ? "Retry invitations" : "Continue to trip") : original ? "Save changes" : "Create trip"}
                 <ArrowRight size={16} />
               </Button>
             </div>

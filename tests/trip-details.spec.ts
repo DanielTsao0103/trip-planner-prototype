@@ -35,6 +35,19 @@ async function backend(page: Page) {
       return route.fulfill({ json: rows });
     if (path === "/rest/v1/trip_photo_credit" && req.method() === "GET")
       return route.fulfill({ json: [] });
+    if (path.endsWith("/resolve_trip_emails")) return route.fulfill({ json: { "guest@example.test": "Guest Traveler" } });
+    if (path.endsWith("/share_trip_recipient")) {
+      const { p_email, p_trip } = req.postDataJSON();
+      if (p_email !== "guest@example.test") return route.fulfill({ json: "needs_email" });
+      const row = rows.find(t => t.tripID === p_trip);
+      const id = "33333333-3333-4333-8333-333333333333";
+      if (!row.content.members.some((m: {id: string}) => m.id === id)) {
+        row.content.members.push({ id, accountId: id, name: "Guest Traveler", email: p_email, role: "Viewer", days: [], status: "accepted" });
+        row.revision++;
+      }
+      return route.fulfill({ json: "shared" });
+    }
+    if (path.endsWith("/read_invited_trip")) return route.fulfill({ json: rows.find(t => t.tripID === req.postDataJSON().p_trip) });
     if (path.endsWith("/save_trip_bundle")) {
       if (held) await held;
       if (fail) return route.abort("failed");
@@ -107,7 +120,7 @@ test("all detail screens persist changes and preserve financial history", async 
   const api = await backend(page);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  const { today } = await detailJourney(page, baseURL!);
+  const { today } = await detailJourney(page, baseURL!, "guest@example.test");
   const row = api.rows[0],
     c = row.content;
   expect(c.events[0]).toMatchObject({
@@ -118,9 +131,9 @@ test("all detail screens persist changes and preserve financial history", async 
   });
   expect(c.events[0].attendees).toHaveLength(2);
   expect(c.members[1]).toMatchObject({
-    role: "Day Editor",
+    role: "Viewer",
     status: "removed",
-    days: [today],
+    days: [],
   });
   expect(c.prefs[owner.id]).toMatchObject({
     diet: ["Vegetarian"],
@@ -361,6 +374,7 @@ test('weekly calendar reschedules through the save API, reloads, and recovers fa
   await page.getByLabel('New start time',{exact:true}).fill('13:00');
   await page.getByRole('button',{name:'Move event',exact:true}).click();
   await expect.poll(()=>api.rows[0].content.events[0].date).toBe('2027-06-02');
+  await saved(page);
   expect(api.rows[0].content.events[0]).toMatchObject({...event,date:'2027-06-02',start:'13:00',end:'14:30'});
   await page.reload();
   await expect(page.locator('[data-calendar-date="2027-06-02"] .itcal-event')).toContainText('Calendar museum');
@@ -441,4 +455,31 @@ test('location suggestions prioritize the selected trip stop and retain worldwid
  const event=api.rows[0].content.events[0];
  await page.goto(`./#/7?event=${event.id}`);await page.reload();await expect(page.getByLabel('Where',{exact:true})).toHaveValue(event.place);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+});
+
+test("a mixed invite keeps only failed addresses and retries without creating another trip", async ({ page }) => {
+  const api = await backend(page);
+  let attempts = 0;
+  await page.route("**/functions/v1/invite-travelers", route => {
+    const emails = route.request().postDataJSON().emails;
+    expect(emails).toEqual(["new@example.test"]);
+    attempts++;
+    return route.fulfill({ json: { results: [{ email: emails[0], ok: attempts > 1, error: "Email service unavailable." }] } });
+  });
+  await page.goto("./#/6");
+  await page.getByLabel("Trip title", {exact:true}).fill("Shared trip");
+  await page.getByLabel("Where are you going?", {exact:true}).fill("Taipei");
+  await page.getByLabel("Start date", {exact:true}).fill("2027-03-01");
+  await page.getByLabel("End date", {exact:true}).fill("2027-03-03");
+  const field = page.getByLabel("Invite by email (optional)");
+  await field.fill("guest@example.test; NEW@example.test, guest@example.test");
+  await field.press("Enter");
+  await expect(page.locator(".recipient-chip")).toHaveText(["Guest Traveler", "new@example.test"]);
+  await page.getByRole("button", {name:"Create trip",exact:true}).click();
+  await expect(page.getByRole("alert")).toContainText("Email service unavailable.");
+  await expect(page.locator(".recipient-chip")).toHaveText(["new@example.test"]);
+  await page.getByRole("button", {name:"Retry invitations"}).click();
+  await expect(page.getByRole("button", {name:"Shared trip",exact:true})).toBeVisible();
+  expect(api.rows).toHaveLength(1);
+  expect(attempts).toBe(2);
 });
