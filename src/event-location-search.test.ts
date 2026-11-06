@@ -69,3 +69,14 @@ test('cache keys isolate destinations and preserve meaningful address punctuatio
  assert.notEqual(locationSearchKey('12/3 Main Street','Paris'),locationSearchKey('123 Main Street','Paris'));
  assert.equal(locationSearchKey(' T Street ','PARIS'),locationSearchKey('t street','paris'));
 });
+
+test('exact building points keep longitude and latitude in the right order and ambiguous addresses require a choice', async () => {
+  const { exactAddressPoint } = await import('./event-location-search.ts');
+  const building = { properties: {name:'Museum', housenumber:'221B', street:'Baker Street',city:'London',country:'United Kingdom'}, geometry:{coordinates:[-0.15847,51.52376]} };
+  const matches = meetingPlacesFromResponse({features:[building]});
+  assert.deepEqual(exactAddressPoint('221B Baker Street, London', matches), {lat:51.52376,lng:-0.15847});
+  assert.equal(exactAddressPoint('221 Baker Street, London', matches),null);
+  assert.equal(exactAddressPoint('221B Baker Street, Seattle', matches),null);
+  assert.equal(exactAddressPoint('221B Baker Street, London', [...matches,...matches]),null);
+  assert.equal(meetingPlacesFromResponse({features:[{...building,geometry:{coordinates:[51,200]}}]})[0].point,null);
+});

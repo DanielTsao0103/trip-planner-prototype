@@ -1,5 +1,6 @@
 import { TEXT_LIMITS } from './limits.ts';
-export type MeetingPlace = { id: string; name: string; address: string; label: string };
+import type { MapPoint } from "./domain.ts";
+export type MeetingPlace = { id: string; name: string; address: string; label: string; point: MapPoint | null; streetAddress: string; city: string };
 export type SearchFocus = { latitude: number; longitude: number; zoom: number; approximate: boolean };
 type Feature = {properties?: Record<string, unknown>; geometry?: {coordinates?: unknown}};
 const normalized = (value: string) => value.normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,'');
@@ -83,10 +84,13 @@ export function meetingPlacesFromResponse(data: unknown, focus?: SearchFocus | n
     const address = parts(street === name ? '' : street, city === name ? '' : city, text('state') === name ? '' : text('state'), text('country') === name ? '' : text('country'));
     const label = parts(name, address);
     // Never silently truncate an address or bypass the existing database limit.
-    if (label.length > TEXT_LIMITS.location || seen.has(label.toLocaleLowerCase())) return [];
-    seen.add(label.toLocaleLowerCase());
+    const coords = coordinates(feature);
+    const identity = JSON.stringify([label.toLocaleLowerCase(), coords]);
+    if (label.length > TEXT_LIMITS.location || seen.has(identity)) return [];
+    seen.add(identity);
     const compact=normalized(query),nameMatch=!!compact && normalized(name).includes(compact);
-    return [{place:{id:`${text('osm_type')}/${String(p.osm_id ?? label)}`, name, address, label},order,match:nameMatch?0:1,distance:focus?distance(focus,coordinates(feature)):0}];
+    const point = coords ? { lat: coords[1], lng: coords[0] } : null;
+    return [{place:{point,streetAddress:text('housenumber') && text('street') ? street : '',city,id:`${text('osm_type')}/${String(p.osm_id ?? label)}`, name, address, label},order,match:nameMatch?0:1,distance:focus?distance(focus,coordinates(feature)):0}];
   }).sort((a,b)=>focus?(a.match-b.match || a.distance-b.distance || a.order-b.order):a.order-b.order).slice(0,6).map(result=>result.place);
 }
 
@@ -105,4 +109,16 @@ export async function searchMeetingPlaces(value: string, signal: AbortSignal, fo
   const response = await fetch(url, {signal, referrerPolicy:'no-referrer'});
   if (!response.ok) throw new Error('Location search is unavailable');
   return meetingPlacesFromResponse(await response.json(),focus,query);
+}
+
+/** Free text only earns an automatic pin when one full street address matches.
+ * Nearby buildings, streets without a house number, and duplicate matches need a choice. */
+export function exactAddressPoint(input: string, places: MeetingPlace[]): MapPoint | null {
+  const normalize = (text: string) => cacheText(text).replace(/[,\s]+/g, " ");
+  const key = normalize(locationQuery(input));
+  const matches = places.filter(({ label, address, streetAddress, city, point }) => {
+    if (!point || !streetAddress || !city) return false;
+    return [label, address, parts(streetAddress, city)].some(value => normalize(value) === key);
+  });
+  return matches.length === 1 ? matches[0].point : null;
 }

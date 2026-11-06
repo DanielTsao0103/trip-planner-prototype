@@ -4,7 +4,7 @@ import { TEXT_LIMITS } from './limits';
 import { locationQuery, locationSearchKey, resolveSearchFocus, searchMeetingPlaces, type MeetingPlace } from './event-location-search';
 
 const cache = new Map<string, {places:MeetingPlace[];biased:boolean;approximate:boolean}>();
-export function EventLocationInput({value,onChange,destinations=[]}: {value:string;onChange:(value:string)=>void;destinations?:string[]}) {
+export function EventLocationInput({value,onChange,destinations=[],autoFocus=false}: {value:string;onChange:(value:string,point?:MeetingPlace["point"])=>void;destinations?:string[];autoFocus?:boolean}) {
   const id=useId(), list=useRef<HTMLDivElement>(null);
   const [open,setOpen]=useState(false), [active,setActive]=useState(-1);
   const [results,setResults]=useState<MeetingPlace[]>([]);
@@ -42,7 +42,7 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
     return()=>{cancelled=true;clearTimeout(timer);controller.abort();};
   },[query,open,destination]);
   useEffect(()=>{if(active>=0)list.current?.children[active]?.scrollIntoView({block:'nearest'});},[active]);
-  function select(index:number){const result=results[index];if(result){onChange(result.label);setOpen(false);setActive(-1);}}
+  function select(index:number){const result=results[index];if(result){onChange(result.label,result.point);setOpen(false);setActive(-1);}}
   const expanded=open && query.length>=2;
   return <div className="field event-location-field">
     <div className="event-location-bias">
@@ -55,7 +55,7 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
     </div>
     <label htmlFor={`${id}-input`}>Where</label>
     <div className="event-location-input" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setOpen(false);}}>
-    <input id={`${id}-input`} required maxLength={TEXT_LIMITS.location} value={value} role="combobox" aria-label="Where"
+    <input autoFocus={autoFocus} id={`${id}-input`} required maxLength={TEXT_LIMITS.location} value={value} role="combobox" aria-label="Where"
       aria-autocomplete="list" aria-expanded={expanded} aria-controls={`${id}-list`}
       aria-activedescendant={expanded && active>=0 ? `${id}-${active}` : undefined}
       aria-describedby={`${id}-count`} aria-invalid={value.length>TEXT_LIMITS.location || undefined}

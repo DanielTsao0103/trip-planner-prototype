@@ -25,7 +25,7 @@ Planning a group trip often means keeping track of messages, calendars, bookings
 
 [Open full-size diagram](assignment/system-architecture.png) · [Scalable SVG copy](assignment/system-architecture.svg) · [FigJam board — Diagram frame](https://www.figma.com/board/I4HBVhgTCyki0lvjDZyMZ8/Untitled?node-id=44-271)
 
-Solid green paths show connections implemented in source; dashed amber paths show planned connections. Service configuration may still be required; this diagram is a source review, not a fresh live-service audit. Google Maps requires a configured key; Photon/OpenStreetMap provides destination search with a bundled GeoNames fallback. Supabase Auth handles email/password and the implemented Google OAuth flow. Its Data API/RPCs read and save account trips in PostgreSQL, while Supabase Storage holds uploaded cover photos. Edge Functions connect to Unsplash for photo search/selection tracking and Mailtrap for existing rule-based forwarded booking imports. The React frontend was built with AI assistance and is hosted on GitHub Pages; Node.js currently runs build tools, not a deployed application server.
+Solid green paths show connections implemented in source; dashed amber paths show planned connections. Service configuration may still be required; this diagram is a source review, not a fresh live-service audit. The current map uses Leaflet with OpenStreetMap tiles; Photon/OpenStreetMap provides destination search with a bundled GeoNames fallback. Supabase Auth handles email/password and the implemented Google OAuth flow. Its Data API/RPCs read and save account trips in PostgreSQL, while Supabase Storage holds uploaded cover photos. Edge Functions connect to Unsplash for photo search/selection tracking and Mailtrap for existing rule-based forwarded booking imports. The React frontend was built with AI assistance and is hosted on GitHub Pages; Node.js currently runs build tools, not a deployed application server.
 
 The **admin portal is planned**: HTML/CSS pages served by an Express/Node.js server on AWS Elastic Beanstalk, with Amazon RDS PostgreSQL storing receipt drafts, review status, and audit records. These AWS services are proposed hosting choices, not deployed resources. The server will validate admin access and connect to Supabase for authorized trip lookups and approved expense writes. Supabase stays the source of truth for customer trip data; RDS stores the admin processing records.
 
@@ -204,15 +204,11 @@ Failed loads offer retry instead of pretending the account is empty. Failed save
 
 Canvas requires a text entry with the demo video link and the public GitHub repository/README link, one submission per team. The video must be two minutes or less and focus on the vertical slice.
 
-## Google Maps (optional)
+## Trip map
 
-The Map page and the Home map card show a real Google map when a Maps key is configured, and fall back to the illustrative demo map when it is not. Places from the trip's events are located with the Geocoding API and shown as numbered pins; the side panel links to walking directions in Google Maps.
+The map uses Leaflet and OpenStreetMap tiles. Selecting a Photon address saves its coordinates with the event. A unique street-address match can also place a typed address. For an older or ambiguous address, select the event on the map, choose **Place pin**, and confirm the spot. Choose **Adjust pin** to move it to an entrance or meeting point.
 
-1. In Google Cloud Console, create or choose a project, turn on billing, and enable **Maps JavaScript API** and **Geocoding API**.
-2. Create an API key. Under **Application restrictions** choose **Websites** and allow `https://danieltsao0103.github.io/*` and `http://127.0.0.1:5190/*`. Under **API restrictions** limit it to those two APIs. A browser key is visible to anyone who opens the site, so these restrictions are what protect it. Set a low daily quota or budget alert.
-3. Locally, put it in `.env.local` as `VITE_GOOGLE_MAPS_API_KEY` and restart Vite. For the live site, add the same name as a repository Actions variable and redeploy.
-
-If the key is rejected or the script cannot load, the app switches to the demo map instead of showing a broken page.
+Accepted travelers read the same event records. An open map refreshes on focus and every 15 seconds while visible. Device location and viewport stay local. Directions open in Google Maps at the saved coordinates.
 
 ## Database and Sample Data
 
@@ -227,7 +223,7 @@ The pre-recording database inspection on October 10, 2026 found 6 `user` rows, 2
 | `src/prototype.tsx`, `src/onboarding.tsx`, `src/planning.tsx` | Planner screens and navigation |
 | `src/account-trips.ts`, `src/state.tsx` | Account trip persistence, loading, and local preview state |
 | `src/demo-store.ts`, `src/data.ts` | Preserved browser-only saves and fictional samples |
-| `src/finance.tsx`, `src/group.tsx`, `src/travelmap.tsx` | Budget, group, and illustrative map screens |
+| `src/finance.tsx`, `src/group.tsx`, `src/travelmap.tsx` | Budget, group, and shared map screens |
 | `src/styles.css` | Responsive interface styling |
 | `assignment/team-erd.png` | Team ERD verified against the existing five-table schema |
 | `public/screens/` | Historical screenshot gallery; some screens predate real Auth |
@@ -235,7 +231,7 @@ The pre-recording database inspection on October 10, 2026 found 6 `user` rows, 2
 
 ## Publishing
 
-GitHub Actions runs `.github/workflows/pages.yml` on pushes to `main` and pull requests. It installs the locked dependencies, runs the unit tests, builds the site, and runs desktop/mobile browser tests. A passing main-branch build deploys `dist/` to GitHub Pages and checks the live `version.json` against the deployed commit. Set Pages source to **GitHub Actions** and configure repository Actions variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (and optionally `VITE_GOOGLE_MAPS_API_KEY`, see Google Maps above). Never add private credentials to those variables.
+GitHub Actions runs `.github/workflows/pages.yml` on pushes to `main` and pull requests. It installs the locked dependencies, runs the unit tests, builds the site, and runs desktop/mobile browser tests. A passing main-branch build deploys `dist/` to GitHub Pages and checks the live `version.json` against the deployed commit. Set Pages source to **GitHub Actions** and configure repository Actions variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Never add private credentials to those variables.
 
 Commit source and assignment documentation; `docs/` and `dist/` are generated and ignored. Keep the README image in `assignment/team-erd.png` so it can be committed. Open app tabs offer **Reload app** when they detect a new release.
 

@@ -57,7 +57,9 @@ try {
         days: [],
       },
     ],
-    events: [],
+    events: [{ id: randomUUID(), name: "Museum entrance", place: "221B Baker Street, London",
+      point: { lat: 51.52376, lng: -0.15847 }, date: "2027-01-01", start: "10:00",
+      end: "11:00", cost: 0, notes: "", image: "", attendees: [user.id] }],
     expenses: [],
     prefs: {},
     individual: {},
@@ -119,6 +121,7 @@ try {
   );
   assert.equal(check(await share()), "shared");
   const row = check(await guest.rpc("read_invited_trip", { p_trip: tripId }));
+  assert.deepEqual(row.content.events[0].point, draft.events[0].point);
   assert.equal(row.content.members.length, 2);
   assert.equal(row.content.members[1].name, "Invited Traveler");
   assert.equal(row.content.members[1].accountId, invitation.user.id);
@@ -150,18 +153,29 @@ try {
   draft.prefs = submitted.content.prefs;
   draft.members = row.content.members;
   draft.title = "Edited after sharing";
+  draft.events[0].point = { lat: 51.523748, lng: -0.1585699 };
   const edited = check(await save(draft, submitted.revision));
+  const shared = check(await guest.rpc("read_invited_trip", { p_trip: tripId }));
+  assert.deepEqual(shared.content.events[0].point, draft.events[0].point);
+  const invalid = structuredClone(draft);
+  invalid.events[0].point.lat = 91;
+  assert.ok((await save(invalid, edited.revision)).error);
+  const olderClient = structuredClone(draft);
+  delete olderClient.events[0].point;
+  const preserved = check(await save(olderClient, edited.revision));
+  assert.deepEqual(preserved.content.events[0].point, draft.events[0].point);
+  draft.events[0].point = null;
   assert.ok(
     check(await guest.rpc("load_trip_bundles")).some(
       (t) => t.tripID === tripId,
     ),
   );
   draft.members[1].status = "removed";
-  check(await save(draft, edited.revision));
+  assert.equal(check(await save(draft, preserved.revision)).content.events[0].point, null);
   assert.ok((await guest.rpc("read_invited_trip", { p_trip: tripId })).error);
   assert.equal((await submit(guest)).error?.code, "42501");
   console.log(
-    "Account setup, sharing, survey persistence, stale owner edits, and revocation passed.",
+    "Account setup, shared pin creation and correction, survey persistence, stale owner edits, and access revocation passed.",
   );
   assert.equal(
     destination.origin + destination.pathname,

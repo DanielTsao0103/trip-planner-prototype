@@ -1,9 +1,10 @@
+import { exactAddressPoint, searchMeetingPlaces } from "./event-location-search";
 import { EventLocationInput } from "./event-location-input";
 import { WeeklyCalendar } from "./weekly-calendar";
 /** Implementation status: Account events, todos, and dismissed choices save through updateTrip to Supabase. Confirmation extraction, crowds, costs, and suggestions remain fixtures; uploaded file previews are temporary. See ../IMPLEMENTATION_STATUS.md. */
 import { DatePicker } from "./date-picker";
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -310,6 +311,7 @@ export function EventForm() {
     [place, setPlace] = useState(
       original?.place || route.params.get("place") || "",
     ),
+    [point, setPoint] = useState(original?.point ?? null),
     [date, setDate] = useState(original?.date || dateParam),
     [start, setStart] = useState(
       original?.start || route.params.get("start") || "15:00",
@@ -337,6 +339,7 @@ export function EventForm() {
         return;
       }
       setName("An afternoon at the gallery");
+      setPoint(null);
       setPlace(
         t.sample
           ? "Cedar Gallery · downtown"
@@ -349,8 +352,14 @@ export function EventForm() {
       setMode("manual");
     }, 700);
   };
-  const submit = (e: React.FormEvent) => {
+  const formActive = useRef(true);
+  useEffect(() => {
+    formActive.current = true;
+    return () => { formActive.current = false; };
+  }, []);
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     const inputProblem =
       textError(name, "Event name", TEXT_LIMITS.eventName, true) ||
       textError(place, "Location", TEXT_LIMITS.location, true) ||
@@ -363,6 +372,7 @@ export function EventForm() {
       id: original?.id || uid(),
       name: name.trim(),
       place: place.trim(),
+      point,
       date,
       start,
       end,
@@ -377,7 +387,15 @@ export function EventForm() {
       return;
     }
     setBusy(true);
+    if (!event.point && /\d/.test(event.place)) {
+      try {
+        const matches = await searchMeetingPlaces(event.place, AbortSignal.timeout(3000));
+        event.point = exactAddressPoint(event.place, matches);
+      } catch { /* Keep the address. The owner can place its pin from the map. */ }
+    }
+    if (!formActive.current) return;
     updateTrip((v) => {
+      if (v.id !== t.id) return;
       const index = v.events.findIndex((e) => e.id === event.id);
       if (index >= 0) v.events[index] = event;
       else v.events.push(event);
@@ -513,7 +531,7 @@ export function EventForm() {
                   placeholder="A morning at the museum"
                 />
               </Field>
-              <EventLocationInput value={place} onChange={setPlace} destinations={t.destinations} />
+              <EventLocationInput value={place} onChange={(label, position) => { setPlace(label); setPoint(position ?? null); }} destinations={t.destinations} />
               <Field label="Day">
                 <select value={date} onChange={(e) => setDate(e.target.value)}>
                   {days(t.start, t.end).map((d, i) => (
@@ -1060,12 +1078,12 @@ export function Dashboard() {
         </div>
         <Button
           variant="outline"
-          onClick={() => go(17, next ? { place: next.place } : {})}
+          onClick={() => go(17, next ? { event: next.id } : {})}
         >
           Open map <ArrowUpRight size={16} />
         </Button>
       </div>
-      <TravelMap compact selectedPlace={next?.place} />
+      <TravelMap compact selectedEvent={next?.id} />
       {!todays.length && (
         <Empty
           title="Your day is wide open."
@@ -1167,7 +1185,7 @@ export function DayDetail() {
                   <h2>{e.name}</h2>
                   <button
                     className="text-link"
-                    onClick={() => go(17, { place: e.place })}
+                    onClick={() => go(17, { event: e.id })}
                   >
                     <MapPin size={14} />
                     {e.place}

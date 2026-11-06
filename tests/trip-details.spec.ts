@@ -398,7 +398,7 @@ test('weekly calendar reschedules through the save API, reloads, and recovers fa
 
 test('event location autocomplete selects a worldwide landmark, saves, reloads, and keeps manual entry on outage',async({page})=>{
  const api=await backend(page);
- await page.route('https://photon.komoot.io/api/**',route=>route.fulfill({json:{features:[{properties:{osm_type:'W',osm_id:1,name:'Eiffel Tower',housenumber:'5',street:'Avenue Anatole France',city:'Paris',country:'France'}}]}}));
+ await page.route('https://photon.komoot.io/api/**',route=>route.fulfill({json:{features:[{geometry:{coordinates:[2.29448,48.85837]},properties:{osm_type:'W',osm_id:1,name:'Eiffel Tower',housenumber:'5',street:'Avenue Anatole France',city:'Paris',country:'France'}}]}}));
  const id='77777777-7777-4777-8777-777777777777';
  api.rows.push({tripID:id,owner_id:owner.id,created_by:owner.id,trip_name:'Location test',destinations:['Paris, France'],start_date:'2027-06-01',end_date:'2027-06-03',timezone:'Europe/Paris',revision:1,content_version:1,content:{image:'',members:[{id:owner.id,name:'QA Traveler',email:owner.email,role:'Owner',status:'accepted',days:[]}],events:[],expenses:[],prefs:{},budget:null,budgetMode:'group',individual:{},todos:[],dismissed:[]}});
  await page.goto('./#/5');await page.reload();await page.getByRole('button',{name:'Open itinerary',exact:true}).click();await page.getByRole('button',{name:'Add event',exact:true}).click();
@@ -417,6 +417,7 @@ test('event location autocomplete selects a worldwide landmark, saves, reloads, 
  await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
  await expect.poll(()=>api.rows[0].content.events[0]?.place).toBe(label);
  const event=api.rows[0].content.events[0];
+ expect(event.point).toEqual({lat:48.85837,lng:2.29448});
  await page.goto(`./#/7?event=${event.id}`);await page.reload();await expect(page.getByLabel('Where',{exact:true})).toHaveValue(label);
  await page.unroute('https://photon.komoot.io/api/**');await page.route('https://photon.komoot.io/api/**',route=>route.abort('failed'));
  await page.getByLabel('Where',{exact:true}).fill('Our hotel lobby');await expect(page.getByText('Search unavailable',{exact:true})).toBeVisible();

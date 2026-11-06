@@ -934,10 +934,10 @@ export function Overlays() {
               <Button
                 onClick={() => {
                   mutate((v) => (v.noticeDismissed = true));
-                  go(17, { place: "Cedar Gallery · nearby sample" });
+                  go(17);
                 }}
               >
-                Go <ArrowRight size={17} />
+                Open trip map <ArrowRight size={17} />
               </Button>
             </div>
           </>

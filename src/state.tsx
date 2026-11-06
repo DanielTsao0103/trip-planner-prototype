@@ -1,3 +1,4 @@
+import { useSharedMapSync } from "./shared-map-sync";
 import React, {
   createContext,
   useContext,
@@ -21,6 +22,7 @@ export type Route = { page: number; params: URLSearchParams };
 export type Overlay = { kind: string; data?: any } | null;
 type Context = {
   s: Store;
+  mapSyncOffline: boolean;
   accountTrips: boolean;
   pendingTripIds: string[];
   invite: (tripId: string, emails: string[]) => Promise<{ email: string; error: string }[]>;
@@ -261,6 +263,11 @@ export function Provider({
   };
   const user = s.users.find((u) => u.id === s.userId);
   const trip = s.trips.find((t) => t.id === s.tripId && member(t, s.userId));
+  const mapSyncOffline = useSharedMapSync(
+    cloud && loadState === "ready" && trip?.persistence === "account" &&
+      s.userId === account.id && [10, 17].includes(route.page) ? trip.id : undefined,
+    account, stateRef, queue, commit);
+
   useEffect(() => {
     const handler = () => {
       setRoute(readRoute());
@@ -335,6 +342,7 @@ export function Provider({
   };
   const value: Context = {
     s,
+    mapSyncOffline,
     accountTrips: cloud && s.userId === account.id,
     pendingTripIds: [...queue.pending.keys()],
     invite: async (tripId, emails) => {

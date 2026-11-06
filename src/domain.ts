@@ -1,3 +1,4 @@
+export type MapPoint = { lat: number; lng: number };
 import { TEXT_LIMITS, MONEY_LIMITS, textError } from "./limits.ts";
 /** Domain rules shared by every screen. Amounts are stored in cents. */
 export type Role = "Owner" | "Editor" | "Viewer" | "Day Editor";
@@ -35,6 +36,7 @@ export type Event = {
   image: string;
   notes: string;
   place: string;
+  point?: MapPoint | null;
 };
 export type Expense = {
   id: string;
