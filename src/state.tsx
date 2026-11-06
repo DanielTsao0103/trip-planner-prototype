@@ -242,6 +242,7 @@ export function Provider({
     window.scrollTo(0, 0);
   };
   const mutate = (fn: (store: Store) => void) => {
+    if (!mounted.current) return;
     const previous = stateRef.current;
     const next = structuredClone(previous);
     fn(next);

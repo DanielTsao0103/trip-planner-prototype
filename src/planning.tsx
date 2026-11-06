@@ -4,7 +4,7 @@ import { WeeklyCalendar } from "./weekly-calendar";
 /** Implementation status: Account events, todos, and dismissed choices save through updateTrip to Supabase. Confirmation extraction, crowds, costs, and suggestions remain fixtures; uploaded file previews are temporary. See ../IMPLEMENTATION_STATUS.md. */
 import { DatePicker } from "./date-picker";
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -312,7 +312,7 @@ function UnavailableItineraryItem({ onReturn, label }: { onReturn: () => void; l
 }
 
 export function EventForm() {
-  const { trip: t, s, route, go, updateTrip, toast } = useApp();
+  const { trip: t, s, route, go, mutate, updateTrip, toast } = useApp();
   if (!t) return null;
   const original = t.events.find((e) => e.id === route.params.get("event"));
   const dateParam = route.params.get("date") || t.start;
@@ -363,11 +363,6 @@ export function EventForm() {
       setMode("manual");
     }, 700);
   };
-  const formActive = useRef(true);
-  useEffect(() => {
-    formActive.current = true;
-    return () => { formActive.current = false; };
-  }, []);
   const returnTo = route.params.get("return");
   const leaveForm = (day: string, eventId?: string) => {
     if (returnTo === "17") go(17, eventId ? { event: eventId } : {});
@@ -382,7 +377,7 @@ export function EventForm() {
       onReturn={() => leaveForm(dateParam)}
     />;
   }
-  const submit = async (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
     const inputProblem =
@@ -413,15 +408,11 @@ export function EventForm() {
       return;
     }
     setBusy(true);
-    if (!event.point && !event.googlePlaceId) {
-      event.googlePlaceId = await resolveSavedLocation(event.place, t.destinations);
-    }
-    if (!formActive.current) return;
     let applied = false;
     updateTrip((v) => {
       if (v.id !== t.id) return;
       const index = v.events.findIndex((e) => e.id === event.id);
-      // The shared item can disappear while its new address is resolving.
+      // A remotely removed event must not be recreated by this form.
       if (original && index === -1) return;
       if (index >= 0) v.events[index] = event;
       else v.events.push(event);
@@ -431,6 +422,19 @@ export function EventForm() {
       setBusy(false);
       setError("The itinerary changed. Reopen the item to try again.");
       return;
+    }
+    // Save the actual edit first. An optional lookup must never strand a submitted
+    // event on the form or overwrite later edits, even when the user navigates away.
+    if (!event.point && !event.googlePlaceId && original?.place !== event.place) {
+      void resolveSavedLocation(event.place, t.destinations).then(placeId => {
+        if (!placeId) return;
+        mutate(store => {
+          const target = store.trips.find(trip => trip.id === t.id);
+          const current = target?.events.find(item => item.id === event.id);
+          if (target && current && store.userId === s.userId && canEdit(target, store.userId, current.date)
+            && current.place === event.place && !current.point && !current.googlePlaceId) current.googlePlaceId = placeId;
+        });
+      });
     }
     toast(
       original

@@ -427,8 +427,19 @@ test('event location autocomplete selects a worldwide landmark, saves, reloads, 
  await page.goto(`./#/7?event=${event.id}`);await page.reload();await expect(page.getByLabel('Where',{exact:true})).toHaveValue(label);
  await page.unroute('https://photon.komoot.io/api/**');await page.route('https://photon.komoot.io/api/**',route=>route.abort('failed'));
  await page.getByLabel('Where',{exact:true}).fill('Our hotel lobby');await expect(page.getByText('Search unavailable',{exact:true})).toBeVisible();
+ await page.evaluate(() => {
+   class Geocoder {
+     async geocode() {
+       await new Promise(resolve => window.addEventListener('release-geocode', resolve, { once: true }));
+       return { results: [{ place_id: 'hotel-lobby', types: ['establishment'], geometry: {location: {toJSON: () => ({lat: 1, lng: 2})}} }] };
+     }
+   }
+   Object.assign(window, {google: {maps: {importLibrary: async () => ({Geocoder})}}});
+ });
  await page.getByLabel('Where',{exact:true}).press('Escape');await page.getByRole('button',{name:'Save changes',exact:true}).click();
  await expect.poll(()=>api.rows[0].content.events[0]?.place).toBe('Our hotel lobby');
+ await page.evaluate(() => window.dispatchEvent(new Event('release-geocode')));
+ await expect.poll(()=>api.rows[0].content.events[0]?.googlePlaceId).toBe('hotel-lobby');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
 });
 
