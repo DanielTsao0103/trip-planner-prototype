@@ -289,7 +289,7 @@ Signed-in accounts see a "Forwarded booking" section on Home. Forward a confirma
 | Save account reschedules through the existing Supabase save/recovery path | Complete — calendar UI move verified against the live relational event table |
 | Verify database round-trip and public deployment | Complete — release is gated by the Pages tests and live-revision check |
 
-On narrow screens the calendar scrolls horizontally within its own region. Drag/drop snaps to 30-minute slots; the Move dialog accepts exact start times. Times use the trip time zone.
+On narrow screens the calendar scrolls horizontally within its own region. The time shown at the dragged event's top edge is its start time, rounded to the nearest minute. The Move dialog also accepts exact start times. Times use the trip time zone.
 
 ## Event location autocomplete requirements
 

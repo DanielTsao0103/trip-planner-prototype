@@ -380,9 +380,18 @@ test('weekly calendar reschedules through the save API, reloads, and recovers fa
   await page.reload();
   await expect(page.locator('[data-calendar-date="2027-06-02"] .itcal-event')).toContainText('Calendar museum');
   if(testInfo.project.name==='desktop') {
-    await page.locator('.itcal-event').dragTo(page.locator('[data-calendar-date="2027-06-03"]'), {targetPosition:{x:50,y:450}});
-    await expect.poll(()=>api.rows[0].content.events[0].date).toBe('2027-06-03');
-    expect(api.rows[0].content.events[0].end).toBe('14:30');
+    const day = page.locator('[data-calendar-date="2027-06-03"]');
+    const card = page.locator('.itcal-event');
+    const sourcePosition = { x: 12, y: 39 };
+    // Three hours below the 7 AM start. The pointer stays 39px below the card's top.
+    await card.dragTo(day, { sourcePosition, targetPosition: { x: 50, y: 3 * 72 + 39 } });
+    await expect.poll(() => api.rows[0].content.events[0]).toMatchObject({
+      date: '2027-06-03', start: '10:00', end: '11:30',
+    });
+    await card.dragTo(day, { sourcePosition, targetPosition: { x: 50, y: 3 * 72 + 39 + 8 } });
+    await expect.poll(() => api.rows[0].content.events[0]).toMatchObject({
+      date: '2027-06-03', start: '10:07', end: '11:37',
+    });
   }
   api.setFail(true);
   await page.getByRole('button',{name:'Move Calendar museum',exact:true}).click();

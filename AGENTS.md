@@ -81,3 +81,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Use the theme’s paper and ink colors together for the invite email field. Check typed, unselected text in both light and dark mode.
 
 - Use the same destination-neutral travel photos for every trip invitation, regardless of the trip cover or destination.
+
+- Calendar dragging uses the event’s top edge and rounds to the nearest minute. Aligning that edge with the 10 AM line must save 10:00 AM wherever the card was grabbed.

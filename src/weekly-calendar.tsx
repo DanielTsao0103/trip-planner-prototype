@@ -15,6 +15,8 @@ export function WeeklyCalendar() {
   const [moveDate, setMoveDate] = useState('');
   const [moveStart, setMoveStart] = useState('');
   const [dragging, setDragging] = useState<string | null>(null);
+  const grabOffset = useRef(0);
+  const [preview, setPreview] = useState<{ date: string; minute: number } | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
   useEffect(() => { setPage(0); setError(''); }, [trip?.id, trip?.start, trip?.end]);
@@ -52,14 +54,31 @@ export function WeeklyCalendar() {
     const message = `${result.event.name} moved to ${dateText(date, true)} at ${timeText(start)}.`;
     closeMove(); setNotice(message); setDragging(null);
   }
+  function clearDrag() {
+    setDragging(null);
+    setPreview(null);
+  }
+  function startMinute(event: React.DragEvent<HTMLDivElement>) {
+    // The card's top edge sets its start, even when grabbed near the bottom.
+    const dayTop = event.currentTarget.getBoundingClientRect().top;
+    const top = event.clientY - dayTop - grabOffset.current;
+    const minute = firstHour * 60 + Math.round(top * 60 / HOUR_HEIGHT);
+    return Math.max(firstHour * 60, Math.min(lastHour * 60 - 1, minute));
+  }
+  function dragOver(event: React.DragEvent<HTMLDivElement>, date: string) {
+    if (!dragging || !canEdit(trip!, s.userId, date)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const minute = startMinute(event);
+    if (preview?.date !== date || preview.minute !== minute) setPreview({ date, minute });
+  }
   function drop(event: React.DragEvent<HTMLDivElement>, date: string) {
     event.preventDefault();
     const id = event.dataTransfer.getData('application/x-trip-event');
-    if (!id || !canEdit(trip!, s.userId, date)) { setDragging(null); return; }
-    const rect = event.currentTarget.getBoundingClientRect();
-    const time = Math.floor((event.clientY - rect.top) / HOUR_HEIGHT * 2) * 30 + firstHour * 60;
-    move(id, date, clock(Math.max(firstHour * 60, Math.min(lastHour * 60 - 30, time))));
-    setDragging(null);
+    if (id && id === dragging && canEdit(trip!, s.userId, date)) {
+      move(id, date, clock(startMinute(event)));
+    }
+    clearDrag();
   }
   return <section className="weekly-calendar" aria-label="Seven-day itinerary calendar">
     <div className="itcal-toolbar">
@@ -68,7 +87,7 @@ export function WeeklyCalendar() {
         <h3 aria-live="polite">{dateText(firstDate, true)} – {dateText(dates[6], true)}</h3>
         <Button variant="outline" aria-label="Next seven days" disabled={safePage === lastPage} onClick={() => { setPage(safePage + 1); setError(''); }}><ChevronRight size={18}/></Button>
       </div>
-      <span className="muted">{trip.zone.replaceAll('_', ' ')} · 30-minute drop intervals</span>
+      <span className="muted">{trip.zone.replaceAll('_', ' ')}</span>
     </div>
     <p className="calendar-help">Drag an event to change its day or time, or choose Move. Scroll sideways to see all seven days on smaller screens.</p>
     {!moving && <ErrorBox text={error}/>}
@@ -89,16 +108,31 @@ export function WeeklyCalendar() {
         </div>
         {dates.map(date => <div key={date} data-calendar-date={date}
           className={`itcal-day ${date > trip.end ? 'outside-trip' : ''} ${dragging && canEdit(trip,s.userId,date) ? 'can-drop' : ''}`}
-          style={{height}} onDragOver={event => { if (dragging && canEdit(trip,s.userId,date)) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }}
+          style={{height}} onDragOver={event => dragOver(event, date)}
+          onDragLeave={event => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              setPreview(current => current?.date === date ? null : current);
+            }
+          }}
           onDrop={event => drop(event,date)} aria-label={`Events on ${date}`}>
           {hours.map(hour => <div key={hour} className="itcal-hour-line" style={{top:(hour-firstHour)*HOUR_HEIGHT}} aria-hidden="true"/>)}
+          {preview?.date === date && <div className="itcal-drop-preview" aria-hidden="true"
+            style={{ top: (preview.minute - firstHour * 60) * HOUR_HEIGHT / 60 }}>
+            <span>{timeText(clock(preview.minute))}</span>
+          </div>}
           {orderedEvents(trip,date).map(event => {
             const editable = canEdit(trip,s.userId,event.date);
             return <article key={event.id} className={`itcal-event ${dragging === event.id ? 'is-dragging' : ''}`}
               data-event-id={event.id} draggable={editable} aria-label={`${event.name}, ${timeText(event.start)} to ${timeText(event.end)}`}
               style={{top:(minutes(event.start)-firstHour*60)/60*HOUR_HEIGHT,height:Math.max(46,(minutes(event.end)-minutes(event.start))/60*HOUR_HEIGHT-3)}}
-              onDragStart={e => { e.dataTransfer.setData('application/x-trip-event',event.id); e.dataTransfer.effectAllowed='move'; setDragging(event.id); setError(''); }}
-              onDragEnd={() => setDragging(null)}>
+              onDragStart={e => {
+                grabOffset.current = e.clientY - e.currentTarget.getBoundingClientRect().top;
+                e.dataTransfer.setData('application/x-trip-event', event.id);
+                e.dataTransfer.effectAllowed = 'move';
+                setDragging(event.id);
+                setError('');
+              }}
+              onDragEnd={clearDrag}>
               <button type="button" className="itcal-event-title" title={event.name} onClick={() => go(7,{event:event.id,date:event.date,view:"calendar"})}>{event.name}</button>
               <span className="itcal-event-time">{timeText(event.start)}–{timeText(event.end)}</span>
               <span className="itcal-event-place">{event.place}</span>
