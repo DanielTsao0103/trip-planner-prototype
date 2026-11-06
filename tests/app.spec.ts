@@ -1,3 +1,4 @@
+import { expectUnderInput } from './popup-alignment';
 import { test, expect, type Page } from '@playwright/test';
 
 const account = { id: '11111111-1111-4111-8111-111111111111', aud: 'authenticated', role: 'authenticated', email: 'qa@example.com', email_confirmed_at: '2026-01-01T00:00:00Z', app_metadata: { provider: 'email', providers: ['email'] }, user_metadata: { name: 'QA Traveler' }, created_at: '2026-01-01T00:00:00Z' };
@@ -61,6 +62,29 @@ async function openAccount(page: Page) {
 async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 }
+
+test('destination suggestions and both calendars open directly below their fields', async ({ page }) => {
+  await demo(page);
+  await page.goto('./#/6');
+  const destination = page.getByRole('combobox', { name: 'Where are you going?' });
+  await destination.fill('France');
+  const menu = page.locator('.destination-menu');
+  await expectUnderInput(destination, menu);
+  await expect(menu.getByRole('option').first()).toBeVisible();
+  await destination.press('ArrowDown');
+  await destination.press('Enter');
+  await expect(menu).toBeHidden();
+  for (const [label, edge] of [['Start date', 'left'], ['End date', 'right']] as const) {
+    const date = page.getByLabel(label, { exact: true });
+    await date.click();
+    const calendar = page.getByRole('dialog', { name: label + ' calendar' });
+    await expectUnderInput(date, calendar, edge);
+    await calendar.getByRole('button', { name: 'Next month' }).click();
+    await calendar.locator('.date-day:enabled').first().click();
+    await expect(calendar).toBeHidden();
+    await expect(date).not.toHaveValue('');
+  }
+});
 
 test('trip photo search follows the chosen destination and keeps two to five options', async ({ page }) => {
   const searches: string[] = [];

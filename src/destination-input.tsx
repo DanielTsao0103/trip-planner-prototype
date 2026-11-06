@@ -65,7 +65,7 @@ export function DestinationInput({ value, onChange, onAdd }: {
   return <div className="destination-search" onBlur={e => {
     if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
   }}>
-    <div className="input-action">
+    <div className="input-action field-popup-anchor">
       <input maxLength={TEXT_LIMITS.destination} value={value} aria-label="Where are you going?" role="combobox"
         aria-describedby={tooLong ? `${id}-length-error` : undefined} aria-invalid={tooLong || undefined}
         aria-autocomplete="list" aria-expanded={visible} aria-controls={id}
@@ -85,23 +85,23 @@ export function DestinationInput({ value, onChange, onAdd }: {
         }} />
       <button type="button" className="btn btn-outline" disabled={!query}
         onClick={() => { onAdd(); setOpen(false); }}>Add</button>
+      {visible && <div className="field-popup destination-menu">
+        <div className="destination-caption">{query.length < 2 ? "SEARCH WORLDWIDE" : matches.length ? "SUGGESTED PLACES" : status === "loading" ? "SEARCHING WORLDWIDE…" : status === "offline" ? "SEARCH TEMPORARILY UNAVAILABLE" : "NO MATCHING PLACES"}</div>
+        <div ref={listRef} id={id} role="listbox" aria-label="Destination suggestions">
+          {matches.map((p, i) => <div key={p.label} role="option" id={`${id}-${i}`}
+            aria-selected={active === i} className={`destination-option ${active === i ? "active" : ""}`}
+            onMouseDown={e => e.preventDefault()} onMouseEnter={() => setActive(i)} onClick={() => choose(i)}>
+            <span className="destination-icon"><MapPin size={18} /></span>
+            <span className="destination-name"><strong>{p.name}</strong><small>{p.detail}</small></span>
+            <span className="destination-kind">{p.kind}</span><ArrowUpLeft size={15}/>
+          </div>)}
+        </div>
+        <div className="destination-foot" role="status" aria-live="polite">
+          {query.length < 2 ? "Type at least 2 characters to find a city, region or country." : status === "offline" ? "Live search unavailable. You can still add a destination manually." : matches.length ? "↑ ↓ to explore · Enter to select" : status === "loading" ? "Finding places…" : "Try another spelling, or add this destination using Add."}
+        </div>
+        <div className="destination-attribution">Places by <a href="https://www.geonames.org/" target="_blank" rel="noreferrer">GeoNames</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a></div>
+      </div>}
     </div>
     {tooLong && <small id={`${id}-length-error`}>Shorten this destination to {TEXT_LIMITS.destination} characters or fewer.</small>}
-    {visible && <div className="destination-menu">
-      <div className="destination-caption">{query.length < 2 ? "SEARCH WORLDWIDE" : matches.length ? "SUGGESTED PLACES" : status === "loading" ? "SEARCHING WORLDWIDE…" : status === "offline" ? "SEARCH TEMPORARILY UNAVAILABLE" : "NO MATCHING PLACES"}</div>
-      <div ref={listRef} id={id} role="listbox" aria-label="Destination suggestions">
-        {matches.map((p, i) => <div key={p.label} role="option" id={`${id}-${i}`}
-          aria-selected={active === i} className={`destination-option ${active === i ? "active" : ""}`}
-          onMouseDown={e => e.preventDefault()} onMouseEnter={() => setActive(i)} onClick={() => choose(i)}>
-          <span className="destination-icon"><MapPin size={18} /></span>
-          <span className="destination-name"><strong>{p.name}</strong><small>{p.detail}</small></span>
-          <span className="destination-kind">{p.kind}</span><ArrowUpLeft size={15}/>
-        </div>)}
-      </div>
-      <div className="destination-foot" role="status" aria-live="polite">
-        {query.length < 2 ? "Type at least 2 characters to find a city, region or country." : status === "offline" ? "Live search unavailable. You can still add a destination manually." : matches.length ? "↑ ↓ to explore · Enter to select" : status === "loading" ? "Finding places…" : "Try another spelling, or add this destination using Add."}
-      </div>
-      <div className="destination-attribution">Places by <a href="https://www.geonames.org/" target="_blank" rel="noreferrer">GeoNames</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a></div>
-    </div>}
   </div>;
 }

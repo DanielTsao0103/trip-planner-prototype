@@ -120,7 +120,7 @@ export function DatePicker({
   return (
     <div className="field date-field" ref={root}>
       <label htmlFor={id}>{label}</label>
-      <div className="date-input">
+      <div className="date-input field-popup-anchor">
         <input
           id={id}
           type="text"
@@ -160,66 +160,66 @@ export function DatePicker({
         >
           <CalendarDays size={16} />
         </button>
+        {open && (
+          <div
+            className={`field-popup date-popover ${align === "right" ? "right" : ""}`}
+            role="dialog"
+            aria-label={`${label} calendar`}
+          >
+            <div className="date-head">
+              <button type="button" aria-label="Previous month" onClick={() => shift(-1)}>
+                <ChevronLeft size={16} />
+              </button>
+              <strong>
+                {MONTHS[view.m]} {view.y}
+              </strong>
+              <button type="button" aria-label="Next month" onClick={() => shift(1)}>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+            <div className="date-grid" role="grid">
+              {WEEKDAYS.map((d) => (
+                <span className="date-dow" key={d} aria-hidden="true">
+                  {d}
+                </span>
+              ))}
+              {cells.map((day, i) => {
+                if (!day) return <span key={`blank-${i}`} />;
+                const date = iso(view.y, view.m, day);
+                const holiday = holidays[date];
+                const blocked = (!!min && date < min) || (!!max && date > max);
+                return (
+                  <button
+                    type="button"
+                    key={date}
+                    disabled={blocked}
+                    title={holiday}
+                    aria-label={`${dateText(date)}${holiday ? `, ${holiday}` : ""}`}
+                    aria-pressed={date === value}
+                    className={[
+                      "date-day",
+                      holiday ? "holiday" : "",
+                      date === value ? "selected" : "",
+                      date === today ? "today" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onClick={() => {
+                      onChange(date);
+                      setOpen(false);
+                    }}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="date-key">
+              <i aria-hidden="true" /> Holiday (US)
+            </div>
+          </div>
+        )}
       </div>
-      {open && (
-        <div
-          className={`date-popover ${align === "right" ? "right" : ""}`}
-          role="dialog"
-          aria-label={`${label} calendar`}
-        >
-          <div className="date-head">
-            <button type="button" aria-label="Previous month" onClick={() => shift(-1)}>
-              <ChevronLeft size={16} />
-            </button>
-            <strong>
-              {MONTHS[view.m]} {view.y}
-            </strong>
-            <button type="button" aria-label="Next month" onClick={() => shift(1)}>
-              <ChevronRight size={16} />
-            </button>
-          </div>
-          <div className="date-grid" role="grid">
-            {WEEKDAYS.map((d) => (
-              <span className="date-dow" key={d} aria-hidden="true">
-                {d}
-              </span>
-            ))}
-            {cells.map((day, i) => {
-              if (!day) return <span key={`blank-${i}`} />;
-              const date = iso(view.y, view.m, day);
-              const holiday = holidays[date];
-              const blocked = (!!min && date < min) || (!!max && date > max);
-              return (
-                <button
-                  type="button"
-                  key={date}
-                  disabled={blocked}
-                  title={holiday}
-                  aria-label={`${dateText(date)}${holiday ? `, ${holiday}` : ""}`}
-                  aria-pressed={date === value}
-                  className={[
-                    "date-day",
-                    holiday ? "holiday" : "",
-                    date === value ? "selected" : "",
-                    date === today ? "today" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={() => {
-                    onChange(date);
-                    setOpen(false);
-                  }}
-                >
-                  {day}
-                </button>
-              );
-            })}
-          </div>
-          <div className="date-key">
-            <i aria-hidden="true" /> Holiday (US)
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -6095,8 +6095,15 @@ legend {
   .save-toast { right: 16px; bottom: calc(80px + env(safe-area-inset-bottom)); }
 }
 
-.destination-search { position:relative; width:100%; }
-.destination-menu { position:absolute; top:calc(100% + 7px); left:0; right:0; z-index:30; background:hsl(calc(var(--wh) + -2) calc(100% * var(--wsm)) calc(var(--la) + var(--lb) * 99%)); border:1px solid hsl(calc(var(--hue) + -2) calc(19.5% * var(--sm)) calc(var(--la) + var(--lb) * 84.9%)); border-radius:calc(12px * var(--rs)); box-shadow:0 16px 38px hsl(calc(var(--hue) + -0.5) calc(28.8% * var(--sm)) calc(var(--la) + var(--lb) * 23.1%) / 0.1); overflow:hidden; }
+/* Anchor each custom popup to the input, leaving room for its focus outline. */
+.field-popup-anchor { position: relative; min-width: 0; }
+.field-popup-anchor > input { display: block; width: 100%; }
+.field-popup { position: absolute; top: calc(100% + 5px); left: 0; }
+.destination-search { width: 100%; }
+/* The grid keeps the menu in the input column and the Add button in tab order. */
+.destination-search .input-action { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.destination-search input { align-self: stretch; }
+.destination-menu { grid-column: 1 / 2; right:0; z-index:30; background:hsl(calc(var(--wh) + -2) calc(100% * var(--wsm)) calc(var(--la) + var(--lb) * 99%)); border:1px solid hsl(calc(var(--hue) + -2) calc(19.5% * var(--sm)) calc(var(--la) + var(--lb) * 84.9%)); border-radius:calc(12px * var(--rs)); box-shadow:0 16px 38px hsl(calc(var(--hue) + -0.5) calc(28.8% * var(--sm)) calc(var(--la) + var(--lb) * 23.1%) / 0.1); overflow:hidden; }
 .destination-caption { font-size:10px; letter-spacing:1.7px; color:hsl(calc(var(--hue) + -0.7) calc(12.9% * var(--sm)) calc(var(--la) + var(--lb) * 41%)); padding:15px 17px 9px; font-weight:600; }
 .destination-option { display:flex; gap:12px; align-items:center; padding:11px 16px; cursor:pointer; color:hsl(calc(var(--hue) + 1.2) calc(19.7% * var(--sm)) calc(var(--la) + var(--lb) * 28.8%)); }
 .destination-option:hover,.destination-option.active { background:hsl(calc(var(--hue) + -1.7) calc(35.1% * var(--sm)) calc(var(--la) + var(--lb) * 92.7%)); }
@@ -6171,9 +6178,7 @@ legend {
 }
 
 /* Calendar picker: every day is black, holidays are red, and a small key explains it. */
-.date-field { position: relative; }
 .date-field > label { color: hsl(calc(var(--hue) + -0.1) calc(14.1% * var(--sm)) calc(var(--la) + var(--lb) * 32%)); }
-.date-input { position: relative; }
 .date-input input { padding-right: 44px; }
 .date-toggle {
   position: absolute;
@@ -6192,10 +6197,7 @@ legend {
 }
 .date-toggle:hover { background: var(--sage); }
 .date-popover {
-  position: absolute;
   z-index: 30;
-  top: calc(100% - 14px);
-  left: 0;
   width: min(300px, calc(100vw - 32px));
   background: hsl(calc(var(--wh) + -5) calc(100% * var(--wsm)) calc(var(--la) + var(--lb) * 99.2%));
   border: 1px solid hsl(calc(var(--hue) + -2) calc(21.1% * var(--sm)) calc(var(--la) + var(--lb) * 86.1%));
@@ -6658,9 +6660,7 @@ legend {
 
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 
-.event-location-input { position:relative; width:100%; min-width:0; }
-.event-location-input > input { width:100%; }
-.event-location-menu { position:absolute; top:calc(100% - 18px); left:0; right:0; z-index:40; background:var(--paper); color:var(--text); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow); overflow:hidden; }
+.event-location-menu { right:0; z-index:40; background:var(--paper); color:var(--text); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow); overflow:hidden; }
 .event-location-caption { padding:12px 14px 8px; font-size:12px; font-weight:600; }
 .event-location-menu [role="listbox"] { max-height:260px; overflow:auto; overscroll-behavior:contain; }
 .event-location-option { display:flex; align-items:center; gap:10px; padding:11px 14px; cursor:pointer; }

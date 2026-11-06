@@ -53,7 +53,7 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
       <small>Nearby matches first. Other locations are still included.</small>
     </div>}
     <label htmlFor={`${id}-input`}>Where</label>
-    <div className="event-location-input" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setOpen(false);}}>
+    <div className="field-popup-anchor" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setOpen(false);}}>
     <input id={`${id}-input`} required value={value} role="combobox" aria-label="Where"
       aria-autocomplete="list" aria-expanded={expanded} aria-controls={`${id}-list`}
       aria-activedescendant={expanded && active>=0 ? `${id}-${active}` : undefined}
@@ -67,7 +67,7 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
         }else if(e.key==='Enter' && expanded){e.preventDefault();if(active>=0)select(active);else setOpen(false);}
         else if(e.key==='Escape' && expanded){e.preventDefault();setOpen(false);}
       }}/>
-    {expanded && <div className="event-location-menu">
+    {expanded && <div className="field-popup event-location-menu">
       <div className="event-location-caption">{status==='loading'?'Searching worldwide…':status==='error'?'Search unavailable':results.length?(destination && biased?`Near ${destination}${approximate?' (approximate area)':''}`:'Suggested locations'):'No locations found'}</div>
       <div ref={list} id={`${id}-list`} role="listbox" aria-label="Location suggestions">
         {results.map((place,i)=><div key={place.id} role="option" id={`${id}-${i}`} aria-selected={i===active}

@@ -1,3 +1,4 @@
+import { expectUnderInput } from './popup-alignment';
 import { test, expect, type Page } from "@playwright/test";
 import { detailJourney, saved } from "../scripts/trip-detail-browser-flow.mjs";
 const owner = {
@@ -411,6 +412,7 @@ test('event location autocomplete selects a worldwide landmark, saves, reloads, 
  await page.getByLabel('Event name',{exact:true}).fill('Eiffel visit');
  const input=page.getByRole('combobox',{name:'Where',exact:true});
  await input.fill('Eiffe');await expect(page.getByRole('option',{name:/Eiffel Tower/})).toBeVisible();
+ await expectUnderInput(input,page.locator('.event-location-menu'));
  await input.press('ArrowDown');await input.press('Enter');
  const label='Eiffel Tower, 5 Avenue Anatole France, Paris, France';await expect(input).toHaveValue(label);
  const popularTimes=page.getByRole('link',{name:/Check popular times on Google Maps/});

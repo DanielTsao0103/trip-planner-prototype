@@ -87,3 +87,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Account trip changes must save to the live database, resume after interruption and reach other open planner screens. Verify the published site with independent signed-in browser sessions.
 
 - Email invitations must open the normal login and signup options. Preserve the exact trip while the traveler chooses an account, including a different email, then open its preference survey.
+
+- Anchor custom dropdowns to the input itself, leaving only enough space for its focus outline. Destination suggestions should match the text field width and stop before the Add button.
