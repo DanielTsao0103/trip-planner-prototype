@@ -4,10 +4,12 @@ import React, { useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
+  BookOpen,
   Carrot,
   Check,
   ChevronRight,
   Leaf,
+  Landmark,
   Accessibility,
   Armchair,
   DoorOpen,
@@ -19,16 +21,24 @@ import {
   WheatOff,
   Utensils,
   Plus,
-  PersonStanding,
+  Palette,
   Settings2,
   Sparkles,
   Tag,
+  Building2,
+  CookingPot,
+  ShoppingBag,
+  TreePine,
   Ticket,
   Wallet,
   Users,
   VolumeX,
   Trash2,
   Mail,
+  Trees,
+  MapPin,
+  NotebookPen,
+  type LucideIcon,
 } from "lucide-react";
 import { useApp } from "./state";
 import { Avatar, Badge, Button, ErrorBox, Field, PageHead } from "./ui";
@@ -84,12 +94,126 @@ function RampGraphic() {
   );
 }
 
-function MobilityRouteGraphic() {
+function SpendingLevelGraphic({ level }: { level: string }) {
+  const common = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.5,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+  if (level === "Budget-conscious") {
+    return (
+      <svg width="30" height="30" viewBox="0 0 32 32" {...common} aria-hidden="true">
+        <circle cx="16" cy="16" r="11.5" />
+        <circle cx="16" cy="16" r="8.5" opacity=".55" />
+        <path d="M18.8 11.7c-.6-.6-1.4-.9-2.5-.9-1.7 0-2.8.9-2.8 2.1 0 3.4 5.5 1.5 5.5 4.4 0 1.3-1.1 2.2-2.9 2.2-1.2 0-2.2-.4-3-1.2M16 9.3v13.4" />
+      </svg>
+    );
+  }
+  if (level === "Moderate") {
+    return (
+      <svg width="38" height="30" viewBox="0 0 44 32" {...common} aria-hidden="true">
+        <rect x="3.5" y="7" width="37" height="18" rx="2.5" />
+        <path d="M6.5 10h4v3h-4zm27 9h4v3h-4zM13 10h18M13 22h15" opacity=".6" />
+        <ellipse cx="22" cy="16" rx="5.5" ry="6.5" />
+        <circle cx="22" cy="14.2" r="1.6" />
+        <path d="M19.4 19.4c.5-1.6 1.4-2.4 2.6-2.4s2.1.8 2.6 2.4" />
+      </svg>
+    );
+  }
   return (
-    <svg className="mobility-route-art" viewBox="0 0 320 140" preserveAspectRatio="none" aria-hidden="true">
-      <path className="mobility-route-path" d="M18 92c36 27 59 13 82-13s46-38 73-21 48 34 72 20 37-31 57-47" />
-      <path className="mobility-route-grass" d="M19 120c18-14 34-14 55 0M246 119c18-10 33-12 55-1" />
+    <svg width="36" height="36" viewBox="0 0 36 36" {...common} aria-hidden="true">
+      <path d="M13.5 5.5h9l-1.6 4.8c3.9 2.1 7.3 5.8 7.3 10.4 0 5.5-4.5 9.4-10.2 9.4S7.8 26.2 7.8 20.7c0-4.6 3.4-8.3 7.3-10.4l-1.6-4.8Z" />
+      <path d="M13.5 5.5c.9 2.7 2.4 4.1 4.5 4.1s3.6-1.4 4.5-4.1M18 13.9v12.6m3.1-9.4c-.7-.7-1.6-1-2.9-1-1.8 0-3 .9-3 2.2 0 3.4 5.8 1.6 5.8 4.6 0 1.4-1.2 2.3-3.1 2.3-1.3 0-2.3-.5-3.2-1.3" />
     </svg>
+  );
+}
+
+function PreferenceVoterDots({
+  count,
+  container,
+  dot,
+}: {
+  count: number;
+  container: string;
+  dot: string;
+}) {
+  return (
+    <span className={container} aria-hidden="true">
+      {Array.from({ length: Math.min(count, 5) }, (_, index) => (
+        <i className={dot} key={index} />
+      ))}
+      {count > 5 && <span className="preference-dot-overflow">+{count - 5}</span>}
+    </span>
+  );
+}
+
+const mobilityRadiusPalette = ["#6cab8a", "#55abc0", "#d57272", "#b08bc1"];
+
+type MobilityRadius = { distance: number; count: number; color: string; names: string[] };
+
+const brochureAccents: Record<string, string> = {
+  "Modern architecture": "#79aabd",
+  History: "#d0a25f",
+  Culture: "#8faac4",
+  Art: "#d184a0",
+  Nature: "#91a96f",
+  Shopping: "#b39acb",
+  "Food experiences": "#d79254",
+  "Rest & downtime": "#879ac4",
+};
+
+function InterestBrochureFan({ items }: { items: [string, string[]][] }) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const angles = [-8, 5, -4, 7, -6, 4, -7, 6, -3];
+
+  return (
+    <div
+      className="interest-brochure-fan"
+      role="group"
+      aria-label="Group interests and places"
+      onMouseLeave={() => setActiveIndex(null)}
+    >
+      {items.map(([label, names], index) => {
+        const Icon = interestOptionIcons[label] || MapPin;
+        const voteLevel = Math.min(names.length - 1, 4);
+        const width = 84 + voteLevel * 6;
+        const height = 94 + voteLevel * 6;
+        const tooltipId = `interest-brochure-tooltip-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+        return (
+          <div
+            className={`interest-brochure-wrap${activeIndex === index ? " is-active" : ""}`}
+            key={label}
+            style={{
+              "--brochure-width": `${width}px`,
+              "--brochure-height": `${height}px`,
+              "--brochure-angle": `${angles[index % angles.length]}deg`,
+              "--brochure-accent": brochureAccents[label] || "#90a8bd",
+            } as React.CSSProperties}
+            onMouseEnter={() => setActiveIndex(index)}
+          >
+            <button
+              type="button"
+              className="interest-brochure"
+              aria-label={`${label}: ${names.join(", ")}`}
+              aria-describedby={tooltipId}
+              onFocus={() => setActiveIndex(index)}
+              onBlur={() => setActiveIndex(null)}
+            >
+              <span className="interest-brochure-cover" aria-hidden="true">
+                <span className="interest-brochure-icon"><Icon size={17} strokeWidth={1.7} /></span>
+                <span className="interest-brochure-lines"><i /><i /><i /></span>
+              </span>
+            </button>
+            <span className="interest-brochure-tooltip" id={tooltipId} role="tooltip" aria-hidden={activeIndex !== index}>
+              <strong>{label}</strong>
+              <span>{names.join(", ")}</span>
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -186,6 +310,21 @@ export function Group() {
             });
             return { label, graphic, options: Object.entries(values).sort(([a], [b]) => a.localeCompare(b)) };
           });
+          const ticketGroups: Record<string, string[]> = {};
+          const noteGroups: Record<string, string[]> = {};
+          responses.forEach((member) => {
+            const preference = t.prefs[member.id];
+            const ticketPreference = preference.tickets.trim();
+            const note = preference.notes.trim();
+            if (ticketPreference) {
+              ticketGroups[ticketPreference] = [...(ticketGroups[ticketPreference] || []), member.name];
+            }
+            if (note) {
+              noteGroups[note] = [...(noteGroups[note] || []), member.name];
+            }
+          });
+          const ticketOptions = Object.entries(ticketGroups).sort(([a], [b]) => a.localeCompare(b));
+          const noteOptions = Object.entries(noteGroups).sort(([a], [b]) => a.localeCompare(b));
           const spendingLevels = ["Budget-conscious", "Moderate", "Room to splurge"];
           const spendingResponses = responses.flatMap((member) => {
             const value = t.prefs[member.id].spending;
@@ -211,6 +350,13 @@ export function Group() {
             }
           });
           const walkingDistances = [...walkGroups.entries()].sort(([a], [b]) => a - b);
+          const radiusGroups = walkingDistances.map(([distance, members], index) => ({
+            distance,
+            count: members.length,
+            color: mobilityRadiusPalette[index % mobilityRadiusPalette.length],
+            names: members.map((member) => member.name),
+            members,
+          }));
           const accessCategories = [
             { label: "Step-free access", Icon: null },
             { label: "Wheelchair access", Icon: Accessibility },
@@ -256,11 +402,7 @@ export function Group() {
                                 aria-describedby={id}
                               >
                                 <span className="dining-preference-value">{value}</span>
-                                <span className="dining-preference-dots" aria-hidden="true">
-                                  {names.map((name, index) => (
-                                    <span className="dining-preference-dot" key={`${name}-${index}`} />
-                                  ))}
-                                </span>
+                                <PreferenceVoterDots count={names.length} container="dining-preference-dots" dot="dining-preference-dot" />
                                 <span className="dining-preference-tooltip" id={id} role="tooltip">
                                   <strong>{value}</strong>
                                   <span>{names.join(", ")}</span>
@@ -278,8 +420,12 @@ export function Group() {
               ) : title === "Spending preferences" ? (
                 spendingResponses.length ? (
                   <div className="spending-preference-chart" aria-label="Group spending comfort scale">
-                    <div className="spending-scale-labels" aria-hidden="true">
-                      {spendingLevels.map((level) => <span key={level}>{level}</span>)}
+                    <div className="spending-scale-labels" aria-label="Budget-conscious, moderate, and room to splurge">
+                      {spendingLevels.map((level) => (
+                        <span className="spending-scale-icon" key={level} role="img" aria-label={level}>
+                          <SpendingLevelGraphic level={level} />
+                        </span>
+                      ))}
                     </div>
                     <div className="spending-scale-track">
                       <span className="spending-scale-line" aria-hidden="true" />
@@ -333,30 +479,27 @@ export function Group() {
                           <Footprints size={14} aria-hidden="true" />
                           <span>Comfortable continuous walk</span>
                         </div>
-                        <div className="mobility-route-stage" role="group" aria-label="Walking distance preferences">
-                          <MobilityRouteGraphic />
-                          {walkingDistances.map(([distance, members], index) => {
-                            const maxDistance = 2000;
-                            const progress = Math.min(distance, maxDistance) / maxDistance;
-                            const left = 7 + progress * 86;
-                            const top = 67 - Math.sin(progress * Math.PI) * 40;
-                            const size = 42 + Math.min(members.length - 1, 3) * 8;
-                            const id = `mobility-walk-tooltip-${Math.round(distance)}-${index}`;
+                        <div className="mobility-radius-options" role="group" aria-label="Walking radius and traveler counts">
+                          {radiusGroups.map(({ distance, count, color, members }) => {
+                            const id = `mobility-radius-tooltip-${Math.round(distance)}`;
                             return (
                               <button
                                 type="button"
-                                className="mobility-route-marker"
+                                className="mobility-radius-option"
                                 key={distance}
                                 style={{
-                                  left: `${left}%`,
-                                  top: `${top}%`,
-                                  "--mobility-marker-size": `${size}px`,
+                                  "--mobility-radius-color": color,
+                                  "--mobility-radius-size": `${Math.round(12 + (Math.min(distance, 2000) / 2000) * 10)}px`,
                                 } as React.CSSProperties}
-                                aria-label={`Walks up to ${distance} meters: ${members.map((member) => member.name).join(", ")}`}
+                                aria-label={`Up to ${distance.toLocaleString()} meters: ${count} ${count === 1 ? "traveler" : "travelers"}, ${members.map((member) => member.name).join(", ")}`}
                                 aria-describedby={id}
                               >
-                                <span className="mobility-route-person" aria-hidden="true"><PersonStanding size={20} /></span>
-                                {members.length > 1 && <span className="mobility-route-count" aria-hidden="true">{members.length}</span>}
+                                <span className="mobility-radius-swatch" aria-hidden="true" />
+                                <span className="mobility-radius-label">Up to {distance.toLocaleString()} m</span>
+                                <span className="mobility-radius-people">
+                                  <span className="mobility-radius-count">{count} {count === 1 ? "traveler" : "travelers"}</span>
+                                  <PreferenceVoterDots count={members.length} container="mobility-radius-dots" dot="mobility-radius-dot" />
+                                </span>
                                 <span className="mobility-preference-tooltip" id={id} role="tooltip">
                                   <strong>Up to {distance.toLocaleString()} m</strong>
                                   <span>{members.map((member) => member.name).join(", ")}</span>
@@ -365,7 +508,6 @@ export function Group() {
                             );
                           })}
                         </div>
-                        <div className="mobility-route-range" aria-hidden="true"><span>Shorter walks</span><span>Longer walks</span></div>
                       </section>
                     )}
                     {accessCategories.length > 0 && (
@@ -386,9 +528,7 @@ export function Group() {
                                   {AccessIcon ? <AccessIcon size={15} strokeWidth={1.7} /> : <RampGraphic />}
                                 </span>
                                 <span className="mobility-access-label">{label}</span>
-                                <span className="mobility-access-dots" aria-hidden="true">
-                                  {members.map((member) => <span className="mobility-access-dot" key={member.id} />)}
-                                </span>
+                                <PreferenceVoterDots count={members.length} container="mobility-access-dots" dot="mobility-access-dot" />
                                 <span className="mobility-preference-tooltip" id={id} role="tooltip">
                                   <strong>{label}</strong>
                                   <span>{members.map((member) => member.name).join(", ")}</span>
@@ -400,6 +540,82 @@ export function Group() {
                       </section>
                     )}
                   </div>
+                ) : (
+                  <p className="muted preference-empty">Nothing shared yet.</p>
+                )
+              ) : title === "Tickets and notes" ? (
+                <div className="dining-preference-sections tickets-notes-sections">
+                  <section className="dining-preference-section tickets-notes-section">
+                    <h4 className="dining-preference-heading">
+                      <span className="dining-preference-heading-icon tickets-notes-heading-icon" aria-hidden="true">
+                        <Ticket size={18} strokeWidth={1.7} />
+                      </span>
+                      <span>Tickets and reservations</span>
+                    </h4>
+                    {ticketOptions.length ? (
+                      <div className="dining-preference-options">
+                        {ticketOptions.map(([value, names], index) => {
+                          const id = `ticket-option-tooltip-${index}`;
+                          return (
+                            <button
+                              type="button"
+                              className="dining-preference-option"
+                              key={value}
+                              aria-label={`${value}: ${names.join(", ")}`}
+                              aria-describedby={id}
+                            >
+                              <span className="dining-preference-value">{value}</span>
+                              <PreferenceVoterDots count={names.length} container="dining-preference-dots" dot="dining-preference-dot" />
+                              <span className="dining-preference-tooltip" id={id} role="tooltip">
+                                <strong>{value}</strong>
+                                <span>{names.join(", ")}</span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="muted preference-empty">Nothing shared yet.</p>
+                    )}
+                  </section>
+                  <section className="dining-preference-section tickets-notes-section">
+                    <h4 className="dining-preference-heading">
+                      <span className="dining-preference-heading-icon tickets-notes-heading-icon" aria-hidden="true">
+                        <NotebookPen size={18} strokeWidth={1.7} />
+                      </span>
+                      <span>Additional notes</span>
+                    </h4>
+                    {noteOptions.length ? (
+                      <div className="dining-preference-options">
+                        {noteOptions.map(([note, names], index) => {
+                          const id = `additional-note-tooltip-${index}`;
+                          const preview = note.replace(/\s+/g, " ");
+                          return (
+                            <button
+                              type="button"
+                              className="dining-preference-option tickets-notes-note-option"
+                              key={note}
+                              aria-label={`Note: ${note}. Shared by ${names.join(", ")}`}
+                              aria-describedby={id}
+                            >
+                              <span className="dining-preference-value tickets-notes-note-value">{preview}</span>
+                              <PreferenceVoterDots count={names.length} container="dining-preference-dots" dot="dining-preference-dot" />
+                              <span className="dining-preference-tooltip" id={id} role="tooltip">
+                                <strong>{names.join(", ")}</strong>
+                                <span>{note}</span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="muted preference-empty">Nothing shared yet.</p>
+                    )}
+                  </section>
+                </div>
+              ) : title === "Interests and destinations" ? (
+                answers.length ? (
+                  <InterestBrochureFan items={answers} />
                 ) : (
                   <p className="muted preference-empty">Nothing shared yet.</p>
                 )
@@ -578,22 +794,37 @@ export function Group() {
     </>
   );
 }
+const interestOptionIcons: Record<string, LucideIcon> = {
+  "Modern architecture": Building2,
+  History: Landmark,
+  Culture: BookOpen,
+  Art: Palette,
+  Nature: TreePine,
+  Shopping: ShoppingBag,
+  "Food experiences": CookingPot,
+  "Rest & downtime": Armchair,
+};
+
 function Choices({
   label,
   values,
   selected,
   onChange,
+  icons,
 }: {
   label: string;
   values: string[];
   selected: string[];
   onChange: (v: string[]) => void;
+  icons?: Record<string, LucideIcon>;
 }) {
   return (
     <fieldset className="choice-field">
       <legend>{label}</legend>
       <div className="choice-chips">
-        {values.map((v) => (
+        {values.map((v) => {
+          const Icon = icons?.[v];
+          return (
           <label className={selected.includes(v) ? "selected" : ""} key={v}>
             <input
               type="checkbox"
@@ -607,9 +838,11 @@ function Choices({
               }
             />
             {selected.includes(v) && <Check size={13} />}
+            {Icon && <Icon className="choice-chip-icon" size={15} strokeWidth={1.7} aria-hidden="true" />}
             <span>{v}</span>
           </label>
-        ))}
+          );
+        })}
       </div>
     </fieldset>
   );
@@ -779,6 +1012,7 @@ export function Survey() {
                 ]}
                 selected={p.interests}
                 onChange={(v) => set("interests", v)}
+                icons={interestOptionIcons}
               />
               <Field label="Places you’d love to include">
                 <textarea
