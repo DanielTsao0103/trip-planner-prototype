@@ -47,7 +47,14 @@ function matchesNamedArea(result: google.maps.GeocoderResult, entered: string) {
       normalize(c.short_name),
     ]),
   );
-  return entered.split(",").every((part) => terms.has(normalize(part)));
+  // A parent country or state is present on every city result within it.
+  // Require the traveler to have actually named the returned area as well.
+  const parts = entered.split(",").map(normalize);
+  const namesOwnArea = components.some((component) =>
+    component.types.some((type) => type !== "political" && result.types.includes(type)) &&
+    [component.long_name, component.short_name].some((name) => parts.includes(normalize(name))),
+  );
+  return namesOwnArea && parts.every((part) => terms.has(part));
 }
 
 async function findMatch(

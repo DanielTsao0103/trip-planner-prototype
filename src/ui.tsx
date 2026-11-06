@@ -22,7 +22,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useApp } from "./state";
-import { dateText, isActive, member, timeText, type Event } from "./domain";
+import { dateText, isActive, itineraryDay, member, timeText, type Event } from "./domain";
 export const icons = {
   home: House,
   itinerary: Route,
@@ -373,8 +373,7 @@ function Breadcrumbs() {
       add(trip.title, 8);
       if (page === 7 || page === 11) {
         const requested = route.params.get("date");
-        const date = requested && requested >= trip.start && requested <= trip.end
-          ? requested : page === 11 && isActive(trip, s.date) ? s.date : trip.start;
+        const date = itineraryDay(trip, route.params.get("event"), requested, page === 11 ? s.date : trip.start);
         if (page === 11 || route.params.get("return") === "11")
           add(dateText(date, true), 11, { date });
         if (page === 7)

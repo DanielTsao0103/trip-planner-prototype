@@ -160,8 +160,19 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
     exact: true,
   });
   await expect(museum).toBeVisible();
+  // Simulate two Google marker faces drawn on top of one another at this zoom.
+  const overlap = await page.addStyleTag({ content: `
+    test-map-marker[aria-label="Select Seattle Art Museum"],
+    test-map-marker[aria-label="Select 400 Broad St, Seattle, WA"] {
+      position: absolute; top: 100px; left: 100px;
+    }` });
   await museum.focus();
   await museum.press("Enter");
+  const picker = page.getByRole("group", { name: "Choose a map stop" });
+  await expect(picker.getByRole("button", {name: /Settle into our city stay/})).toBeVisible();
+  await picker.getByRole("button", {name: /A morning of art/}).click();
+  await expect(picker).toHaveCount(0);
+  await overlap.evaluate((el) => el.remove());
   await expect(
     page.getByRole("link", { name: "Directions", exact: true }),
   ).toHaveAttribute("href", /47.6077008%2C-122.3385575/);
@@ -219,4 +230,35 @@ test("a blocked Google SDK offers recovery and keeps saved directions available"
   await expect(item).toContainText("Tickets are in our sample confirmations");
   await item.getByRole("button", { name: "Seattle Art Museum" }).click();
   await expect(page).toHaveURL(/#\/17\?event=museum$/);
+});
+
+test("a viewer can collapse a stop, return to it with Back, and follow a rescheduled event", async ({page}) => {
+  const store = seed();
+  store.tripId = "seattle";
+  store.userId = "nora";
+  const address = "Seattle Art Museum " + "A".repeat(1950);
+  store.trips.find(t => t.id === "seattle")!.events.find(e => e.id === "museum")!.place = address;
+  await page.addInitScript(value => {
+    sessionStorage.setItem("trip-planner-demo-session", "active");
+    localStorage.setItem("trip-planner-demo-v1:demo-maya", JSON.stringify(value));
+  }, store);
+  await page.route("https://maps.googleapis.com/maps/api/js?**", r => r.abort());
+  await page.goto("./#/17");
+  const row = page.getByRole("button", {name: /A morning of art.*Seattle Art Museum/});
+  await row.click();
+  await row.click();
+  await expect(row).toHaveAttribute("aria-expanded", "false");
+  await row.click();
+  await page.getByRole("link", {name:"View itinerary item"}).click();
+  const item = page.getByRole("article", {name:"A morning of art"});
+  await expect(item.getByRole("button", {name:"Edit event"})).toBeDisabled();
+  await page.goBack();
+  await expect(row).toHaveAttribute("aria-expanded", "true");
+  await page.goto("./#/11?date=2026-10-15&event=museum");
+  await expect(item).toBeFocused();
+  await expect(page.getByRole("heading", {name:/Friday/})).toBeVisible();
+  const addressLink = item.getByRole("button", {name:address});
+  expect(await addressLink.evaluate((el) =>
+    el.getBoundingClientRect().right <= el.closest("article")!.getBoundingClientRect().right
+  )).toBe(true);
 });

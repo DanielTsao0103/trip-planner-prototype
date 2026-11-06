@@ -51,6 +51,7 @@ import {
   isActive,
   money,
   orderedEvents,
+  itineraryDay,
   spent,
   uid,
   type Event,
@@ -1091,12 +1092,7 @@ export function DayDetail() {
   const selectedEvent = route.params.get("event");
   const requested = route.params.get("date");
   if (!t) return null;
-  const date =
-    requested && requested >= t.start && requested <= t.end
-      ? requested
-      : isActive(t, s.date)
-        ? s.date
-        : t.start;
+  const date = itineraryDay(t, selectedEvent, requested, s.date);
   const list = days(t.start, t.end),
     index = list.indexOf(date),
     events = orderedEvents(t, date),

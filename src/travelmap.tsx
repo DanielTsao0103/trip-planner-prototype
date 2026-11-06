@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useApp } from "./state";
 import { Button, PageHead } from "./ui";
-import { canEdit, type Event, type MapPoint } from "./domain";
+import { canEdit, dateText, timeText, type Event, type MapPoint } from "./domain";
 import { resolveSearchFocus } from "./event-location-search";
 
 function showStops(map: google.maps.Map, points: MapPoint[], singleZoom = 16) {
@@ -62,6 +62,9 @@ export function TravelMap({
       trip?.events.find((e) => e.place === selectedPlace)?.id ||
       "",
   );
+  const [nearbyIds, setNearbyIds] = useState<string[]>([]);
+  const chooser = useRef<HTMLDivElement>(null);
+  const clickedMarker = useRef("");
   const [editing, setEditing] = useState(false);
   const [preciseZoom, setPreciseZoom] = useState(false);
   const [locationStatus, setLocationStatus] = useState("");
@@ -72,9 +75,11 @@ export function TravelMap({
     ready && !loadError,
     updateTrip,
   );
+  const nearbyStops = events.filter((event) => nearbyIds.includes(event.id) && event.point);
+  useEffect(() => { chooser.current?.querySelector("button")?.focus({ preventScroll: true }); }, [nearbyIds]);
   const selection = events.find((e) => e.id === selectedId);
   // Keep markers and the visitor's viewport stable through unrelated trip saves.
-  const pinKey = JSON.stringify(events.map((e) => [e.id, e.place, e.point]));
+  const pinKey = JSON.stringify(events.map((e) => [e.id, e.place, e.point, e.area]));
   const destination = trip?.destinations[0] ?? "";
   const initialFocus = useRef(true);
   const geoDot = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
@@ -118,6 +123,7 @@ export function TravelMap({
       map.current = view;
       view.addListener("dragstart", () => {
         initialFocus.current = false;
+        setNearbyIds([]);
       });
       view.addListener("zoom_changed", () =>
         setPreciseZoom((view.getZoom() ?? 0) >= 15),
@@ -159,14 +165,26 @@ export function TravelMap({
     const view = map.current;
     if (!ready || !view) return;
     const controller = new AbortController();
-    markers.current.forEach((marker) => {
-      marker.map = null;
-    });
-    markers.current.clear();
     const points: MapPoint[] = [];
+    const pinned = new Set(events.filter((event) => event.point).map((event) => event.id));
+    markers.current.forEach((marker, id) => {
+      if (!pinned.has(id)) {
+        marker.map = null;
+        markers.current.delete(id);
+      }
+    });
     events.forEach((event, index) => {
       if (!event.point) return;
       points.push(event.point);
+      // Another stop finishing its lookup must not detach a focused marker.
+      const signature = JSON.stringify([event.place, event.point.lat, event.point.lng, event.area]);
+      const existing = markers.current.get(event.id);
+      if (existing?.dataset.pinSignature === signature) {
+        const numeral = existing.querySelector(".trip-pin-face");
+        if (numeral) numeral.textContent = String(index + 1);
+        return;
+      }
+      if (existing) existing.map = null;
       const face = document.createElement("span");
       face.className = "trip-pin";
       const numeral = document.createElement("span");
@@ -179,11 +197,25 @@ export function TravelMap({
         title: `Select ${event.place}`,
         gmpClickable: true,
       });
+      marker.dataset.pinSignature = signature;
       marker.append(face);
       marker.addEventListener("gmp-click", () => {
-        select(event.id);
-        setEditing(false);
-        focusPoint(view, event.point!, event.area);
+        // Use rendered bounds so the picker works at any zoom, even for
+        // separate itinerary items at exactly the same address.
+        const hits: string[] = [];
+        const rect = numeral.getBoundingClientRect();
+        markers.current.forEach((other, id) => {
+          const box = other.querySelector(".trip-pin-face")?.getBoundingClientRect();
+          if (box && box.width && box.height && rect.left < box.right && rect.right > box.left &&
+              rect.top < box.bottom && rect.bottom > box.top) hits.push(id);
+        });
+        if (hits.length > 1) {
+          clickedMarker.current = event.id;
+          setEditing(false);
+          setNearbyIds(hits);
+        } else {
+          choose(event);
+        }
       });
       markers.current.set(event.id, marker);
     });
@@ -236,6 +268,7 @@ export function TravelMap({
 
   const overview = () => {
     select("");
+    setNearbyIds([]);
     setEditing(false);
     if (map.current)
       showStops(
@@ -286,10 +319,15 @@ export function TravelMap({
   }
   function choose(event: Event & { area: boolean }) {
     initialFocus.current = false;
+    setNearbyIds([]);
     setEditing(false);
     select(event.id);
     if (event.point && map.current)
       focusPoint(map.current, event.point, event.area);
+  }
+  function dismissChooser() {
+    setNearbyIds([]);
+    markers.current.get(clickedMarker.current)?.focus({ preventScroll: true });
   }
   function savePin() {
     if (
@@ -330,6 +368,24 @@ export function TravelMap({
           className="trip-map-host"
           aria-label="Trip places map"
         />
+        {nearbyStops.length > 0 && ready && !loadError && (
+          <div className="overlapping-stops" role="group" aria-label="Choose a map stop" ref={chooser}
+            onKeyDown={(key) => { if (key.key === "Escape") dismissChooser(); }}>
+            <div>
+              <strong>Choose a stop</strong>
+              <button onClick={dismissChooser} aria-label="Close stop list"><X size={16} /></button>
+            </div>
+            {nearbyStops.map((event) => (
+              <button key={event.id} onClick={() => {
+                choose(event);
+                markers.current.get(event.id)?.focus({ preventScroll: true });
+              }}>
+                <strong>{event.name}</strong>
+                <small>{dateText(event.date, true)} · {timeText(event.start)}</small>
+              </button>
+            ))}
+          </div>
+        )}
         {editingPin && (
           <div className="pin-crosshair" aria-hidden="true">
             <Crosshair size={32} />
@@ -478,7 +534,13 @@ export function TravelMap({
               <button
                 className="place-select"
                 aria-expanded={selection?.id === event.id}
-                onClick={() => choose(event)}
+                onClick={() => {
+                  if (selection?.id === event.id) {
+                    select("");
+                    setNearbyIds([]);
+                    setEditing(false);
+                  } else choose(event);
+                }}
               >
                 <span className="place-number">{index + 1}</span>
                 <span>
@@ -501,7 +563,12 @@ export function TravelMap({
               </button>
               {selection?.id === event.id && (
                 <div className="place-actions">
-                  <a href={`#/11?${new URLSearchParams({ date: event.date, event: event.id })}`}>
+                  <a href={`#/11?${new URLSearchParams({ date: event.date, event: event.id })}`}
+                    onClick={(click) => {
+                      if (click.metaKey || click.ctrlKey || click.shiftKey || click.altKey) return;
+                      // Back should reopen the stop the traveler just left.
+                      history.replaceState(history.state, "", `#/17?${new URLSearchParams({ event: event.id })}`);
+                    }}>
                     <CalendarDays size={15} aria-hidden="true" /> View itinerary item
                   </a>
                   {!event.point && statusFor(event) === "error" && (

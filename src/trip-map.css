@@ -300,3 +300,36 @@ gmp-advanced-marker:focus-visible .trip-pin-face {
     min-height: 44px;
   }
 }
+
+.overlapping-stops {
+  position: absolute;
+  z-index: 2;
+  inset: auto auto 30px 12px;
+  width: min(280px, calc(100% - 72px));
+  max-height: 58%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: 0 3px 14px #152e4124;
+}
+.overlapping-stops > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.overlapping-stops button { min-height: 44px; }
+.overlapping-stops > div button { min-width: 44px; }
+.overlapping-stops > button {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+  border-top: 1px solid var(--line);
+}
+.overlapping-stops small { color: var(--muted); }

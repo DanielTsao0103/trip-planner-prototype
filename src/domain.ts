@@ -159,6 +159,13 @@ export const isOwner = (trip: Trip, user: string | null) =>
   member(trip, user)?.role === "Owner";
 export const isActive = (trip: Trip, date: string) =>
   date >= trip.start && date <= trip.end;
+/** A saved event link follows the event if a collaborator moves it to another day. */
+export function itineraryDay(trip: Trip, eventId: string | null, requested: string | null, fallback: string) {
+  const event = eventId && trip.events.find((entry) => entry.id === eventId);
+  if (event) return event.date;
+  if (requested && isActive(trip, requested)) return requested;
+  return isActive(trip, fallback) ? fallback : trip.start;
+}
 export const orderedEvents = (trip: Trip, date?: string) =>
   trip.events
     .filter((e) => !date || e.date === date)

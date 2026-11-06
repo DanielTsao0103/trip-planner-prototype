@@ -91,3 +91,14 @@ test("Taipei district text gets an area-center pin while a venue cannot inherit 
     null,
   );
 });
+
+test("a place in the right country cannot substitute its own center for the requested region", async () => {
+  const city = response("taipei", "locality");
+  city.results[0].address_components = [
+    { long_name: "Taipei City", short_name: "Taipei", types: ["locality", "political"] },
+    { long_name: "Taiwan", short_name: "TW", types: ["country", "political"] },
+  ];
+  const locate = (address: string) => geocodeItineraryPlace(async () => city, address, []);
+  assert.equal(await locate("Taiwan"), null);
+  assert.equal((await locate("Taipei, Taiwan"))?.placeId, "taipei");
+});
