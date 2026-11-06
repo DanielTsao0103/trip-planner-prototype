@@ -10,6 +10,7 @@ test.beforeEach(async ({ page }) => {
     const url = new URL(route.request().url());
     if (url.pathname === '/rest/v1/forwarded_booking') return route.fulfill({ json: [] });
     if (url.pathname === '/rest/v1/user_style') return route.fulfill({ json: [] });
+    if (url.pathname === '/rest/v1/user' && route.request().method() === 'GET') return route.fulfill({ json: [] });
     if (url.pathname === '/rest/v1/rpc/load_trip_bundles' || (url.pathname === '/rest/v1/trip' && route.request().method() === 'GET')) return route.fulfill({ json: [] });
     if (url.pathname.startsWith('/auth/v1/')) {
       if (url.pathname.endsWith('/settings')) return route.fulfill({json: {external: {apple:false}}});
@@ -341,4 +342,66 @@ test('an email invitation survives Google login and selects its own trip survey'
   await page.getByRole('button',{name:'Sign in with Google'}).click();
   await expect(page.getByRole('heading',{name:'Your trip preferences'})).toBeVisible();
   await expect(page.getByText('Joined Invited Osaka trip', {exact:true})).toBeVisible();
+});
+
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+
+test('profile picture: initials, upload, persists after reload, and remove for an email account', async ({ page }) => {
+  let savedPath: string | null = null;
+  const uploads: string[] = [];
+  await page.route('**/rest/v1/user?**', route => route.fulfill({ json: savedPath ? [{ profile_picture_path: savedPath }] : [] }));
+  // Removing the previous object is a DELETE on the bucket root, so match both shapes.
+  await page.route(/\/storage\/v1\/object\/profile-pictures(\/.*)?$/, route => {
+    uploads.push(new URL(route.request().url()).pathname);
+    return route.fulfill({ json: { Key: 'ok' } });
+  });
+  await page.route('**/storage/v1/object/public/profile-pictures/**', route => route.fulfill({ body: PNG, contentType: 'image/png' }));
+  await page.route('**/rpc/set_profile_picture', route => {
+    savedPath = route.request().postDataJSON().p_path;
+    return route.fulfill({ status: 204 });
+  });
+  await login(page);
+  await openAccount(page);
+  const dialog = page.getByRole('dialog', { name: 'Your corner of the trip' });
+  await expect(dialog.getByText('Showing your initials until you upload a photo.')).toBeVisible();
+  await expect(dialog.locator('img')).toHaveCount(0);
+  await dialog.locator('input[type=file]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: PNG });
+  await expect(dialog.getByText('Your uploaded photo.')).toBeVisible();
+  await expect(dialog.locator('img').first()).toHaveAttribute('src', new RegExp(`/profile-pictures/${account.id}/[0-9a-f-]{36}\\.webp$`));
+  expect(savedPath).toMatch(new RegExp(`^${account.id}/[0-9a-f-]{36}\\.webp$`));
+  expect(uploads.some(path => path.includes(`/profile-pictures/${account.id}/`))).toBe(true);
+  // A fresh page load reads the saved path back from the profile row.
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
+  await openAccount(page);
+  const reopened = page.getByRole('dialog', { name: 'Your corner of the trip' });
+  await expect(reopened.getByText('Your uploaded photo.')).toBeVisible();
+  await expect(reopened.locator('img').first()).toBeVisible();
+  await reopened.getByRole('button', { name: 'Remove' }).click();
+  await expect(reopened.getByText('Showing your initials until you upload a photo.')).toBeVisible();
+  expect(savedPath).toBeNull();
+});
+
+test('profile picture: rejects unsupported files without calling the server', async ({ page }) => {
+  let called = false;
+  await page.route('**/rpc/set_profile_picture', route => { called = true; return route.fulfill({ status: 204 }); });
+  await login(page);
+  await openAccount(page);
+  const dialog = page.getByRole('dialog', { name: 'Your corner of the trip' });
+  await dialog.locator('input[type=file]').setInputFiles({ name: 'x.gif', mimeType: 'image/gif', buffer: Buffer.from('GIF89a') });
+  await expect(dialog.getByRole('alert')).toContainText('Choose a JPEG, PNG, or WebP image.');
+  expect(called).toBe(false);
+});
+
+test('profile picture: Google accounts show their Google photo until they upload one', async ({ page }) => {
+  const google = { ...account, app_metadata: { provider: 'google', providers: ['google'] },
+    identities: [{ provider: 'google', identity_data: { picture: 'https://lh3.googleusercontent.com/test/pic=s96-c' } }] };
+  await page.route('https://lh3.googleusercontent.com/**', route => route.fulfill({ body: PNG, contentType: 'image/png' }));
+  await page.route('**/auth/v1/token**', route => route.fulfill({ json: { ...session(), user: google } }));
+  await page.route('**/auth/v1/user', route => route.fulfill({ json: google }));
+  await login(page);
+  await openAccount(page);
+  const dialog = page.getByRole('dialog', { name: 'Your corner of the trip' });
+  await expect(dialog.getByText('Showing your Google photo until you upload one.')).toBeVisible();
+  await expect(dialog.locator('img').first()).toHaveAttribute('src', 'https://lh3.googleusercontent.com/test/pic=s96-c');
 });
