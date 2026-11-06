@@ -444,7 +444,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </button>
         <button
           className="trip-switch"
-          onClick={() => open("tripPicker", { target: 8 })}
+          onClick={() => open("tripPicker", { target: route.page === 17 ? 17 : 8 })}
         >
           <span className="eyebrow">YOUR TRIP</span>
           <strong>{trip?.title || "Choose a trip"}</strong>
@@ -529,7 +529,7 @@ export function Shell({ children }: { children: ReactNode }) {
         {trip && (
           <button
             className="mobile-trip-context"
-            onClick={() => open("tripPicker", { target: 8 })}
+            onClick={() => open("tripPicker", { target: route.page === 17 ? 17 : 8 })}
             aria-label={`Switch trip: ${trip.title}`}
           >
             <span>

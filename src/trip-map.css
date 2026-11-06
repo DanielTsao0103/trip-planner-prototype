@@ -41,7 +41,7 @@
   background: var(--line);
 }
 .map-feedback {
-  top: 12px;
+  top: 68px;
   left: 12px;
   max-width: calc(100% - 84px);
   padding: 8px 12px;
@@ -53,6 +53,8 @@
 }
 .trip-pin {
   display: grid;
+  width: 44px;
+  height: 48px;
   justify-items: center;
   align-items: end;
   background: transparent;
@@ -84,7 +86,7 @@
   border-bottom: 0;
 }
 .trip-pin.chosen .trip-pin-face,
-.trip-pin:focus-visible .trip-pin-face {
+gmp-advanced-marker:focus-visible .trip-pin-face {
   background: #075bba;
   transform: scale(1.16);
 }
@@ -203,5 +205,104 @@
 @media (prefers-reduced-motion: reduce) {
   .trip-pin-face {
     transition: none;
+  }
+}
+
+.map-style-switch,
+.trip-map-tools {
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #213b51;
+  border: 1px solid rgba(43, 62, 78, 0.17);
+  box-shadow: 0 3px 12px rgba(35, 53, 69, 0.16);
+}
+.map-style-switch {
+  position: absolute;
+  z-index: 1;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  padding: 3px;
+}
+.map-style-switch button {
+  padding: 0 13px;
+  min-height: 38px;
+  border-radius: 10px;
+  font: 600 13px system-ui;
+}
+.map-style-switch button[aria-pressed="true"] {
+  background: #244d68;
+  color: white;
+}
+.google-location-dot {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid white;
+  background: #1678dc;
+  box-shadow:
+    0 0 0 6px #1678dc2b,
+    0 2px 4px #243b513d;
+}
+.google-map-state {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  background: var(--paper);
+  font-size: 14px;
+}
+.google-map-state > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.google-map-state a {
+  text-decoration: underline;
+}
+.trip-map-list {
+  background: var(--paper);
+}
+.place-row.active {
+  border-radius: 10px;
+  background: var(--sage);
+}
+.place-row.active .place-select > svg {
+  transform: rotate(90deg);
+}
+.place-actions {
+  padding-left: 15px;
+}
+.page-17 .page-head {
+  align-items: center;
+  margin-bottom: 16px;
+}
+@media (max-width: 767px) {
+  .page-17 .page-head {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .page-17 .page-head .head-action {
+    width: auto;
+  }
+  .page-17 .page-head h1 {
+    margin: 0;
+    font-size: 32px;
+  }
+  .page-17 .map-canvas {
+    height: clamp(320px, 49svh, 500px);
+    min-height: 320px;
+  }
+  .map-style-switch button {
+    min-height: 44px;
   }
 }

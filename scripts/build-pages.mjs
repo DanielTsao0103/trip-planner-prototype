@@ -11,6 +11,9 @@ const env = { ...loadEnv('production', root, 'VITE_'), ...process.env };
 if (!env.VITE_SUPABASE_URL || !env.VITE_SUPABASE_PUBLISHABLE_KEY?.startsWith('sb_publishable_')) {
   throw new Error('Configure the project URL and publishable key before building GitHub Pages.');
 }
+if (process.env.GITHUB_ACTIONS === "true" && !env.VITE_GOOGLE_MAPS_API_KEY?.trim()) {
+  throw new Error('Configure the Google Maps browser key before publishing the Map tab.');
+}
 const url = new URL(env.VITE_SUPABASE_URL);
 if (url.protocol !== 'https:' || !url.hostname.endsWith('.supabase.co')) {
   throw new Error('Expected the HTTPS Supabase project URL.');

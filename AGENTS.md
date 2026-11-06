@@ -69,3 +69,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 - Forwarded bookings (October 29, 2026): Dan approved a free Mailtrap inbound inbox plus a Supabase Edge Function and `forwarded_booking` table so accounts can forward confirmation emails. No custom domain, no AI parsing, no spending. Store extracted fields only. Secrets stay in Supabase and GitHub settings, never in `VITE_` variables or chat.
 
+
+- Map provider correction (November 6, 2026): Dan wants the existing Google Maps JavaScript API on the Map tab. Preserve the hosted browser-key wiring and verify real Google imagery and interactions on desktop and mobile before publishing map changes.

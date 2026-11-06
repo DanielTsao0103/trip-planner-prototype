@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { authFailureEvent, loadGoogleMaps, mapId } from "./google-maps";
 import "./trip-map.css";
 import {
   ArrowUpRight,
@@ -25,21 +24,18 @@ import {
 } from "./event-location-search";
 import { EventLocationInput } from "./event-location-input";
 
-const tiles = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-const animate = () =>
-  !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-function showStops(map: L.Map, points: MapPoint[]) {
-  if (points.length)
-    map.fitBounds(L.latLngBounds(points), {
-      padding: [46, 46],
-      maxZoom: 16,
-      animate: false,
-    });
+function showStops(map: google.maps.Map, points: MapPoint[]) {
+  if (!points.length) return;
+  const bounds = new google.maps.LatLngBounds();
+  points.forEach((point) => bounds.extend(point));
+  if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
+    map.moveCamera({ center: points[0], zoom: 16 });
+  } else {
+    map.fitBounds(bounds, { top: 116, right: 82, bottom: 48, left: 42 });
+  }
 }
-function focusPoint(map: L.Map, point: MapPoint) {
-  map.stop().setView(point, Math.max(map.getZoom(), 16), {
-    animate: animate() && map.getBounds().contains(point),
-  });
+function focusPoint(map: google.maps.Map, point: MapPoint) {
+  map.moveCamera({ center: point, zoom: Math.max(map.getZoom() ?? 0, 16) });
 }
 
 export function TravelMap({
@@ -53,9 +49,14 @@ export function TravelMap({
 }) {
   const { trip, s, go, updateTrip, mapSyncOffline } = useApp();
   const host = useRef<HTMLDivElement>(null);
-  const map = useRef<L.Map | null>(null);
-  const layer = useRef<L.TileLayer | null>(null);
-  const markers = useRef(new Map<string, L.Marker>());
+  const map = useRef<google.maps.Map | null>(null);
+  const markers = useRef(
+    new Map<string, google.maps.marker.AdvancedMarkerElement>(),
+  );
+  const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  const [satellite, setSatellite] = useState(false);
   const [selectedId, select] = useState(
     selectedEvent ||
       trip?.events.find((e) => e.place === selectedPlace)?.id ||
@@ -65,7 +66,6 @@ export function TravelMap({
   const [preciseZoom, setPreciseZoom] = useState(false);
   const [query, setQuery] = useState("");
   const [locationStatus, setLocationStatus] = useState("");
-  const [tileError, setTileError] = useState(false);
   const [locating, setLocating] = useState(false);
   const selection = trip?.events.find((e) => e.id === selectedId);
   const events = trip?.events ?? [];
@@ -73,80 +73,110 @@ export function TravelMap({
   const pinKey = JSON.stringify(events.map((e) => [e.id, e.place, e.point]));
   const destination = trip?.destinations[0] ?? "";
   const initialFocus = useRef(true);
-  const geoDot = useRef<L.CircleMarker | null>(null);
+  const geoDot = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
 
   useEffect(() => {
-    if (!host.current) return;
-    const view = L.map(host.current, {
-      zoomControl: false,
-      scrollWheelZoom: false,
-      minZoom: 2,
-      maxZoom: 19,
-      zoomAnimation: animate(),
-      fadeAnimation: animate(),
-      markerZoomAnimation: animate(),
-    }).setView([20, 0], 2);
-    map.current = view;
+    const container = host.current;
+    if (!container) return;
+    let active = true;
+    let timer: number;
+    setReady(false);
+    setLoadError("");
+    setSatellite(false);
+    setEditing(false);
     initialFocus.current = true;
-    view.on("zoomend", () => setPreciseZoom(view.getZoom() >= 15));
-    view.attributionControl.setPrefix(false);
-    const base = L.tileLayer(tiles, {
-      maxZoom: 19,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
-    }).addTo(view);
-    layer.current = base;
-    base.on("tileerror", () => setTileError(true));
-    const observer = new ResizeObserver(() =>
-      view.invalidateSize({ pan: false }),
-    );
-    observer.observe(host.current);
-    return () => {
-      observer.disconnect();
-      view.remove();
-      map.current = null;
-      markers.current.clear();
+    const denied = () => {
+      if (active) {
+        setReady(false);
+        setLoadError("Google Maps declined this site's map key.");
+      }
     };
-  }, []);
+    window.addEventListener(authFailureEvent, denied);
+    void (async () => {
+      await loadGoogleMaps();
+      const { Map: GoogleMap } = (await google.maps.importLibrary(
+        "maps",
+      )) as google.maps.MapsLibrary;
+      await google.maps.importLibrary("marker");
+      if (!active) return;
+      const view = new GoogleMap(container, {
+        mapId,
+        center: { lat: 20, lng: 0 },
+        zoom: 2,
+        minZoom: 2,
+        maxZoom: 21,
+        disableDefaultUI: true,
+        gestureHandling: compact ? "cooperative" : "greedy",
+        keyboardShortcuts: true,
+        clickableIcons: true,
+        tilt: 0,
+      });
+      map.current = view;
+      view.addListener("zoom_changed", () =>
+        setPreciseZoom((view.getZoom() ?? 0) >= 15),
+      );
+      timer = window.setTimeout(() => {
+        if (active)
+          setLoadError(
+            "Google Maps is taking longer than usual to display this area.",
+          );
+      }, 18000);
+      view.addListener("tilesloaded", () => {
+        clearTimeout(timer);
+        if (active)
+          setLoadError((current) =>
+            current.includes("taking longer") ? "" : current,
+          );
+      });
+      setReady(true);
+    })().catch((error) => {
+      if (active) setLoadError(error.message || "Google Maps could not load.");
+    });
+    return () => {
+      active = false;
+      window.removeEventListener(authFailureEvent, denied);
+      clearTimeout(timer);
+      if (map.current) google.maps.event.clearInstanceListeners(map.current);
+      markers.current.forEach((marker) => {
+        marker.map = null;
+      });
+      markers.current.clear();
+      if (geoDot.current) geoDot.current.map = null;
+      geoDot.current = null;
+      map.current = null;
+      container.replaceChildren();
+    };
+  }, [attempt, compact]);
 
   useEffect(() => {
     const view = map.current;
-    if (!view) return;
+    if (!ready || !view) return;
     const controller = new AbortController();
-    markers.current.forEach((m) => m.remove());
+    markers.current.forEach((marker) => {
+      marker.map = null;
+    });
     markers.current.clear();
     const points: MapPoint[] = [];
     events.forEach((event, index) => {
       if (!event.point) return;
       points.push(event.point);
       const face = document.createElement("span");
-      face.className = "trip-pin-face";
-      face.textContent = String(index + 1);
-      const marker = L.marker(event.point, {
-        icon: L.divIcon({
-          className: "trip-pin",
-          html: face,
-          iconSize: [44, 48],
-          iconAnchor: [22, 48],
-        }),
-        title: event.place,
-        alt: event.place,
-        keyboard: true,
-        riseOnHover: true,
-      })
-        .addTo(view)
-        .on("click", () => {
-          select(event.id);
-          setEditing(false);
-          focusPoint(view, event.point!);
-        });
-      marker.getElement()?.setAttribute("aria-label", `Select ${event.place}`);
-      marker.getElement()?.addEventListener("keydown", (key) => {
-        if (key.key === "Enter" || key.key === " ") {
-          key.preventDefault();
-          key.stopPropagation();
-          marker.fire("click");
-        }
+      face.className = "trip-pin";
+      const numeral = document.createElement("span");
+      numeral.className = "trip-pin-face";
+      numeral.textContent = String(index + 1);
+      face.append(numeral);
+      const marker = new google.maps.marker.AdvancedMarkerElement({
+        map: view,
+        position: event.point,
+        title: `Select ${event.place}`,
+        gmpClickable: true,
+      });
+      marker.append(face);
+      marker.addEventListener("gmp-click", () => {
+        select(event.id);
+        setEditing(false);
+        focusPoint(view, event.point!);
       });
       markers.current.set(event.id, marker);
     });
@@ -162,32 +192,34 @@ export function TravelMap({
             if (
               area &&
               !controller.signal.aborted &&
-              view.getCenter().equals(center) &&
+              center &&
+              view.getCenter()?.equals(center) &&
               view.getZoom() === zoom
             )
-              view.setView([area.latitude, area.longitude], area.zoom, {
-                animate: false,
+              view.moveCamera({
+                center: { lat: area.latitude, lng: area.longitude },
+                zoom: area.zoom,
               });
           })
           .catch(() => {});
       }
     }
     return () => controller.abort();
-  }, [pinKey, destination]);
+  }, [ready, pinKey, destination]);
 
   useEffect(() => {
     markers.current.forEach((marker, id) => {
       const active = id === selectedId;
-      marker.setZIndexOffset(active ? 1000 : 0);
-      marker.getElement()?.classList.toggle("chosen", active);
-      marker.getElement()?.setAttribute("aria-pressed", String(active));
+      marker.zIndex = active ? 1000 : 0;
+      marker.querySelector(".trip-pin")?.classList.toggle("chosen", active);
+      marker.setAttribute("aria-pressed", String(active));
     });
-  }, [pinKey, selectedId]);
+  }, [ready, pinKey, selectedId]);
 
   useEffect(() => {
     const point = selection?.point;
     if (point && map.current) focusPoint(map.current, point);
-  }, [selectedId, selection?.point?.lat, selection?.point?.lng]);
+  }, [ready, selectedId, selection?.point?.lat, selection?.point?.lng]);
 
   // Existing text-only events can acquire a shared pin when their owner opens a
   // fully specified address. An ambiguous result stays available for manual placement.
@@ -259,16 +291,16 @@ export function TravelMap({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
-        geoDot.current?.remove();
-        geoDot.current = L.circleMarker(point, {
-          radius: 7,
-          color: "white",
-          weight: 3,
-          fillColor: "#1476d3",
-          fillOpacity: 1,
-        })
-          .addTo(view)
-          .bindTooltip("Your location");
+        if (geoDot.current) geoDot.current.map = null;
+        const dot = document.createElement("span");
+        dot.className = "google-location-dot";
+        geoDot.current = new google.maps.marker.AdvancedMarkerElement({
+          map: view,
+          position: point,
+          title: "Your location",
+          anchorTop: "-50%",
+        });
+        geoDot.current.append(dot);
         focusPoint(view, point);
       },
       () => {
@@ -294,8 +326,9 @@ export function TravelMap({
       !canEdit(trip, s.userId, selection.date)
     )
       return;
-    if (map.current.getZoom() < 15) return;
-    const center = map.current.getCenter().wrap();
+    if ((map.current.getZoom() ?? 0) < 15) return;
+    const center = map.current.getCenter()?.toJSON();
+    if (!center) return;
     updateTrip((draft) => {
       const event = draft.events.find(
         (e) => e.id === selection.id && e.place === selection.place,
@@ -304,7 +337,7 @@ export function TravelMap({
     });
     setEditing(false);
   }
-  const editingPin = editing && !!selection;
+  const editingPin = ready && !loadError && editing && !!selection;
   return (
     <div className={`map-layout trip-map ${compact ? "compact" : ""}`}>
       <div className="map-canvas">
@@ -318,41 +351,91 @@ export function TravelMap({
             <Crosshair size={32} />
           </div>
         )}
-        <div className="trip-map-tools">
-          <button aria-label="Zoom in" onClick={() => map.current?.zoomIn()}>
-            <Plus />
-          </button>
-          <button aria-label="Zoom out" onClick={() => map.current?.zoomOut()}>
-            <Minus />
-          </button>
-          <button aria-label="Show all pins" onClick={overview}>
-            <Maximize />
-          </button>
-          <button
-            aria-label="Show my location"
-            disabled={locating}
-            onClick={locateMe}
-          >
-            <LocateFixed />
-          </button>
-        </div>
-        {(locationStatus || tileError || mapSyncOffline) && (
-          <div className="map-feedback" role="status">
-            {locationStatus ||
-              (tileError
-                ? "Map tiles could not load."
-                : "Reconnecting to the shared map…")}
-            {tileError && (
+        {ready && !loadError && (
+          <>
+            {!compact && (
+              <div
+                className="map-style-switch"
+                role="group"
+                aria-label="Google map type"
+              >
+                {["Map", "Satellite"].map((label, index) => (
+                  <button
+                    key={label}
+                    aria-pressed={satellite === Boolean(index)}
+                    onClick={() => {
+                      setSatellite(Boolean(index));
+                      map.current?.setMapTypeId(index ? "hybrid" : "roadmap");
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="trip-map-tools">
               <button
+                aria-label="Zoom in"
+                onClick={() =>
+                  map.current?.setZoom((map.current.getZoom() ?? 2) + 1)
+                }
+              >
+                <Plus />
+              </button>
+              <button
+                aria-label="Zoom out"
+                onClick={() =>
+                  map.current?.setZoom((map.current.getZoom() ?? 2) - 1)
+                }
+              >
+                <Minus />
+              </button>
+              <button aria-label="Show all pins" onClick={overview}>
+                <Maximize />
+              </button>
+              <button
+                aria-label="Show my location"
+                disabled={locating}
+                onClick={locateMe}
+              >
+                <LocateFixed />
+              </button>
+            </div>
+          </>
+        )}
+        {loadError ? (
+          <div className="google-map-state" role="status">
+            <MapPin size={24} />
+            <strong>Google Maps is unavailable</strong>
+            <span>{loadError}</span>
+            <div>
+              <Button
                 onClick={() => {
-                  setTileError(false);
-                  layer.current?.redraw();
+                  if (loadError.includes("declined")) window.location.reload();
+                  else setAttempt((value) => value + 1);
                 }}
               >
                 Retry
-              </button>
-            )}
+              </Button>
+              <a
+                href={`https://www.google.com/maps/search/?${new URLSearchParams({ api: "1", query: selection?.point ? `${selection.point.lat},${selection.point.lng}` : selection?.place || destination || "world map" })}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Google Maps
+              </a>
+            </div>
           </div>
+        ) : !ready ? (
+          <div className="google-map-state" role="status">
+            Loading Google Maps…
+          </div>
+        ) : (
+          (locationStatus || mapSyncOffline) && (
+            <div className="map-feedback" role="status">
+              {locationStatus || "Reconnecting to the shared map…"}
+            </div>
+          )
         )}
         {editingPin && (
           <div className="pin-placement">
@@ -425,17 +508,21 @@ export function TravelMap({
                       <Navigation size={15} /> Directions
                     </a>
                   )}
-                  {trip && canEdit(trip, s.userId, event.date) && !editing && (
-                    <button
-                      onClick={() => {
-                        setQuery(event.place);
-                        setEditing(true);
-                      }}
-                    >
-                      <MapPin size={15} />{" "}
-                      {event.point ? "Adjust pin" : "Place pin"}
-                    </button>
-                  )}
+                  {ready &&
+                    !loadError &&
+                    trip &&
+                    canEdit(trip, s.userId, event.date) &&
+                    !editing && (
+                      <button
+                        onClick={() => {
+                          setQuery(event.place);
+                          setEditing(true);
+                        }}
+                      >
+                        <MapPin size={15} />{" "}
+                        {event.point ? "Adjust pin" : "Place pin"}
+                      </button>
+                    )}
                   {editingPin && (
                     <EventLocationInput
                       autoFocus
@@ -444,9 +531,7 @@ export function TravelMap({
                       onChange={(label, point) => {
                         setQuery(label);
                         if (point && map.current)
-                          map.current
-                            .stop()
-                            .setView(point, 18, { animate: false });
+                          map.current.moveCamera({ center: point, zoom: 18 });
                       }}
                     />
                   )}
