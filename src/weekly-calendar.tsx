@@ -74,14 +74,14 @@ export function WeeklyCalendar() {
     {!moving && <ErrorBox text={error}/>}
     <p className="sr-only" role="status" aria-live="polite">{notice}</p>
     <div className="itcal-scroll" tabIndex={0} role="region" aria-label="Scrollable seven-day calendar">
-      <div className="itcal-grid">
+      <div className="itcal-grid" style={{ "--calendar-hour-height": `${HOUR_HEIGHT}px` } as React.CSSProperties}>
         <div className="itcal-corner" aria-hidden="true">Time</div>
         {dates.map(date => {
           const inside = date <= trip.end;
           return <div className={`itcal-day-header ${inside ? '' : 'outside-trip'}`} key={date}>
             <strong>{new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}</strong>
             <span>{dateText(date, true)}</span>
-            {inside ? <button type="button" className="text-link" disabled={!canEdit(trip,s.userId,date)} aria-label={`Add event on ${date}`} onClick={() => go(7,{date, view:"calendar"})}><Plus size={13}/> Add</button> : <small>Outside trip</small>}
+            {inside ? <button type="button" className="itcal-add" title={`Add event on ${date}`} disabled={!canEdit(trip,s.userId,date)} aria-label={`Add event on ${date}`} onClick={() => go(7,{date, view:"calendar"})}><Plus size={16}/></button> : <small>Outside trip</small>}
           </div>;
         })}
         <div className="itcal-time-axis" style={{height}} aria-hidden="true">
@@ -99,7 +99,7 @@ export function WeeklyCalendar() {
               style={{top:(minutes(event.start)-firstHour*60)/60*HOUR_HEIGHT,height:Math.max(46,(minutes(event.end)-minutes(event.start))/60*HOUR_HEIGHT-3)}}
               onDragStart={e => { e.dataTransfer.setData('application/x-trip-event',event.id); e.dataTransfer.effectAllowed='move'; setDragging(event.id); setError(''); }}
               onDragEnd={() => setDragging(null)}>
-              <button type="button" className="itcal-event-title" onClick={() => go(7,{event:event.id,date:event.date,view:"calendar"})}>{event.name}</button>
+              <button type="button" className="itcal-event-title" title={event.name} onClick={() => go(7,{event:event.id,date:event.date,view:"calendar"})}>{event.name}</button>
               <span className="itcal-event-time">{timeText(event.start)}–{timeText(event.end)}</span>
               <span className="itcal-event-place">{event.place}</span>
               {editable && <button type="button" className="itcal-move" aria-label={`Move ${event.name}`} onClick={e => {
