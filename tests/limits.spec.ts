@@ -224,3 +224,30 @@ test("maximum-length trip and event details survive saving and remain within the
     fullPage: true,
   });
 });
+
+test("typed invite addresses stay readable when the device theme changes", async ({ page }) => {
+  await demo(page);
+  await page.goto("./#/13");
+  await page.getByRole("button", { name: "Invite someone", exact: true }).click();
+  const email = page.getByLabel("Email addresses");
+  await email.pressSequentially("daniel");
+  for (const colorScheme of ["dark", "light"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await expect(page.locator("html")).toHaveCSS("color-scheme", colorScheme);
+    const contrast = await email.evaluate((input: HTMLInputElement) => {
+      // Compare the input ink with its painted container since the input is transparent.
+      function luminance(rgb: string) {
+        const [r, g, b] = rgb.match(/[\d.]+/g)!.map(channel => {
+          const value = Number(channel) / 255;
+          return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      }
+      const ink = luminance(getComputedStyle(input).color);
+      const paper = luminance(getComputedStyle(input.closest(".recipient-box")!).backgroundColor);
+      return (Math.max(ink, paper) + 0.05) / (Math.min(ink, paper) + 0.05);
+    });
+    expect(contrast).toBeGreaterThanOrEqual(4.5);
+    await expect(email).toHaveValue("daniel");
+  }
+});

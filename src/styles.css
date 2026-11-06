@@ -6614,9 +6614,10 @@ legend {
 .invite-field { display: grid; gap: .5rem; margin-bottom: 1.25rem; min-width: 0; }
 .invite-field > label { font-weight: 600; }
 .invite-field > small { color: var(--muted); line-height: 1.5; }
-.recipient-box { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem; padding: .5rem .625rem; min-height: 3rem; border: 1px solid var(--line, #b9c4bb); border-radius: .65rem; background: var(--surface, white); cursor: text; }
+.recipient-box { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem; padding: .5rem .625rem; min-height: 3rem; border: 1px solid var(--line, #b9c4bb); border-radius: .65rem; background: var(--paper); cursor: text; }
 .recipient-box:focus-within { outline: 2px solid var(--green, #315b4b); outline-offset: 2px; }
-.recipient-box input { flex: 1 1 9rem; min-width: min(9rem, 100%); width: 0; border: 0; padding: .3rem; margin: 0; background: transparent; font: inherit; outline: none; box-shadow: none; }
+.recipient-box input { flex: 1 1 9rem; min-width: min(9rem, 100%); width: 0; border: 0; padding: .3rem; margin: 0; background: transparent; color: var(--ink); font: inherit; outline: none; box-shadow: none; }
+.recipient-box input::placeholder { color: var(--muted); opacity: 1; }
 .recipient-chip { display: inline-flex; align-items: center; max-width: 100%; gap: .25rem; border-radius: 1.5rem; padding: .15rem .25rem .15rem .65rem; background: #e8efe8; color: #25483c; font-size: .9rem; }
 .recipient-chip > span { overflow-wrap: anywhere; min-width: 0; }
 .recipient-chip button { display: grid; place-items: center; width: 1.6rem; height: 1.6rem; flex-shrink: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }

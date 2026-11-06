@@ -77,3 +77,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - November 6 itinerary location correction: accept complete location text without a 220-character cap or counter. Resolve the location during itinerary save and reuse it on the map. A named area should receive a labeled center pin. Keep address entry in the itinerary only.
 
 - November 6 map and field refinement: Map stops open their exact daily itinerary item, including for viewers. Hide routine character counters across the site. Allow 2,048 characters for new or changed itinerary addresses and preserve previously saved longer addresses.
+
+- Use the theme’s paper and ink colors together for the invite email field. Check typed, unselected text in both light and dark mode.
