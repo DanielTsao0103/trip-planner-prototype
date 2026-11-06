@@ -411,7 +411,7 @@ test('event location autocomplete selects a worldwide landmark, saves, reloads, 
  await expect(popularTimes).toHaveAttribute('href',`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(label)}`);
  await expect(popularTimes).toHaveAttribute('target','_blank');
  await expect(page.locator('.crowd-card,.crowd-bars')).toHaveCount(0);
- await input.fill('');await expect(popularTimes).toHaveCount(0);await input.fill(label);await input.press('Escape');
+ await input.fill('');await expect(popularTimes).toHaveCount(0);await input.fill('Eiffe');await page.getByRole('option',{name:/Eiffel Tower/}).click();
 
  expect(api.rows[0].content.events).toHaveLength(0);
  await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();

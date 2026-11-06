@@ -177,7 +177,7 @@ export function eventError(
     return "You can only change days you have permission to edit.";
   const problem =
     textError(event.name, "Event name", TEXT_LIMITS.eventName, true) ||
-    textError(event.place, "Location", TEXT_LIMITS.location, true) ||
+    (!event.place?.trim() && "Enter a location.") ||
     textError(event.notes, "Notes", TEXT_LIMITS.notes);
   if (problem) return problem;
   if (event.date < trip.start || event.date > trip.end)

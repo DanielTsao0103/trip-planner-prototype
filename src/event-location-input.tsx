@@ -1,10 +1,9 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
-import { TEXT_LIMITS } from './limits';
 import { locationQuery, locationSearchKey, resolveSearchFocus, searchMeetingPlaces, type MeetingPlace } from './event-location-search';
 
 const cache = new Map<string, {places:MeetingPlace[];biased:boolean;approximate:boolean}>();
-export function EventLocationInput({value,onChange,destinations=[],autoFocus=false}: {value:string;onChange:(value:string,point?:MeetingPlace["point"])=>void;destinations?:string[];autoFocus?:boolean}) {
+export function EventLocationInput({value,onChange,destinations=[]}: {value:string;onChange:(value:string,point?:MeetingPlace["point"])=>void;destinations?:string[]}) {
   const id=useId(), list=useRef<HTMLDivElement>(null);
   const [open,setOpen]=useState(false), [active,setActive]=useState(-1);
   const [results,setResults]=useState<MeetingPlace[]>([]);
@@ -45,20 +44,19 @@ export function EventLocationInput({value,onChange,destinations=[],autoFocus=fal
   function select(index:number){const result=results[index];if(result){onChange(result.label,result.point);setOpen(false);setActive(-1);}}
   const expanded=open && query.length>=2;
   return <div className="field event-location-field">
-    <div className="event-location-bias">
+    {stops.length > 1 && <div className="event-location-bias">
       <label htmlFor={`${id}-near`}>Search near</label>
       <select id={`${id}-near`} aria-label="Prioritize locations near" value={destination} onChange={e=>{setNear(e.target.value);setActive(-1);setResults([]);setOpen(true);}}>
         {stops.map(stop=><option key={stop} value={stop}>{stop}</option>)}
         <option value="">Worldwide (no preference)</option>
       </select>
       <small>Nearby matches first. Other locations are still included.</small>
-    </div>
+    </div>}
     <label htmlFor={`${id}-input`}>Where</label>
     <div className="event-location-input" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setOpen(false);}}>
-    <input autoFocus={autoFocus} id={`${id}-input`} required maxLength={TEXT_LIMITS.location} value={value} role="combobox" aria-label="Where"
+    <input id={`${id}-input`} required value={value} role="combobox" aria-label="Where"
       aria-autocomplete="list" aria-expanded={expanded} aria-controls={`${id}-list`}
       aria-activedescendant={expanded && active>=0 ? `${id}-${active}` : undefined}
-      aria-describedby={`${id}-count`} aria-invalid={value.length>TEXT_LIMITS.location || undefined}
       autoComplete="off" placeholder="Search a place, address, or meeting point"
       onFocus={()=>setOpen(true)} onChange={e=>{onChange(e.target.value);setOpen(true);setActive(-1);setResults([]);}}
       onKeyDown={e=>{
@@ -69,7 +67,6 @@ export function EventLocationInput({value,onChange,destinations=[],autoFocus=fal
         }else if(e.key==='Enter' && expanded){e.preventDefault();if(active>=0)select(active);else setOpen(false);}
         else if(e.key==='Escape' && expanded){e.preventDefault();setOpen(false);}
       }}/>
-    <small id={`${id}-count`} className="character-count">{value.length} / {TEXT_LIMITS.location} characters{value.length>TEXT_LIMITS.location?' — shorten this before saving':''}</small>
     {expanded && <div className="event-location-menu">
       <div className="event-location-caption">{status==='loading'?'Searching worldwide…':status==='error'?'Search unavailable':results.length?(destination && biased?`Near ${destination}${approximate?' (approximate area)':''}`:'Suggested locations'):'No locations found'}</div>
       <div ref={list} id={`${id}-list`} role="listbox" aria-label="Location suggestions">

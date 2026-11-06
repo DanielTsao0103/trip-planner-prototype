@@ -3,7 +3,6 @@ export const TEXT_LIMITS = {
   title: 100,
   destination: 220,
   eventName: 100,
-  location: 220,
   notes: 2200,
   expense: 130,
   todo: 220,

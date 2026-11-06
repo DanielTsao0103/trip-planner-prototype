@@ -57,7 +57,7 @@ Historical field-limit release scope: character and money limits, verified throu
 
 | Behavioral requirement | Status | Verification |
 | --- | --- | --- |
-| Limit trip/event titles to 100 characters, trip destinations/event locations to 220, names to 90, and email inputs to 280 | Complete | Native input limits plus save-handler validation; email format validation still applies. |
+| Limit trip/event titles to 100 characters, trip destinations to 220, names to 90, and email inputs to 280 | Complete | Native input limits plus save-handler validation; email format validation still applies. |
 | Limit event/additional notes to 2,200 characters, preference places to 1,100, expense descriptions to 130, and reminders to 220 | Complete | Desktop/mobile boundary tests check pasted input, saves, and reloads. |
 | Limit bulk invitation text to 5,600 characters and 20 addresses; limit trips to 20 destinations | Complete | Individual addresses, total text length, and item counts are validated before saving. |
 | Show accessible character counts and preserve existing oversized text until the user edits it | Complete | Counters are linked with aria-describedby; oversized saved notes remain intact and cannot be resaved until shortened. |
@@ -206,7 +206,7 @@ Canvas requires a text entry with the demo video link and the public GitHub repo
 
 ## Trip map
 
-The Map tab and active-trip dashboard use the Google Maps JavaScript API. Set the website-restricted browser key in `VITE_GOOGLE_MAPS_API_KEY` for local builds and in the matching GitHub Actions variable for Pages. An optional `VITE_GOOGLE_MAP_ID` selects a custom Google map style. Selecting a Photon address saves its coordinates with the event. A unique street-address match can also place a typed address. Opening the map automatically looks up unpinned itinerary addresses with Google, including older events. Accepted travelers see the pins. The trip stores the matched Google place ID, and a saved manual position takes priority. If Google cannot identify a specific location, use **Place pin**. Choose **Adjust pin** to move it to an entrance or meeting point.
+The Map tab and active-trip dashboard use the Google Maps JavaScript API. Set the website-restricted browser key in `VITE_GOOGLE_MAPS_API_KEY` for local builds and in the matching GitHub Actions variable for Pages. An optional `VITE_GOOGLE_MAP_ID` selects a custom Google map style. Selecting a Photon address saves its coordinates with the event. Saving a typed itinerary location resolves its Google place ID. A district or postal area appears as an area-center pin. Opening the map automatically looks up unpinned itinerary addresses with Google, including older events. Accepted travelers see the pins. The trip stores the matched Google place ID, and a saved manual position takes priority. If Google cannot identify a specific location, choose **Edit itinerary location**. Choose **Adjust pin** to move it to an entrance or meeting point.
 
 Accepted travelers read the same event records. An open map refreshes on focus and every 15 seconds while visible. Device location and viewport stay local. Directions open in Google Maps at the saved coordinates.
 
@@ -300,7 +300,7 @@ On narrow screens the calendar scrolls horizontally within its own region. Drag/
 | Select using pointer/touch or arrow keys and Enter, with Escape to dismiss | Complete |
 | Keep manual entry available when search fails or returns no matches | Complete |
 | Debounce requests, cancel stale responses and bound the session cache | Complete |
-| Preserve the 220-character location limit and character count | Complete |
+| Accept long itinerary locations without a character counter | Complete |
 | Save the selected full place/address string through the existing event database path | Complete; verified during release QA |
 
 Search uses Photon/OpenStreetMap with no country or bounding-box restriction. The typed query and selected trip destination are sent to resolve a geographic search bias; no device location is requested. Nearby matches are prioritized without excluding worldwide alternatives. Search near defaults to the first trip stop and allows switching stops or choosing Worldwide. Informal directional regions use an approximate area within the parent region; unresolved destinations fall back to worldwide search. Coverage and availability depend on the upstream map data and public endpoint. Before substantial production traffic, use a hosted provider or your own Photon instance.

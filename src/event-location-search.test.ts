@@ -13,8 +13,8 @@ test('landmarks include full addresses and street addresses work without a busin
  assert.equal(found[0].label,'Eiffel Tower, 5 Avenue Anatole France, Paris, France');
  assert.equal(found[1].label,'221B Baker Street, London, United Kingdom');
 });
-test('unusable, duplicate and over-limit suggestions are excluded without truncating saved labels',()=>{
- assert.equal(meetingPlacesFromResponse({features:[null,{properties:{}},{properties:{name:'x'.repeat(221)}},{properties:{name:'Tokyo',city:'Tokyo',country:'Japan'}},{properties:{name:'Tokyo',city:'Tokyo',country:'Japan'}}]}).length,1);
+test('unusable and duplicate suggestions are excluded while long labels are retained',()=>{
+ assert.equal(meetingPlacesFromResponse({features:[null,{properties:{}},{properties:{name:'x'.repeat(221)}},{properties:{name:'Tokyo',city:'Tokyo',country:'Japan'}},{properties:{name:'Tokyo',city:'Tokyo',country:'Japan'}}]}).length,2);
  assert.throws(()=>meetingPlacesFromResponse({}));
 });
 test('search includes all place/address layers with no geography restriction and propagates cancellation',async()=>{
@@ -70,13 +70,8 @@ test('cache keys isolate destinations and preserve meaningful address punctuatio
  assert.equal(locationSearchKey(' T Street ','PARIS'),locationSearchKey('t street','paris'));
 });
 
-test('exact building points keep longitude and latitude in the right order and ambiguous addresses require a choice', async () => {
-  const { exactAddressPoint } = await import('./event-location-search.ts');
-  const building = { properties: {name:'Museum', housenumber:'221B', street:'Baker Street',city:'London',country:'United Kingdom'}, geometry:{coordinates:[-0.15847,51.52376]} };
-  const matches = meetingPlacesFromResponse({features:[building]});
-  assert.deepEqual(exactAddressPoint('221B Baker Street, London', matches), {lat:51.52376,lng:-0.15847});
-  assert.equal(exactAddressPoint('221 Baker Street, London', matches),null);
-  assert.equal(exactAddressPoint('221B Baker Street, Seattle', matches),null);
-  assert.equal(exactAddressPoint('221B Baker Street, London', [...matches,...matches]),null);
+test('building coordinates retain longitude and latitude order', () => {
+  const building = {properties:{name:'Museum'}, geometry:{coordinates:[-0.15847,51.52376]}};
+  assert.deepEqual(meetingPlacesFromResponse({features:[building]})[0].point,{lat:51.52376,lng:-0.15847});
   assert.equal(meetingPlacesFromResponse({features:[{...building,geometry:{coordinates:[51,200]}}]})[0].point,null);
 });

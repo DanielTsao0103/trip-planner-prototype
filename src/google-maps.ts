@@ -1,3 +1,4 @@
+import { geocodeItineraryPlace } from "./itinerary-geocoding";
 /** The browser key and map ID come from the same settings used by the Pages build. */
 const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim();
 export const mapId =
@@ -63,4 +64,38 @@ export function loadGoogleMaps(): Promise<void> {
     throw error;
   });
   return loading;
+}
+
+/** Save the provider identity with the itinerary. On an outage the map can
+ * retry from the saved text, without holding up the event form. */
+export async function resolveSavedLocation(
+  address: string,
+  destinations: string[],
+): Promise<string | null> {
+  let timer: number | undefined;
+  try {
+    const matchId = async () => {
+      await loadGoogleMaps();
+      const { Geocoder } = (await google.maps.importLibrary(
+        "geocoding",
+      )) as google.maps.GeocodingLibrary;
+      const geocoder = new Geocoder();
+      const match = await geocodeItineraryPlace(
+        geocoder.geocode.bind(geocoder),
+        address,
+        destinations,
+      );
+      return match?.placeId ?? null;
+    };
+    return await Promise.race([
+      matchId(),
+      new Promise<null>((resolve) => {
+        timer = window.setTimeout(() => resolve(null), 3000);
+      }),
+    ]);
+  } catch {
+    return null;
+  } finally {
+    window.clearTimeout(timer);
+  }
 }

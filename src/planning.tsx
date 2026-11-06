@@ -1,4 +1,4 @@
-import { exactAddressPoint, searchMeetingPlaces } from "./event-location-search";
+import { resolveSavedLocation } from "./google-maps";
 import { EventLocationInput } from "./event-location-input";
 import { WeeklyCalendar } from "./weekly-calendar";
 /** Implementation status: Account events, todos, and dismissed choices save through updateTrip to Supabase. Confirmation extraction, crowds, costs, and suggestions remain fixtures; uploaded file previews are temporary. See ../IMPLEMENTATION_STATUS.md. */
@@ -362,7 +362,7 @@ export function EventForm() {
     if (busy) return;
     const inputProblem =
       textError(name, "Event name", TEXT_LIMITS.eventName, true) ||
-      textError(place, "Location", TEXT_LIMITS.location, true) ||
+      (!place.trim() && "Enter a location.") ||
       moneyError(cost, MONEY_LIMITS.expense, true);
     if (inputProblem) {
       setError(inputProblem);
@@ -388,11 +388,8 @@ export function EventForm() {
       return;
     }
     setBusy(true);
-    if (!event.point && /\d/.test(event.place)) {
-      try {
-        const matches = await searchMeetingPlaces(event.place, AbortSignal.timeout(3000));
-        event.point = exactAddressPoint(event.place, matches);
-      } catch { /* Keep the address. The owner can place its pin from the map. */ }
+    if (!event.point && !event.googlePlaceId) {
+      event.googlePlaceId = await resolveSavedLocation(event.place, t.destinations);
     }
     if (!formActive.current) return;
     updateTrip((v) => {

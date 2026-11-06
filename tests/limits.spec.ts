@@ -45,7 +45,11 @@ test("text controls cap pasted text and expose counts across all forms", async (
   await noOverflow(page);
   await page.goto("./#/7");
   await capped(page, "Event name", 100);
-  await capped(page, "Where", 220);
+  const location = page.getByLabel("Where",{exact:true});
+  await location.fill("A".repeat(320));
+  await expect(location).toHaveValue("A".repeat(320));
+  await expect(page.locator(".event-location-field .character-count")).toHaveCount(0);
+  await location.press("Escape");
   await capped(page, "Notes (optional)", 2200);
   await noOverflow(page);
   await page.goto("./#/15");

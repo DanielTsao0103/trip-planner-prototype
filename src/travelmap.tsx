@@ -19,20 +19,22 @@ import { useApp } from "./state";
 import { Button, PageHead } from "./ui";
 import { canEdit, type Event, type MapPoint } from "./domain";
 import { resolveSearchFocus } from "./event-location-search";
-import { EventLocationInput } from "./event-location-input";
 
-function showStops(map: google.maps.Map, points: MapPoint[]) {
+function showStops(map: google.maps.Map, points: MapPoint[], singleZoom = 16) {
   if (!points.length) return;
   const bounds = new google.maps.LatLngBounds();
   points.forEach((point) => bounds.extend(point));
   if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
-    map.moveCamera({ center: points[0], zoom: 16 });
+    map.moveCamera({ center: points[0], zoom: singleZoom });
   } else {
     map.fitBounds(bounds, { top: 116, right: 82, bottom: 48, left: 42 });
   }
 }
-function focusPoint(map: google.maps.Map, point: MapPoint) {
-  map.moveCamera({ center: point, zoom: Math.max(map.getZoom() ?? 0, 16) });
+function focusPoint(map: google.maps.Map, point: MapPoint, area = false) {
+  map.moveCamera({
+    center: point,
+    zoom: area ? 13 : Math.max(map.getZoom() ?? 0, 16),
+  });
 }
 
 export function TravelMap({
@@ -61,7 +63,6 @@ export function TravelMap({
   );
   const [editing, setEditing] = useState(false);
   const [preciseZoom, setPreciseZoom] = useState(false);
-  const [query, setQuery] = useState("");
   const [locationStatus, setLocationStatus] = useState("");
   const [locating, setLocating] = useState(false);
   const { events, statusFor, retryLookup } = useItineraryPins(
@@ -181,13 +182,17 @@ export function TravelMap({
       marker.addEventListener("gmp-click", () => {
         select(event.id);
         setEditing(false);
-        focusPoint(view, event.point!);
+        focusPoint(view, event.point!, event.area);
       });
       markers.current.set(event.id, marker);
     });
     if (initialFocus.current && !selection?.point && !editing) {
       if (points.length) {
-        showStops(view, points);
+        showStops(
+          view,
+          points,
+          events.some((e) => e.point && !e.area) ? 16 : 13,
+        );
         initialFocus.current = events.some(
           (e) => !e.point && statusFor(e) === undefined,
         );
@@ -225,7 +230,7 @@ export function TravelMap({
 
   useEffect(() => {
     const point = selection?.point;
-    if (point && map.current) focusPoint(map.current, point);
+    if (point && map.current) focusPoint(map.current, point, selection?.area);
   }, [ready, selectedId, selection?.point?.lat, selection?.point?.lng]);
 
   const overview = () => {
@@ -235,6 +240,7 @@ export function TravelMap({
       showStops(
         map.current,
         events.flatMap((e) => (e.point ? [e.point] : [])),
+        events.some((e) => e.point && !e.area) ? 16 : 13,
       );
   };
   function locateMe() {
@@ -277,11 +283,12 @@ export function TravelMap({
       { timeout: 10000, enableHighAccuracy: true },
     );
   }
-  function choose(event: Event) {
+  function choose(event: Event & { area: boolean }) {
     initialFocus.current = false;
     setEditing(false);
     select(event.id);
-    if (event.point && map.current) focusPoint(map.current, event.point);
+    if (event.point && map.current)
+      focusPoint(map.current, event.point, event.area);
   }
   function savePin() {
     if (
@@ -352,6 +359,7 @@ export function TravelMap({
             <div className="trip-map-tools">
               <button
                 aria-label="Zoom in"
+                title="Zoom in"
                 onClick={() =>
                   map.current?.setZoom((map.current.getZoom() ?? 2) + 1)
                 }
@@ -360,17 +368,23 @@ export function TravelMap({
               </button>
               <button
                 aria-label="Zoom out"
+                title="Zoom out"
                 onClick={() =>
                   map.current?.setZoom((map.current.getZoom() ?? 2) - 1)
                 }
               >
                 <Minus />
               </button>
-              <button aria-label="Show all pins" onClick={overview}>
+              <button
+                aria-label="Show all pins"
+                title="Show all pins"
+                onClick={overview}
+              >
                 <Maximize />
               </button>
               <button
                 aria-label="Show my location"
+                title="Show my location"
                 disabled={locating}
                 onClick={locateMe}
               >
@@ -418,7 +432,7 @@ export function TravelMap({
             <span>
               {preciseZoom
                 ? "Move the map to position the pin"
-                : "Zoom in or choose an address below"}
+                : "Zoom in to position the pin"}
             </span>
             <Button disabled={!preciseZoom} onClick={savePin}>
               Save pin
@@ -469,6 +483,7 @@ export function TravelMap({
                 <span>
                   <strong>{event.name}</strong>
                   <small>{event.place}</small>
+                  {event.point && event.area && <em>Area center</em>}
                   {!event.point && (
                     <em>
                       {!ready
@@ -477,7 +492,7 @@ export function TravelMap({
                           ? "Finding address…"
                           : statusFor(event) === "error"
                             ? "Lookup unavailable"
-                            : "Address needs confirmation"}
+                            : "Location not found"}
                     </em>
                   )}
                 </span>
@@ -506,26 +521,16 @@ export function TravelMap({
                     !editing && (
                       <button
                         onClick={() => {
-                          setQuery(event.place);
-                          setEditing(true);
+                          if (event.point && !event.area) setEditing(true);
+                          else go(7, { event: event.id, date: event.date });
                         }}
                       >
                         <MapPin size={15} />{" "}
-                        {event.point ? "Adjust pin" : "Place pin"}
+                        {event.point && !event.area
+                          ? "Adjust pin"
+                          : "Edit itinerary location"}
                       </button>
                     )}
-                  {editingPin && (
-                    <EventLocationInput
-                      autoFocus
-                      value={query}
-                      destinations={trip?.destinations}
-                      onChange={(label, point) => {
-                        setQuery(label);
-                        if (point && map.current)
-                          map.current.moveCamera({ center: point, zoom: 18 });
-                      }}
-                    />
-                  )}
                 </div>
               )}
             </div>

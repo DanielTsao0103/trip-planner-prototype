@@ -61,3 +61,33 @@ test("a venue-prefixed booking can resolve from its complete street address", as
   );
   assert.equal(match?.placeId, "needle");
 });
+
+test("Taipei district text gets an area-center pin while a venue cannot inherit a district centroid", async () => {
+  const entered = "Zhongzheng District, Taipei City, Taiwan 100";
+  const district = response("taipei-district", "postal_code");
+  district.results[0].formatted_address = entered;
+  const geocode = async () => district;
+  assert.equal(
+    (await geocodeItineraryPlace(geocode, entered, ["Taiwan"]))?.area,
+    true,
+  );
+  assert.equal(
+    (
+      await geocodeItineraryPlace(
+        geocode,
+        entered,
+        ["Taiwan"],
+        "taipei-district",
+      )
+    )?.area,
+    true,
+  );
+  assert.equal(
+    await geocodeItineraryPlace(
+      geocode,
+      "Unknown museum, Taipei City, Taiwan",
+      ["Taiwan"],
+    ),
+    null,
+  );
+});

@@ -73,3 +73,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Map provider correction (November 6, 2026): Dan wants the existing Google Maps JavaScript API on the Map tab. Preserve the hosted browser-key wiring and verify real Google imagery and interactions on desktop and mobile before publishing map changes.
 
 - Itinerary pin correction (November 6, 2026): opening the Google Map must automatically place unpinned itinerary addresses for owners and viewers, including existing events, without choosing a stop first. Preserve user-adjusted pins.
+
+- November 6 itinerary location correction: accept complete location text without a 220-character cap or counter. Resolve the location during itinerary save and reuse it on the map. A named area should receive a labeled center pin. Keep address entry in the itinerary only.

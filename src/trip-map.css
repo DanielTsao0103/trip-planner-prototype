@@ -191,12 +191,6 @@ gmp-advanced-marker:focus-visible .trip-pin-face {
   font-size: 13px;
   font-weight: 600;
 }
-.place-actions .event-location-field {
-  width: 100%;
-}
-.place-actions .event-location-menu {
-  position: static;
-}
 @media (max-width: 760px) {
   .trip-map-list {
     max-height: none;

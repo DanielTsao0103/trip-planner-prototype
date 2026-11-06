@@ -120,8 +120,8 @@ export function useItineraryPins(
   const events = (trip?.events ?? []).map((event) => {
     const match = results[keyFor(event)];
     return !event.point && match && match !== "error"
-      ? { ...event, point: match.point }
-      : event;
+      ? { ...event, point: match.point, area: match.area }
+      : { ...event, area: false };
   });
   return {
     events,
