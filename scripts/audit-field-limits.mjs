@@ -84,7 +84,7 @@ for (const device of ['desktop', 'mobile']) {
     await audit('expense-validation');
     await button('Close dialog').click();
     await page.goto(`${site}#/8`);
-    await button('Demo controls & screen index').click();
+    await button('Prototype').click();
     await button('During').click();
     await button('Apply & preview landing').click();
     await page.getByLabel('New to-do', { exact: true }).waitFor();

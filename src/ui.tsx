@@ -553,14 +553,6 @@ export function Shell({ children }: { children: ReactNode }) {
           )}
           {children}
         </main>
-        {/* Keep implementation commentary off Suggestions and Budget only. */}
-        {![9, 12].includes(route.page) && (
-          <footer className="app-footer">
-            <button onClick={() => open("demo")}>
-              Demo controls & screen index
-            </button>
-          </footer>
-        )}
       </div>
       {trip && (
         <nav className="mobile-nav" aria-label="Mobile navigation">

@@ -87,7 +87,6 @@ export function WeeklyCalendar() {
         <h3 aria-live="polite">{dateText(firstDate, true)} – {dateText(dates[6], true)}</h3>
         <Button variant="outline" aria-label="Next seven days" disabled={safePage === lastPage} onClick={() => { setPage(safePage + 1); setError(''); }}><ChevronRight size={18}/></Button>
       </div>
-      <span className="muted">{trip.zone.replaceAll('_', ' ')}</span>
     </div>
     <p className="calendar-help">Drag an event to change its day or time, or choose Move. Scroll sideways to see all seven days on smaller screens.</p>
     {!moving && <ErrorBox text={error}/>}

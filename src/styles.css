@@ -1039,21 +1039,6 @@ legend {
   padding: 37px 42px 42px;
   min-height: calc(100vh - 145px);
 }
-.app-footer {
-  max-width: 1350px;
-  margin: 0 auto;
-  display: flex;
-  justify-content: space-between;
-  color: var(--muted);
-  font-size: 9px;
-  padding: 13px 42px 20px;
-  gap: 12px;
-}
-.app-footer button {
-  font-size: 9px;
-  color: var(--muted);
-  padding: 0;
-}
 .mobile-nav {
   display: none;
 }
@@ -3868,10 +3853,6 @@ legend {
   .main-content {
     padding: 29px 26px;
   }
-  .app-footer {
-    padding-left: 26px;
-    padding-right: 26px;
-  }
   .itinerary-layout {
     grid-template-columns: minmax(0, 1fr) 225px;
     gap: 22px;
@@ -4362,15 +4343,8 @@ legend {
     padding: 25px 20px 25px;
     min-height: calc(100vh - 150px);
   }
-  .app-footer {
-    padding: 15px 20px 98px;
-    flex-direction: column;
-    gap: 9px;
-    align-items: flex-start;
-    font-size: 9px;
-  }
-  .app-footer > button {
-    font-size: 9px;
+  .main-wrap:has(+ .mobile-nav) {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
   }
   .mobile-nav {
     display: flex;
@@ -6568,8 +6542,7 @@ legend {
 .itcal-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; }
 .itcal-navigation { display:flex; align-items:center; gap:12px; }
 .itcal-navigation h3 { margin:0; font-size:18px; }
-.itcal-toolbar > span, .calendar-help { font-size:12px; }
-.calendar-help { margin:0 0 16px; line-height:1.6; color:var(--muted); }
+.calendar-help { font-size:12px; margin:0 0 16px; line-height:1.6; color:var(--muted); }
 .itcal-scroll {
   overflow: auto;
   max-height: 75vh;
