@@ -57,9 +57,21 @@ try {
         days: [],
       },
     ],
-    events: [{ id: randomUUID(), name: "Museum entrance", place: "221B Baker Street, London",
-      point: { lat: 51.52376, lng: -0.15847 }, date: "2027-01-01", start: "10:00",
-      end: "11:00", cost: 0, notes: "", image: "", attendees: [user.id] }],
+    events: [
+      {
+        id: randomUUID(),
+        name: "Museum entrance",
+        place: "221B Baker Street, London",
+        point: { lat: 51.52376, lng: -0.15847 },
+        date: "2027-01-01",
+        start: "10:00",
+        end: "11:00",
+        cost: 0,
+        notes: "",
+        image: "",
+        attendees: [user.id],
+      },
+    ],
     expenses: [],
     prefs: {},
     individual: {},
@@ -87,7 +99,10 @@ try {
     await admin.auth.admin.generateLink({
       type: "magiclink",
       email: recipient,
-      options: { redirectTo: target, data: { trip_account_setup: true } },
+      options: {
+        redirectTo: target + "?trip_invite=" + tripId,
+        data: { trip_account_setup: true },
+      },
     }),
   );
   accountIds.push(invitation.user.id);
@@ -98,90 +113,200 @@ try {
   const destination = new URL(first.headers.get("location"));
   const tokens = new URLSearchParams(destination.hash.slice(1));
   assert.ok(["magiclink", "signup"].includes(tokens.get("type")));
-  check(
-    await guest.auth.setSession({
-      access_token: tokens.get("access_token"),
-      refresh_token: tokens.get("refresh_token"),
-    }),
-  );
-  check(
-    await guest.auth.updateUser({
-      password: randomUUID(),
-      data: { name: "Invited Traveler" },
-    }),
-  );
-  const names = check(
-    await owner.rpc("resolve_trip_emails", { p_emails: [recipient] }),
-  );
-  assert.equal(names[recipient], "Invited Traveler");
-  assert.ok(
-    check(await guest.rpc("load_trip_bundles")).some(
-      (t) => t.tripID === tripId,
-    ),
-  );
-  assert.equal(check(await share()), "shared");
-  const row = check(await guest.rpc("read_invited_trip", { p_trip: tripId }));
-  assert.deepEqual(row.content.events[0].point, draft.events[0].point);
-  assert.equal(row.content.members.length, 2);
-  assert.equal(row.content.members[1].name, "Invited Traveler");
-  assert.equal(row.content.members[1].accountId, invitation.user.id);
-  assert.ok(
-    (
-      await guest.rpc("share_trip_recipient", {
+  if (process.env.INVITE_BROWSER_URL) {
+    // Exercise the actual redirect payload against a local build or the published site.
+    const { chromium } = await import("@playwright/test");
+    const browser = await chromium.launch();
+    const useInvitedEmail = process.env.INVITE_SAME_EMAIL === "1";
+    const selectedEmail = useInvitedEmail ? recipient : makeEmail();
+    try {
+      const base = new URL(process.env.INVITE_BROWSER_URL);
+      assert.ok(
+        base.hostname === "127.0.0.1" || base.origin + base.pathname === target,
+      );
+      assert.equal(destination.searchParams.get("trip_invite"), tripId);
+      base.search = destination.search;
+      base.hash = destination.hash;
+      const page = await browser.newPage({
+        viewport: { width: useInvitedEmail ? 390 : 1280, height: 850 },
+      });
+      await page.goto(base.href);
+      await page.getByRole("button", { name: "Sign in with Google" }).waitFor();
+      await page.reload();
+      await page
+        .getByRole("button", { name: "New here? Create an account" })
+        .click();
+      await page.getByLabel("Your name").fill("Browser Traveler");
+      await page.getByLabel("Email", { exact: true }).fill(selectedEmail);
+      const browserPassword = randomUUID();
+      await page.getByLabel("Password", { exact: true }).fill(browserPassword);
+      await page
+        .getByRole("button", { name: "Create account", exact: true })
+        .click();
+      await page
+        .getByText("Joined Invitation QA", { exact: true })
+        .waitFor({ timeout: 12000 })
+        .catch(async () => {
+          throw Error(
+            "Survey did not open: " +
+              (await page.getByRole("alert").allTextContents()),
+          );
+        });
+      const selected = check(
+        await guest.auth.signInWithPassword({
+          email: selectedEmail,
+          password: browserPassword,
+        }),
+      );
+      if (!useInvitedEmail) accountIds.push(selected.user.id);
+      await page.getByRole("button", { name: "Save and open trip" }).click();
+      await page
+        .getByRole("heading", { name: "Invitation QA", exact: true })
+        .first()
+        .waitFor();
+      const row = check(
+        await owner.rpc("read_invited_trip", { p_trip: tripId }),
+      );
+      const traveler = row.content.members.find(
+        (m) => m.accountId === selected.user.id,
+      );
+      assert.ok(traveler && row.content.prefs[traveler.id]);
+      console.log(
+        "Verified shared login, signup, invited trip, and saved survey (" +
+          (useInvitedEmail
+            ? "invited email/mobile"
+            : "alternate email/desktop") +
+          ").",
+      );
+    } finally {
+      await browser.close();
+    }
+  } else {
+    check(
+      await guest.auth.setSession({
+        access_token: tokens.get("access_token"),
+        refresh_token: tokens.get("refresh_token"),
+      }),
+    );
+    const ticket = check(
+      await guest.rpc("open_trip_invite", { p_trip: tripId }),
+    );
+    assert.equal(ticket.trip, tripId);
+    assert.equal(ticket.email, recipient);
+    assert.equal(check(await guest.rpc("load_trip_bundles")).length, 0);
+    const newEmail = makeEmail();
+    const signed = check(
+      await guest.auth.signUp({
+        email: newEmail,
+        password: randomUUID(),
+        options: { data: { name: "Invited Traveler" } },
+      }),
+    );
+    accountIds.push(signed.user.id);
+    assert.ok(signed.session);
+    assert.ok((await guest.rpc("open_trip_invite", { p_trip: tripId })).error);
+    const accept = (client, secret) =>
+      client.rpc("accept_trip_invite", { p_trip: tripId, p_ticket: secret });
+    assert.ok((await accept(guest, randomUUID())).error);
+    check(await accept(guest, ticket.ticket));
+    check(await accept(guest, ticket.ticket)); // safe after a lost acknowledgement
+    assert.ok((await accept(owner, ticket.ticket)).error);
+    const formerInbox = client(env.VITE_SUPABASE_PUBLISHABLE_KEY);
+    check(
+      await formerInbox.auth.setSession({
+        access_token: tokens.get("access_token"),
+        refresh_token: tokens.get("refresh_token"),
+      }),
+    );
+    assert.ok((await accept(formerInbox, ticket.ticket)).error);
+    assert.ok(
+      check(await guest.rpc("load_trip_bundles")).some(
+        (t) => t.tripID === tripId,
+      ),
+    );
+    const row = check(await guest.rpc("read_invited_trip", { p_trip: tripId }));
+    assert.deepEqual(row.content.events[0].point, draft.events[0].point);
+    assert.equal(row.content.members.length, 2);
+    assert.equal(row.content.members[1].name, "Invited Traveler");
+    assert.equal(row.content.members[1].accountId, signed.user.id);
+    assert.ok(
+      (
+        await guest.rpc("share_trip_recipient", {
+          p_trip: tripId,
+          p_email: makeEmail(),
+        })
+      ).error,
+    );
+    const traveler = row.content.members.find(
+      (m) => m.accountId === signed.user.id,
+    );
+    assert.notEqual(traveler.id, invitation.user.id);
+    const answers = {
+      diet: ["Vegan"],
+      food: "Local favorites",
+      spending: "Moderate",
+      dining: "Casual & simple",
+      atmosphere: "Quiet",
+      access: [],
+      walk: 450,
+      interests: ["History"],
+      destinations: "",
+      tickets: "Happy to book ahead",
+      notes: "Test survey",
+    };
+    const submit = (client, prefs = answers) =>
+      client.rpc("save_invited_preferences", {
         p_trip: tripId,
-        p_email: makeEmail(),
-      })
-    ).error,
-  );
-  const traveler = row.content.members.find(m => m.accountId === invitation.user.id);
-  assert.notEqual(traveler.id, invitation.user.id);
-  const answers = {
-    diet: ["Vegan"], food: "Local favorites", spending: "Moderate", dining: "Casual & simple",
-    atmosphere: "Quiet", access: [], walk: 450, interests: ["History"], destinations: "",
-    tickets: "Happy to book ahead", notes: "Test survey",
-  };
-  const submit = (client, prefs = answers) => client.rpc("save_invited_preferences", {
-    p_trip: tripId, p_answers: prefs,
-  });
-  assert.ok((await submit(owner)).error);
-  const submitted = check(await submit(guest));
-  assert.deepEqual(submitted.content.prefs, { [traveler.id]: answers });
-  assert.ok((await submit(guest, { ...answers, walk: -1 })).error);
-  assert.deepEqual(check(await owner.rpc("read_invited_trip", { p_trip: tripId })).content.prefs,
-    submitted.content.prefs);
-  assert.equal((await save(draft, row.revision)).error?.code, "PT409");
-  draft.prefs = submitted.content.prefs;
-  draft.members = row.content.members;
-  draft.title = "Edited after sharing";
-  draft.events[0].point = { lat: 51.523748, lng: -0.1585699 };
-  const edited = check(await save(draft, submitted.revision));
-  const shared = check(await guest.rpc("read_invited_trip", { p_trip: tripId }));
-  assert.deepEqual(shared.content.events[0].point, draft.events[0].point);
-  const invalid = structuredClone(draft);
-  invalid.events[0].point.lat = 91;
-  assert.ok((await save(invalid, edited.revision)).error);
-  const olderClient = structuredClone(draft);
-  delete olderClient.events[0].point;
-  const preserved = check(await save(olderClient, edited.revision));
-  assert.deepEqual(preserved.content.events[0].point, draft.events[0].point);
-  draft.events[0].point = null;
-  assert.ok(
-    check(await guest.rpc("load_trip_bundles")).some(
-      (t) => t.tripID === tripId,
-    ),
-  );
-  draft.members[1].status = "removed";
-  assert.equal(check(await save(draft, preserved.revision)).content.events[0].point, null);
-  assert.ok((await guest.rpc("read_invited_trip", { p_trip: tripId })).error);
-  assert.equal((await submit(guest)).error?.code, "42501");
-  console.log(
-    "Account setup, shared pin creation and correction, survey persistence, stale owner edits, and access revocation passed.",
-  );
-  assert.equal(
-    destination.origin + destination.pathname,
-    target,
-    "Add the published app URL to Supabase Auth redirect URLs.",
-  );
+        p_answers: prefs,
+      });
+    assert.ok((await submit(owner)).error);
+    const submitted = check(await submit(guest));
+    assert.deepEqual(submitted.content.prefs, { [traveler.id]: answers });
+    assert.ok((await submit(guest, { ...answers, walk: -1 })).error);
+    assert.deepEqual(
+      check(await owner.rpc("read_invited_trip", { p_trip: tripId })).content
+        .prefs,
+      submitted.content.prefs,
+    );
+    assert.equal((await save(draft, row.revision)).error?.code, "PT409");
+    draft.prefs = submitted.content.prefs;
+    draft.members = row.content.members;
+    draft.title = "Edited after sharing";
+    draft.events[0].point = { lat: 51.523748, lng: -0.1585699 };
+    const edited = check(await save(draft, submitted.revision));
+    const shared = check(
+      await guest.rpc("read_invited_trip", { p_trip: tripId }),
+    );
+    assert.deepEqual(shared.content.events[0].point, draft.events[0].point);
+    const invalid = structuredClone(draft);
+    invalid.events[0].point.lat = 91;
+    assert.ok((await save(invalid, edited.revision)).error);
+    const olderClient = structuredClone(draft);
+    delete olderClient.events[0].point;
+    const preserved = check(await save(olderClient, edited.revision));
+    assert.deepEqual(preserved.content.events[0].point, draft.events[0].point);
+    draft.events[0].point = null;
+    assert.ok(
+      check(await guest.rpc("load_trip_bundles")).some(
+        (t) => t.tripID === tripId,
+      ),
+    );
+    draft.members[1].status = "removed";
+    assert.equal(
+      check(await save(draft, preserved.revision)).content.events[0].point,
+      null,
+    );
+    assert.ok((await guest.rpc("read_invited_trip", { p_trip: tripId })).error);
+    assert.equal((await submit(guest)).error?.code, "42501");
+    console.log(
+      "Account setup, shared pin creation and correction, survey persistence, stale owner edits, and access revocation passed.",
+    );
+    assert.equal(
+      destination.origin + destination.pathname,
+      target,
+      "Add the published app URL to Supabase Auth redirect URLs.",
+    );
+  }
 } finally {
   check(await admin.from("trip").delete().eq("tripID", tripId));
   for (const id of accountIds) {

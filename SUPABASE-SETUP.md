@@ -70,7 +70,7 @@ Do not raise `40001` for business conflicts: [Supabase documents a PostgREST ret
 
 ## Google sign-in (October 29, 2026)
 
-The **Sign in with Google** button runs Supabase OAuth with the PKCE flow (`src/supabase.ts`), so Google returns to the app as `?code=...` and never touches the `#/page` routing. Apple stays a prototype preview.
+The **Sign in with Google** button runs Supabase OAuth with the PKCE flow (`src/supabase.ts`), so Google returns to the app as `?code=...` and never touches the `#/page` routing. Apple uses the same OAuth return when the Apple provider is enabled; until then the login screen offers Google or email instead.
 
 One-time setup, done in dashboards (no secrets go in this repo):
 

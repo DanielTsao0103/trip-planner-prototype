@@ -77,3 +77,20 @@ export function hasEmailLink(): boolean {
     ["invite", "signup", "magiclink"].includes(hash.get("type") || "")
   );
 }
+
+/** Keep the emailed session separate: it proves inbox access, not the identity joining the trip. */
+export function inviteProofClient(): SupabaseClient {
+  const { url, key } = connectionSettings();
+  return createClient(url, key, { auth: { storageKey: "trip-invite-proof",
+    persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+}
+
+/** Avoid sending travelers to an OAuth error page before Apple is configured. */
+export async function appleSignInEnabled(): Promise<boolean> {
+  const { url, key } = connectionSettings();
+  const response = await fetch(new URL("/auth/v1/settings", url), {
+    headers: { apikey: key }, signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) throw new Error("Could not check Apple sign-in. Try again or use email.");
+  return (await response.json()).external?.apple === true;
+}

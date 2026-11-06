@@ -85,3 +85,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Calendar dragging uses the event’s top edge and rounds to the nearest minute. Aligning that edge with the 10 AM line must save 10:00 AM wherever the card was grabbed.
 
 - Account trip changes must save to the live database, resume after interruption and reach other open planner screens. Verify the published site with independent signed-in browser sessions.
+
+- Email invitations must open the normal login and signup options. Preserve the exact trip while the traveler chooses an account, including a different email, then open its preference survey.

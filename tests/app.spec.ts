@@ -11,6 +11,7 @@ test.beforeEach(async ({ page }) => {
     if (url.pathname === '/rest/v1/user_style') return route.fulfill({ json: [] });
     if (url.pathname === '/rest/v1/rpc/load_trip_bundles' || (url.pathname === '/rest/v1/trip' && route.request().method() === 'GET')) return route.fulfill({ json: [] });
     if (url.pathname.startsWith('/auth/v1/')) {
+      if (url.pathname.endsWith('/settings')) return route.fulfill({json: {external: {apple:false}}});
       if (url.pathname.endsWith('/logout')) return route.fulfill({ status: 204 });
       if (url.pathname.endsWith('/user')) return route.fulfill({ json: account });
       if (url.pathname.endsWith('/signup')) return route.fulfill({ json: session() });
@@ -123,7 +124,7 @@ test('trip photo search follows the chosen destination and keeps two to five opt
   expect(trackedLocation).toBe('https://api.unsplash.com/photos/Spain-1/download?ixid=Spain-1');
 });
 
-test('login shows neutral copy, branded buttons, an Apple preview, and recoverable auth errors', async ({ page }) => {
+test('login shows neutral copy, branded buttons, Apple availability, and recoverable auth errors', async ({ page }) => {
   await page.goto('./');
   await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner', exact: true })).toBeVisible();
   for (const provider of ['Google', 'Apple']) {
@@ -132,7 +133,7 @@ test('login shows neutral copy, branded buttons, an Apple preview, and recoverab
     expect(await button.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
   }
   await page.getByRole('button', { name: 'Sign in with Apple', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Apple sign-in is a prototype preview');
+  await expect(page.getByRole('status')).toContainText('Apple sign-in isn’t available yet');
   await page.getByLabel('Email', { exact: true }).fill(account.email);
   await page.getByLabel('Password', { exact: true }).fill('wrong-password');
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
@@ -163,7 +164,7 @@ test('Google sign-in starts Supabase OAuth with PKCE and returns to this page', 
 
 test('a failed Google return shows the reason and cleans the address bar', async ({ page }) => {
   await page.goto('./?error=access_denied&error_code=bad_oauth_callback&error_description=Access+blocked');
-  await expect(page.getByRole('alert')).toContainText('Google sign-in didn’t finish: Access blocked');
+  await expect(page.getByRole('alert')).toContainText('Sign-in didn’t finish: Access blocked');
   expect(page.url()).not.toContain('error_description');
   await expect(page.getByRole('button', { name: 'Sign in with Google', exact: true })).toBeEnabled();
 });
@@ -276,4 +277,44 @@ test('screen index sample entry preserves the real account return path', async (
   await page.getByRole('button', { name: 'Back to my trips', exact: true }).click();
   await page.goto('./#/4');
   await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
+});
+
+test('an email invitation survives Google login and selects its own trip survey', async ({ page }) => {
+  const target = '77777777-7777-4777-8777-777777777777';
+  const inbox = 'invited@example.com';
+  const row = (tripID: string, trip_name: string) => ({
+    tripID, trip_name, destinations: ['Osaka'], timezone: 'Asia/Tokyo',
+    start_date: '2027-05-01', end_date: '2027-05-04', content_version: 1, revision: 1,
+    content: { members: [{ id: account.id, accountId: account.id, name: 'Traveler',
+      email: account.email, role: 'Viewer', status: 'accepted', days: [] }],
+      prefs: {}, events: [], todos: [], expenses: [], dismissed: [], individual: {} },
+  });
+  let joined = false;
+  await page.route('**/rest/v1/trip_photo_credit?**', route => route.fulfill({json:[]}));
+  await page.route('**/rpc/open_trip_invite', route => {
+    expect(route.request().postDataJSON()).toEqual({p_trip: target});
+    return route.fulfill({json:{trip:target, email:inbox, canSetup:true, ticket:target}});
+  });
+  await page.route('**/rpc/accept_trip_invite', route => {
+    expect(route.request().postDataJSON()).toEqual({p_trip:target, p_ticket:target});
+    joined = true;
+    return route.fulfill({status:204});
+  });
+  await page.route('**/rpc/load_trip_bundles', route => {
+    expect(joined).toBeTruthy();
+    return route.fulfill({json:[row('88888888-8888-4888-8888-888888888888','Other pending survey'), row(target,'Invited Osaka trip')]});
+  });
+  await page.route('**/auth/v1/authorize?**', route => {
+    const url = new URL(route.request().url());
+    const callback = new URL(url.searchParams.get('redirect_to')!);
+    callback.searchParams.set('code','mock-google-code');
+    return route.fulfill({status:302, headers:{location:callback.href}});
+  });
+  const part = (v: unknown) => Buffer.from(JSON.stringify(v)).toString('base64url');
+  const token = part({alg:'HS256'})+'.'+part({sub:account.id, exp:Math.floor(Date.now()/1000)+3600})+'.dGVzdA';
+  await page.goto('./?trip_invite='+target+'#type=signup&access_token='+token+'&refresh_token=mock-refresh');
+  await expect(page.getByLabel('Email',{exact:true})).toHaveValue(inbox);
+  await page.getByRole('button',{name:'Sign in with Google'}).click();
+  await expect(page.getByRole('heading',{name:'Your trip preferences'})).toBeVisible();
+  await expect(page.getByText('Joined Invited Osaka trip', {exact:true})).toBeVisible();
 });

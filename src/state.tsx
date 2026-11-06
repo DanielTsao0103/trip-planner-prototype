@@ -187,8 +187,16 @@ export function Provider({
           if (index < 0) restored.push(draft);
           else restored[index] = draft;
         }
+        const targetKey = "trip-planner-invite-target:" + account.id;
+        const target = sessionStorage.getItem(targetKey);
+        const invited = target && restored.find(t => t.id === target && member(t, account.id));
+        if (invited) {
+          go(8, {}, true);
+          sessionStorage.removeItem(targetKey);
+        }
         commit({
           ...previous,
+          ...(invited ? { tripId: invited.id } : {}),
           trips: [
             ...previous.trips.filter(
               (t) =>

@@ -1,8 +1,15 @@
-/** Implementation status: email/password and Google sign-in use Supabase Auth (Google needs the provider enabled in the Supabase dashboard). The Apple button only shows a preview notice; it does not run OAuth. Maya uses a separate local session. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, textError, emailError } from "./limits.ts";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { getSupabase, hasEmailLink } from "./supabase";
+import { getSupabase, hasEmailLink, appleSignInEnabled } from "./supabase";
+import {
+  inviteEntry,
+  leaveInvite,
+  openInvite,
+  storeInvite,
+  verifiedInviteClient,
+  type InviteClaim,
+} from "./invite-entry";
 import { HERO_IMAGE, HERO_ALT } from "./hero";
 import { Field } from "./ui";
 import googleLogo from "./assets/auth/google-g.svg";
@@ -18,7 +25,7 @@ export function AuthApp({
 }) {
   const [demo, setDemo] = useState(() => {
     try {
-      if (hasEmailLink()) {
+      if (inviteEntry || hasEmailLink()) {
         sessionStorage.removeItem("trip-planner-demo-session");
         return false;
       }
@@ -37,6 +44,63 @@ export function AuthApp({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  const [claim, setClaim] = useState<InviteClaim | null>(null);
+  const [joiningError, setJoiningError] = useState("");
+  const [joinedTrip, setJoinedTrip] = useState<string>();
+  const [chosen, setChosen] = useState(Boolean(inviteEntry?.choosing));
+  const [attempt, setAttempt] = useState(0);
+  function chooseAccount(): void {
+    if (inviteEntry) {
+      inviteEntry.choosing = true;
+      storeInvite();
+      setChosen(true);
+    }
+  }
+  useEffect(() => {
+    if (!inviteEntry) return;
+    let active = true;
+    void openInvite()
+      .then((value) => {
+        if (active) {
+          setClaim(value);
+          setEmail(value.email);
+        }
+      })
+      .catch((e) => {
+        if (active) setJoiningError(e.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [attempt]);
+  useEffect(() => {
+    if (!claim || !session || !chosen || joinedTrip) return;
+    let active = true;
+    void getSupabase()
+      .rpc("accept_trip_invite", { p_trip: claim.trip, p_ticket: claim.ticket })
+      .then(({ error }) => {
+        if (!active) return;
+        if (error)
+          setJoiningError(
+            error.code === "42501"
+              ? error.message
+              : "Couldn’t join the trip. Please retry.",
+          );
+        else {
+          // Keep the destination through a refresh until the planner has loaded it.
+          sessionStorage.setItem(
+            "trip-planner-invite-target:" + session.user.id,
+            claim.trip,
+          );
+          leaveInvite();
+          setJoinedTrip(claim.trip);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [claim, session?.user.id, chosen, attempt, joinedTrip]);
 
   useEffect(() => {
     let active = true;
@@ -82,10 +146,15 @@ export function AuthApp({
     const params = new URLSearchParams(location.search);
     const reason = params.get("error_description");
     if (reason) {
-      setError(`Google sign-in didn’t finish: ${reason}`);
-      for (const key of ["error", "error_code", "error_description"]) params.delete(key);
+      setError(`Sign-in didn’t finish: ${reason}`);
+      for (const key of ["error", "error_code", "error_description"])
+        params.delete(key);
       const rest = params.toString();
-      history.replaceState(null, "", `${location.pathname}${rest ? `?${rest}` : ""}${location.hash}`);
+      history.replaceState(
+        null,
+        "",
+        `${location.pathname}${rest ? `?${rest}` : ""}${location.hash}`,
+      );
     }
     // Coming back with the browser's Back button should not leave the buttons stuck on "busy".
     const reset = (event: PageTransitionEvent) => {
@@ -114,7 +183,27 @@ export function AuthApp({
     setBusy(true);
     try {
       const auth = getSupabase().auth;
-      if (signup) {
+      if (
+        signup &&
+        claim?.canSetup &&
+        email.trim().toLowerCase() === claim.email
+      ) {
+        // Supabase already reserved this email for the invite. Finish that passwordless
+        // identity only after the traveler explicitly chooses it on the standard form.
+        const proof = await verifiedInviteClient();
+        const updated = await proof.auth.updateUser({
+          password,
+          data: { name: name.trim() },
+        });
+        if (updated.error) throw updated.error;
+        const signed = await auth.signInWithPassword({
+          email: claim.email,
+          password,
+        });
+        if (signed.error) throw signed.error;
+        chooseAccount();
+        setPassword("");
+      } else if (signup) {
         const { data, error } = await auth.signUp({
           email: email.trim(),
           password,
@@ -124,6 +213,7 @@ export function AuthApp({
           },
         });
         if (error) throw error;
+        chooseAccount();
         setPassword("");
         if (!data.session) {
           setNotice(
@@ -137,6 +227,7 @@ export function AuthApp({
           password,
         });
         if (error) throw error;
+        chooseAccount();
         setPassword("");
       }
     } catch (issue) {
@@ -150,13 +241,21 @@ export function AuthApp({
     }
   }
 
-  async function signInWithGoogle(): Promise<void> {
+  async function signInWithProvider(
+    provider: "google" | "apple",
+  ): Promise<void> {
     setError("");
     setNotice("");
     setBusy(true);
     try {
+      if (provider === "apple" && !(await appleSignInEnabled())) {
+        setNotice("Apple sign-in isn’t available yet. Use Google or email.");
+        setBusy(false);
+        return;
+      }
+      chooseAccount();
       const { error } = await getSupabase().auth.signInWithOAuth({
-        provider: "google",
+        provider,
         // Come back to this exact page (with its base path); the PKCE code arrives as ?code=...
         options: { redirectTo: `${location.origin}${location.pathname}` },
       });
@@ -167,7 +266,7 @@ export function AuthApp({
       setError(
         issue instanceof Error
           ? issue.message
-          : "Could not start Google sign-in. Please try again.",
+          : "Could not start sign-in. Please try again.",
       );
     }
   }
@@ -179,6 +278,7 @@ export function AuthApp({
     setNotice("");
     setSignup(false);
     location.hash = "/1";
+    if (joinedTrip) location.reload();
   }
 
   function enterDemo(): void {
@@ -208,35 +308,8 @@ export function AuthApp({
   }
 
   if (demo) return renderDemo(exitDemo);
-  if (ready && session && !problem) {
-    if ((session.user.invited_at || session.user.user_metadata.trip_account_setup === true) && !session.user.user_metadata.name) return <main className="auth account-only">
-      <section className="auth-panel"><div className="auth-form-wrap">
-        <h1>Set up your account</h1>
-        <p>Your trip was shared with {session.user.email}.</p>
-        <form className="account-form" onSubmit={async e => {
-          e.preventDefault();
-          if (busy) return;
-          const issue = textError(name, "Your name", TEXT_LIMITS.name, true);
-          if (issue) { setError(issue); return; }
-          setBusy(true);
-          try {
-            const result = await getSupabase().auth.updateUser({ password, data: { name: name.trim() } });
-            if (result.error) throw result.error;
-            setSession({ ...session, user: result.data.user });
-            setPassword("");
-            location.hash = "/5";
-          } catch (error) { setError(error instanceof Error ? error.message : "Could not finish setup. Try again."); }
-          finally { setBusy(false); }
-        }}>
-          <Field label="Your name"><input required autoComplete="name" maxLength={TEXT_LIMITS.name} value={name} onChange={e => setName(e.target.value)}/></Field>
-          <Field label="Choose a password"><input type="password" required minLength={8} autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)}/></Field>
-          {error && <p role="alert">{error}</p>}
-          <button className="btn full" disabled={busy}>{busy ? "Saving…" : "Continue to trip preferences"}</button>
-        </form>
-      </div></section>
-    </main>;
+  if (ready && session && !problem && (!inviteEntry || joinedTrip))
     return children(session, signOut);
-  }
 
   return (
     <main className="auth account-only">
@@ -251,7 +324,48 @@ export function AuthApp({
       <section className="auth-panel" aria-label="Your account">
         <div className="auth-form-wrap">
           <span className="eyebrow">TRIP PLANNER</span>
-          {!ready ? (
+          {joiningError ? (
+            <>
+              <h2>Trip invitation</h2>
+              <p role="alert">{joiningError}</p>
+              <button
+                className="btn"
+                onClick={() => {
+                  setJoiningError("");
+                  setAttempt((n) => n + 1);
+                }}
+              >
+                Try again
+              </button>
+              {session && (
+                <button
+                  className="btn outline"
+                  onClick={async () => {
+                    await signOut();
+                    setChosen(false);
+                    if (inviteEntry) {
+                      inviteEntry.choosing = false;
+                      storeInvite();
+                    }
+                    setJoiningError("");
+                  }}
+                >
+                  Use another account
+                </button>
+              )}
+              <button
+                className="auth-toggle"
+                onClick={() => {
+                  leaveInvite();
+                  location.reload();
+                }}
+              >
+                Leave invitation
+              </button>
+            </>
+          ) : !ready ||
+            (inviteEntry && !claim) ||
+            (claim && session && chosen) ? (
             <p role="status">Connecting…</p>
           ) : problem ? (
             <>
@@ -267,141 +381,161 @@ export function AuthApp({
                 {signup ? "Create your account." : "Welcome to Trip Planner"}
               </h2>
               <p>
-                {signup
-                  ? "A little planning. More time together."
-                  : "Log in with your email and password."}
+                {claim
+                  ? "Sign in or create an account to join your trip and answer the travel questions."
+                  : signup
+                    ? "A little planning. More time together."
+                    : "Log in with your email and password."}
               </p>
-              <div
-                className="provider-buttons branded-signin"
-                aria-label="Sign-in options"
-              >
-                <button
-                  className="brand-signin google-signin"
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void signInWithGoogle()}
-                >
-                  <img
-                    src={googleLogo}
-                    width="20"
-                    height="20"
-                    alt=""
-                    aria-hidden="true"
-                  />
-                  <span>Sign in with Google</span>
-                </button>
-                <button
-                  className="brand-signin apple-signin"
-                  type="button"
-                  disabled={busy}
-                  aria-label="Sign in with Apple"
-                  aria-describedby="provider-preview-note"
-                  onClick={() => {
-                    setError("");
-                    setNotice(
-                      "Apple sign-in is a prototype preview. No Apple account is connected. Use the demo below to explore.",
-                    );
-                  }}
-                >
-                  <img
-                    src={appleButton}
-                    width="200"
-                    height="44"
-                    alt=""
-                    aria-hidden="true"
-                  />
-                </button>
-              </div>
-              <p id="provider-preview-note" className="provider-preview-note">
-                Apple sign-in is a prototype preview.
-              </p>
-              {notice && (
-                <p className="auth-notice" role="status">
-                  {notice}
-                </p>
+              {claim && session && (
+                <div>
+                  <button className="btn full" onClick={chooseAccount}>
+                    Continue as {session.user.email}
+                  </button>
+                  <button
+                    className="auth-toggle"
+                    onClick={() => void signOut()}
+                  >
+                    Use another account
+                  </button>
+                </div>
               )}
-              <div className="divider">
-                <span>or with email</span>
-              </div>
-              <form onSubmit={submit} className="account-form">
-                {signup && (
-                  <Field label="Your name">
-                    <input
-                      required
-                      autoComplete="name"
-                      maxLength={TEXT_LIMITS.name}
-                      value={name}
+              {!(claim && session) && (
+                <>
+                  <div
+                    className="provider-buttons branded-signin"
+                    aria-label="Sign-in options"
+                  >
+                    <button
+                      className="brand-signin google-signin"
+                      type="button"
                       disabled={busy}
-                      onChange={(e) => setName(e.target.value)}
-                    />
-                  </Field>
-                )}
-                <Field label="Email">
-                  <input
-                    required
-                    type="email"
-                    autoComplete="email"
-                    maxLength={TEXT_LIMITS.email}
-                    value={email}
+                      onClick={() => void signInWithProvider("google")}
+                    >
+                      <img
+                        src={googleLogo}
+                        width="20"
+                        height="20"
+                        alt=""
+                        aria-hidden="true"
+                      />
+                      <span>Sign in with Google</span>
+                    </button>
+                    <button
+                      className="brand-signin apple-signin"
+                      type="button"
+                      disabled={busy}
+                      aria-label="Sign in with Apple"
+                      onClick={() => void signInWithProvider("apple")}
+                    >
+                      <img
+                        src={appleButton}
+                        width="200"
+                        height="44"
+                        alt=""
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </div>
+                  {notice && (
+                    <p className="auth-notice" role="status">
+                      {notice}
+                    </p>
+                  )}
+                  <div className="divider">
+                    <span>or with email</span>
+                  </div>
+                  <form onSubmit={submit} className="account-form">
+                    {signup && (
+                      <Field label="Your name">
+                        <input
+                          required
+                          autoComplete="name"
+                          maxLength={TEXT_LIMITS.name}
+                          value={name}
+                          disabled={busy}
+                          onChange={(e) => setName(e.target.value)}
+                        />
+                      </Field>
+                    )}
+                    <Field label="Email">
+                      <input
+                        required
+                        type="email"
+                        autoComplete="email"
+                        maxLength={TEXT_LIMITS.email}
+                        value={email}
+                        disabled={busy}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                    </Field>
+                    <label>
+                      Password
+                      <input
+                        required
+                        type="password"
+                        minLength={signup ? 8 : undefined}
+                        autoComplete={
+                          signup ? "new-password" : "current-password"
+                        }
+                        value={password}
+                        disabled={busy}
+                        onChange={(e) => setPassword(e.target.value)}
+                        aria-describedby={signup ? "password-hint" : undefined}
+                      />
+                    </label>
+                    {signup && (
+                      <small id="password-hint">
+                        Use at least 8 characters.
+                      </small>
+                    )}
+                    {error && <p role="alert">{error}</p>}
+                    <button className="btn full" type="submit" disabled={busy}>
+                      {busy
+                        ? "Please wait…"
+                        : signup
+                          ? "Create account"
+                          : "Log in"}
+                    </button>
+                  </form>
+                  <button
+                    className="auth-toggle"
+                    type="button"
                     disabled={busy}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </Field>
-                <label>
-                  Password
-                  <input
-                    required
-                    type="password"
-                    minLength={signup ? 8 : undefined}
-                    autoComplete={signup ? "new-password" : "current-password"}
-                    value={password}
-                    disabled={busy}
-                    onChange={(e) => setPassword(e.target.value)}
-                    aria-describedby={signup ? "password-hint" : undefined}
-                  />
-                </label>
-                {signup && (
-                  <small id="password-hint">Use at least 8 characters.</small>
-                )}
-                {error && <p role="alert">{error}</p>}
-                <button className="btn full" type="submit" disabled={busy}>
-                  {busy ? "Please wait…" : signup ? "Create account" : "Log in"}
-                </button>
-              </form>
-              <button
-                className="auth-toggle"
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  setSignup(!signup);
-                  setPassword("");
-                  setError("");
-                  setNotice("");
-                }}
-              >
-                {signup
-                  ? "Already have an account? Log in"
-                  : "New here? Create an account"}
-              </button>
-              <p className="fine-print">
-                Create and save trips to your account. Sample trips are a local
-                preview.
-              </p>
+                    onClick={() => {
+                      setSignup(!signup);
+                      setPassword("");
+                      setError("");
+                      setNotice("");
+                    }}
+                  >
+                    {signup
+                      ? "Already have an account? Log in"
+                      : "New here? Create an account"}
+                  </button>
+                  <p className="fine-print">
+                    Create and save trips to your account. Sample trips are a
+                    local preview.
+                  </p>
+                </>
+              )}
             </>
           )}
-          <div className="demo-login-option">
-            <button
-              className="btn outline full"
-              type="button"
-              disabled={busy}
-              onClick={enterDemo}
-            >
-              Try demo as Maya
-            </button>
-            <p className="fine-print">
-              No account needed. Explore Maya’s sample trips.
-            </p>
-          </div>
+          {!inviteEntry && (
+            <div className="demo-login-option">
+              <button
+                className="btn outline full"
+                type="button"
+                disabled={busy}
+                onClick={enterDemo}
+              >
+                Try demo as Maya
+              </button>
+              <p className="fine-print">
+                No account needed. Explore Maya’s sample trips.
+              </p>
+            </div>
+          )}
         </div>
       </section>
     </main>
