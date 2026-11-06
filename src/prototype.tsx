@@ -38,11 +38,16 @@ export function PrototypeApp() {
   const routeKey = `${route.page}?${route.params}`;
   const previousRoute = useRef(routeKey);
   useEffect(() => {
-    if (previousRoute.current !== routeKey && route.page !== 16) {
+    const eventId = route.page === 11 && route.params.get("event");
+    const target = eventId && document.getElementById(`day-event-${eventId}`);
+    if (target) {
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: "center" });
+    } else if (previousRoute.current !== routeKey && route.page !== 16) {
       document.getElementById("main-content")?.focus({ preventScroll: true });
     }
     previousRoute.current = routeKey;
-  }, [routeKey]);
+  }, [routeKey, trip?.id, Boolean(pendingSurvey)]);
   useEffect(() => {
     document.title = pendingSurvey ? `Trip preferences · ${pendingSurvey.title}` : `${PAGES[route.page] || "Home"} · Trip Planner`;
     if (!pendingSurvey && route.page === 16 && user) open("nearby");

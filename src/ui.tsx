@@ -72,7 +72,7 @@ export function Field({
   hint?: string;
 }) {
   const id = useId();
-  let counter: ReactNode = null;
+  let lengthError: ReactNode = null;
   // Input-action wrappers (for example, password reveal) still need their hint.
   const labelControl = (node: ReactNode): ReactNode => {
     if (!React.isValidElement(node) || typeof node.type !== "string")
@@ -80,14 +80,11 @@ export function Field({
     const element = node as React.ReactElement<any>;
     if (["input", "select", "textarea"].includes(node.type)) {
       const max = element.props.maxLength;
-      const limited = typeof max === "number";
-      const length = String(element.props.value ?? "").length;
-      if (limited)
-        counter = (
-          <small id={`${id}-count`} className="character-count">
-            {length.toLocaleString("en-US")} / {max.toLocaleString("en-US")}{" "}
-            characters
-            {length > max ? " — shorten this before saving" : ""}
+      const tooLong = typeof max === "number" && String(element.props.value ?? "").length > max;
+      if (tooLong)
+        lengthError = (
+          <small id={`${id}-length-error`}>
+            Shorten this to {max.toLocaleString("en-US")} characters or fewer.
           </small>
         );
       return React.cloneElement(element, {
@@ -96,12 +93,12 @@ export function Field({
           [
             element.props["aria-describedby"],
             hint ? id : "",
-            limited ? `${id}-count` : "",
+            tooLong ? `${id}-length-error` : "",
           ]
             .filter(Boolean)
             .join(" ") || undefined,
         "aria-invalid":
-          limited && length > max ? true : element.props["aria-invalid"],
+          tooLong ? true : element.props["aria-invalid"],
       });
     }
     return element.props.children
@@ -118,7 +115,7 @@ export function Field({
       <span>{label}</span>
       {control}
       {hint && <small id={id}>{hint}</small>}
-      {counter}
+      {lengthError}
     </label>
   );
 }

@@ -20,11 +20,8 @@ async function capped(page: Page, label: string, max: number) {
   await expect(input).toHaveAttribute("maxlength", String(max));
   await input.fill("x".repeat(max + 1));
   await expect(input).toHaveValue("x".repeat(max));
-  await expect(input).toHaveAccessibleDescription(
-    new RegExp(
-      `${max.toLocaleString("en-US")} / ${max.toLocaleString("en-US")} characters`,
-    ),
-  );
+  await expect(input).not.toHaveAccessibleDescription(/characters/i);
+  await expect(page.getByText(/\d[\d,]* \/ \d[\d,]* characters/i)).toHaveCount(0);
 }
 async function noOverflow(page: Page) {
   expect(
@@ -34,7 +31,7 @@ async function noOverflow(page: Page) {
   ).toBe(true);
 }
 
-test("text controls cap pasted text and expose counts across all forms", async ({
+test("text controls cap pasted text without displaying counters across all forms", async ({
   page,
 }) => {
   await demo(page);
@@ -205,7 +202,7 @@ test("maximum-length trip and event details survive saving and remain within the
   await noOverflow(page);
   await page.goto("./#/7");
   await page.getByLabel("Event name", { exact: true }).fill("E".repeat(100));
-  await page.getByLabel("Where", { exact: true }).fill("L".repeat(220));
+  await page.getByLabel("Where", { exact: true }).fill("L".repeat(2048));
   await page
     .getByLabel("Notes (optional)", { exact: true })
     .fill("N".repeat(2200));
@@ -221,6 +218,7 @@ test("maximum-length trip and event details survive saving and remain within the
     page.getByText("E".repeat(100), { exact: true }).first(),
   ).toBeVisible();
   await noOverflow(page);
+  await expect(page.getByText("L".repeat(2048), { exact: true }).first()).toBeVisible();
   await page.screenshot({
     path: test.info().outputPath("maximum-text-itinerary.png"),
     fullPage: true,

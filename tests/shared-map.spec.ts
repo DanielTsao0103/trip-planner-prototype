@@ -212,4 +212,11 @@ test("a blocked Google SDK offers recovery and keeps saved directions available"
   await expect(
     page.getByRole("link", { name: "Directions", exact: true }),
   ).toHaveAttribute("href", /47.6077008/);
+  await page.getByRole("link", { name: "View itinerary item" }).click();
+  const item = page.getByRole("article", { name: "A morning of art" });
+  await expect(item).toBeFocused();
+  await expect(item).toBeInViewport();
+  await expect(item).toContainText("Tickets are in our sample confirmations");
+  await item.getByRole("button", { name: "Seattle Art Museum" }).click();
+  await expect(page).toHaveURL(/#\/17\?event=museum$/);
 });

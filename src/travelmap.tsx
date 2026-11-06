@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   ChevronRight,
   Crosshair,
+  CalendarDays,
   LocateFixed,
   MapPin,
   Maximize,
@@ -500,6 +501,9 @@ export function TravelMap({
               </button>
               {selection?.id === event.id && (
                 <div className="place-actions">
+                  <a href={`#/11?${new URLSearchParams({ date: event.date, event: event.id })}`}>
+                    <CalendarDays size={15} aria-hidden="true" /> View itinerary item
+                  </a>
                   {!event.point && statusFor(event) === "error" && (
                     <button onClick={() => retryLookup(event)}>
                       Retry lookup

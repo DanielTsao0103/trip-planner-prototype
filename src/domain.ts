@@ -178,6 +178,7 @@ export function eventError(
   const problem =
     textError(event.name, "Event name", TEXT_LIMITS.eventName, true) ||
     (!event.place?.trim() && "Enter a location.") ||
+    (event.place !== original?.place && textError(event.place, "Location", TEXT_LIMITS.eventAddress)) ||
     textError(event.notes, "Notes", TEXT_LIMITS.notes);
   if (problem) return problem;
   if (event.date < trip.start || event.date > trip.end)

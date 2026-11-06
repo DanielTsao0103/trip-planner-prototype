@@ -90,6 +90,15 @@ test("viewer, removed member, and day limits are enforced", () => {
   assert.equal(canEdit(t, "limited", "2026-10-16"), false);
   assert.match(eventError(t, "limited", event("2026-10-16")), /permission/);
 });
+test("address edits allow 2,048 characters and preserve longer saved locations", () => {
+  const t = trip();
+  const atLimit = { ...event(), place: "A".repeat(2048) };
+  const legacy = { ...atLimit, place: atLimit.place + "B" };
+  assert.equal(eventError(t, "owner", atLimit), "");
+  assert.match(eventError(t, "owner", legacy), /2,048/);
+  assert.match(eventError(t, "owner", legacy, atLimit), /2,048/);
+  assert.equal(eventError(t, "owner", { ...legacy, notes: "Meet outside" }, legacy), "");
+});
 test("moving an event requires source and destination permission", () => {
   const t = trip();
   assert.match(

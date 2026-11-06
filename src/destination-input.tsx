@@ -54,6 +54,7 @@ export function DestinationInput({ value, onChange, onAdd }: {
     }, 350);
     return () => { cancelled = true; clearTimeout(timer); controller.abort(); };
   }, [query, open]);
+  const tooLong = value.length > TEXT_LIMITS.destination;
   const visible = open && query.length > 0;
   function choose(index: number) {
     const p = matches[index];
@@ -66,7 +67,7 @@ export function DestinationInput({ value, onChange, onAdd }: {
   }}>
     <div className="input-action">
       <input maxLength={TEXT_LIMITS.destination} value={value} aria-label="Where are you going?" role="combobox"
-        aria-describedby={`${id}-count`} aria-invalid={value.length > TEXT_LIMITS.destination || undefined}
+        aria-describedby={tooLong ? `${id}-length-error` : undefined} aria-invalid={tooLong || undefined}
         aria-autocomplete="list" aria-expanded={visible} aria-controls={id}
         aria-activedescendant={visible && active >= 0 ? `${id}-${active}` : undefined}
         autoComplete="off" placeholder="A city, a region, somewhere new…"
@@ -85,9 +86,7 @@ export function DestinationInput({ value, onChange, onAdd }: {
       <button type="button" className="btn btn-outline" disabled={!query}
         onClick={() => { onAdd(); setOpen(false); }}>Add</button>
     </div>
-    <small id={`${id}-count`} className="character-count">
-      {value.length} / {TEXT_LIMITS.destination} characters{value.length > TEXT_LIMITS.destination ? " — shorten this before saving" : ""}
-    </small>
+    {tooLong && <small id={`${id}-length-error`}>Shorten this destination to {TEXT_LIMITS.destination} characters or fewer.</small>}
     {visible && <div className="destination-menu">
       <div className="destination-caption">{query.length < 2 ? "SEARCH WORLDWIDE" : matches.length ? "SUGGESTED PLACES" : status === "loading" ? "SEARCHING WORLDWIDE…" : status === "offline" ? "SEARCH TEMPORARILY UNAVAILABLE" : "NO MATCHING PLACES"}</div>
       <div ref={listRef} id={id} role="listbox" aria-label="Destination suggestions">

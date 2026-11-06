@@ -578,7 +578,7 @@ export function EventForm() {
               )}
               <Field
                 label="Estimated cost (USD)"
-                hint="Up to $99,999.99; maximum 2 decimal places. Log actual payments in Budget."
+                hint="Log actual payments in Budget."
               >
                 <input
                   required
@@ -1047,7 +1047,6 @@ export function Dashboard() {
             >
               <input
                 aria-label="New to-do"
-                aria-describedby="todo-limit"
                 maxLength={TEXT_LIMITS.todo}
                 value={todo}
                 onChange={(e) => setTodo(e.target.value)}
@@ -1057,11 +1056,6 @@ export function Dashboard() {
                 <Plus size={17} />
               </button>
             </form>
-          )}
-          {canEdit(t, s.userId, s.date) && (
-            <small id="todo-limit">
-              {todo.length} / {TEXT_LIMITS.todo} characters
-            </small>
           )}
           <ErrorBox text={todoError} />
           <div className="note">Shared with your group.</div>
@@ -1094,8 +1088,9 @@ export function Dashboard() {
 }
 export function DayDetail() {
   const { trip: t, s, route, go } = useApp();
-  if (!t) return null;
+  const selectedEvent = route.params.get("event");
   const requested = route.params.get("date");
+  if (!t) return null;
   const date =
     requested && requested >= t.start && requested <= t.end
       ? requested
@@ -1172,7 +1167,10 @@ export function DayDetail() {
               </div>
               <div className="timeline-dot" />
               <article
-                className={`card detail-event ${route.params.get("event") === e.id ? "focused" : ""}`}
+                id={`day-event-${e.id}`}
+                tabIndex={selectedEvent === e.id ? -1 : undefined}
+                aria-labelledby={`event-title-${e.id}`}
+                className={`card detail-event ${selectedEvent === e.id ? "focused" : ""}`}
               >
                 <Photo src={e.image} alt={e.place} />
                 <div>
@@ -1180,7 +1178,7 @@ export function DayDetail() {
                     {e.attendees.length}{" "}
                     {e.attendees.length === 1 ? "TRAVELER" : "TRAVELERS"}
                   </span>
-                  <h2>{e.name}</h2>
+                  <h2 id={`event-title-${e.id}`}>{e.name}</h2>
                   <button
                     className="text-link"
                     onClick={() => go(17, { event: e.id })}

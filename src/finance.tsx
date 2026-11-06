@@ -472,7 +472,6 @@ export function BudgetSetup() {
               ? "Group budget (USD)"
               : "Your individual budget (USD)"
           }
-          hint="Up to $999,999.99; maximum 2 decimal places."
         >
           <input
             required
@@ -684,7 +683,6 @@ export function ExpenseForm() {
         <div className="form-columns">
           <Field
             label="Amount (USD)"
-            hint="Up to $99,999.99; maximum 2 decimal places."
           >
             <input
               required

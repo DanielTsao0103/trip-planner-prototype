@@ -60,7 +60,7 @@ Historical field-limit release scope: character and money limits, verified throu
 | Limit trip/event titles to 100 characters, trip destinations to 220, names to 90, and email inputs to 280 | Complete | Native input limits plus save-handler validation; email format validation still applies. |
 | Limit event/additional notes to 2,200 characters, preference places to 1,100, expense descriptions to 130, and reminders to 220 | Complete | Desktop/mobile boundary tests check pasted input, saves, and reloads. |
 | Limit bulk invitation text to 5,600 characters and 20 addresses; limit trips to 20 destinations | Complete | Individual addresses, total text length, and item counts are validated before saving. |
-| Show accessible character counts and preserve existing oversized text until the user edits it | Complete | Counters are linked with aria-describedby; oversized saved notes remain intact and cannot be resaved until shortened. |
+| Hide routine character counters and preserve oversized saved text | Complete | Forms retain their validation and describe oversized entries when they need correction. |
 | Limit group/individual budgets to $999,999.99 and expenses/event estimates to $99,999.99, with at most two decimal places | Complete | Form and save validation reject excessive amounts, extra decimals, exponents, and non-finite values; free event estimates remain allowed. |
 | Persist the new 100/220 trip limits through User → Frontend → Supabase → PostgreSQL | Complete | Live mobile creation, database readback, fresh-browser sign-in, editing, and reload passed; direct oversized API writes were rejected without changing the saved row. Temporary test records were removed. |
 | Keep changed forms responsive and at or above Lighthouse Accessibility 90 | Complete | Verified desktop/mobile screenshots, 320–1365px layout checks, and Lighthouse results in [field-limit verification](assignment/field-limits-verification.md). |
@@ -300,7 +300,7 @@ On narrow screens the calendar scrolls horizontally within its own region. Drag/
 | Select using pointer/touch or arrow keys and Enter, with Escape to dismiss | Complete |
 | Keep manual entry available when search fails or returns no matches | Complete |
 | Debounce requests, cancel stale responses and bound the session cache | Complete |
-| Accept long itinerary locations without a character counter | Complete |
+| Accept itinerary locations up to 2,048 characters without a counter and preserve existing longer addresses | Complete |
 | Save the selected full place/address string through the existing event database path | Complete; verified during release QA |
 
 Search uses Photon/OpenStreetMap with no country or bounding-box restriction. The typed query and selected trip destination are sent to resolve a geographic search bias; no device location is requested. Nearby matches are prioritized without excluding worldwide alternatives. Search near defaults to the first trip stop and allows switching stops or choosing Worldwide. Informal directional regions use an approximate area within the parent region; unresolved destinations fall back to worldwide search. Coverage and availability depend on the upstream map data and public endpoint. Before substantial production traffic, use a hosted provider or your own Photon instance.
