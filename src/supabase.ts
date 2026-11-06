@@ -41,7 +41,7 @@ export function getSupabase(): SupabaseClient {
 // Isolate signup-link requests so they never change the trip owner’s session.
 let mailClient: SupabaseClient | undefined;
 
-export async function sendTripSignupLink(email: string): Promise<void> {
+export async function sendTripSignupLink(email: string, tripId: string): Promise<void> {
   const { url, key } = connectionSettings();
   mailClient ??= createClient(url, key, {
     auth: {
@@ -52,11 +52,13 @@ export async function sendTripSignupLink(email: string): Promise<void> {
       flowType: "implicit",
     },
   });
+  const callback = new URL(location.pathname, location.origin);
+  callback.searchParams.set("trip_invite", tripId);
   const { error } = await mailClient.auth.signInWithOtp({
     email,
     options: {
       shouldCreateUser: true,
-      emailRedirectTo: location.origin + location.pathname,
+      emailRedirectTo: callback.href,
       data: { trip_account_setup: true },
     },
   });

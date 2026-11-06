@@ -377,7 +377,7 @@ export function Provider({
       if (unknown.length) {
         for (const email of unknown) {
           try {
-            await sendTripSignupLink(email);
+            await sendTripSignupLink(email, tripId);
             const confirmation = await client.rpc("share_trip_recipient", { p_trip: tripId, p_email: email, p_delivered: true });
             if (confirmation.error) throw new Error("Link requested. Retry to confirm the invitation.");
           } catch (error) {

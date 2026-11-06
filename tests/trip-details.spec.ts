@@ -464,6 +464,8 @@ test("a mixed invite keeps only failed addresses and retries without creating an
   let attempts = 0;
   await page.route("**/auth/v1/otp**", route => {
     expect(route.request().postDataJSON().email).toBe("new@example.test");
+    const callback = new URL(new URL(route.request().url()).searchParams.get("redirect_to")!);
+    expect(callback.searchParams.get("trip_invite")).toBe(api.rows[0].tripID);
     attempts++;
     return route.fulfill(attempts > 1 ? {json:{}} : {status:429,json:{message:"Rate limit reached"}});
   });
