@@ -79,3 +79,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - November 6 map and field refinement: Map stops open their exact daily itinerary item, including for viewers. Hide routine character counters across the site. Allow 2,048 characters for new or changed itinerary addresses and preserve previously saved longer addresses.
 
 - Use the theme’s paper and ink colors together for the invite email field. Check typed, unselected text in both light and dark mode.
+
+- Use the same destination-neutral travel photos for every trip invitation, regardless of the trip cover or destination.
