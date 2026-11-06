@@ -46,7 +46,7 @@ try {
         email,
         password,
         email_confirm: true,
-        user_metadata: { name: "QA Traveler" },
+        user_metadata: { name: i ? "Guest Traveler" : "QA Traveler" },
       }),
     );
     const account = { id: user.id, email, password, client: client() };
@@ -175,13 +175,14 @@ try {
   assert.deepEqual(row.content.dismissed, trip.dismissed);
   assert.deepEqual(row.content.events[0], {
     ...trip.events[0],
+    point: null, googlePlaceId: null,
     attendees: [owner.id, guest].sort(),
   });
   assert.deepEqual(row.content.expenses, trip.expenses);
   for (const member of trip.members)
     assert.deepEqual(
       row.content.members.find((m) => m.id === member.id),
-      member,
+      { ...member, accountId: null, signupPending: false },
     );
   checks += 17;
   const memberships = check(
@@ -413,7 +414,26 @@ try {
       const context = await browser.newContext();
       const page = await context.newPage();
       await login(page);
-      await detailJourney(page, base);
+      const observer = await browser.newContext();
+      const second = await observer.newPage();
+      await login(second);
+      await second.goto(base + "#/5");
+      await detailJourney(page, base, other.email);
+      // This session was open before the trip existed. It must update without a reload.
+      await second.getByRole("button", { name: "Full detail browser QA", exact: true }).waitFor({ timeout: 15000 });
+      const observedTrip = second.getByRole("button", { name: "Full detail browser QA", exact: true });
+      const current = check(await owner.client.rpc("load_trip_bundles"))[0];
+      const changedTitle = "Renamed from another session";
+      const remoteEdit = { ...current.content, id: current.tripID, title: changedTitle,
+        destinations: current.destinations, start: current.start_date, end: current.end_date, zone: current.timezone };
+      const renamed = check(await owner.client.rpc("save_trip_bundle", { p_trip_id: current.tripID,
+        p_expected_revision: current.revision, p_request_id: randomUUID(), p_data: remoteEdit }));
+      await second.getByRole("button", { name: changedTitle, exact: true }).waitFor({ timeout: 15000 });
+      check(await owner.client.rpc("save_trip_bundle", { p_trip_id: current.tripID,
+        p_expected_revision: renamed.revision, p_request_id: randomUUID(), p_data: { ...remoteEdit, title: current.trip_name } }));
+      await observedTrip.waitFor({ timeout: 15000 });
+      await observer.close();
+      checks += 3;
       const all = check(await owner.client.rpc("load_trip_bundles"));
       const stored = all.find((t) => t.trip_name === "Full detail browser QA");
       assert.ok(stored);

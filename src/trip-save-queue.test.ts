@@ -58,11 +58,12 @@ test("failed writes preserve drafts, stop automatic retries, and retry only on r
   assert.equal(attempts, 2);
   assert.equal(queue.pending.size, 0);
 });
-test("restored recovery does not silently overwrite the database until retried", async () => {
+test("restored recovery resumes automatically with its original revision", async () => {
   let attempts = 0;
   const queue = new TripSaveQueue(
     async (t) => {
       attempts++;
+      assert.equal(t.revision, 1);
       return t;
     },
     () => {},
@@ -72,8 +73,7 @@ test("restored recovery does not silently overwrite the database until retried",
   queue.restore(trip);
   await tick();
   assert.equal(attempts, 0);
-  await assert.rejects(queue.wait(trip.id), /Recovered/);
-  queue.retry();
+  queue.resume();
   await queue.wait(trip.id);
   assert.equal(attempts, 1);
 });
@@ -116,10 +116,27 @@ test("a lost response retries the original write before newer edits, avoiding du
   const failed = queue.wait(trip.id);
   fail(Object.assign(new Error("Response lost"), { retryOriginal: true }));
   await assert.rejects(failed);
-  queue.retry();
+  queue.reconnect();
   await queue.wait(trip.id);
   assert.equal(writes.length, 3);
   assert.equal(writes[1].title, trip.title);
   assert.equal(writes[2].title, "Typed while saving");
   assert.equal(writes[2].revision, 2);
+});
+
+test("a corrected edit automatically unblocks a trip after a validation failure", async () => {
+  const trip = draft();
+  const queue = new TripSaveQueue(
+    async (t) => {
+      if (!t.title) throw new Error("Missing title");
+      return t;
+    },
+    () => {},
+    () => {},
+  );
+  queue.enqueue({ ...trip, title: "" });
+  await assert.rejects(queue.wait(trip.id), /Missing title/);
+  queue.enqueue({ ...trip, title: "Valid trip" });
+  await queue.wait(trip.id);
+  assert.equal(queue.pending.size, 0);
 });

@@ -1,4 +1,4 @@
-import { useSharedMapSync } from "./shared-map-sync";
+import { useAccountTripSync } from "./account-trip-sync";
 import React, {
   createContext,
   useContext,
@@ -107,7 +107,7 @@ export function Provider({
         if (queueRef.current!.pending.size) setSaveNotice(0);
         try {
           const drafts = [...queueRef.current!.pending.values()].map(
-            (entry) => ({ draft: entry.draft, retryDraft: entry.retryDraft }),
+            (entry) => ({ draft: entry.draft, retryDraft: entry.retryDraft?.generation !== entry.generation ? entry.retryDraft : undefined }),
           );
           if (drafts.length)
             localStorage.setItem(recoveryKey, JSON.stringify(drafts));
@@ -140,7 +140,10 @@ export function Provider({
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
+    const reconnect = () => queue.reconnect();
+    window.addEventListener("online", reconnect);
     return () => {
+      window.removeEventListener("online", reconnect);
       mounted.current = false;
       queue.stop();
     };
@@ -195,6 +198,7 @@ export function Provider({
             ...restored,
           ],
         });
+        queue.resume();
         // Import only this account's existing browser plans for a server-owned trip.
         // Unassigned sample trips and fictional email matches are never claimed.
         for (const trip of restored) {
@@ -270,9 +274,8 @@ export function Provider({
   };
   const user = s.users.find((u) => u.id === s.userId);
   const trip = s.trips.find((t) => t.id === s.tripId && member(t, s.userId));
-  const mapSyncOffline = useSharedMapSync(
-    cloud && loadState === "ready" && trip?.persistence === "account" &&
-      s.userId === account.id && [8, 10, 11, 17].includes(route.page) ? trip.id : undefined,
+  const mapSyncOffline = useAccountTripSync(
+    cloud && loadState === "ready" && s.userId === account.id,
     account, stateRef, queue, commit);
 
   useEffect(() => {

@@ -48,7 +48,7 @@ Scope: the full account-trip persistence task only. The six definition-of-done c
 | Save reminders, completion state and existing dismissed suggestion IDs | Complete | Create/update/delete, reload and database checks. Recommendation generation is unchanged. |
 | Replace permanent browser copies of account trips with database storage | Complete | Samples remain local; only unsaved recovery drafts are retained for account trips, then removed on success. |
 | Preserve older browser details for an already-owned database trip | Complete | One-time import remaps legacy IDs and preserves historical allocations; email does not establish ownership. |
-| Prevent partial writes and silent overwrites; visibly recover from failed saves | Complete | Transaction rollback, concurrent revisions, lost responses, explicit retry/reload and draft download tested. |
+| Prevent partial writes and silent overwrites; visibly recover from failed saves | Complete | Account drafts resume on reload; transient failures retry automatically with backoff or on reconnect. A real conflict keeps the local copy available for download or manual recovery. |
 | Deliver cross-account editing, file uploads/OCR, messages or payments | Not complete | Outside this task; stored guest roles do not grant another account access, and uploaded file previews are temporary. |
 
 ## Field limits: behavioral requirements and completion status
@@ -208,7 +208,7 @@ Canvas requires a text entry with the demo video link and the public GitHub repo
 
 The Map tab and active-trip dashboard use the Google Maps JavaScript API. Set the website-restricted browser key in `VITE_GOOGLE_MAPS_API_KEY` for local builds and in the matching GitHub Actions variable for Pages. An optional `VITE_GOOGLE_MAP_ID` selects a custom Google map style. Selecting a Photon address saves its coordinates with the event. Saving a typed itinerary location resolves its Google place ID. A district or postal area appears as an area-center pin. Opening the map automatically looks up unpinned itinerary addresses with Google, including older events. Accepted travelers see the pins. The trip stores the matched Google place ID, and a saved manual position takes priority. If Google cannot identify a specific location, choose **Edit itinerary location**. Choose **Adjust pin** to move it to an entrance or meeting point.
 
-Accepted travelers read the same event records. An open map refreshes on focus and every 15 seconds while visible. Device location and viewport stay local. Directions open in Google Maps at the saved coordinates.
+Accepted travelers read the same event records. All signed-in planner screens refresh account trips on focus, on reconnect, and every five seconds while visible. Device location and viewport stay local. Directions open in Google Maps at the saved coordinates.
 
 ## Database and Sample Data
 

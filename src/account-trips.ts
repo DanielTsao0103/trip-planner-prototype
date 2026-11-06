@@ -231,13 +231,13 @@ export async function saveAccountTrip(
       new Error(
         "Could not save trip changes. Your unsaved copy is kept here; please retry.",
       ),
-      { retryOriginal: status === 0 || status >= 500 },
+      { retryOriginal: status === 0 || status === 408 || status === 429 || status >= 500 },
     );
   }
   if ((data as TripRow).content?.image !== trip.image)
     throw new Error("The trip photo was not confirmed by Supabase. Please retry.");
   if (imageSource) {
-    const { error: creditError } = await client.from("trip_photo_credit").upsert({
+    const { error: creditError, status: creditStatus } = await client.from("trip_photo_credit").upsert({
       trip_id: trip.id,
       owner_id: account.id,
       source: imageSource,
@@ -245,7 +245,10 @@ export async function saveAccountTrip(
       photographer_profile_url: imageCredit?.profileUrl ?? null,
       photo_url: imageCredit?.photoUrl ?? null,
     }, { onConflict: "trip_id" });
-    if (creditError) throw new Error("Trip saved, but its photo credit could not be saved. Please retry.");
+    if (creditError) throw Object.assign(
+      new Error("Trip saved, but its photo credit could not be saved. Please retry."),
+      { confirmedRevision: (data as TripRow).revision, retryOriginal: creditStatus === 0 || creditStatus === 408 || creditStatus === 429 || creditStatus >= 500 },
+    );
   }
   return tripFromRow({ ...(data as TripRow), photoCredit: imageSource ? {
     source: imageSource,

@@ -192,7 +192,7 @@ test("all detail screens persist changes and preserve financial history", async 
   });
   expect(errors).toEqual([]);
 });
-test("failed detail saves recover after reload and can be retried without losing edits", async ({
+test("failed detail saves automatically resume after reload without losing edits", async ({
   page,
 }) => {
   const api = await backend(page);
@@ -216,16 +216,13 @@ test("failed detail saves recover after reload and can be retried without losing
   await expect(page.getByRole("alert")).toContainText("Not saved:");
   await expect(page.getByText("Changes saved", { exact: true })).toHaveCount(0);
   expect(api.rows[0].content.events).toEqual([]);
+  api.setFail(false);
   await page.reload();
-  await expect(page.getByRole("alert")).toContainText(
-    "Recovered unsaved changes",
-  );
+  await saved(page);
   await expect(
     page.getByRole("button", { name: /Offline museum/ }).first(),
   ).toBeVisible();
-  api.setFail(false);
-  await page.getByRole("button", { name: "Retry save", exact: true }).click();
-  await saved(page);
+  await expect(page.getByRole("button", { name: "Retry save", exact: true })).toHaveCount(0);
   expect(api.rows[0].content.events[0].name).toBe("Offline museum");
   await page.reload();
   await saved(page);
