@@ -312,10 +312,24 @@ function UnavailableItineraryItem({ onReturn, label }: { onReturn: () => void; l
   );
 }
 
+// The trip can refresh while this form is open. Only changes to the selected
+// event invalidate the draft. Background Google place-ID lookups are harmless.
+function eventFormVersion(event?: Event): string {
+  if (!event) return "";
+  return JSON.stringify([
+    event.id, event.name, event.date, event.start, event.end, event.cost,
+    event.place, event.notes, event.image, event.point?.lat, event.point?.lng,
+    [...event.attendees].sort(),
+  ]);
+}
+
 export function EventForm() {
   const { trip: t, s, route, go, mutate, updateTrip, toast } = useApp();
   if (!t) return null;
   const original = t.events.find((e) => e.id === route.params.get("event"));
+  const openedVersion = useRef(eventFormVersion(original));
+  const changedElsewhere = (current?: Event) => openedVersion.current !== eventFormVersion(current);
+  const stale = changedElsewhere(original);
   const dateParam = route.params.get("date") || t.start;
   const suggested = route.params.get("suggestion");
   const [mode, setMode] = useState("manual"),
@@ -384,7 +398,7 @@ export function EventForm() {
   }
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (busy) return;
+    if (busy || stale) return;
     const inputProblem =
       textError(name, "Event name", TEXT_LIMITS.eventName, true) ||
       (!place.trim() && "Enter a location.") ||
@@ -417,8 +431,7 @@ export function EventForm() {
     updateTrip((v) => {
       if (v.id !== t.id) return;
       const index = v.events.findIndex((e) => e.id === event.id);
-      // A remotely removed event must not be recreated by this form.
-      if (original && index === -1) return;
+      if (changedElsewhere(v.events[index])) return;
       if (index >= 0) v.events[index] = event;
       else v.events.push(event);
       applied = true;
@@ -458,19 +471,28 @@ export function EventForm() {
       />
       <div className="form-layout">
         <form className="card form-card" onSubmit={submit}>
+          {stale && original && (
+            <div role="alert" className="info-banner">
+              <span>This event changed while you were editing. Review the latest details before saving or deleting it.</span>
+              <Button variant="text" onClick={() => go(11, { date: original.date, event: original.id })}>
+                View latest event
+              </Button>
+            </div>
+          )}
           {original && canEdit(t, s.userId, original.date) && (
             <Button
               variant="text danger"
-              disabled={busy}
+              disabled={busy || stale}
               onClick={() => {
-                if (window.confirm("Delete this event from the trip?")) {
-                  updateTrip((trip) => {
-                    trip.events = trip.events.filter(
-                      (e) => e.id !== original.id,
-                    );
-                  });
-                  leaveForm(original.date);
-                }
+                if (!window.confirm("Delete this event from the trip?")) return;
+                let deleted = false;
+                updateTrip((trip) => {
+                  const current = trip.events.find(e => e.id === original.id);
+                  if (!current || changedElsewhere(current)) return;
+                  trip.events = trip.events.filter(e => e.id !== original.id);
+                  deleted = true;
+                });
+                if (deleted) leaveForm(original.date);
               }}
             >
               Delete event
@@ -685,7 +707,7 @@ export function EventForm() {
             {mode === "manual" && (
               <Button
                 type="submit"
-                disabled={busy || !canEdit(t, s.userId, date)}
+                disabled={busy || stale || !canEdit(t, s.userId, date)}
               >
                 {busy
                   ? "Saving…"

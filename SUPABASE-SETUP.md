@@ -96,3 +96,9 @@ One-time setup:
 
 Limits: Mailtrap's free plan is shared with sending (about 4,000 per month, 150 per day). Supabase free projects pause after a week of inactivity, which also pauses this.
 
+
+## Shared trip permissions (November 6, 2026)
+
+The hosted project has `20261106234248_group_event_permissions.sql`. Owners grant Editor, Day Editor, or Viewer access in Group. Shared accounts write through `save_shared_trip_changes`; the database checks the signed-in account, current role, changed records, and both dates of a move. Direct event and membership writes remain restricted.
+
+To repeat the role and bypass checks with disposable accounts, run `node scripts/test-trip-invites.mjs` from this checkout. To include a desktop owner and a mobile traveler on the published site, set `GROUP_BROWSER_URL=https://danieltsao0103.github.io/trip-planner-prototype/` when running that command. It uses the ignored server credentials to create and remove its own test accounts and generates an invitation link without sending an email.
