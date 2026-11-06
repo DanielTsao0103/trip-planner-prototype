@@ -12,7 +12,7 @@ import { demoStorageKey, loadDemoStore, type DemoAccount } from "./demo-store";
 import { type Store, type Preference, type Trip, type User, isActive, isOwner, member } from "./domain";
 import { TripSaveQueue, type PendingTrip } from "./trip-save-queue";
 import { getSupabase, sendTripSignupLink } from "./supabase";
-import { useProfilePicture, type ProfilePicture } from "./use-profile-picture";
+import { useCompanionPictures, useProfilePicture, type ProfilePicture } from "./use-profile-picture";
 import {
   loadAccountTrips,
   saveAccountTrip,
@@ -33,7 +33,7 @@ type Context = {
   signOut: () => Promise<void>;
   /** The signed-in account's own picture (uploaded, else Google, else initials). */
   picture: ProfilePicture;
-  /** Picture URL for this account id; other people always show initials for now. */
+  /** Picture URL for an account id: the signed-in account's own, or a trip companion's. */
   avatarFor: (id?: string) => string | undefined;
   mutate: (fn: (s: Store) => void) => void;
   trip: Trip | undefined;
@@ -141,6 +141,7 @@ export function Provider({
     );
   const queue = queueRef.current;
   const picture = useProfilePicture(cloud, account.id, googlePicture);
+  const companionPictures = useCompanionPictures(cloud);
   const pending = [...queue.pending.values()];
   const saveError = pending.find((entry) => entry.error)?.error;
   const [loadState, setLoadState] = useState(cloud ? "loading" : "ready");
@@ -506,7 +507,8 @@ export function Provider({
       }
     },
     picture,
-    avatarFor: (id) => (cloud && id === account.id ? picture.url : undefined),
+    avatarFor: (id) =>
+      !cloud || !id ? undefined : id === account.id ? picture.url : companionPictures.get(id),
     mutate,
     trip,
     user,

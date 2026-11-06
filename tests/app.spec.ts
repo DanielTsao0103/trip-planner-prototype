@@ -10,6 +10,8 @@ test.beforeEach(async ({ page }) => {
     const url = new URL(route.request().url());
     if (url.pathname === '/rest/v1/forwarded_booking') return route.fulfill({ json: [] });
     if (url.pathname === '/rest/v1/user_style') return route.fulfill({ json: [] });
+    if (url.pathname === '/rest/v1/rpc/trip_companion_pictures') return route.fulfill({ json: [] });
+    if (url.pathname === '/rest/v1/rpc/set_google_picture') return route.fulfill({ status: 204 });
     if (url.pathname === '/rest/v1/user' && route.request().method() === 'GET') return route.fulfill({ json: [] });
     if (url.pathname === '/rest/v1/rpc/load_trip_bundles' || (url.pathname === '/rest/v1/trip' && route.request().method() === 'GET')) return route.fulfill({ json: [] });
     if (url.pathname.startsWith('/auth/v1/')) {
@@ -399,9 +401,14 @@ test('profile picture: Google accounts show their Google photo until they upload
   await page.route('https://lh3.googleusercontent.com/**', route => route.fulfill({ body: PNG, contentType: 'image/png' }));
   await page.route('**/auth/v1/token**', route => route.fulfill({ json: { ...session(), user: google } }));
   await page.route('**/auth/v1/user', route => route.fulfill({ json: google }));
+  // Real accounts always have a profile row; it simply has no pictures saved yet.
+  await page.route('**/rest/v1/user?**', route => route.fulfill({ json: [{ profile_picture_path: null, google_picture_url: null }] }));
+  const shared: string[] = [];
+  await page.route('**/rpc/set_google_picture', route => { shared.push(route.request().postDataJSON().p_url); return route.fulfill({ status: 204 }); });
   await login(page);
   await openAccount(page);
   const dialog = page.getByRole('dialog', { name: 'Your corner of the trip' });
+  await expect.poll(() => shared).toEqual(['https://lh3.googleusercontent.com/test/pic=s96-c']);
   await expect(dialog.getByText('Showing your Google photo until you upload one.')).toBeVisible();
   await expect(dialog.locator('img').first()).toHaveAttribute('src', 'https://lh3.googleusercontent.com/test/pic=s96-c');
 });

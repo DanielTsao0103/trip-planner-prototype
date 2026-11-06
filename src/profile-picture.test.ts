@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   centerSquare,
+  companionPictureMap,
+  isGooglePhotoUrl,
   googlePictureOf,
   initialsOf,
   isOwnPicturePath,
@@ -75,4 +77,33 @@ test("initials match the previous avatar behavior", () => {
   assert.equal(initialsOf("Maya Chen"), "MC");
   assert.equal(initialsOf("Traveler"), "T");
   assert.equal(initialsOf("Ana Maria Lopez"), "AM");
+});
+
+test("only Google image hosts are accepted for shared Google photos", () => {
+  assert.equal(isGooglePhotoUrl("https://lh3.googleusercontent.com/a/abc=s96-c"), true);
+  assert.equal(isGooglePhotoUrl("https://lh4.googleusercontent.com/a/abc"), true);
+  assert.equal(isGooglePhotoUrl("http://lh3.googleusercontent.com/a/abc"), false);
+  assert.equal(isGooglePhotoUrl("https://googleusercontent.com.evil.example/a"), false);
+  assert.equal(isGooglePhotoUrl("https://evil.example/lh3.googleusercontent.com/a"), false);
+  assert.equal(isGooglePhotoUrl("https://lh3.googleusercontent.com/a b"), false);
+  assert.equal(isGooglePhotoUrl(null), false);
+});
+
+test("companion pictures prefer an uploaded file and ignore unsafe rows", () => {
+  const publicUrl = (path: string) => `https://store.example/${path}`;
+  const map = companionPictureMap(
+    [
+      { account_id: ID, picture_path: `${ID}/${FILE}.webp`, google_url: "https://lh3.googleusercontent.com/a/x" },
+      { account_id: OTHER, picture_path: null, google_url: "https://lh3.googleusercontent.com/a/y" },
+      { account_id: "33333333-2222-4333-8444-555555555555", picture_path: `${OTHER}/${FILE}.webp` },
+      { account_id: "44444444-2222-4333-8444-555555555555", google_url: "https://evil.example/a.png" },
+      { picture_path: `${ID}/${FILE}.webp` },
+      null,
+    ],
+    publicUrl,
+  );
+  assert.equal(map.get(ID), `https://store.example/${ID}/${FILE}.webp`);
+  assert.equal(map.get(OTHER), "https://lh3.googleusercontent.com/a/y");
+  assert.equal(map.size, 2);
+  assert.equal(companionPictureMap("nope", publicUrl).size, 0);
 });

@@ -48,6 +48,10 @@ test("account saves recover from lost responses without duplicate trips, reload,
       return route.fulfill({ json: [] });
     if (url.pathname === "/rest/v1/user_style")
       return route.fulfill({ json: [] });
+    if (url.pathname === "/rest/v1/rpc/trip_companion_pictures")
+      return route.fulfill({ json: [] });
+    if (url.pathname === "/rest/v1/rpc/set_google_picture")
+      return route.fulfill({ status: 204 });
     if (url.pathname.endsWith("/token"))
       return route.fulfill({ json: session() });
     if (url.pathname.endsWith("/user")) return route.fulfill({ json: owner });
@@ -234,6 +238,10 @@ test("failed account load offers retry and never pretends the account is empty",
       return route.fulfill({ json: [] });
     if (url.pathname === "/rest/v1/user_style")
       return route.fulfill({ json: [] });
+    if (url.pathname === "/rest/v1/rpc/trip_companion_pictures")
+      return route.fulfill({ json: [] });
+    if (url.pathname === "/rest/v1/rpc/set_google_picture")
+      return route.fulfill({ status: 204 });
     if (url.pathname.endsWith("/token"))
       return route.fulfill({ json: session() });
     if (url.pathname.endsWith("/user")) return route.fulfill({ json: owner });

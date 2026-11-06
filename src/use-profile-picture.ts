@@ -4,6 +4,8 @@ import {
   PROFILE_PICTURE_BUCKET,
   PROFILE_PICTURE_SIZE,
   centerSquare,
+  companionPictureMap,
+  isGooglePhotoUrl,
   isOwnPicturePath,
   pictureFileError,
   pictureObjectPath,
@@ -73,7 +75,7 @@ export function useProfilePicture(cloud: boolean, userId: string, googleUrl?: st
     let active = true;
     void getSupabase()
       .from("user")
-      .select("profile_picture_path")
+      .select("profile_picture_path,google_picture_url")
       .eq("userID", userId)
       .maybeSingle()
       .then(({ data, error: failure }) => {
@@ -81,11 +83,18 @@ export function useProfilePicture(cloud: boolean, userId: string, googleUrl?: st
         if (!active || failure) return;
         const saved = data?.profile_picture_path;
         setPath(isOwnPicturePath(userId, saved) ? saved : null);
+        // Share the Google photo with trip companions: record it once, and again if it changes.
+        const stored = data?.google_picture_url ?? null;
+        if (googleUrl && isGooglePhotoUrl(googleUrl) && stored !== googleUrl)
+          // Query builders only send once awaited or chained, so a bare `void` would do nothing.
+          void getSupabase()
+            .rpc("set_google_picture", { p_url: googleUrl })
+            .then(() => undefined);
       });
     return () => {
       active = false;
     };
-  }, [cloud, userId]);
+  }, [cloud, userId, googleUrl]);
 
   const removeObject = (old: string | null) => {
     if (old && isOwnPicturePath(userId, old))
@@ -150,4 +159,33 @@ export function useProfilePicture(cloud: boolean, userId: string, googleUrl?: st
     ? resolvePicture(path ? publicUrl(path) : undefined, googleUrl)
     : { source: "initials" as PictureSource };
   return { ...resolved, busy, error, upload, remove };
+}
+
+/**
+ * Pictures of the people who share a trip with this account (owners and accepted travelers only;
+ * the database decides who is visible). Refreshes on focus and every minute so a newly accepted
+ * traveler appears without a reload. Failures keep what is already shown.
+ */
+export function useCompanionPictures(cloud: boolean): Map<string, string> {
+  const [pictures, setPictures] = useState<Map<string, string>>(() => new Map());
+  useEffect(() => {
+    if (!cloud) return;
+    let active = true;
+    const load = () => {
+      void getSupabase()
+        .rpc("trip_companion_pictures")
+        .then(({ data, error: failure }) => {
+          if (active && !failure) setPictures(companionPictureMap(data, publicUrl));
+        });
+    };
+    load();
+    const timer = window.setInterval(load, 60_000);
+    window.addEventListener("focus", load);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", load);
+    };
+  }, [cloud]);
+  return pictures;
 }

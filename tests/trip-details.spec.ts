@@ -21,6 +21,10 @@ async function backend(page: Page) {
       return route.fulfill({ json: [] });
     if (path === "/rest/v1/user_style")
       return route.fulfill({ json: [] });
+    if (path === "/rest/v1/rpc/trip_companion_pictures")
+      return route.fulfill({ json: [] });
+    if (path === "/rest/v1/rpc/set_google_picture")
+      return route.fulfill({ status: 204 });
     if (path.endsWith("/token"))
       return route.fulfill({
         json: {

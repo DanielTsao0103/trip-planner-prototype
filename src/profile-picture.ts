@@ -77,6 +77,34 @@ export function centerSquare(width: number, height: number): { x: number; y: num
   return { x: Math.floor((width - size) / 2), y: Math.floor((height - size) / 2), size };
 }
 
+const GOOGLE_PHOTO_HOST = /^https:\/\/[a-z0-9-]+\.googleusercontent\.com\/[^\s]+$/;
+
+/** True only for photo links on Google's own image hosts, matching the database constraint. */
+export function isGooglePhotoUrl(value: unknown): value is string {
+  return typeof value === "string" && value.length <= 2048 && GOOGLE_PHOTO_HOST.test(value);
+}
+
+export type CompanionPictureRow = { account_id?: unknown; picture_path?: unknown; google_url?: unknown };
+
+/**
+ * Picture links for the people who share a trip with the signed-in account, keyed by account id.
+ * Every row is re-checked here, so a bad row can never point an avatar at an unexpected place.
+ */
+export function companionPictureMap(
+  rows: unknown,
+  publicUrl: (path: string) => string,
+): Map<string, string> {
+  const map = new Map<string, string>();
+  if (!Array.isArray(rows)) return map;
+  for (const row of rows as CompanionPictureRow[]) {
+    const id = typeof row?.account_id === "string" ? row.account_id : "";
+    if (!id) continue;
+    if (isOwnPicturePath(id, row.picture_path)) map.set(id, publicUrl(row.picture_path));
+    else if (isGooglePhotoUrl(row.google_url)) map.set(id, row.google_url);
+  }
+  return map;
+}
+
 export function initialsOf(name: string): string {
   return name
     .split(" ")
