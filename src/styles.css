@@ -6624,3 +6624,34 @@ legend {
 
 .survey-fields { border: 0; padding: 0; margin-inline: 0; min-width: 0; }
 .invite-survey { max-width: 1120px; margin-inline: auto; padding: clamp(16px, 4vw, 48px); }
+
+/* Invitation review uses the same theme tokens as the group page. */
+.main-content.invite-survey { max-width: 720px; width: 100%; padding: clamp(22px, 5vw, 64px) clamp(16px, 4vw, 32px); }
+.invite-review header { margin-bottom: 22px; }
+.invite-review header h1 { font-size: clamp(30px, 4.5vw, 46px); line-height: 1.12; margin: 10px 0; }
+.invite-review header p { color: var(--muted); line-height: 1.55; margin-bottom: 0; }
+.invite-review .invite-trip-name { display: flex; align-items: center; gap: 7px; font-weight: 600; color: var(--green); overflow-wrap: anywhere; }
+.invite-trip-name svg, .invite-audience svg { flex-shrink: 0; }
+.invite-review-fields { margin: 0; padding: 0; min-width: 0; border: 1px solid var(--line); border-radius: calc(15px * var(--rs)); background: var(--paper); box-shadow: var(--shadow); }
+.invite-review-section + .invite-review-section { border-top: 1px solid var(--line); }
+.invite-review-section h2 { margin: 0; font: inherit; letter-spacing: normal; }
+.invite-review-section h2 button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; text-align: left; width: 100%; gap: 14px; padding: 16px 20px; border-radius: calc(10px * var(--rs)); }
+.invite-review-section h2 button:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--sage) 30%, var(--paper)); }
+.invite-category-icon { color: var(--green); }
+.invite-review-section strong { display: block; color: var(--ink); font-size: 16px; }
+.invite-review-section small { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; color: var(--muted); font-size: 13px; line-height: 1.45; margin-top: 3px; }
+.invite-chevron { color: var(--muted); }
+[aria-expanded="true"] > .invite-chevron { transform: rotate(180deg); }
+.invite-review-panel { padding: 8px 20px 18px; }
+.invite-review-panel > :last-child { margin-bottom: 0; }
+.invite-review-panel .choice-chips label { min-height: 44px; font-size: 13px; }
+.invite-review-panel :is(input, textarea, select) { font-size: 16px; }
+.invite-audience { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; line-height: 1.4; margin: 17px 0 14px; }
+.invite-review-actions { display: flex; align-items: center; gap: 12px; }
+.invite-review-actions .btn { min-height: 44px; }
+@media (max-width: 540px) {
+  .invite-review-section h2 button { padding: 13px 14px; gap: 10px; }
+  .invite-review-panel { padding-inline: 14px; }
+  .invite-review-actions { flex-direction: column; gap: 2px; }
+  .invite-review-actions .btn { width: 100%; }
+}

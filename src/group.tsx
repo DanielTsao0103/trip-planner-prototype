@@ -8,6 +8,7 @@ import {
   Carrot,
   Check,
   ChevronRight,
+  ChevronDown,
   Leaf,
   Landmark,
   Accessibility,
@@ -851,27 +852,41 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
   const { s, go, savePreferences, toast } = useApp();
   const traveler = member(t, s.userId)!;
   const [saving, setSaving] = useState(false);
-  const [p, setP] = useState<Preference>(
-      structuredClone(t.prefs[traveler.id] || blankPrefs()),
-    ),
+  const draftKey = leaveOnboarding ? `trip-survey-draft-v1:${s.userId}:${t.id}:${traveler.id}` : null;
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const [p, setP] = useState<Preference>(() => {
+    const initial = t.prefs[traveler.id] || blankPrefs();
+    if (draftKey) {
+      try {
+        const draft = JSON.parse(sessionStorage.getItem(draftKey) || "null");
+        if (draft && Object.entries(initial).every(([key, value]) =>
+          Array.isArray(value) ? Array.isArray(draft[key]) && draft[key].every((item: unknown) => typeof item === "string")
+            : typeof draft[key] === typeof value)) return draft;
+      } catch { /* Private browsing can disable session storage. */ }
+    }
+    return structuredClone(initial);
+  }),
     [error, setError] = useState(""),
     [step, setStep] = useState(0);
-  const set = <K extends keyof Preference>(key: K, value: Preference[K]) =>
-    setP({ ...p, [key]: value });
+  const set = <K extends keyof Preference>(key: K, value: Preference[K]) => {
+    const next = { ...p, [key]: value };
+    setP(next);
+    if (draftKey) {
+      try { sessionStorage.setItem(draftKey, JSON.stringify(next)); } catch { /* Keep editing in memory. */ }
+    }
+  };
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (saving || step !== 2) return;
-    const problem =
-      textError(
-        p.destinations,
-        "Places to include",
-        TEXT_LIMITS.preferencePlaces,
-      ) || textError(p.notes, "Additional notes", TEXT_LIMITS.notes);
+    if (saving || (!leaveOnboarding && step !== 2)) return;
+    const placesError = textError(p.destinations, "Places to include", TEXT_LIMITS.preferencePlaces);
+    const problem = placesError || textError(p.notes, "Additional notes", TEXT_LIMITS.notes);
     if (problem) {
+      if (leaveOnboarding) setExpanded(placesError ? 1 : 3);
       setError(problem);
       return;
     }
     if (!Number.isInteger(p.walk) || p.walk < 0 || p.walk > 100000) {
+      if (leaveOnboarding) setExpanded(2);
       setError("Enter a whole number between 0 and 100,000 meters.");
       return;
     }
@@ -879,20 +894,231 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
     setError("");
     try {
       await savePreferences(t, p);
-      toast("Your preferences are now reflected in the group’s tiles.");
-      go(13);
+      if (draftKey) {
+        try { sessionStorage.removeItem(draftKey); } catch { /* Storage is optional. */ }
+      }
+      toast("Trip preferences saved.");
+      go(leaveOnboarding ? 8 : 13);
     } catch (issue) {
       setError(issue instanceof Error ? issue.message : "Could not save preferences. Try again.");
     } finally {
       setSaving(false);
     }
   };
+  const diningFields = (
+    <>
+      <Choices
+        label="Dietary preferences & restrictions"
+        values={[
+          "No restrictions",
+          "Vegetarian",
+          "Vegan",
+          "Gluten avoidance",
+          "Peanut avoidance",
+          "Dairy avoidance",
+          "Halal",
+          "Kosher",
+        ]}
+        selected={p.diet}
+        onChange={(v) =>
+          set(
+            "diet",
+            v.includes("No restrictions") &&
+              v[v.length - 1] === "No restrictions"
+              ? ["No restrictions"]
+              : v.filter((x) => x !== "No restrictions"),
+          )
+        }
+      />
+      <Field label="Local flavors or familiar favorites?">
+        <select
+          value={p.food}
+          onChange={(e) => set("food", e.target.value)}
+        >
+          {[
+            "Local favorites",
+            "Familiar favorites",
+            "A little of both",
+          ].map((v) => (
+            <option key={v}>{v}</option>
+          ))}
+        </select>
+      </Field>
+      <div className="form-columns">
+        <Field label="Spending comfort">
+          <select
+            value={p.spending}
+            onChange={(e) => set("spending", e.target.value)}
+          >
+            {["Budget-conscious", "Moderate", "Room to splurge"].map(
+              (v) => (
+                <option key={v}>{v}</option>
+              ),
+            )}
+          </select>
+        </Field>
+        <Field label="Dining style">
+          <select
+            value={p.dining}
+            onChange={(e) => set("dining", e.target.value)}
+          >
+            {[
+              "Casual & simple",
+              "A little extravagant",
+              "A mix of both",
+            ].map((v) => (
+              <option key={v}>{v}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <Field label="Restaurant atmosphere">
+        <select
+          value={p.atmosphere}
+          onChange={(e) => set("atmosphere", e.target.value)}
+        >
+          {["Relaxed", "Quiet", "Lively", "Fine dining"].map((v) => (
+            <option key={v}>{v}</option>
+          ))}
+        </select>
+      </Field>
+    </>
+  );
+  const interestFields = (
+    <>
+      <Choices
+        label="Things you like to see and do"
+        values={[
+          "Modern architecture",
+          "History",
+          "Culture",
+          "Art",
+          "Nature",
+          "Shopping",
+          "Food experiences",
+          "Rest & downtime",
+        ]}
+        selected={p.interests}
+        onChange={(v) => set("interests", v)}
+        icons={interestOptionIcons}
+      />
+      <Field label="Places you’d love to include">
+        <textarea
+          rows={3}
+          maxLength={TEXT_LIMITS.preferencePlaces}
+          value={p.destinations}
+          onChange={(e) => set("destinations", e.target.value)}
+          placeholder="A neighborhood, a museum, a little place you heard about…"
+        />
+      </Field>
+    </>
+  );
+  const mobilityFields = (
+    <>
+      <Choices
+        label="Accessibility needs"
+        values={[
+          "Step-free access",
+          "Wheelchair access",
+          "Places to sit",
+          "Accessible restrooms",
+          "Low-sensory spaces",
+        ]}
+        selected={p.access}
+        onChange={(v) => set("access", v)}
+      />
+      <Field
+        label="Maximum comfortable continuous walk (meters)"
+        hint="For example, 400m. A planning preference, not a verified route guarantee."
+      >
+        <input
+          type="number"
+          min="0"
+          max="100000"
+          value={p.walk}
+          onChange={(e) => set("walk", Number(e.target.value))}
+        />
+      </Field>
+    </>
+  );
+  const bookingFields = (
+    <>
+      <Field label="Tickets and reservations">
+        <select
+          value={p.tickets}
+          onChange={(e) => set("tickets", e.target.value)}
+        >
+          {[
+            "Happy to book ahead",
+            "Prefer flexible / walk-in plans",
+            "Need help with advance tickets",
+            "Prefer free activities",
+          ].map((v) => (
+            <option key={v}>{v}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Anything else the group should know?">
+        <textarea
+          rows={5}
+          maxLength={TEXT_LIMITS.notes}
+          value={p.notes}
+          onChange={(e) => set("notes", e.target.value)}
+          placeholder="Other food needs, a slower pace, timing constraints…"
+        />
+      </Field>
+    </>
+  );
+  if (leaveOnboarding) {
+    const sections = [
+      { title: "Food & dining", Icon: Utensils, fields: diningFields,
+        summary: [...p.diet, p.food === "A little of both" ? "Local and familiar food" : p.food, p.spending + " spending", p.dining, p.atmosphere].join(" · ") },
+      { title: "Places & interests", Icon: MapPin, fields: interestFields,
+        summary: [...p.interests, p.destinations].filter(Boolean).join(" · ") || "Add activities or places you’d like to visit" },
+      { title: "Walking & accessibility", Icon: Footprints, fields: mobilityFields,
+        summary: [`Walks up to ${p.walk.toLocaleString()} m`, ...p.access].join(" · ") },
+      { title: "Tickets & notes", Icon: Ticket, fields: bookingFields,
+        summary: [p.tickets, p.notes].filter(Boolean).join(" · ") },
+    ];
+    return (
+      <div className="invite-review">
+        <header>
+          <p className="invite-trip-name"><Check size={16} aria-hidden="true" /> Joined {t.title}</p>
+          <h1>Your trip preferences</h1>
+          <p>Review the starting choices below. You can change them now or later from the group page.</p>
+        </header>
+        <form onSubmit={save} noValidate>
+          <fieldset disabled={saving} aria-busy={saving} className="invite-review-fields">
+            {sections.map(({title, Icon, fields, summary}, index) => (
+              <section key={title} className="invite-review-section">
+                <h2><button type="button" aria-expanded={expanded === index} aria-controls={`invite-panel-${index}`}
+                  onClick={() => setExpanded(expanded === index ? null : index)}>
+                  <Icon className="invite-category-icon" size={20} aria-hidden="true" />
+                  <span><strong>{title}</strong><small>{summary}</small></span>
+                  <ChevronDown className="invite-chevron" size={18} aria-hidden="true" />
+                </button></h2>
+                <div id={`invite-panel-${index}`} hidden={expanded !== index} className="invite-review-panel">
+                  {fields}
+                </div>
+              </section>
+            ))}
+          </fieldset>
+          <ErrorBox text={error} />
+          <p className="invite-audience"><Users size={16} aria-hidden="true" /> Everyone on this trip can see your answers. Use fictional details in this prototype.</p>
+          <div className="invite-review-actions">
+            <Button type="submit" disabled={saving}>{saving ? "Saving preferences…" : "Save and open trip"} <ArrowRight size={16} /></Button>
+            <Button variant="text" onClick={leaveOnboarding} disabled={saving}>Back to my trips</Button>
+          </div>
+        </form>
+      </div>
+    );
+  }
   return (
     <>
       <PageHead
         eyebrow="YOUR PART OF THE PLAN"
         title="What makes a good trip for you?"
-        description={leaveOnboarding ? `You’ve joined ${t.title}. Share your preferences to open the trip.` : "Share a little about yourself. We’ll help the plan fit the people."}
+        description="Share a little about yourself. We’ll help the plan fit the people."
       />
       <form onSubmit={save}>
         <fieldset className="survey-layout survey-fields" disabled={saving} aria-busy={saving}>
@@ -922,180 +1148,23 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
         <div className="card form-card">
           {step === 0 && (
             <>
-              <div className="step-heading">
-                <span>01</span>
-                <h2>Good food, your way.</h2>
-              </div>
-              <Choices
-                label="Dietary preferences & restrictions"
-                values={[
-                  "No restrictions",
-                  "Vegetarian",
-                  "Vegan",
-                  "Gluten avoidance",
-                  "Peanut avoidance",
-                  "Dairy avoidance",
-                  "Halal",
-                  "Kosher",
-                ]}
-                selected={p.diet}
-                onChange={(v) =>
-                  set(
-                    "diet",
-                    v.includes("No restrictions") &&
-                      v[v.length - 1] === "No restrictions"
-                      ? ["No restrictions"]
-                      : v.filter((x) => x !== "No restrictions"),
-                  )
-                }
-              />
-              <Field label="Local flavors or familiar favorites?">
-                <select
-                  value={p.food}
-                  onChange={(e) => set("food", e.target.value)}
-                >
-                  {[
-                    "Local favorites",
-                    "Familiar favorites",
-                    "A little of both",
-                  ].map((v) => (
-                    <option key={v}>{v}</option>
-                  ))}
-                </select>
-              </Field>
-              <div className="form-columns">
-                <Field label="Spending comfort">
-                  <select
-                    value={p.spending}
-                    onChange={(e) => set("spending", e.target.value)}
-                  >
-                    {["Budget-conscious", "Moderate", "Room to splurge"].map(
-                      (v) => (
-                        <option key={v}>{v}</option>
-                      ),
-                    )}
-                  </select>
-                </Field>
-                <Field label="Dining style">
-                  <select
-                    value={p.dining}
-                    onChange={(e) => set("dining", e.target.value)}
-                  >
-                    {[
-                      "Casual & simple",
-                      "A little extravagant",
-                      "A mix of both",
-                    ].map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-              <Field label="Restaurant atmosphere">
-                <select
-                  value={p.atmosphere}
-                  onChange={(e) => set("atmosphere", e.target.value)}
-                >
-                  {["Relaxed", "Quiet", "Lively", "Fine dining"].map((v) => (
-                    <option key={v}>{v}</option>
-                  ))}
-                </select>
-              </Field>
+              <div className="step-heading"><span>01</span><h2>Good food, your way.</h2></div>
+              {diningFields}
             </>
           )}
           {step === 1 && (
             <>
-              <div className="step-heading">
-                <span>02</span>
-                <h2>Your kind of exploring.</h2>
-              </div>
-              <Choices
-                label="Things you like to see and do"
-                values={[
-                  "Modern architecture",
-                  "History",
-                  "Culture",
-                  "Art",
-                  "Nature",
-                  "Shopping",
-                  "Food experiences",
-                  "Rest & downtime",
-                ]}
-                selected={p.interests}
-                onChange={(v) => set("interests", v)}
-                icons={interestOptionIcons}
-              />
-              <Field label="Places you’d love to include">
-                <textarea
-                  rows={3}
-                  maxLength={TEXT_LIMITS.preferencePlaces}
-                  value={p.destinations}
-                  onChange={(e) => set("destinations", e.target.value)}
-                  placeholder="A neighborhood, a museum, a little place you heard about…"
-                />
-              </Field>
-              <Choices
-                label="Accessibility needs"
-                values={[
-                  "Step-free access",
-                  "Wheelchair access",
-                  "Places to sit",
-                  "Accessible restrooms",
-                  "Low-sensory spaces",
-                ]}
-                selected={p.access}
-                onChange={(v) => set("access", v)}
-              />
-              <Field
-                label="Maximum comfortable continuous walk (meters)"
-                hint="For example, 400m. A planning preference, not a verified route guarantee."
-              >
-                <input
-                  type="number"
-                  min="0"
-                  max="100000"
-                  value={p.walk}
-                  onChange={(e) => set("walk", Number(e.target.value))}
-                />
-              </Field>
+              <div className="step-heading"><span>02</span><h2>Your kind of exploring.</h2></div>
+              {interestFields}{mobilityFields}
             </>
           )}
           {step === 2 && (
             <>
-              <div className="step-heading">
-                <span>03</span>
-                <h2>The practical little things.</h2>
-              </div>
-              <Field label="Tickets and reservations">
-                <select
-                  value={p.tickets}
-                  onChange={(e) => set("tickets", e.target.value)}
-                >
-                  {[
-                    "Happy to book ahead",
-                    "Prefer flexible / walk-in plans",
-                    "Need help with advance tickets",
-                    "Prefer free activities",
-                  ].map((v) => (
-                    <option key={v}>{v}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Anything else the group should know?">
-                <textarea
-                  rows={5}
-                  maxLength={TEXT_LIMITS.notes}
-                  value={p.notes}
-                  onChange={(e) => set("notes", e.target.value)}
-                  placeholder="Other food needs, a slower pace, timing constraints…"
-                />
-              </Field>
+              <div className="step-heading"><span>03</span><h2>The practical little things.</h2></div>
+              {bookingFields}
               <div className="info-banner">
                 <Users size={18} />
-                <span>
-                  Saving updates the shared preference tiles immediately. You
-                  can come back and change your answers.
-                </span>
+                <span>Your group can see your saved preferences. You can come back and change them.</span>
               </div>
             </>
           )}
@@ -1103,9 +1172,9 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
           <div className="form-actions">
             <Button
               variant="text"
-              onClick={() => (step ? setStep(step - 1) : leaveOnboarding ? leaveOnboarding() : go(13))}
+              onClick={() => (step ? setStep(step - 1) : go(13))}
             >
-              {step ? "Back" : leaveOnboarding ? "Back to my trips" : "Cancel"}
+              {step ? "Back" : "Cancel"}
             </Button>
             {step < 2 ? (
               <Button onClick={() => setStep(step + 1)}>

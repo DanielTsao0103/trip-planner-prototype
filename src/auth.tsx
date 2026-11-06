@@ -231,7 +231,7 @@ export function AuthApp({
           <Field label="Your name"><input required autoComplete="name" maxLength={TEXT_LIMITS.name} value={name} onChange={e => setName(e.target.value)}/></Field>
           <Field label="Choose a password"><input type="password" required minLength={8} autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)}/></Field>
           {error && <p role="alert">{error}</p>}
-          <button className="btn full" disabled={busy}>{busy ? "Saving…" : "Open my trips"}</button>
+          <button className="btn full" disabled={busy}>{busy ? "Saving…" : "Continue to trip preferences"}</button>
         </form>
       </div></section>
     </main>;

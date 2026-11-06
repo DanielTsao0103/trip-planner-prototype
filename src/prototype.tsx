@@ -33,7 +33,7 @@ export function PrototypeApp() {
   const openingTrip = [7, 8, 9, 10, 11, 12, 13, 15, 16, 17].includes(route.page);
   const pendingSurvey = accountTrips && (
     (openingTrip && trip && needsSurvey(trip) && trip) ||
-    s.trips.find(t => !deferred.includes(t.id) && needsSurvey(t))
+    ([1, 4, 5].includes(route.page) && s.trips.find(t => !deferred.includes(t.id) && needsSurvey(t)))
   );
   const routeKey = `${route.page}?${route.params}`;
   const previousRoute = useRef(routeKey);
