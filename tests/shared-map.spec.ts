@@ -8,6 +8,7 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
   const stops = store.trips.find((t) => t.id === "seattle")!.events;
   stops[0].place = "400 Broad St, Seattle, WA";
   stops[1].place = "85 Pike St, Seattle, WA";
+  stops.reverse(); // Saved event order can differ from the itinerary after a reschedule.
   store.tripId = "seattle";
   store.userId = "maya";
   await page.addInitScript((value) => {
@@ -75,6 +76,10 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
       }
       getZoom() {
         return this.zoom;
+      }
+      setZoom(zoom: number) {
+        this.zoom = zoom;
+        this.host.dispatchEvent(new Event("zoom_changed"));
       }
       moveCamera({ center, zoom }: { center: Point; zoom: number }) {
         this.center = center;
@@ -150,8 +155,7 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
         () =>
           JSON.parse(
             localStorage.getItem("trip-planner-demo-v1:demo-maya")!,
-          ).trips.find((t: { id: string }) => t.id === "seattle").events[0]
-            .googlePlaceId,
+          ).trips.find((t: { id: string }) => t.id === "seattle").events.find((e: { id: string }) => e.id === "hotel")?.googlePlaceId,
       ),
     )
     .toBe("needle");
@@ -185,10 +189,12 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
     .getByRole("link", { name: "Directions", exact: true })
     .getAttribute("href");
   expect(url).not.toContain("47.6077008%2C-122.3385575");
+  await expect(page.getByRole("link", { name: "Open A morning of art in itinerary" })).toBeVisible();
+  await expect(page.locator(".place-select").first()).toContainText("Settle into our city stay");
+  await expect(page).toHaveURL(/#\/17\?event=museum$/);
   await page.reload();
-  await page
-    .getByRole("button", { name: /A morning of art.*Seattle Art Museum/ })
-    .click();
+  await expect(page.getByRole("button", { name: /A morning of art.*Seattle Art Museum/ }))
+    .toHaveAttribute("aria-expanded", "true");
   await expect(
     page.getByRole("link", { name: "Directions", exact: true }),
   ).toHaveAttribute("href", url!);
@@ -196,6 +202,16 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
   await expect(
     page.getByRole("link", { name: "Directions", exact: true }),
   ).toHaveCount(0);
+  const ferry = page.getByRole("button", {name: /Across the sound.*Bainbridge Island ferry/});
+  await ferry.click();
+  await page.getByRole("button", { name: "Place pin", exact: true }).click();
+  if (await page.getByRole("button", { name: "Save pin" }).isDisabled()) {
+    for (let step = 0; step < 14; step++) await page.getByRole("button", { name: "Zoom in" }).click();
+  }
+  await page.getByRole("button", { name: "Save pin" }).click();
+  await page.reload();
+  await expect(ferry).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("link", {name: "Directions", exact:true})).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth + 1,

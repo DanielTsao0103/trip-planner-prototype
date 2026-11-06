@@ -51,6 +51,8 @@ test("account saves recover from lost responses without duplicate trips, reload,
     if (url.pathname.endsWith("/token"))
       return route.fulfill({ json: session() });
     if (url.pathname.endsWith("/user")) return route.fulfill({ json: owner });
+    if (url.pathname === "/rest/v1/rpc/read_invited_trip")
+      return route.fulfill({ json: rows.find(row => row.tripID === request.postDataJSON().p_trip) });
     if (url.pathname === "/rest/v1/rpc/load_trip_bundles")
       return route.fulfill({ json: rows });
     if (url.pathname === "/rest/v1/trip_photo_credit" && request.method() === "GET")
@@ -274,6 +276,7 @@ test("invitees submit their own trip survey before entering the shared trip", as
     if (path.endsWith("/token")) return route.fulfill({ json: session() });
     if (path.endsWith("/user")) return route.fulfill({ json: owner });
     if (path.endsWith("/load_trip_bundles")) return route.fulfill({ json: [row] });
+    if (path.endsWith("/read_invited_trip")) return route.fulfill({ json: row });
     if (path.endsWith("/save_invited_preferences")) {
       const { p_trip, p_answers } = route.request().postDataJSON();
       expect(p_trip).toBe(row.tripID);

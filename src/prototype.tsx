@@ -43,7 +43,8 @@ export function PrototypeApp() {
     if (target) {
       target.focus({ preventScroll: true });
       target.scrollIntoView({ block: "center" });
-    } else if (previousRoute.current !== routeKey && route.page !== 16) {
+    } else if (previousRoute.current !== routeKey && route.page !== 16 &&
+        !(route.page === 17 && previousRoute.current.startsWith("17?"))) {
       document.getElementById("main-content")?.focus({ preventScroll: true });
     }
     previousRoute.current = routeKey;

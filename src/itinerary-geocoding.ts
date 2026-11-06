@@ -78,7 +78,12 @@ async function findMatch(
       point: result.geometry.location.toJSON(),
     };
   } catch (error) {
-    if (String(error).includes("ZERO_RESULTS")) return null;
+    const code = typeof error === "object" && error !== null && "code" in error
+      ? error.code : undefined;
+    if (code === "ZERO_RESULTS" || String(error).includes("ZERO_RESULTS")) return null;
+    // Google can retire or reject an old place ID. Retry the saved address
+    // only for a terminal ID error; an outage or quota error should surface.
+    if (request.placeId && (code === "NOT_FOUND" || code === "INVALID_REQUEST")) return null;
     throw error;
   }
 }
@@ -95,7 +100,14 @@ export async function geocodeItineraryPlace(
     const saved = await findMatch(geocode, { placeId }, address);
     if (saved) return saved;
   }
-  const query = address.trim();
+  // An apartment or suite identifies a door within the building. Its comma
+  // does not name a city. Keep the full itinerary text and geocode the building.
+  const unit = /(?:^|\s+)(?:(?:apt|apartment|suite|ste|unit|floor|room)\.?\s*#?\s*|#)(?:[a-z]?\d+[a-z]?(?:[-/]\d+[a-z]?)?|[a-z])$/i;
+  const parts = address.split(/[,，]/u).map((part) => part.trim());
+  const hasUnit = parts.some((part) => unit.test(part));
+  const query = parts.map((part) => part.replace(unit, "").trim())
+    .filter(Boolean)
+    .join(", ");
   if (!query) return null;
   const hasGeography =
     query.includes(",") ||
@@ -122,7 +134,7 @@ export async function geocodeItineraryPlace(
     unique = match;
   }
   // Long, unpunctuated addresses may already specify a different city.
-  if (!unique && /\d/.test(query) && query.split(/\s+/).length >= 5)
+  if (!unique && !hasUnit && /\d/.test(query) && query.split(/\s+/).length >= 5)
     return findMatch(geocode, { address: query }, address);
   return unique;
 }

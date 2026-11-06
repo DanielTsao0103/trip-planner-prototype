@@ -75,3 +75,24 @@ test('building coordinates retain longitude and latitude order', () => {
   assert.deepEqual(meetingPlacesFromResponse({features:[building]})[0].point,{lat:51.52376,lng:-0.15847});
   assert.equal(meetingPlacesFromResponse({features:[{...building,geometry:{coordinates:[51,200]}}]})[0].point,null);
 });
+
+test('a numbered address cannot turn into a street midpoint or a neighboring house', () => {
+  function matches(query: string, street: string, exact: string) {
+    const features = [
+      { properties: { type: 'street', name: street } },
+      { properties: { type: 'house', street, housenumber: '9' } },
+      { properties: { type: 'house', street, housenumber: exact } },
+    ].map(feature => ({ ...feature, geometry: { coordinates: [0.5, 50.5] } }));
+    const found = meetingPlacesFromResponse({features}, null, query);
+    assert.deepEqual(found.map(place => place.label), [exact + ' ' + street]);
+  }
+  matches('400 Broad Street', 'Broad Street', '400');
+  matches('221B Baker Street, London', 'Baker Street', '221B');
+  matches('Unter den Linden 77, 10117 Berlin', 'Unter den Linden', '77');
+  matches('Musée, 99 Rue de Rivoli, 75001 Paris', 'Rue de Rivoli', '99');
+  matches('No. 2, Section 3, Tingzhou Rd, Taipei', 'Tingzhou Rd', '2');
+  matches('100 臺北市中正區汀州路三段２號', '汀州路三段', '2號');
+  // A numbered street name is still a valid street search.
+  const avenue = {properties:{type:'street', name:'5th Avenue'}};
+  assert.equal(meetingPlacesFromResponse({features:[avenue]}, null, '5th Avenue').length, 1);
+});

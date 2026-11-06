@@ -5,7 +5,7 @@ import type { Store } from "./domain";
 import { getSupabase } from "./supabase";
 import type { TripSaveQueue } from "./trip-save-queue";
 
-/** Refresh only an open account map. Never replace optimistic or recovered edits. */
+/** Keep the open map and itinerary in sync without replacing unsaved or recovered edits. */
 export function useSharedMapSync(
   tripId: string | undefined,
   account: DemoAccount,
@@ -37,7 +37,8 @@ export function useSharedMapSync(
           });
           return;
         }
-        if (error || !data) throw new Error("Map sync unavailable");
+        if (error || data?.tripID !== tripId || !Number.isInteger(data.revision))
+          throw new Error("Trip sync unavailable");
         setOffline(false);
         const previous = latest.trips.find((trip) => trip.id === tripId);
         if (!previous || previous.revision! >= data.revision) return;

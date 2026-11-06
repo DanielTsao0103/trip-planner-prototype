@@ -34,7 +34,7 @@ type Context = {
   trip: Trip | undefined;
   user: User | undefined;
   route: Route;
-  go: (page: number, params?: Record<string, string>) => void;
+  go: (page: number, params?: Record<string, string>, replace?: boolean) => void;
   tripGo: (page: number) => void;
   open: (kind: string, data?: any) => void;
   close: () => void;
@@ -225,8 +225,15 @@ export function Provider({
   }, [cloud, account.id, loadAttempt]);
   const [route, setRoute] = useState(readRoute);
   const [overlay, setOverlay] = useState<Overlay>(null);
-  const go = (page: number, params: Record<string, string> = {}) => {
-    location.hash = `/${page}${Object.keys(params).length ? "?" + new URLSearchParams(params) : ""}`;
+  const go = (page: number, params: Record<string, string> = {}, replace = false) => {
+    const hash = `#/${page}${Object.keys(params).length ? "?" + new URLSearchParams(params) : ""}`;
+    if (replace) {
+      // In-page selection survives refresh without adding a Back step or scrolling.
+      history.replaceState(history.state, "", hash);
+      setRoute(readRoute());
+      return;
+    }
+    location.hash = hash;
     setOverlay(null);
     window.scrollTo(0, 0);
   };
@@ -265,7 +272,7 @@ export function Provider({
   const trip = s.trips.find((t) => t.id === s.tripId && member(t, s.userId));
   const mapSyncOffline = useSharedMapSync(
     cloud && loadState === "ready" && trip?.persistence === "account" &&
-      s.userId === account.id && [10, 17].includes(route.page) ? trip.id : undefined,
+      s.userId === account.id && [8, 10, 11, 17].includes(route.page) ? trip.id : undefined,
     account, stateRef, queue, commit);
 
   useEffect(() => {

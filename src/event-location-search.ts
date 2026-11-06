@@ -69,6 +69,25 @@ export async function resolveSearchFocus(destination: string, signal: AbortSigna
 export const locationQuery = (value: string) => value.trim().replace(/^(?:meet(?:\s+(?:me|us))?\s+(?:at|near)|meeting\s+at)\s+/i, '').trim();
 const parts = (...values: string[]) => [...new Set(values.filter(Boolean))].join(', ');
 
+/** Match building numbers without treating a street midpoint as a front door. */
+function requestedHouseNumber(query: string, street: string): string | undefined {
+  const input = query.normalize('NFKC').trim();
+  const marked = input.match(/(\d+(?:[-之]\d+)?)[號号]/u)
+    ?? input.match(/(?:^|,\s*)no\.\s*(\d+[a-z]?(?:[-/]\d+[a-z]?)*)(?=\s|,|$)/i);
+  if (marked) return marked[1].toLowerCase();
+
+  // A later comma-separated component may be the postal code. Prefer the
+  // component that actually names this street when the venue precedes it.
+  const parts = input.split(/[,，]/u).map(part => part.trim());
+  const road = normalized(street);
+  const part = parts.find(part => road && normalized(part).includes(road)) ?? parts[0];
+  const leading = part.match(/^(?:no\.?\s*)?(\d+[a-z]?(?:[-/]\d+[a-z]?)*)(?=\s|$)/i);
+  if (leading) return leading[1].toLowerCase();
+  const trailing = part.match(/^(.+?)\s+(\d+[a-z]?(?:[-/]\d+[a-z]?)*)$/i);
+  return trailing && normalized(trailing[1]) === road
+    ? trailing[2].toLowerCase() : undefined;
+}
+
 export function meetingPlacesFromResponse(data: unknown, focus?: SearchFocus | null, query = ""): MeetingPlace[] {
   if (!data || typeof data !== 'object' || !Array.isArray((data as {features?: unknown}).features)) throw new Error('Invalid location response');
   const seen = new Set<string>();
@@ -76,9 +95,16 @@ export function meetingPlacesFromResponse(data: unknown, focus?: SearchFocus | n
     const p = feature?.properties;
     if (!p) return [];
     const text = (key: string) => typeof p[key] === 'string' ? (p[key] as string).trim() : '';
-    const street = [text('housenumber'), text('street')].filter(Boolean).join(' ');
+    const house = text('housenumber');
+    const streetName = text('street');
+    const type = text('type');
+    const street = [house, streetName].filter(Boolean).join(' ');
     const name = text('name') || street;
     if (!name) return [];
+    const requested = requestedHouseNumber(query, streetName || name);
+    const addressResult = house || type === 'house' || type === 'street' || (streetName && !text('name'));
+    if (requested && addressResult &&
+        house.normalize('NFKC').replace(/[號号]$/u, '').toLowerCase() !== requested) return [];
     const city = text('city') || text('locality') || text('district');
     const address = parts(street === name ? '' : street, city === name ? '' : city, text('state') === name ? '' : text('state'), text('country') === name ? '' : text('country'));
     const label = parts(name, address);

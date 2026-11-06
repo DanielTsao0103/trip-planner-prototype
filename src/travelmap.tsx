@@ -57,11 +57,13 @@ export function TravelMap({
   const [loadError, setLoadError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [satellite, setSatellite] = useState(false);
-  const [selectedId, select] = useState(
-    selectedEvent ||
-      trip?.events.find((e) => e.place === selectedPlace)?.id ||
-      "",
-  );
+  const [compactSelection, setCompactSelection] = useState<string>();
+  const requestedId = selectedEvent || trip?.events.find((e) => e.place === selectedPlace)?.id || "";
+  const selectedId = compact ? compactSelection ?? requestedId : requestedId;
+  function select(id: string) {
+    if (compact) setCompactSelection(id);
+    else go(17, id ? { event: id } : {}, true);
+  }
   const [nearbyIds, setNearbyIds] = useState<string[]>([]);
   const chooser = useRef<HTMLDivElement>(null);
   const clickedMarker = useRef("");
@@ -236,6 +238,7 @@ export function TravelMap({
           .then((area) => {
             if (
               area &&
+              initialFocus.current &&
               !controller.signal.aborted &&
               center &&
               view.getCenter()?.equals(center) &&
@@ -263,7 +266,7 @@ export function TravelMap({
 
   useEffect(() => {
     const point = selection?.point;
-    if (point && map.current) focusPoint(map.current, point, selection?.area);
+    if (point && map.current && !editing) focusPoint(map.current, point, selection?.area);
   }, [ready, selectedId, selection?.point?.lat, selection?.point?.lng]);
 
   const overview = () => {
@@ -502,14 +505,26 @@ export function TravelMap({
             </button>
           </div>
         )}
-        {compact && selection && (
+        {!compact && selection?.point && ready && !loadError && !editingPin && !nearbyStops.length && (
+          <a className="map-itinerary-card"
+            aria-label={`Open ${selection.name} in itinerary`}
+            href={`#/11?${new URLSearchParams({ date: selection.date, event: selection.id })}`}>
+            <CalendarDays size={19} aria-hidden="true" />
+            <span>
+              <strong>{selection.name}</strong>
+              <small>View itinerary item</small>
+            </span>
+            <ChevronRight size={17} aria-hidden="true" />
+          </a>
+        )}
+        {compact && selection && !nearbyStops.length && (
           <button
             className="next-place-card"
             onClick={() => go(17, { event: selection.id })}
           >
             <Navigation />
             <span>
-              <small>UP NEXT</small>
+              <small>{selection.id === selectedEvent ? "UP NEXT" : "VIEW ON MAP"}</small>
               <strong>{selection.place}</strong>
             </span>
             <ArrowUpRight />
@@ -521,6 +536,9 @@ export function TravelMap({
           <h2>
             Places <small>{events.length}</small>
           </h2>
+          {selectedId && !selection && (
+            <p role="status">This itinerary stop is unavailable.</p>
+          )}
           {!events.length && (
             <p>Add a location to an itinerary event to see it here.</p>
           )}
@@ -546,6 +564,7 @@ export function TravelMap({
                 <span>
                   <strong>{event.name}</strong>
                   <small>{event.place}</small>
+                  <small>{dateText(event.date, true)} · {timeText(event.start)}</small>
                   {event.point && event.area && <em>Area center</em>}
                   {!event.point && (
                     <em>
@@ -563,12 +582,7 @@ export function TravelMap({
               </button>
               {selection?.id === event.id && (
                 <div className="place-actions">
-                  <a href={`#/11?${new URLSearchParams({ date: event.date, event: event.id })}`}
-                    onClick={(click) => {
-                      if (click.metaKey || click.ctrlKey || click.shiftKey || click.altKey) return;
-                      // Back should reopen the stop the traveler just left.
-                      history.replaceState(history.state, "", `#/17?${new URLSearchParams({ event: event.id })}`);
-                    }}>
+                  <a href={`#/11?${new URLSearchParams({ date: event.date, event: event.id })}`}>
                     <CalendarDays size={15} aria-hidden="true" /> View itinerary item
                   </a>
                   {!event.point && statusFor(event) === "error" && (
@@ -585,23 +599,30 @@ export function TravelMap({
                       <Navigation size={15} /> Directions
                     </a>
                   )}
-                  {ready &&
-                    !loadError &&
-                    trip &&
-                    canEdit(trip, s.userId, event.date) &&
-                    !editing && (
-                      <button
-                        onClick={() => {
-                          if (event.point && !event.area) setEditing(true);
-                          else go(7, { event: event.id, date: event.date });
-                        }}
-                      >
-                        <MapPin size={15} />{" "}
-                        {event.point && !event.area
-                          ? "Adjust pin"
-                          : "Edit itinerary location"}
-                      </button>
-                    )}
+                  {!event.point && (loadError || statusFor(event) !== undefined) && (
+                    <a href={`https://www.google.com/maps/search/?${new URLSearchParams({ api: "1", query: event.place })}`}
+                      target="_blank" rel="noreferrer">
+                      <ArrowUpRight size={15} /> Search in Google Maps
+                    </a>
+                  )}
+                  {trip && canEdit(trip, s.userId, event.date) && !editing && (
+                    <>
+                      {ready && !loadError && (event.point || statusFor(event) !== undefined) && (
+                        <button onClick={() => {
+                          initialFocus.current = false;
+                          setEditing(true);
+                          host.current?.scrollIntoView({ block: "center" });
+                        }}>
+                          <MapPin size={15} /> {event.point && !event.area ? "Adjust pin" : "Place pin"}
+                        </button>
+                      )}
+                      {(!event.point || event.area) && (
+                        <button onClick={() => go(7, { event: event.id, date: event.date, return: "17" })}>
+                          Edit itinerary location
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -627,7 +648,7 @@ export function MapPage() {
       />
       {trip && (
         <TravelMap
-          key={`${trip.id}/${route.params}`}
+          key={trip.id}
           selectedEvent={route.params.get("event") || undefined}
           selectedPlace={route.params.get("place") || undefined}
         />

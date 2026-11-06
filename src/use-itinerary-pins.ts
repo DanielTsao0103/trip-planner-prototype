@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { canEdit, type Event, type Trip } from "./domain";
+import { canEdit, orderedEvents, type Event, type Trip } from "./domain";
 import { geocodeItineraryPlace } from "./itinerary-geocoding";
 
 type Result = Awaited<ReturnType<typeof geocodeItineraryPlace>>;
@@ -117,7 +117,7 @@ export function useItineraryPins(
     });
     setRetry((n) => n + 1);
   }
-  const events = (trip?.events ?? []).map((event) => {
+  const events = (trip ? orderedEvents(trip) : []).map((event) => {
     const match = results[keyFor(event)];
     return !event.point && match && match !== "error"
       ? { ...event, point: match.point, area: match.area }

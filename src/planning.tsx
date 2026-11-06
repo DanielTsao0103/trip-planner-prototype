@@ -301,6 +301,16 @@ export function Itinerary() {
     </>
   );
 }
+function UnavailableItineraryItem({ onReturn, label }: { onReturn: () => void; label: string }) {
+  return (
+    <Empty
+      title="Itinerary item unavailable"
+      body="This item may have been removed from the trip."
+      action={<Button onClick={onReturn}>{label}</Button>}
+    />
+  );
+}
+
 export function EventForm() {
   const { trip: t, s, route, go, updateTrip, toast } = useApp();
   if (!t) return null;
@@ -358,6 +368,20 @@ export function EventForm() {
     formActive.current = true;
     return () => { formActive.current = false; };
   }, []);
+  const returnTo = route.params.get("return");
+  const leaveForm = (day: string, eventId?: string) => {
+    if (returnTo === "17") go(17, eventId ? { event: eventId } : {});
+    else if (returnTo === "11") go(11, { date: day, ...(eventId ? { event: eventId } : {}) });
+    else go(8, { date: day, ...(route.params.get("view") === "calendar" ? { view: "calendar" } : {}) });
+  };
+  const draft = JSON.stringify([name, place, point, date, start, end, cost, attendees, notes]);
+  const initialDraft = useRef(draft);
+  if (route.params.has("event") && !original) {
+    return <UnavailableItineraryItem
+      label={returnTo === "17" ? "Back to map" : "View itinerary"}
+      onReturn={() => leaveForm(dateParam)}
+    />;
+  }
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
@@ -393,18 +417,27 @@ export function EventForm() {
       event.googlePlaceId = await resolveSavedLocation(event.place, t.destinations);
     }
     if (!formActive.current) return;
+    let applied = false;
     updateTrip((v) => {
       if (v.id !== t.id) return;
       const index = v.events.findIndex((e) => e.id === event.id);
+      // The shared item can disappear while its new address is resolving.
+      if (original && index === -1) return;
       if (index >= 0) v.events[index] = event;
       else v.events.push(event);
+      applied = true;
     });
+    if (!applied) {
+      setBusy(false);
+      setError("The itinerary changed. Reopen the item to try again.");
+      return;
+    }
     toast(
       original
         ? "Event updated everywhere in your trip."
         : "A new plan, added to your day.",
     );
-    go(original && route.params.get("return") === "11" ? 11 : 8, { date, ...(route.params.get("view") === "calendar" ? { view: "calendar" } : {}) });
+    leaveForm(date, event.id);
   };
   const role = member(t, s.userId)?.role;
   return (
@@ -427,7 +460,7 @@ export function EventForm() {
                       (e) => e.id !== original.id,
                     );
                   });
-                  go(8);
+                  leaveForm(original.date);
                 }
               }}
             >
@@ -632,11 +665,11 @@ export function EventForm() {
               variant="text"
               onClick={() => {
                 if (
-                  (name || place) &&
+                  draft !== initialDraft.current &&
                   !window.confirm("Leave without saving this event?")
                 )
                   return;
-                go(original ? 11 : 8, { date });
+                leaveForm(original?.date || dateParam, original?.id);
               }}
             >
               Cancel
@@ -1093,6 +1126,9 @@ export function DayDetail() {
   const requested = route.params.get("date");
   if (!t) return null;
   const date = itineraryDay(t, selectedEvent, requested, s.date);
+  if (selectedEvent && !t.events.some((event) => event.id === selectedEvent)) {
+    return <UnavailableItineraryItem label="View day" onReturn={() => go(11, { date })} />;
+  }
   const list = days(t.start, t.end),
     index = list.indexOf(date),
     events = orderedEvents(t, date),
@@ -1110,7 +1146,7 @@ export function DayDetail() {
         }
         description={`A closer look at your day · ${zoneText(t.zone)}`}
         action={
-          <Button disabled={!allowed} onClick={() => go(7, { date })}>
+          <Button disabled={!allowed} onClick={() => go(7, { date, return: "11" })}>
             <Plus size={17} />
             Add event
           </Button>
@@ -1207,7 +1243,7 @@ export function DayDetail() {
               body="Add a plan or see what’s nearby."
               action={
                 allowed ? (
-                  <Button onClick={() => go(7, { date })}>
+                  <Button onClick={() => go(7, { date, return: "11" })}>
                     Add the first event
                   </Button>
                 ) : undefined

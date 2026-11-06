@@ -333,3 +333,32 @@ gmp-advanced-marker:focus-visible .trip-pin-face {
   border-top: 1px solid var(--line);
 }
 .overlapping-stops small { color: var(--muted); }
+
+.map-itinerary-card {
+  position: absolute;
+  bottom: 30px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: min(320px, calc(100% - 82px));
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 3px 14px #152e4124;
+  text-decoration: none;
+}
+.map-itinerary-card svg { flex-shrink: 0; }
+.map-itinerary-card span { min-width: 0; }
+.map-itinerary-card strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+.map-itinerary-card small { color: var(--muted); font-size: 12px; }
