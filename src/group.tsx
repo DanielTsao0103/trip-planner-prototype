@@ -738,7 +738,7 @@ export function Group() {
               <div className="collaborator-actions">
                 {owner && m.id !== s.userId && (
                   <>
-                    {!m.accountId && <button
+                    {!m.accountId && !m.signupPending && <button
                       className="icon-btn"
                       aria-label={`Change permissions for ${m.name}`}
                       onClick={() => open("permissions", { memberId: m.id })}
@@ -770,7 +770,7 @@ export function Group() {
                     </button>
                   </>
                 )}
-                {m.status === "pending" && owner && (
+                {m.status === "pending" && !m.signupPending && owner && (
                   <button
                     className="text-link"
                     onClick={() =>

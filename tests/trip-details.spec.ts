@@ -37,7 +37,8 @@ async function backend(page: Page) {
       return route.fulfill({ json: [] });
     if (path.endsWith("/resolve_trip_emails")) return route.fulfill({ json: { "guest@example.test": "Guest Traveler" } });
     if (path.endsWith("/share_trip_recipient")) {
-      const { p_email, p_trip } = req.postDataJSON();
+      const { p_email, p_trip, p_delivered } = req.postDataJSON();
+      if (p_delivered) return route.fulfill({ json: "sent" });
       if (p_email !== "guest@example.test") return route.fulfill({ json: "needs_email" });
       const row = rows.find(t => t.tripID === p_trip);
       const id = "33333333-3333-4333-8333-333333333333";
@@ -460,11 +461,10 @@ test('location suggestions prioritize the selected trip stop and retain worldwid
 test("a mixed invite keeps only failed addresses and retries without creating another trip", async ({ page }) => {
   const api = await backend(page);
   let attempts = 0;
-  await page.route("**/functions/v1/invite-travelers", route => {
-    const emails = route.request().postDataJSON().emails;
-    expect(emails).toEqual(["new@example.test"]);
+  await page.route("**/auth/v1/otp**", route => {
+    expect(route.request().postDataJSON().email).toBe("new@example.test");
     attempts++;
-    return route.fulfill({ json: { results: [{ email: emails[0], ok: attempts > 1, error: "Email service unavailable." }] } });
+    return route.fulfill(attempts > 1 ? {json:{}} : {status:429,json:{message:"Rate limit reached"}});
   });
   await page.goto("./#/6");
   await page.getByLabel("Trip title", {exact:true}).fill("Shared trip");
@@ -476,7 +476,7 @@ test("a mixed invite keeps only failed addresses and retries without creating an
   await field.press("Enter");
   await expect(page.locator(".recipient-chip")).toHaveText(["Guest Traveler", "new@example.test"]);
   await page.getByRole("button", {name:"Create trip",exact:true}).click();
-  await expect(page.getByRole("alert")).toContainText("Email service unavailable.");
+  await expect(page.getByRole("alert")).toContainText("Email sending is temporarily limited");
   await expect(page.locator(".recipient-chip")).toHaveText(["new@example.test"]);
   await page.getByRole("button", {name:"Retry invitations"}).click();
   await expect(page.getByRole("button", {name:"Shared trip",exact:true})).toBeVisible();

@@ -2,7 +2,7 @@
 import { TEXT_LIMITS, textError, emailError } from "./limits.ts";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { getSupabase } from "./supabase";
+import { getSupabase, hasEmailLink } from "./supabase";
 import { HERO_IMAGE, HERO_ALT } from "./hero";
 import { Field } from "./ui";
 import googleLogo from "./assets/auth/google-g.svg";
@@ -18,7 +18,7 @@ export function AuthApp({
 }) {
   const [demo, setDemo] = useState(() => {
     try {
-      if (new URLSearchParams(location.hash.slice(1)).get("type") === "invite") {
+      if (hasEmailLink()) {
         sessionStorage.removeItem("trip-planner-demo-session");
         return false;
       }
@@ -209,7 +209,7 @@ export function AuthApp({
 
   if (demo) return renderDemo(exitDemo);
   if (ready && session && !problem) {
-    if (session.user.invited_at && !session.user.user_metadata.name) return <main className="auth account-only">
+    if ((session.user.invited_at || session.user.user_metadata.trip_account_setup === true) && !session.user.user_metadata.name) return <main className="auth account-only">
       <section className="auth-panel"><div className="auth-form-wrap">
         <h1>Set up your account</h1>
         <p>Your trip was shared with {session.user.email}.</p>

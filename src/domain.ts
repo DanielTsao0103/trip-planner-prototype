@@ -2,6 +2,7 @@ import { TEXT_LIMITS, MONEY_LIMITS, textError } from "./limits.ts";
 /** Domain rules shared by every screen. Amounts are stored in cents. */
 export type Role = "Owner" | "Editor" | "Viewer" | "Day Editor";
 export type Member = {
+  signupPending?: boolean;
   accountId?: string | null;
   id: string;
   name: string;

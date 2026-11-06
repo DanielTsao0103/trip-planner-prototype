@@ -83,19 +83,19 @@ try {
   const target = "https://danieltsao0103.github.io/trip-planner-prototype/";
   const invitation = check(
     await admin.auth.admin.generateLink({
-      type: "invite",
+      type: "magiclink",
       email: recipient,
-      options: { redirectTo: target },
+      options: { redirectTo: target, data: { trip_account_setup: true } },
     }),
   );
   accountIds.push(invitation.user.id);
-  assert.equal(check(await share(true)), "shared");
+  assert.equal(check(await share(true)), "sent");
   const first = await fetch(invitation.properties.action_link, {
     redirect: "manual",
   });
   const destination = new URL(first.headers.get("location"));
   const tokens = new URLSearchParams(destination.hash.slice(1));
-  assert.equal(tokens.get("type"), "invite");
+  assert.ok(["magiclink", "signup"].includes(tokens.get("type")));
   check(
     await guest.auth.setSession({
       access_token: tokens.get("access_token"),
@@ -112,6 +112,11 @@ try {
     await owner.rpc("resolve_trip_emails", { p_emails: [recipient] }),
   );
   assert.equal(names[recipient], "Invited Traveler");
+  assert.ok(
+    check(await guest.rpc("load_trip_bundles")).some(
+      (t) => t.tripID === tripId,
+    ),
+  );
   assert.equal(check(await share()), "shared");
   const row = check(await guest.rpc("read_invited_trip", { p_trip: tripId }));
   assert.equal(row.content.members.length, 2);

@@ -10,7 +10,7 @@ import { Check } from "lucide-react";
 import { demoStorageKey, loadDemoStore, type DemoAccount } from "./demo-store";
 import { type Store, type Trip, type User, isActive, isOwner, member } from "./domain";
 import { TripSaveQueue, type PendingTrip } from "./trip-save-queue";
-import { getSupabase } from "./supabase";
+import { getSupabase, sendTripSignupLink } from "./supabase";
 import {
   loadAccountTrips,
   saveAccountTrip,
@@ -366,10 +366,14 @@ export function Provider({
         else if (data === "needs_email") unknown.push(email);
       }
       if (unknown.length) {
-        const { data, error } = await client.functions.invoke("invite-travelers", { body: { tripId, emails: unknown } });
         for (const email of unknown) {
-          const result = data?.results?.find((item: { email: string }) => item.email === email);
-          if (error || !result?.ok) failures.push({ email, error: result?.error || "Account invitation could not be sent. Try again." });
+          try {
+            await sendTripSignupLink(email);
+            const confirmation = await client.rpc("share_trip_recipient", { p_trip: tripId, p_email: email, p_delivered: true });
+            if (confirmation.error) throw new Error("Link requested. Retry to confirm the invitation.");
+          } catch (error) {
+            failures.push({ email, error: error instanceof Error ? error.message : "Could not send the setup link." });
+          }
         }
       }
       const { data, error } = await client.rpc("read_invited_trip", { p_trip: tripId });

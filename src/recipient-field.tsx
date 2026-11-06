@@ -153,7 +153,7 @@ export function RecipientField({
       </div>
       <small id={id + "-hint"}>
         {live
-          ? "Press Enter or paste a list. New travelers get an account setup email."
+          ? "Press Enter after each address, or paste a list of up to 20."
           : "Press Enter or paste a list. Demo invitations stay in this browser."}
       </small>
       {r.error && (
