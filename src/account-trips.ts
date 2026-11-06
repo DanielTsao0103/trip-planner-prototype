@@ -1,6 +1,6 @@
 import { TEXT_LIMITS, MAX_DESTINATIONS, textError } from "./limits.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Trip } from "./domain.ts";
+import { isOwner, type Trip } from "./domain.ts";
 import type { DemoAccount } from "./demo-store.ts";
 import { IMAGES } from "./data.ts";
 
@@ -218,14 +218,16 @@ export async function saveAccountTrip(
   if (problem) throw new Error(problem);
   // Send the complete trip in one transaction; the server normalizes each entity.
   const { persistence, revision, contentVersion, sample, imageSource, imageCredit, ...content } = trip;
-  const { data, error, status } = await client.rpc("save_trip_bundle", {
+  const owner = isOwner(trip, account.id);
+  const { data, error, status } = await client.rpc(owner ? "save_trip_bundle" : "save_shared_trip_changes", {
     p_trip_id: trip.id,
     p_expected_revision: trip.revision ?? null,
     p_request_id: crypto.randomUUID(),
     p_data: content,
   });
   if (error) {
-    if (error.code === "PT409") throw new Error(error.message);
+    if (error.code === "PT409" || error.code === "42501")
+      throw Object.assign(new Error(error.message), { refreshPermissions: !owner, forbidden: error.code === "42501" });
     if (error.code === "P0001") throw new Error(error.message);
     throw Object.assign(
       new Error(
@@ -236,7 +238,7 @@ export async function saveAccountTrip(
   }
   if ((data as TripRow).content?.image !== trip.image)
     throw new Error("The trip photo was not confirmed by Supabase. Please retry.");
-  if (imageSource) {
+  if (imageSource && owner) {
     const { error: creditError, status: creditStatus } = await client.from("trip_photo_credit").upsert({
       trip_id: trip.id,
       owner_id: account.id,

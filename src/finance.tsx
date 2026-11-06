@@ -27,7 +27,7 @@ import {
   PageHead,
 } from "./ui";
 import { useChartColors } from "./theme";
-import { money, spent, isOwner, uid, splitCents, type Expense } from "./domain";
+import { money, spent, isOwner, member, uid, splitCents, type Expense } from "./domain";
 export const CATEGORIES = ["Stay", "Food", "Transport", "Activities", "Other"];
 export function Budget() {
   const { trip: t, s, user, open, updateTrip, toast } = useApp();
@@ -35,15 +35,16 @@ export function Budget() {
     [filter, setFilter] = useState("All");
   const COLORS = useChartColors();
   if (!t) return null;
+  const travelerId = member(t, s.userId)!.id;
   const individual = t.budgetMode === "individual",
-    total = spent(t, individual ? s.userId! : undefined),
-    budget = individual ? (t.individual[s.userId!] ?? null) : t.budget,
+    total = spent(t, individual ? travelerId : undefined),
+    budget = individual ? (t.individual[travelerId] ?? null) : t.budget,
     remaining = budget !== null ? budget - total : null;
   const amounts = CATEGORIES.map((cat) =>
     t.expenses
       .filter((e) => e.category === cat)
       .reduce(
-        (sum, e) => sum + (individual ? e.shares[s.userId!] || 0 : e.amount),
+        (sum, e) => sum + (individual ? e.shares[travelerId] || 0 : e.amount),
         0,
       ),
   );
@@ -66,13 +67,13 @@ export function Budget() {
     .filter(
       (d) =>
         isOwner(t, s.userId) ||
-        d.debtor === s.userId ||
-        d.expense.payer === s.userId,
+        d.debtor === travelerId ||
+        d.expense.payer === travelerId,
     );
   const visibleExpenses = t.expenses.filter(
     (e) =>
       (filter === "All" || e.category === filter) &&
-      (!individual || e.shares[s.userId!] || e.payer === s.userId),
+      (!individual || e.shares[travelerId] || e.payer === travelerId),
   );
   const name = (id: string) =>
     t.members.find((m) => m.id === id)?.name ||
@@ -99,8 +100,8 @@ export function Budget() {
         purpose: "Sample coffee transaction",
         amount: 650,
         category: "Food",
-        payer: s.userId!,
-        shares: { [s.userId!]: 650 },
+        payer: travelerId,
+        shares: { [travelerId]: 650 },
         date: s.date,
         source: "Demo transaction",
         settled: [],
@@ -265,11 +266,11 @@ export function Budget() {
                     <div className="expense-amount">
                       <strong>
                         {money(
-                          individual ? e.shares[s.userId!] || 0 : e.amount,
+                          individual ? e.shares[travelerId] || 0 : e.amount,
                         )}
                       </strong>
                       {individual && <small>of {money(e.amount)}</small>}
-                      {e.payer === s.userId && (
+                      {e.payer === travelerId && (
                         <button
                           className="text-link"
                           onClick={() => open("expense", { id: e.id })}
@@ -333,7 +334,7 @@ export function Budget() {
                           : "Awaiting repayment"}
                       </Badge>
                     </div>
-                    {e.payer === s.userId && !e.settled.includes(debtor) && (
+                    {e.payer === travelerId && !e.settled.includes(debtor) && (
                       <Button
                         variant="outline small"
                         onClick={() =>
@@ -412,11 +413,12 @@ export function Budget() {
 export function BudgetSetup() {
   const { trip: t, s, updateTrip, close, toast } = useApp();
   if (!t) return null;
+  const travelerId = member(t, s.userId)!.id;
   const owner = isOwner(t, s.userId),
     [mode, setMode] = useState(t.budgetMode),
     [amount, setAmount] = useState(
       String(
-        ((t.budgetMode === "group" ? t.budget : t.individual[s.userId!]) || 0) /
+        ((t.budgetMode === "group" ? t.budget : t.individual[travelerId]) || 0) /
           100,
       ),
     ),
@@ -438,7 +440,7 @@ export function BudgetSetup() {
           updateTrip((t) => {
             if (owner) t.budgetMode = mode;
             if (mode === "group") t.budget = Math.round(Number(amount) * 100);
-            else t.individual[s.userId!] = Math.round(Number(amount) * 100);
+            else t.individual[travelerId] = Math.round(Number(amount) * 100);
           });
           toast("Budget updated. Existing expenses and shares are unchanged.");
           close();
@@ -453,7 +455,7 @@ export function BudgetSetup() {
                 setMode(value);
                 setAmount(
                   String(
-                    ((value === "group" ? t.budget : t.individual[s.userId!]) ||
+                    ((value === "group" ? t.budget : t.individual[travelerId]) ||
                       0) / 100,
                   ),
                 );
@@ -501,6 +503,7 @@ export function BudgetSetup() {
 export function ExpenseForm() {
   const { trip: t, s, overlay, updateTrip, close, open, toast } = useApp();
   if (!t) return null;
+  const travelerId = member(t, s.userId)!.id;
   const original = t.expenses.find((e) => e.id === overlay?.data?.id);
   const [purpose, setPurpose] = useState(original?.purpose || ""),
     [amount, setAmount] = useState(
@@ -537,7 +540,7 @@ export function ExpenseForm() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (original && original.payer !== s.userId) {
+          if (original && original.payer !== travelerId) {
             setError("Only the payer can edit this expense.");
             return;
           }
@@ -572,8 +575,8 @@ export function ExpenseForm() {
             purpose: purpose.trim(),
             amount: cents,
             category,
-            payer: s.userId!,
-            shares: splitCents(cents, shared ? people : [s.userId!]),
+            payer: travelerId,
+            shares: splitCents(cents, shared ? people : [travelerId]),
             date: original?.date || s.date,
             source,
             settled: [],
@@ -587,12 +590,12 @@ export function ExpenseForm() {
           if (
             t.persistence !== "account" &&
             shared &&
-            people.some((id) => id !== s.userId)
+            people.some((id) => id !== travelerId)
           )
             open("message", {
               title: "Your group is in the loop",
               body: `Simulated notification: ${people
-                .filter((id) => id !== s.userId)
+                .filter((id) => id !== travelerId)
                 .map((id) => t.members.find((m) => m.id === id)?.name)
                 .join(
                   ", ",
@@ -601,7 +604,7 @@ export function ExpenseForm() {
           else close();
         }}
       >
-        {original && original.payer === s.userId && (
+        {original && original.payer === travelerId && (
           <Button
             variant="text danger"
             onClick={() => {

@@ -90,6 +90,18 @@ test("viewer, removed member, and day limits are enforced", () => {
   assert.equal(canEdit(t, "limited", "2026-10-16"), false);
   assert.match(eventError(t, "limited", event("2026-10-16")), /permission/);
 });
+test("a shared account uses its accepted membership even if its account ID matches an unlinked guest", () => {
+  const t = trip();
+  t.persistence = "account";
+  t.members.push({ ...t.members[1], id: "account-id", role: "Editor" });
+  const invited = t.members[2];
+  invited.accountId = "account-id";
+  assert.equal(canEdit(t, "account-id", t.start), false);
+  invited.role = "Editor";
+  assert.equal(canEdit(t, "account-id", t.start), true);
+  invited.status = "removed";
+  assert.equal(canEdit(t, "account-id", t.start), false);
+});
 test("address edits allow 2,048 characters and preserve longer saved locations", () => {
   const t = trip();
   const atLimit = { ...event(), place: "A".repeat(2048) };

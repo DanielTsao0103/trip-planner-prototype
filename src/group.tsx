@@ -1,4 +1,4 @@
-/** Implementation status: Account survey answers and guest traveler roles/days are database-backed. Invited accounts have Viewer access. See ../IMPLEMENTATION_STATUS.md. */
+/** Implementation status: Account survey answers and guest traveler roles/days are database-backed. Owners can assign editing roles to accepted accounts. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, textError } from "./limits.ts";
 import React, { useState } from "react";
 import {
@@ -737,9 +737,9 @@ export function Group() {
                     : "Invited · demo"}
               </span>
               <div className="collaborator-actions">
-                {owner && m.id !== s.userId && (
+                {owner && m.role !== "Owner" && (
                   <>
-                    {!m.accountId && !m.signupPending && <button
+                    {!m.signupPending && <button
                       className="icon-btn"
                       aria-label={`Change permissions for ${m.name}`}
                       onClick={() => open("permissions", { memberId: m.id })}

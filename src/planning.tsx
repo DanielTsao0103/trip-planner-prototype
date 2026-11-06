@@ -45,6 +45,7 @@ import {
   durationText,
   zoneText,
   canEdit,
+  EVENT_PERMISSION_MESSAGE,
   eventError,
   member,
   isOwner,
@@ -61,11 +62,12 @@ export function Itinerary() {
   const { trip: t, s, go, open, route } = useApp();
   const view = route.params.get("view") === "calendar" ? "calendar" : "list";
   if (!t) return null;
-  const role = member(t, s.userId)!.role;
+  const traveler = member(t, s.userId)!;
+  const role = traveler.role;
   const allDays = days(t.start, t.end);
   const personalBudget = t.budgetMode === "individual";
-  const budget = personalBudget ? (t.individual[s.userId!] ?? null) : t.budget;
-  const totalSpent = spent(t, personalBudget ? s.userId! : undefined);
+  const budget = personalBudget ? (t.individual[traveler.id] ?? null) : t.budget;
+  const totalSpent = spent(t, personalBudget ? traveler.id : undefined);
   return (
     <>
       <div className="trip-hero">
@@ -116,12 +118,11 @@ export function Itinerary() {
           <h2>Add Events to Trip</h2>
         </div>
         <Button
-          disabled={role === "Viewer"}
           onClick={() =>
             go(7, {
               date:
                 role === "Day Editor"
-                  ? member(t, s.userId)!.days[0] || t.start
+                  ? traveler.days[0] || t.start
                   : t.start,
             })
           }
@@ -155,7 +156,7 @@ export function Itinerary() {
                 go(7, {
                   date:
                     role === "Day Editor"
-                      ? member(t, s.userId)!.days[0] || t.start
+                      ? traveler.days[0] || t.start
                       : t.start,
                 })
               }
@@ -377,6 +378,10 @@ export function EventForm() {
       onReturn={() => leaveForm(dateParam)}
     />;
   }
+  if (!canEdit(t, s.userId, original?.date ?? dateParam)) {
+    return <Empty title="Event permissions" body={EVENT_PERMISSION_MESSAGE}
+      action={<Button onClick={() => leaveForm(original?.date ?? dateParam, original?.id)}>Back to itinerary</Button>} />;
+  }
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
@@ -471,7 +476,6 @@ export function EventForm() {
               Delete event
             </Button>
           )}
-          {role === "Viewer" && <ReadOnly />}
           {role === "Day Editor" && <ReadOnly day />}
           <div className="tabs">
             <button
@@ -571,7 +575,7 @@ export function EventForm() {
               <Field label="Day">
                 <select value={date} onChange={(e) => setDate(e.target.value)}>
                   {days(t.start, t.end).map((d, i) => (
-                    <option key={d} value={d}>
+                    <option key={d} value={d} disabled={!canEdit(t, s.userId, d)}>
                       Day {i + 1} — {dateText(d, true)}
                       {!canEdit(t, s.userId, d) ? " (view only)" : ""}
                     </option>
@@ -722,7 +726,9 @@ export function Suggestions() {
   const { trip: t, s, go, updateTrip, toast } = useApp();
   if (!t) return null;
   const [loading, setLoading] = useState(false);
-  const prefs = t.prefs[s.userId || ""];
+  const traveler = member(t, s.userId)!;
+  const prefs = t.prefs[traveler.id];
+  const canDismiss = traveler.role === "Owner" || traveler.role === "Editor";
   const items = [
     {
       id: "gallery",
@@ -862,7 +868,7 @@ export function Suggestions() {
                       : "No editable one-hour slot available"}
                   </p>
                   <div className="card-actions">
-                    <Button
+                    {canDismiss && <Button
                       variant="text"
                       onClick={() => {
                         updateTrip((t) => t.dismissed.push(i.id));
@@ -870,7 +876,7 @@ export function Suggestions() {
                       }}
                     >
                       Not this time
-                    </Button>
+                    </Button>}
                     <Button
                       disabled={!slot}
                       onClick={() =>
@@ -904,7 +910,7 @@ export function Suggestions() {
           <Empty
             title="A little space for your own ideas."
             body="You’ve reviewed all the sample suggestions."
-            action={
+            action={canDismiss &&
               <Button onClick={() => updateTrip((t) => (t.dismissed = []))}>
                 Show suggestions again
               </Button>
@@ -1150,7 +1156,7 @@ export function DayDetail() {
         }
         description={`A closer look at your day · ${zoneText(t.zone)}`}
         action={
-          <Button disabled={!allowed} onClick={() => go(7, { date, return: "11" })}>
+          <Button onClick={() => go(7, { date, return: "11" })}>
             <Plus size={17} />
             Add event
           </Button>
@@ -1231,7 +1237,6 @@ export function DayDetail() {
                     </Badge>
                     <Button
                       variant="outline small"
-                      disabled={!allowed}
                       onClick={() => go(7, { event: e.id, date, return: "11" })}
                     >
                       Edit event

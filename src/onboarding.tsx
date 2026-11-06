@@ -677,7 +677,6 @@ export function Trips() {
                 </Button>
                 <Button
                   variant="outline small"
-                  disabled={member(t, s.userId)?.role === "Viewer"}
                   onClick={() => {
                     mutate((v) => (v.tripId = t.id));
                     go(7, {

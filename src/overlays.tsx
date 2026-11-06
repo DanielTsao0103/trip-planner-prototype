@@ -152,33 +152,42 @@ function InviteMember() {
   </Modal>;
 }
 function Permissions() {
-  const { trip: t, s, overlay, updateTrip, close, toast } = useApp();
+  const { trip: t, s, overlay, saveTrip, close, toast } = useApp();
   const m = t?.members.find((m) => m.id === overlay?.data?.memberId);
   const [role, setRole] = useState<Role>(m?.role || "Viewer"),
     [dates, setDates] = useState(m?.days || []),
+    [saving, setSaving] = useState(false),
     [error, setError] = useState("");
-  if (!t || !m || !isOwner(t, s.userId) || m.id === s.userId) return null;
+  if (!t || !m || !isOwner(t, s.userId) || m.role === "Owner" || m.status === "removed" || m.signupPending) return null;
   return (
     <Modal title={`Permissions for ${m.name}`}>
       <form
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          if (role === "Day Editor" && !dates.length) {
+          if (saving) return;
+          const assigned = role === "Day Editor" ? dates.filter(d => isActive(t, d)) : [];
+          if (role === "Day Editor" && !assigned.length) {
             setError("Assign at least one day.");
             return;
           }
-          updateTrip((t) => {
-            const target = t.members.find((x) => x.id === m.id)!;
-            target.role = role;
-            target.days = role === "Day Editor" ? dates : [];
-          });
-          toast("Permissions updated.");
-          close();
+          setError("");
+          setSaving(true);
+          try {
+            await saveTrip({ ...t, members: t.members.map(person => person.id === m.id
+              ? { ...person, role, days: assigned } : person) });
+            if (t.persistence !== "account") toast("Permissions updated.");
+            close();
+          } catch (issue) {
+            setError(issue instanceof Error ? issue.message : "Could not save permissions.");
+          } finally {
+            setSaving(false);
+          }
         }}
       >
         <Field label="Role">
           <select
             value={role}
+            disabled={saving}
             onChange={(e) => setRole(e.target.value as Role)}
           >
             <option>Viewer</option>
@@ -200,6 +209,7 @@ function Permissions() {
               <label className="check-row" key={d}>
                 <input
                   type="checkbox"
+                  disabled={saving}
                   checked={dates.includes(d)}
                   onChange={(e) =>
                     setDates(
@@ -217,8 +227,8 @@ function Permissions() {
           </fieldset>
         )}
         <ErrorBox text={error} />
-        <Button type="submit" variant="full">
-          Save permissions
+        <Button type="submit" variant="full" disabled={saving}>
+          {saving ? "Saving permissions…" : "Save permissions"}
         </Button>
       </form>
     </Modal>
@@ -258,6 +268,10 @@ function Gmail() {
         <Button
           variant="full"
           onClick={() => {
+            if (match && match.payer !== member(t, s.userId)?.id) {
+              toast("Only the payer can update this expense.");
+              return;
+            }
             if (match) {
               updateTrip((t) => {
                 t.expenses.find((e) => e.id === match.id)!.source =
@@ -270,7 +284,7 @@ function Gmail() {
                   purpose: "Juniper Table sample dinner",
                   amount: 12000,
                   category: "Food",
-                  payer: s.userId!,
+                  payer: member(t, s.userId)!.id,
                   shares: splitCents(
                     12000,
                     t.members
@@ -824,7 +838,7 @@ export function Overlays() {
   }
   if (o.kind === "settle" && t) {
     const expense = t.expenses.find((e) => e.id === o.data.expenseId);
-    if (!expense || expense.payer !== s.userId)
+    if (!expense || expense.payer !== member(t, s.userId)?.id)
       return (
         <Modal title="Only the creditor can mark this paid">
           <Button onClick={close}>Close</Button>
@@ -893,8 +907,8 @@ export function Overlays() {
       isActive(t, s.date) &&
       s.location &&
       !s.noticeDismissed &&
-      (t.prefs[s.userId!]?.walk === undefined ||
-        t.prefs[s.userId!].walk >= 214);
+      (t.prefs[member(t, s.userId)!.id]?.walk === undefined ||
+        t.prefs[member(t, s.userId)!.id].walk >= 214);
     const dismiss = () => {
       mutate((v) => (v.noticeDismissed = true));
       if (app.route.page === 16) go(10);

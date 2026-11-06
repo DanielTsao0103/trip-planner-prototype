@@ -146,6 +146,7 @@ test('trip photo search follows the chosen destination and keeps two to five opt
   await page.getByLabel('Trip title', { exact: true }).fill('Spain escape');
   await page.getByLabel('Start date', { exact: true }).fill('2027-05-01');
   await page.getByLabel('End date', { exact: true }).fill('2027-05-04');
+  await page.getByLabel('End date', { exact: true }).press('Escape');
   await page.getByRole('button', { name: 'Create trip', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Spain escape' })).toBeVisible();
   expect(trackedLocation).toBe('https://api.unsplash.com/photos/Spain-1/download?ixid=Spain-1');

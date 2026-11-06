@@ -1,3 +1,4 @@
+import { sharedChangeError } from "./trip-permissions";
 import { useAccountTripSync } from "./account-trip-sync";
 import React, {
   createContext,
@@ -9,7 +10,7 @@ import React, {
 } from "react";
 import { Check } from "lucide-react";
 import { demoStorageKey, loadDemoStore, type DemoAccount } from "./demo-store";
-import { type Store, type Preference, type Trip, type User, isActive, isOwner, member } from "./domain";
+import { type Store, type Preference, type Trip, type User, isActive, isOwner, member, canEdit, EVENT_PERMISSION_MESSAGE } from "./domain";
 import { TripSaveQueue, type PendingTrip } from "./trip-save-queue";
 import { getSupabase, sendTripSignupLink } from "./supabase";
 import { useCompanionPictures, useProfilePicture, type ProfilePicture } from "./use-profile-picture";
@@ -107,7 +108,30 @@ export function Provider({
   };
   if (!queueRef.current)
     queueRef.current = new TripSaveQueue(
-      (draft) => saveAccountTrip(getSupabase(), account, draft),
+      async (draft) => {
+        try {
+          return await saveAccountTrip(getSupabase(), account, draft);
+        } catch (error) {
+          // An owner can revoke access while an editor is typing. Replace that
+          // optimistic copy with the authorized state; never retry a denied edit.
+          if ((error as { refreshPermissions?: boolean })?.refreshPermissions) {
+            const { data, error: readError } = await getSupabase().rpc("read_invited_trip", { p_trip: draft.id });
+            if (!readError || readError.code === "42501") {
+              const remote = data ? tripFromRow(data, account) : undefined;
+              const role = member(draft, account.id), currentRole = remote && member(remote, account.id);
+              const grantChanged = role?.role !== currentRole?.role || JSON.stringify(role?.days) !== JSON.stringify(currentRole?.days);
+              // Role updates bump the revision. A conflict caused by promotion or
+              // another permitted edit still gets the normal recovery options.
+              const reason = remote && grantChanged ? sharedChangeError(remote, { ...draft, members: remote.members }, account.id) : "";
+              if (!remote || reason || (error as { forbidden?: boolean }).forbidden) {
+                throw Object.assign(new Error(!remote ? "You no longer have access to this trip." :
+                  reason || (error as Error).message), { denied: true, remote });
+              }
+            }
+          }
+          throw error;
+        }
+      },
       () => {
         if (!mounted.current) return;
         setSaveTick((n) => n + 1);
@@ -137,6 +161,12 @@ export function Provider({
           ),
         });
         if (!newer && !queueRef.current!.pending.size) notifySaved();
+      },
+      (id, remote, reason) => {
+        const current = stateRef.current;
+        commit({ ...current, trips: current.trips.flatMap(t => t.id !== id ? [t] : remote ? [remote] : []),
+          tripId: !remote && current.tripId === id ? null : current.tripId });
+        setOverlay({ kind: "message", data: { title: "Trip permissions", body: reason } });
       },
     );
   const queue = queueRef.current;
@@ -183,16 +213,13 @@ export function Provider({
         for (const entry of recovered) {
           if (!entry || typeof entry !== "object") continue;
           const draft = "draft" in entry ? entry.draft : entry;
-          if (
-            !draft?.id ||
-            !Array.isArray(draft.members) ||
-            !draft.members.some(
-              (m) => m.id === account.id && m.role === "Owner",
-            )
-          )
-            continue;
-          queue.restore(draft, "draft" in entry ? entry.retryDraft : undefined);
+          if (!draft?.id || !Array.isArray(draft.members)) continue;
           const index = restored.findIndex((t) => t.id === draft.id);
+          const confirmed = restored[index];
+          // Never resurrect a deleted/revoked trip from an old recovery copy.
+          if (confirmed ? sharedChangeError(confirmed, draft, account.id) :
+              draft.revision != null || !isOwner(draft, account.id)) continue;
+          queue.restore(draft, "draft" in entry ? entry.retryDraft : undefined);
           if (index < 0) restored.push(draft);
           else restored[index] = draft;
         }
@@ -215,6 +242,7 @@ export function Provider({
             ...restored,
           ],
         });
+        if (!queue.pending.size) localStorage.removeItem(recoveryKey);
         queue.resume();
         // Import only this account's existing browser plans for a server-owned trip.
         // Unassigned sample trips and fictional email matches are never claimed.
@@ -247,6 +275,15 @@ export function Provider({
   const [route, setRoute] = useState(readRoute);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const go = (page: number, params: Record<string, string> = {}, replace = false) => {
+    if (page === 7) {
+      const current = stateRef.current;
+      const selected = current.trips.find(t => t.id === current.tripId);
+      if (selected && !canEdit(selected, current.userId,
+          selected.events.find(e => e.id === params.event)?.date ?? params.date ?? selected.start)) {
+        setOverlay({ kind: "message", data: { title: "Event permissions", body: EVENT_PERMISSION_MESSAGE } });
+        return;
+      }
+    }
     const hash = `#/${page}${Object.keys(params).length ? "?" + new URLSearchParams(params) : ""}`;
     if (replace) {
       // In-page selection survives refresh without adding a Back step or scrolling.
@@ -266,17 +303,17 @@ export function Provider({
     const changed: Trip[] = [];
     for (const trip of next.trips) {
       const old = previous.trips.find((t) => t.id === trip.id);
-      if (
-        trip.persistence !== "account" ||
-        JSON.stringify(trip) === JSON.stringify(old)
-      )
-        continue;
+      if (JSON.stringify(trip) === JSON.stringify(old)) continue;
+      if (old) {
+        const reason = sharedChangeError(old, trip, previous.userId);
+        if (reason) {
+          setOverlay({ kind: "message", data: { title: "Trip permissions", body: reason } });
+          return;
+        }
+      }
+      if (trip.persistence !== "account") continue;
       if (!cloud || previous.userId !== account.id) {
         setMessage("Return to your account before changing a saved trip.");
-        return;
-      }
-      if (old && !isOwner(old, account.id)) {
-        setMessage("You have Viewer access to this trip.");
         return;
       }
       // Keep removed travelers for historical allocations, but hide them from active groups.
@@ -430,6 +467,7 @@ export function Provider({
       if (target.persistence === "account" && !isOwner(target, current.userId)) {
         if (!cloud || traveler.accountId !== account.id || current.userId !== account.id)
           throw new Error("Sign in to your invited account to save preferences.");
+        await queue.wait(target.id);
         const { data, error } = await getSupabase().rpc("save_invited_preferences", {
           p_trip: target.id, p_answers: answers,
         });
@@ -439,7 +477,7 @@ export function Provider({
         if (!mounted.current) throw new Error("Sign in again to view your trip.");
         const latest = stateRef.current;
         const saved = tripFromRow(data, account);
-        commit({ ...latest, tripId: target.id, trips: latest.trips.map(t => t.id === target.id
+        commit({ ...latest, tripId: target.id, trips: latest.trips.map(t => t.id === target.id && !queue.pending.has(t.id) && (t.revision ?? 0) <= (saved.revision ?? 0)
           ? { ...saved, imageSource: t.imageSource, imageCredit: t.imageCredit } : t) });
       } else {
         mutate(store => {
@@ -453,6 +491,9 @@ export function Provider({
       }
     },
     saveTrip: async (draft) => {
+      const existing = stateRef.current.trips.find(t => t.id === draft.id);
+      if (existing && !isOwner(existing, stateRef.current.userId))
+        throw new Error("Only the trip owner can change trip settings.");
       if (cloud && stateRef.current.userId === account.id && !draft.sample) {
         const pendingDraft = { ...draft, persistence: "account" as const };
         mutate((v) => {
@@ -474,6 +515,8 @@ export function Provider({
         throw new Error("Sign back into your account to view the result.");
     },
     deleteTrip: async (target) => {
+      const current = stateRef.current.trips.find(t => t.id === target.id);
+      if (!current || !isOwner(current, stateRef.current.userId)) throw new Error("Only the trip owner can delete this trip.");
       if (target.persistence === "account") {
         setSaveNotice(0);
         if (!cloud || stateRef.current.userId !== account.id)

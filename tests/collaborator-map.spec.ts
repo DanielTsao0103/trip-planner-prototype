@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { blankPrefs } from "../src/domain.ts";
 
 test("a viewer follows a shared pin, receives itinerary changes, and loses access when removed", async ({ page }) => {
   // The browser is the invited account. Change the mock database row as if its owner
@@ -16,7 +17,7 @@ test("a viewer follows a shared pin, receives itinerary changes, and loses acces
     content: {
       members: [{ id: traveler, accountId: account.id, name: "Viewer", email: account.email,
         role: "Viewer", status: "accepted", days: [] }],
-      prefs: { [traveler]: {} }, image: "", expenses: [], todos: [], dismissed: [],
+      prefs: { [traveler]: blankPrefs() }, image: "", expenses: [], todos: [], dismissed: [],
       budget: null, individual: {}, budgetMode: "group",
       events: [{ id: "museum", name: "Museum visit", place: "Seattle Art Museum",
         point: { lat: 47.6077, lng: -122.3386 }, date: "2027-05-01", start: "10:00", end: "11:00",
@@ -36,7 +37,14 @@ test("a viewer follows a shared pin, receives itinerary changes, and loses acces
     if (path.endsWith("/read_invited_trip")) return revoked
       ? route.fulfill({ status: 403, json: { code: "42501", message: "Trip access denied" } })
       : route.fulfill({ json: trip });
-    if (path.endsWith("/save_trip_bundle")) writes++;
+    if (path.endsWith("/save_trip_bundle")) throw new Error("Invited account attempted an owner write");
+    if (path.endsWith("/save_shared_trip_changes")) {
+      // Demote the editor while their save is in flight, before this database transaction starts.
+      writes++;
+      trip.content.members[0].role = "Viewer";
+      trip.revision++;
+      return route.fulfill({ status: 409, json: { code: "PT409", message: "The trip changed." } });
+    }
     return route.fulfill({ json: [] });
   });
   await page.route("https://maps.googleapis.com/maps/api/js?**", route => route.abort());
@@ -50,7 +58,12 @@ test("a viewer follows a shared pin, receives itinerary changes, and loses acces
   await page.goto("./#/17?event=museum");
   await page.getByRole("link", { name: "View itinerary item" }).click();
   const event = page.getByRole("article", { name: "Museum visit" });
-  await expect(event.getByRole("button", { name: "Edit event" })).toBeDisabled();
+  const editButton = event.getByRole("button", { name: "Edit event" });
+  await editButton.click();
+  const denial = page.getByRole("dialog");
+  await expect(denial).toContainText("You do not have permission to edit this event.");
+  await denial.getByRole("button", { name: "Got it" }).click();
+  await expect(page).toHaveURL(/#\/11\?/);
   await expect(event).toContainText("Meet at the front");
   Object.assign(trip.content.events[0], { date: "2027-05-02", notes: "Meet at the south door" });
   trip.revision++;
@@ -58,6 +71,22 @@ test("a viewer follows a shared pin, receives itinerary changes, and loses acces
   await expect(event).toContainText("Meet at the south door");
   await expect(page.getByRole("heading", { name: /Sunday/ })).toBeVisible();
 
+  expect(writes).toBe(0);
+  trip.content.members[0].role = "Editor";
+  trip.revision++;
+  await page.goto("./#/13");
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.locator(".collaborator-row")).toContainText("Editor", { timeout: 10000 });
+  await page.goto("./#/11?date=2027-05-02&event=museum");
+  await editButton.click();
+  await page.getByLabel("Notes (optional)").fill("This stale edit must disappear");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(denial).toContainText("You do not have permission to edit this event.");
+  await denial.getByRole("button", { name: "Got it" }).click();
+  await expect(event).toContainText("Meet at the south door");
+  await expect(event).not.toContainText("This stale edit must disappear");
+  await expect(page.locator(".account-save-banner")).toHaveCount(0);
+  expect(await page.evaluate((id) => localStorage.getItem("trip-planner-pending-v1:" + id), account.id)).toBeNull();
   trip.content.events = [];
   trip.revision++;
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
@@ -67,5 +96,5 @@ test("a viewer follows a shared pin, receives itinerary changes, and loses acces
   revoked = true;
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(page.getByRole("button", { name: "Choose a trip", exact: true })).toBeVisible();
-  expect(writes).toBe(0);
+  expect(writes).toBe(1);
 });

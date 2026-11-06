@@ -2,12 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, GripVertical, Plus, X } from 'lucide-react';
 import { useApp } from './state';
 import { Button, ErrorBox, Field } from './ui';
-import { canEdit, dateText, orderedEvents, timeText } from './domain';
+import { canEdit, dateText, orderedEvents, timeText, EVENT_PERMISSION_MESSAGE } from './domain';
 import { addCalendarDays, clock, minutes, rescheduleEvent } from './calendar';
 
 const HOUR_HEIGHT = 72;
 export function WeeklyCalendar() {
-  const { trip, s, go, updateTrip } = useApp();
+  const { trip, s, go, updateTrip, open } = useApp();
   const [page, setPage] = useState(0);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -36,6 +36,9 @@ export function WeeklyCalendar() {
   const height = hours.length * HOUR_HEIGHT;
   const selected = trip.events.find(event => event.id === moving);
 
+  function denyEdit() {
+    open("message", { title: "Event permissions", body: EVENT_PERMISSION_MESSAGE });
+  }
   function closeMove() {
     dialog.current?.close(); setMoving(null); setError('');
     returnFocus.current?.focus();
@@ -66,8 +69,9 @@ export function WeeklyCalendar() {
     return Math.max(firstHour * 60, Math.min(lastHour * 60 - 1, minute));
   }
   function dragOver(event: React.DragEvent<HTMLDivElement>, date: string) {
-    if (!dragging || !canEdit(trip!, s.userId, date)) return;
+    if (!dragging || date > trip!.end) return;
     event.preventDefault();
+    if (!canEdit(trip!, s.userId, date)) { setPreview(null); return; }
     event.dataTransfer.dropEffect = 'move';
     const minute = startMinute(event);
     if (preview?.date !== date || preview.minute !== minute) setPreview({ date, minute });
@@ -75,8 +79,9 @@ export function WeeklyCalendar() {
   function drop(event: React.DragEvent<HTMLDivElement>, date: string) {
     event.preventDefault();
     const id = event.dataTransfer.getData('application/x-trip-event');
-    if (id && id === dragging && canEdit(trip!, s.userId, date)) {
-      move(id, date, clock(startMinute(event)));
+    if (id && id === dragging && date <= trip!.end) {
+      if (!canEdit(trip!, s.userId, date)) denyEdit();
+      else move(id, date, clock(startMinute(event)));
     }
     clearDrag();
   }
@@ -99,7 +104,7 @@ export function WeeklyCalendar() {
           return <div className={`itcal-day-header ${inside ? '' : 'outside-trip'}`} key={date}>
             <strong>{new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}</strong>
             <span>{dateText(date, true)}</span>
-            {inside ? <button type="button" className="itcal-add" title={`Add event on ${date}`} disabled={!canEdit(trip,s.userId,date)} aria-label={`Add event on ${date}`} onClick={() => go(7,{date, view:"calendar"})}><Plus size={16}/></button> : <small>Outside trip</small>}
+            {inside ? <button type="button" className="itcal-add" title={`Add event on ${date}`} aria-label={`Add event on ${date}`} onClick={() => go(7,{date, view:"calendar"})}><Plus size={16}/></button> : <small>Outside trip</small>}
           </div>;
         })}
         <div className="itcal-time-axis" style={{height}} aria-hidden="true">
@@ -122,9 +127,10 @@ export function WeeklyCalendar() {
           {orderedEvents(trip,date).map(event => {
             const editable = canEdit(trip,s.userId,event.date);
             return <article key={event.id} className={`itcal-event ${dragging === event.id ? 'is-dragging' : ''}`}
-              data-event-id={event.id} draggable={editable} aria-label={`${event.name}, ${timeText(event.start)} to ${timeText(event.end)}`}
+              data-event-id={event.id} draggable aria-label={`${event.name}, ${timeText(event.start)} to ${timeText(event.end)}`}
               style={{top:(minutes(event.start)-firstHour*60)/60*HOUR_HEIGHT,height:Math.max(46,(minutes(event.end)-minutes(event.start))/60*HOUR_HEIGHT-3)}}
               onDragStart={e => {
+                if (!editable) { e.preventDefault(); denyEdit(); return; }
                 grabOffset.current = e.clientY - e.currentTarget.getBoundingClientRect().top;
                 e.dataTransfer.setData('application/x-trip-event', event.id);
                 e.dataTransfer.effectAllowed = 'move';
@@ -132,12 +138,13 @@ export function WeeklyCalendar() {
                 setError('');
               }}
               onDragEnd={clearDrag}>
-              <button type="button" className="itcal-event-title" title={event.name} onClick={() => go(7,{event:event.id,date:event.date,view:"calendar"})}>{event.name}</button>
+              <button type="button" className="itcal-event-title" title={event.name} onClick={() => editable ? go(7,{event:event.id,date:event.date,view:"calendar"}) : go(11,{event:event.id,date:event.date})}>{event.name}</button>
               <span className="itcal-event-time">{timeText(event.start)}–{timeText(event.end)}</span>
               <span className="itcal-event-place">{event.place}</span>
-              {editable && <button type="button" className="itcal-move" aria-label={`Move ${event.name}`} onClick={e => {
+              <button type="button" className="itcal-move" aria-label={`Move ${event.name}`} onClick={e => {
+                if (!editable) { denyEdit(); return; }
                 returnFocus.current=e.currentTarget; setMoving(event.id); setMoveDate(event.date); setMoveStart(event.start); setError('');
-              }}><GripVertical size={16}/><span className="sr-only">Move</span></button>}
+              }}><GripVertical size={16}/><span className="sr-only">Move</span></button>
             </article>;
           })}
         </div>)}

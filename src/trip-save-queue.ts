@@ -23,11 +23,14 @@ export class TripSaveQueue {
   private write: Writer;
   private changed: () => void;
   private saved: (trip: Trip, newer: boolean) => void;
+  private denied?: (id: string, remote: Trip | undefined, reason: string) => void;
   constructor(
     write: Writer,
     changed: () => void,
     saved: (trip: Trip, newer: boolean) => void,
+    denied?: (id: string, remote: Trip | undefined, reason: string) => void,
   ) {
+    this.denied = denied;
     this.write = write;
     this.changed = changed;
     this.saved = saved;
@@ -129,6 +132,15 @@ export class TripSaveQueue {
               ? issue
               : new Error("Could not save trip changes. Please retry.");
           const current = this.pending.get(id);
+          const rejection = issue as { denied?: boolean; remote?: Trip };
+          if (rejection?.denied) {
+            this.pending.delete(id);
+            this.delays.delete(id);
+            this.denied?.(id, rejection.remote, error.message);
+            this.changed();
+            this.finish(id, error);
+            continue;
+          }
           if (current) {
             current.error = error.message;
             if ((issue as { retryOriginal?: boolean })?.retryOriginal) {

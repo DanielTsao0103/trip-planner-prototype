@@ -1,5 +1,6 @@
 /** Opt-in hosted integration check. Uses disposable accounts and generates an invite link without sending mail. */
 import assert from "node:assert/strict";
+import { verifyGroupPermissions, verifyGroupPermissionScreens } from "./test-group-permissions.mjs";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
@@ -195,10 +196,11 @@ try {
     assert.equal(ticket.email, recipient);
     assert.equal(check(await guest.rpc("load_trip_bundles")).length, 0);
     const newEmail = makeEmail();
+    const newPassword = randomUUID();
     const signed = check(
       await guest.auth.signUp({
         email: newEmail,
-        password: randomUUID(),
+        password: newPassword,
         options: { data: { name: "Invited Traveler" } },
       }),
     );
@@ -291,13 +293,32 @@ try {
         (t) => t.tripID === tripId,
       ),
     );
-    draft.members[1].status = "removed";
+    let afterRoleChecks = await verifyGroupPermissions({
+      owner, guest, outsider: formerInbox, draft, initial: preserved, travelerId: traveler.id,
+    });
+    if (process.env.GROUP_BROWSER_URL) {
+      const base = new URL(process.env.GROUP_BROWSER_URL);
+      assert.ok(base.hostname === "127.0.0.1" || base.href === target);
+      await verifyGroupPermissionScreens({
+        base: base.href, title: draft.title, event: afterRoleChecks.content.events[0],
+        ownerLogin: { email, password }, guestLogin: { email: newEmail, password: newPassword },
+      });
+      afterRoleChecks = check(await owner.rpc("read_invited_trip", { p_trip: tripId }));
+      assert.equal(afterRoleChecks.content.events[0].notes, "Confirmed from a separate traveler session");
+    }
+    Object.assign(draft, afterRoleChecks.content);
+    draft.events[0].point = null;
+    draft.members.find((m) => m.id === traveler.id).status = "removed";
     assert.equal(
-      check(await save(draft, preserved.revision)).content.events[0].point,
+      check(await save(draft, afterRoleChecks.revision)).content.events[0].point,
       null,
     );
     assert.ok((await guest.rpc("read_invited_trip", { p_trip: tripId })).error);
     assert.equal((await submit(guest)).error?.code, "42501");
+    const removedWrite = await guest.rpc("save_shared_trip_changes", {
+      p_trip_id: tripId, p_request_id: randomUUID(), p_expected_revision: afterRoleChecks.revision, p_data: draft,
+    });
+    assert.equal(removedWrite.error?.code, "42501", "A removed member cannot write with their old session");
     console.log(
       "Account setup, shared pin creation and correction, survey persistence, stale owner edits, and access revocation passed.",
     );

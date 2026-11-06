@@ -89,3 +89,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Email invitations must open the normal login and signup options. Preserve the exact trip while the traveler chooses an account, including a different email, then open its preference survey.
 
 - Anchor custom dropdowns to the input itself, leaving only enough space for its focus outline. Destination suggestions should match the text field width and stop before the Add button.
+
+- Group permissions (November 6, 2026): invited accounts start as Viewers. Only the owner can grant Editor or Day Editor access. Check both dates for event moves, enforce grants on database writes, and show a simple permission prompt when an edit is denied.

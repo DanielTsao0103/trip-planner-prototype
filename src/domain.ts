@@ -144,8 +144,13 @@ const ZONE_LABELS: Record<string, string> = {
 export const zoneText = (zone: string) =>
   ZONE_LABELS[zone] ||
   zone.split("/").pop()!.replace(/_/g, " ");
+export const EVENT_PERMISSION_MESSAGE = "You do not have permission to edit this event.";
 export const member = (trip: Trip, user: string | null) =>
-  trip.members.find((m) => (m.id === user || (!!user && m.accountId === user)) && m.status === "accepted");
+  trip.members.find((m) => !!user && m.status === "accepted" && (
+    trip.persistence === "account" && m.role !== "Owner"
+      ? m.accountId === user
+      : m.id === user
+  ));
 export const canEdit = (trip: Trip, user: string | null, date: string) => {
   const m = member(trip, user);
   return (
@@ -181,7 +186,7 @@ export function eventError(
     !canEdit(trip, user, event.date) ||
     (original && !canEdit(trip, user, original.date))
   )
-    return "You can only change days you have permission to edit.";
+    return EVENT_PERMISSION_MESSAGE;
   const problem =
     textError(event.name, "Event name", TEXT_LIMITS.eventName, true) ||
     (!event.place?.trim() && "Enter a location.") ||

@@ -267,7 +267,7 @@ test("a viewer can collapse a stop, return to it with Back, and follow a resched
   await row.click();
   await page.getByRole("link", {name:"View itinerary item"}).click();
   const item = page.getByRole("article", {name:"A morning of art"});
-  await expect(item.getByRole("button", {name:"Edit event"})).toBeDisabled();
+  await expect(item.getByRole("button", {name:"Edit event"})).toBeVisible();
   await page.goBack();
   await expect(row).toHaveAttribute("aria-expanded", "true");
   await page.goto("./#/11?date=2026-10-15&event=museum");
