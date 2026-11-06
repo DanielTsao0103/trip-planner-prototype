@@ -255,3 +255,52 @@ test("failed account load offers retry and never pretends the account is empty",
     page.getByRole("heading", { name: "Home" }),
   ).toBeVisible();
 });
+
+test("invitees submit their own trip survey before entering the shared trip", async ({ page }) => {
+  const travelerId = "22222222-2222-4222-8222-222222222222";
+  const row = {
+    tripID: "33333333-3333-4333-8333-333333333333", trip_name: "Taipei with friends",
+    destinations: ["Taipei"], timezone: "Asia/Taipei", start_date: "2027-05-01", end_date: "2027-05-04",
+    content_version: 1, revision: 1, content: {
+      members: [{ id: travelerId, accountId: owner.id, name: "Invited traveler", email: owner.email,
+        role: "Viewer", status: "accepted", days: [] }],
+      prefs: {}, image: "", events: [], expenses: [], todos: [], dismissed: [], budget: null,
+      individual: {}, budgetMode: "group",
+    },
+  };
+  let fail = true;
+  await page.route("https://*.supabase.co/**", async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/token")) return route.fulfill({ json: session() });
+    if (path.endsWith("/user")) return route.fulfill({ json: owner });
+    if (path.endsWith("/load_trip_bundles")) return route.fulfill({ json: [row] });
+    if (path.endsWith("/save_invited_preferences")) {
+      const { p_trip, p_answers } = route.request().postDataJSON();
+      expect(p_trip).toBe(row.tripID);
+      expect(p_answers.notes).toBe("Morning walks");
+      if (fail) return route.fulfill({ status: 400, json: { message: "Try again" } });
+      row.content.prefs = { [travelerId]: p_answers };
+      return route.fulfill({ json: row });
+    }
+    if (path.endsWith("/save_trip_bundle")) throw new Error("Viewer attempted an owner-only save");
+    return route.fulfill({ json: [] });
+  });
+  await login(page);
+  const heading = page.getByRole("heading", { name: "What makes a good trip for you?" });
+  await expect(heading).toBeVisible();
+  await page.reload();
+  await expect(heading).toBeVisible();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByLabel("Anything else the group should know?").fill("Morning walks");
+  await page.getByRole("button", { name: "Save my preferences" }).click();
+  await expect(page.getByRole("alert")).toContainText("Could not save your preferences");
+  fail = false;
+  await page.getByRole("button", { name: "Save my preferences" }).click();
+  await expect(page.getByRole("heading", { name: "The group", exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "The group", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "My preferences" }).click();
+  await page.getByRole("button", { name: /The practical things/ }).click();
+  await expect(page.getByLabel("Anything else the group should know?")).toHaveValue("Morning walks");
+});

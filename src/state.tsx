@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { Check } from "lucide-react";
 import { demoStorageKey, loadDemoStore, type DemoAccount } from "./demo-store";
-import { type Store, type Trip, type User, isActive, isOwner, member } from "./domain";
+import { type Store, type Preference, type Trip, type User, isActive, isOwner, member } from "./domain";
 import { TripSaveQueue, type PendingTrip } from "./trip-save-queue";
 import { getSupabase, sendTripSignupLink } from "./supabase";
 import {
@@ -24,6 +24,7 @@ type Context = {
   accountTrips: boolean;
   pendingTripIds: string[];
   invite: (tripId: string, emails: string[]) => Promise<{ email: string; error: string }[]>;
+  savePreferences: (trip: Trip, answers: Preference) => Promise<void>;
   saveTrip: (trip: Trip) => Promise<void>;
   deleteTrip: (trip: Trip) => Promise<void>;
   signOut: () => Promise<void>;
@@ -385,6 +386,35 @@ export function Provider({
           ? { ...refreshed, imageSource: t.imageSource, imageCredit: t.imageCredit } : t) });
       }
       return failures;
+    },
+    savePreferences: async (target, answers) => {
+      const current = stateRef.current;
+      const traveler = member(target, current.userId);
+      if (!traveler) throw new Error("Join this trip before saving preferences.");
+      if (target.persistence === "account" && !isOwner(target, current.userId)) {
+        if (!cloud || traveler.accountId !== account.id || current.userId !== account.id)
+          throw new Error("Sign in to your invited account to save preferences.");
+        const { data, error } = await getSupabase().rpc("save_invited_preferences", {
+          p_trip: target.id, p_answers: answers,
+        });
+        if (error || !data?.content?.prefs?.[traveler.id])
+          throw new Error(error?.code === "42501" ? "Your invitation is no longer active." :
+            "Could not save your preferences. Your answers are still here. Try again.");
+        if (!mounted.current) throw new Error("Sign in again to view your trip.");
+        const latest = stateRef.current;
+        const saved = tripFromRow(data, account);
+        commit({ ...latest, tripId: target.id, trips: latest.trips.map(t => t.id === target.id
+          ? { ...saved, imageSource: t.imageSource, imageCredit: t.imageCredit } : t) });
+      } else {
+        mutate(store => {
+          const trip = store.trips.find(t => t.id === target.id)!;
+          trip.prefs[traveler.id] = answers;
+        });
+        if (target.persistence === "account") {
+          queue.retry();
+          await queue.wait(target.id);
+        }
+      }
     },
     saveTrip: async (draft) => {
       if (cloud && stateRef.current.userId === account.id && !draft.sample) {

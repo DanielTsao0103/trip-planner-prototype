@@ -42,7 +42,7 @@ import {
 } from "lucide-react";
 import { useApp } from "./state";
 import { Avatar, Badge, Button, ErrorBox, Field, PageHead } from "./ui";
-import { blankPrefs, dateText, isOwner, type Preference } from "./domain";
+import { blankPrefs, dateText, isOwner, member, type Trip, type Preference } from "./domain";
 
 function DiningSectionGraphic({ kind }: { kind: "city-town" | "plate" | "disco-chandelier" }) {
   const common = {
@@ -847,18 +847,20 @@ function Choices({
     </fieldset>
   );
 }
-export function Survey() {
-  const { trip: t, s, go, updateTrip, toast } = useApp();
-  if (!t) return null;
+export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboarding?: () => void }) {
+  const { s, go, savePreferences, toast } = useApp();
+  const traveler = member(t, s.userId)!;
+  const [saving, setSaving] = useState(false);
   const [p, setP] = useState<Preference>(
-      structuredClone(t.prefs[s.userId!] || blankPrefs()),
+      structuredClone(t.prefs[traveler.id] || blankPrefs()),
     ),
     [error, setError] = useState(""),
     [step, setStep] = useState(0);
   const set = <K extends keyof Preference>(key: K, value: Preference[K]) =>
     setP({ ...p, [key]: value });
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving || step !== 2) return;
     const problem =
       textError(
         p.destinations,
@@ -869,22 +871,31 @@ export function Survey() {
       setError(problem);
       return;
     }
-    if (!Number.isFinite(p.walk) || p.walk < 0 || p.walk > 100000) {
-      setError("Enter a walking limit between 0 and 100,000 meters.");
+    if (!Number.isInteger(p.walk) || p.walk < 0 || p.walk > 100000) {
+      setError("Enter a whole number between 0 and 100,000 meters.");
       return;
     }
-    updateTrip((t) => (t.prefs[s.userId!] = p));
-    toast("Your preferences are now reflected in the group’s tiles.");
-    go(13);
+    setSaving(true);
+    setError("");
+    try {
+      await savePreferences(t, p);
+      toast("Your preferences are now reflected in the group’s tiles.");
+      go(13);
+    } catch (issue) {
+      setError(issue instanceof Error ? issue.message : "Could not save preferences. Try again.");
+    } finally {
+      setSaving(false);
+    }
   };
   return (
     <>
       <PageHead
         eyebrow="YOUR PART OF THE PLAN"
         title="What makes a good trip for you?"
-        description="Share a little about yourself. We’ll help the plan fit the people."
+        description={leaveOnboarding ? `You’ve joined ${t.title}. Share your preferences to open the trip.` : "Share a little about yourself. We’ll help the plan fit the people."}
       />
-      <form className="survey-layout" onSubmit={save}>
+      <form onSubmit={save}>
+        <fieldset className="survey-layout survey-fields" disabled={saving} aria-busy={saving}>
         <aside className="survey-nav">
           <div className="card">
             <span className="eyebrow">A FEW LITTLE DETAILS</span>
@@ -1092,9 +1103,9 @@ export function Survey() {
           <div className="form-actions">
             <Button
               variant="text"
-              onClick={() => (step ? setStep(step - 1) : go(13))}
+              onClick={() => (step ? setStep(step - 1) : leaveOnboarding ? leaveOnboarding() : go(13))}
             >
-              {step ? "Back" : "Cancel"}
+              {step ? "Back" : leaveOnboarding ? "Back to my trips" : "Cancel"}
             </Button>
             {step < 2 ? (
               <Button onClick={() => setStep(step + 1)}>
@@ -1102,11 +1113,12 @@ export function Survey() {
               </Button>
             ) : (
               <Button type="submit">
-                Save my preferences <Check size={16} />
+                {saving ? "Saving preferences…" : "Save my preferences"} <Check size={16} />
               </Button>
             )}
           </div>
         </div>
+        </fieldset>
       </form>
     </>
   );

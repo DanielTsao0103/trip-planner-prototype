@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useApp } from "./state";
 import {
   Connections,
@@ -21,8 +21,20 @@ import { Overlays } from "./overlays";
 import { StylePage } from "./style-page";
 import { Shell, Empty, Button } from "./ui";
 import { PAGES } from "./data";
+import { member, type Trip } from "./domain";
 export function PrototypeApp() {
-  const { route, user, trip, open, tripGo, go } = useApp();
+  const { route, user, trip, open, tripGo, go, s, accountTrips } = useApp();
+  const [deferred, setDeferred] = useState<string[]>([]);
+  const needsSurvey = (t: Trip) => {
+    const traveler = member(t, s.userId);
+    return t.persistence === "account" && !!traveler?.accountId && traveler.accountId === s.userId && !t.prefs[traveler.id];
+  };
+  // Let travelers return to their other trips, but guard this trip on every entry.
+  const openingTrip = [7, 8, 9, 10, 11, 12, 13, 15, 16, 17].includes(route.page);
+  const pendingSurvey = accountTrips && (
+    (openingTrip && trip && needsSurvey(trip) && trip) ||
+    s.trips.find(t => !deferred.includes(t.id) && needsSurvey(t))
+  );
   const routeKey = `${route.page}?${route.params}`;
   const previousRoute = useRef(routeKey);
   useEffect(() => {
@@ -32,12 +44,20 @@ export function PrototypeApp() {
     previousRoute.current = routeKey;
   }, [routeKey]);
   useEffect(() => {
-    document.title = `${PAGES[route.page] || "Home"} · Trip Planner`;
-    if (route.page === 16 && user) open("nearby");
-  }, [route.page, user?.id]);
+    document.title = pendingSurvey ? `Trip preferences · ${pendingSurvey.title}` : `${PAGES[route.page] || "Home"} · Trip Planner`;
+    if (!pendingSurvey && route.page === 16 && user) open("nearby");
+  }, [route.page, user?.id, pendingSurvey]);
+  if (pendingSurvey) return (
+    <main className="main-content page-15 invite-survey" id="main-content" tabIndex={-1}>
+      <Survey key={pendingSurvey.id} trip={pendingSurvey} leaveOnboarding={() => {
+        setDeferred(s.trips.filter(needsSurvey).map(t => t.id));
+        go(5);
+      }} />
+    </main>
+  );
   let content: React.ReactNode;
   if (!user || route.page === 1) content = <Shell><Home /></Shell>;
-  else if ([7, 8, 9, 10, 11, 12, 13, 15, 16, 17].includes(route.page) && !trip)
+  else if (openingTrip && !trip)
     content = (
       <Shell>
         <Empty
@@ -63,7 +83,7 @@ export function PrototypeApp() {
       11: <DayDetail />,
       12: <Budget />,
       13: <Group />,
-      15: <Survey key={user.id} />,
+      15: trip && <Survey key={`${user.id}:${trip.id}`} trip={trip} />,
       16: <Dashboard />,
       17: <MapPage />,
       18: <StylePage />,

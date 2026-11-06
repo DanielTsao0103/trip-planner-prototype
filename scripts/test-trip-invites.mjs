@@ -130,9 +130,27 @@ try {
       })
     ).error,
   );
+  const traveler = row.content.members.find(m => m.accountId === invitation.user.id);
+  assert.notEqual(traveler.id, invitation.user.id);
+  const answers = {
+    diet: ["Vegan"], food: "Local favorites", spending: "Moderate", dining: "Casual & simple",
+    atmosphere: "Quiet", access: [], walk: 450, interests: ["History"], destinations: "",
+    tickets: "Happy to book ahead", notes: "Test survey",
+  };
+  const submit = (client, prefs = answers) => client.rpc("save_invited_preferences", {
+    p_trip: tripId, p_answers: prefs,
+  });
+  assert.ok((await submit(owner)).error);
+  const submitted = check(await submit(guest));
+  assert.deepEqual(submitted.content.prefs, { [traveler.id]: answers });
+  assert.ok((await submit(guest, { ...answers, walk: -1 })).error);
+  assert.deepEqual(check(await owner.rpc("read_invited_trip", { p_trip: tripId })).content.prefs,
+    submitted.content.prefs);
+  assert.equal((await save(draft, row.revision)).error?.code, "PT409");
+  draft.prefs = submitted.content.prefs;
   draft.members = row.content.members;
   draft.title = "Edited after sharing";
-  const edited = check(await save(draft, row.revision));
+  const edited = check(await save(draft, submitted.revision));
   assert.ok(
     check(await guest.rpc("load_trip_bundles")).some(
       (t) => t.tripID === tripId,
@@ -141,8 +159,9 @@ try {
   draft.members[1].status = "removed";
   check(await save(draft, edited.revision));
   assert.ok((await guest.rpc("read_invited_trip", { p_trip: tripId })).error);
+  assert.equal((await submit(guest)).error?.code, "42501");
   console.log(
-    "Account setup, registered name lookup, sharing, owner edits, duplicate handling and revocation passed.",
+    "Account setup, sharing, survey persistence, stale owner edits, and revocation passed.",
   );
   assert.equal(
     destination.origin + destination.pathname,

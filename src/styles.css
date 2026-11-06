@@ -6621,3 +6621,6 @@ legend {
 .recipient-chip > span { overflow-wrap: anywhere; min-width: 0; }
 .recipient-chip button { display: grid; place-items: center; width: 1.6rem; height: 1.6rem; flex-shrink: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
 .recipient-chip button:hover { background: #d1dfd3; }
+
+.survey-fields { border: 0; padding: 0; margin-inline: 0; min-width: 0; }
+.invite-survey { max-width: 1120px; margin-inline: auto; padding: clamp(16px, 4vw, 48px); }
