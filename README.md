@@ -1,5 +1,20 @@
 # Trip Planner
 
+## Current definition-of-done audit — November 7, 2026
+
+**Whole-application status: Not complete.** The implemented planner passes the automated checks below, but prototype integrations and the live verification gaps listed in the [audit report](assignment/definition-of-done-audit-2026-11-07.md) prevent a blanket claim that every feature is done. Earlier “Complete” statements apply to their named historical release scopes.
+
+| Requirement | Status | Current evidence |
+| --- | --- | --- |
+| Responsive, polished desktop/mobile core planner pages | Not complete | All 36 width checks pass at 1,365 px and 390 px. Visual review found the Account page’s Email label wraps vertically beside a very long email on mobile; minor polish remains. |
+| Every feature works User → Frontend → Backend → Database | Not complete | Live name/photo persistence and isolated database trip/map checks passed. 81 unit tests and 134 desktop/mobile browser tests passed. Browser APIs are mocked; mailbox delivery, password changes and two-real-account sharing were not independently repeated in this audit. OCR, banking/payments and nearby alerts remain previews. |
+| Lighthouse Accessibility at least 90 | Complete | Lighthouse 13.6.0 accessibility snapshots scored 96–100 across 36 live states on deployed implementation `2e46d1e`. Not a manual accessibility certification. |
+| README lists behavioral requirements as Complete or Not complete | Complete | This table, the feature tables below, and the linked audit report state boundaries explicitly. |
+| Implementation and audit changes are on main | Complete | Corrected deletion regression tests passed the normal release workflow; this report and reproducible audit harness are committed with the final audit update. |
+| Public cloud deployment | Complete | [Live app](https://danieltsao0103.github.io/trip-planner-prototype/); the Pages workflow checks version.json and the deployed entry script. |
+
+Audit outputs: [verification report](assignment/definition-of-done-audit-2026-11-07.md) and [machine-readable Lighthouse summary](assignment/definition-of-done-audit-2026-11-07.json). Raw screenshots and Lighthouse HTML stay outside the published repository.
+
 ## Trip photos: behavioral requirements and completion status
 
 The trip form searches the first added destination through the Supabase `unsplash-search` Edge Function by default. For a trip with multiple destinations, the user can choose which destination to search. It offers two to five landscape photos when enough matches are available, or the user can upload a JPEG, PNG, or WebP photo under 5 MB. The client requests up to 30 search results and filters by photo dimensions because the deployed search function does not currently forward Unsplash's orientation filter. Uploaded photos go to the public `trip-photos` Supabase Storage bucket, and the selected URL is saved with the account trip. Unsplash photographer and photo links are saved in `trip_photo_credit` and shown beside the cover. The `unsplash-track` Edge Function calls the selected photo's exact Unsplash `download_location` when it becomes a cover; its public-key-only request also works for browser-only demo trips.

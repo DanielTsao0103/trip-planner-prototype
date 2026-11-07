@@ -1,0 +1,1517 @@
+{
+  "site": "https://danieltsao0103.github.io/trip-planner-prototype/",
+  "version": {
+    "commit": "2e46d1e4e4e3b367f9df2492ab752be8dade8636",
+    "entryScript": "/trip-planner-prototype/assets/index-CEEbkM8Y.js",
+    "builtAt": "2026-11-07T18:07:01.897Z"
+  },
+  "checkedAt": "2026-11-07T18:09:58.311Z",
+  "lighthouse": [
+    {
+      "device": "desktop",
+      "name": "login",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "signup",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "account",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\" aria-current=\"page\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "group",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "invite-dialog",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": []
+    },
+    {
+      "device": "desktop",
+      "name": "preferences",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "map",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-4-GMP-ADVANCED-MARKER",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,1,DIV,0,DIV,0,DIV,0,DIV,2,DIV,0,DIV,1,DIV,0,DIV,2,DIV,3,DIV,0,GMP-ADVANCED-MARKER",
+                "selector": "div > div > div > gmp-advanced-marker.yNHHyP-marker-view",
+                "boundingRect": {
+                  "top": 468,
+                  "bottom": 516,
+                  "left": 624,
+                  "right": 668,
+                  "width": 44,
+                  "height": 48
+                },
+                "snippet": "<gmp-advanced-marker aria-label=\"Select Eiffel Tower, Paris, France\" role=\"button\" data-pin-signature=\"[&quot;Eiffel Tower, Paris, France&quot;,48.8584,2.2945,false]\" aria-pressed=\"false\" slot=\"VyEnES-internal-visible-gmp-advanced-markers\" gmp-clickable=\"\" position=\"48.8584,2.2945\" class=\"yNHHyP-marker-view\" tabindex=\"0\" style=\"pointer-events: auto; cursor: pointer; touch-action: pan-x pan-y;\">",
+                "nodeLabel": "1",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "event-editor",
+      "score": 98,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "heading-order",
+          "title": "Heading elements are not in a sequentially-descending order",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-9-H3",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,1,DIV,0,FORM,1,SECTION,0,H3",
+                "selector": "div.form-layout > form.card > section.event-photo-picker > h3",
+                "boundingRect": {
+                  "top": 357,
+                  "bottom": 381,
+                  "left": 303,
+                  "right": 875,
+                  "width": 572,
+                  "height": 23
+                },
+                "snippet": "<h3>",
+                "nodeLabel": "Event Photo",
+                "explanation": "Fix any of the following:\n  Heading order invalid"
+              }
+            }
+          ]
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "home",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "trips",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "trip-form",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "itinerary",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "calendar",
+      "score": 96,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "aria-prohibited-attr",
+          "title": "Elements use prohibited ARIA attributes",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-14-DIV",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,4,SECTION,3,DIV,0,DIV,10,DIV",
+                "selector": "section.weekly-calendar > div.itcal-scroll > div.itcal-grid > div.itcal-day",
+                "boundingRect": {
+                  "top": 825,
+                  "bottom": 1905,
+                  "left": 474,
+                  "right": 616,
+                  "width": 141,
+                  "height": 1080
+                },
+                "snippet": "<div data-calendar-date=\"2027-06-02\" class=\"itcal-day  \" aria-label=\"Events on 2027-06-02\" style=\"height: 1080px;\">",
+                "nodeLabel": "Events on 2027-06-02",
+                "explanation": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-15-DIV",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,4,SECTION,3,DIV,0,DIV,11,DIV",
+                "selector": "section.weekly-calendar > div.itcal-scroll > div.itcal-grid > div.itcal-day",
+                "boundingRect": {
+                  "top": 825,
+                  "bottom": 1905,
+                  "left": 616,
+                  "right": 757,
+                  "width": 141,
+                  "height": 1080
+                },
+                "snippet": "<div data-calendar-date=\"2027-06-03\" class=\"itcal-day  \" aria-label=\"Events on 2027-06-03\" style=\"height: 1080px;\">",
+                "nodeLabel": "Events on 2027-06-03",
+                "explanation": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-16-DIV",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,4,SECTION,3,DIV,0,DIV,12,DIV",
+                "selector": "section.weekly-calendar > div.itcal-scroll > div.itcal-grid > div.itcal-day",
+                "boundingRect": {
+                  "top": 825,
+                  "bottom": 1905,
+                  "left": 757,
+                  "right": 898,
+                  "width": 141,
+                  "height": 1080
+                },
+                "snippet": "<div data-calendar-date=\"2027-06-04\" class=\"itcal-day outside-trip \" aria-label=\"Events on 2027-06-04\" style=\"height: 1080px;\">",
+                "nodeLabel": "Events on 2027-06-04",
+                "explanation": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-17-DIV",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,4,SECTION,3,DIV,0,DIV,13,DIV",
+                "selector": "section.weekly-calendar > div.itcal-scroll > div.itcal-grid > div.itcal-day",
+                "boundingRect": {
+                  "top": 825,
+                  "bottom": 1905,
+                  "left": 898,
+                  "right": 1039,
+                  "width": 141,
+                  "height": 1080
+                },
+                "snippet": "<div data-calendar-date=\"2027-06-05\" class=\"itcal-day outside-trip \" aria-label=\"Events on 2027-06-05\" style=\"height: 1080px;\">",
+                "nodeLabel": "Events on 2027-06-05",
+                "explanation": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-18-DIV",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,4,SECTION,3,DIV,0,DIV,14,DIV",
+                "selector": "section.weekly-calendar > div.itcal-scroll > div.itcal-grid > div.itcal-day",
+                "boundingRect": {
+                  "top": 825,
+                  "bottom": 1905,
+                  "left": 1039,
+                  "right": 1181,
+                  "width": 141,
+                  "height": 1080
+                },
+                "snippet": "<div data-calendar-date=\"2027-06-06\" class=\"itcal-day outside-trip \" aria-label=\"Events on 2027-06-06\" style=\"height: 1080px;\">",
+                "nodeLabel": "Events on 2027-06-06",
+                "explanation": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-19-DIV",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,4,SECTION,3,DIV,0,DIV,15,DIV",
+                "selector": "section.weekly-calendar > div.itcal-scroll > div.itcal-grid > div.itcal-day",
+                "boundingRect": {
+                  "top": 825,
+                  "bottom": 1905,
+                  "left": 1181,
+                  "right": 1322,
+                  "width": 141,
+                  "height": 1080
+                },
+                "snippet": "<div data-calendar-date=\"2027-06-07\" class=\"itcal-day outside-trip \" aria-label=\"Events on 2027-06-07\" style=\"height: 1080px;\">",
+                "nodeLabel": "Events on 2027-06-07",
+                "explanation": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            }
+          ]
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "suggestions",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "today",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "day-detail",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "budget",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "name": "style",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "login",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "signup",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "account",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\" aria-current=\"page\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "group",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "invite-dialog",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": []
+    },
+    {
+      "device": "mobile",
+      "name": "preferences",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "map",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-2-GMP-ADVANCED-MARKER",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,1,DIV,0,DIV,0,DIV,0,DIV,2,DIV,0,DIV,1,DIV,0,DIV,2,DIV,3,DIV,0,GMP-ADVANCED-MARKER",
+                "selector": "div > div > div > gmp-advanced-marker.yNHHyP-marker-view",
+                "boundingRect": {
+                  "top": 444,
+                  "bottom": 492,
+                  "left": 173,
+                  "right": 217,
+                  "width": 44,
+                  "height": 48
+                },
+                "snippet": "<gmp-advanced-marker aria-label=\"Select Eiffel Tower, Paris, France\" role=\"button\" data-pin-signature=\"[&quot;Eiffel Tower, Paris, France&quot;,48.8584,2.2945,false]\" aria-pressed=\"false\" slot=\"VyEnES-internal-visible-gmp-advanced-markers\" gmp-clickable=\"\" position=\"48.8584,2.2945\" class=\"yNHHyP-marker-view\" tabindex=\"0\" style=\"pointer-events: auto; cursor: pointer; z-index: 0;\">",
+                "nodeLabel": "1",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "event-editor",
+      "score": 98,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "heading-order",
+          "title": "Heading elements are not in a sequentially-descending order",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-5-H3",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,1,DIV,0,FORM,1,SECTION,0,H3",
+                "selector": "div.form-layout > form.card > section.event-photo-picker > h3",
+                "boundingRect": {
+                  "top": 416,
+                  "bottom": 439,
+                  "left": 42,
+                  "right": 348,
+                  "width": 306,
+                  "height": 23
+                },
+                "snippet": "<h3>",
+                "nodeLabel": "Event Photo",
+                "explanation": "Fix any of the following:\n  Heading order invalid"
+              }
+            }
+          ]
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "home",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "trips",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "trip-form",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "itinerary",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "calendar",
+      "score": 96,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "aria-prohibited-attr",
+          "title": "Elements use prohibited ARIA attributes",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-10-DIV",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,4,SECTION,3,DIV,0,DIV,10,DIV",
+                "selector": "section.weekly-calendar > div.itcal-scroll > div.itcal-grid > div.itcal-day",
+                "boundingRect": {
+                  "top": 890,
+                  "bottom": 1970,
+                  "left": 201,
+                  "right": 321,
+                  "width": 119,
+                  "height": 1080
+                },
+                "snippet": "<div data-calendar-date=\"2027-06-02\" class=\"itcal-day  \" aria-label=\"Events on 2027-06-02\" style=\"height: 1080px;\">",
+                "nodeLabel": "Events on 2027-06-02",
+                "explanation": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-11-DIV",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,4,SECTION,3,DIV,0,DIV,11,DIV",
+                "selector": "section.weekly-calendar > div.itcal-scroll > div.itcal-grid > div.itcal-day",
+                "boundingRect": {
+                  "top": 890,
+                  "bottom": 1970,
+                  "left": 321,
+                  "right": 440,
+                  "width": 119,
+                  "height": 1080
+                },
+                "snippet": "<div data-calendar-date=\"2027-06-03\" class=\"itcal-day  \" aria-label=\"Events on 2027-06-03\" style=\"height: 1080px;\">",
+                "nodeLabel": "Events on 2027-06-03",
+                "explanation": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-12-DIV",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,4,SECTION,3,DIV,0,DIV,12,DIV",
+                "selector": "section.weekly-calendar > div.itcal-scroll > div.itcal-grid > div.itcal-day",
+                "boundingRect": {
+                  "top": 890,
+                  "bottom": 1970,
+                  "left": 440,
+                  "right": 560,
+                  "width": 119,
+                  "height": 1080
+                },
+                "snippet": "<div data-calendar-date=\"2027-06-04\" class=\"itcal-day outside-trip \" aria-label=\"Events on 2027-06-04\" style=\"height: 1080px;\">",
+                "nodeLabel": "Events on 2027-06-04",
+                "explanation": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-13-DIV",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,4,SECTION,3,DIV,0,DIV,13,DIV",
+                "selector": "section.weekly-calendar > div.itcal-scroll > div.itcal-grid > div.itcal-day",
+                "boundingRect": {
+                  "top": 890,
+                  "bottom": 1970,
+                  "left": 560,
+                  "right": 679,
+                  "width": 119,
+                  "height": 1080
+                },
+                "snippet": "<div data-calendar-date=\"2027-06-05\" class=\"itcal-day outside-trip \" aria-label=\"Events on 2027-06-05\" style=\"height: 1080px;\">",
+                "nodeLabel": "Events on 2027-06-05",
+                "explanation": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-14-DIV",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,4,SECTION,3,DIV,0,DIV,14,DIV",
+                "selector": "section.weekly-calendar > div.itcal-scroll > div.itcal-grid > div.itcal-day",
+                "boundingRect": {
+                  "top": 890,
+                  "bottom": 1970,
+                  "left": 679,
+                  "right": 799,
+                  "width": 119,
+                  "height": 1080
+                },
+                "snippet": "<div data-calendar-date=\"2027-06-06\" class=\"itcal-day outside-trip \" aria-label=\"Events on 2027-06-06\" style=\"height: 1080px;\">",
+                "nodeLabel": "Events on 2027-06-06",
+                "explanation": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            },
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-15-DIV",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,4,SECTION,3,DIV,0,DIV,15,DIV",
+                "selector": "section.weekly-calendar > div.itcal-scroll > div.itcal-grid > div.itcal-day",
+                "boundingRect": {
+                  "top": 890,
+                  "bottom": 1970,
+                  "left": 799,
+                  "right": 918,
+                  "width": 119,
+                  "height": 1080
+                },
+                "snippet": "<div data-calendar-date=\"2027-06-07\" class=\"itcal-day outside-trip \" aria-label=\"Events on 2027-06-07\" style=\"height: 1080px;\">",
+                "nodeLabel": "Events on 2027-06-07",
+                "explanation": "Fix all of the following:\n  aria-label attribute cannot be used on \"div\" elements with no valid role attribute."
+              }
+            }
+          ]
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "suggestions",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "today",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "day-detail",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "budget",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "name": "style",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "checks": [],
+  "cleanup": true
+}
