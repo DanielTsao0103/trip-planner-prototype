@@ -5,6 +5,7 @@ import { WeeklyCalendar } from "./weekly-calendar";
 import { DatePicker } from "./date-picker";
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
 import React, { useRef, useState } from "react";
+import { searchDestinationPhotos, trackUnsplashSelection, uploadTripPhoto, type UnsplashPhoto } from "./trip-photos";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -357,6 +358,12 @@ export function EventForm() {
     [busy, setBusy] = useState(false),
     [scan, setScan] = useState(""),
     [preview, setPreview] = useState("");
+  const [eventPhotos, setEventPhotos] = useState<UnsplashPhoto[]>([]);
+  const [selectedEventPhoto, setSelectedEventPhoto] = useState<UnsplashPhoto | null>(null);
+  const [uploadedEventPhoto, setUploadedEventPhoto] = useState("");
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+  const findEventPhotos = async () => { setPhotoBusy(true); setPhotoError(""); try { setEventPhotos(await searchDestinationPhotos([name, place, t.destinations[0]].filter(Boolean).join(" "))); } catch (err) { setPhotoError(err instanceof Error ? err.message : "Could not find event photos."); } finally { setPhotoBusy(false); } };
   const extract = (fail = false) => {
     setScan("loading");
     setTimeout(() => {
@@ -418,7 +425,7 @@ export function EventForm() {
       end,
       cost: Math.round(Number(cost) * 100),
       attendees,
-      image: original?.image || IMAGES.museum,
+      image: uploadedEventPhoto || selectedEventPhoto?.url || original?.image || IMAGES.museum,
       notes,
     };
     const err = eventError(t, s.userId, event, original);
@@ -479,25 +486,6 @@ export function EventForm() {
               </Button>
             </div>
           )}
-          {original && canEdit(t, s.userId, original.date) && (
-            <Button
-              variant="text danger"
-              disabled={busy || stale}
-              onClick={() => {
-                if (!window.confirm("Delete this event from the trip?")) return;
-                let deleted = false;
-                updateTrip((trip) => {
-                  const current = trip.events.find(e => e.id === original.id);
-                  if (!current || changedElsewhere(current)) return;
-                  trip.events = trip.events.filter(e => e.id !== original.id);
-                  deleted = true;
-                });
-                if (deleted) leaveForm(original.date);
-              }}
-            >
-              Delete event
-            </Button>
-          )}
           {role === "Day Editor" && <ReadOnly day />}
           <div className="tabs">
             <button
@@ -515,7 +503,9 @@ export function EventForm() {
               <ImagePlus size={16} />
               Use a confirmation
             </button>
+            {original && <button type="button" className={mode === "delete" ? "active danger-tab" : "danger-tab"} disabled={busy || stale} onClick={() => setMode("delete")}>Delete event</button>}
           </div>
+          {mode === "delete" && original && <div className="delete-event-panel"><h3>Delete this event?</h3><p>Are you sure you want to delete “{original.name}” from this trip?</p><Button type="button" variant="danger" disabled={busy || stale} onClick={() => { let deleted=false;updateTrip(trip=>{const current=trip.events.find(e=>e.id===original.id);if(!current||changedElsewhere(current))return;trip.events=trip.events.filter(e=>e.id!==original.id);deleted=true;});if(deleted)leaveForm(original.date);}}>Delete event</Button></div>}
           {mode === "upload" && (
             <div className="upload-panel">
               <Upload size={33} />
@@ -575,6 +565,7 @@ export function EventForm() {
           )}
           {mode === "manual" && (
             <>
+              <section className="event-photo-picker" aria-label="Event photo"><h3>Event Photo</h3><div className="event-photo-actions"><Button type="button" variant="event-photo-find" disabled={photoBusy} onClick={findEventPhotos}>{photoBusy ? "Finding photos…" : "Find with Unsplash"}</Button><span>OR</span><label className="event-photo-upload">Upload your own<input type="file" accept="image/png,image/jpeg,image/webp" aria-label="Upload your own event photo" onChange={async e=>{const file=e.target.files?.[0];if(!file)return;if(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size>5*1024*1024){setPhotoError("Choose a JPEG, PNG, or WebP image under 5 MB.");return;}setPhotoError("");setSelectedEventPhoto(null);try{if(t.persistence==="account"){if(!s.userId)throw new Error("Sign in to upload an event photo.");setUploadedEventPhoto(await uploadTripPhoto(file,s.userId,t.id));}else setUploadedEventPhoto(await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error("Could not read this image."));reader.readAsDataURL(file);}));}catch(err){setPhotoError(err instanceof Error?err.message:"Could not upload this photo.");}}}/></label></div>{photoError&&<ErrorBox text={photoError}/ >}{eventPhotos.length>0&&<div className="trip-photo-options">{eventPhotos.map(photo=><button type="button" key={photo.id} className={selectedEventPhoto?.id===photo.id?"selected":""} aria-pressed={selectedEventPhoto?.id===photo.id} onClick={()=>{setSelectedEventPhoto(photo);setUploadedEventPhoto("");}}><img src={photo.thumb} alt={photo.alt}/><PhotoCredit credit={photo.credit} compact/></button>)}</div>}{selectedEventPhoto&&<PhotoCredit credit={selectedEventPhoto.credit} compact/>}{uploadedEventPhoto&&<img className="upload-preview" src={uploadedEventPhoto} alt="Your event photo preview"/>}</section>
               {scan === "review" && (
                 <div className="info-banner">
                   <CheckCircle2 size={20} />
