@@ -232,7 +232,8 @@ try {
     assert.ok((await accept(owner, ticket.ticket)).error);
     const formerInbox = client(env.VITE_SUPABASE_PUBLISHABLE_KEY);
     const verified = await fetch(invitation.properties.action_link, { redirect: "manual" });
-    const tokens = new URLSearchParams(new URL(verified.headers.get("location")).hash.slice(1));
+    const destination = new URL(verified.headers.get("location"));
+    const tokens = new URLSearchParams(destination.hash.slice(1));
     assert.ok(tokens.get("access_token"));
     check(
       await formerInbox.auth.setSession({
