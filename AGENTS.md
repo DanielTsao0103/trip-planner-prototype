@@ -95,3 +95,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Invitation email correction (November 6, 2026): send an invitation email to existing accounts too. The same initial account screen selects login for existing accounts and signup for new invitees; preserve the exact trip through authentication. Remember valid sessions, but never infer account access from a browser-visit cookie.
 
 - Invitation expiry (November 6, 2026): all newly sent trip invitations last seven days. Enforce expiry on the server without expiring accepted trip memberships or extending unrelated password-reset links.
+
+- Sprint audit scope clarification (November 7, 2026): Dan's definition of done applies only to the seven screenshot features: edit account, profile pictures, immediate post-join trip preferences, collaborators sharing the same map pins, invitations, correct map/day itinerary linkage, and readable group preference charts. Do not count unrelated unfinished OCR, banking/payments, nearby alerts, or other prototype integrations against this sprint. Distinguish API-mocked browser checks from live multi-account/inbox/database verification.

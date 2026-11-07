@@ -1,6 +1,25 @@
 # Trip Planner
 
-## Current definition-of-done audit — November 7, 2026
+## Sprint definition of done — November 7, 2026
+
+**Scope: only the seven features in the sprint screenshots.** Unrelated unfinished integrations do not count against this sprint. [Sprint verification report](assignment/sprint-definition-of-done-2026-11-07.md) · [Lighthouse/database summary](assignment/sprint-definition-of-done-2026-11-07.json).
+
+| Behavioral requirement | Status | Verification / remaining gap |
+| --- | --- | --- |
+| Edit account name/password through the live backend | Not complete | Name, password change and fresh sign-in passed; a long email needs minor label-layout polish on mobile. |
+| Upload, persist and remove an account profile picture | Complete | Live UI → profile row/Storage → reload/removal checks passed. |
+| Require preferences immediately after joining a trip | Not complete | UI/API-mocked routing and real preference storage passed; real invitation-to-survey acceptance with a second account remains unverified. |
+| Show collaborators the same map and saved pins | Not complete | Live saved coordinates and real Google map passed; two-real-account synchronization/revocation remains unverified in this audit. |
+| Deliver and accept invitations | Not complete | Desktop/mobile routing tests passed; real mailbox/acceptance needs the private server connection and controlled inbox. |
+| Link each map location to the correct daily itinerary item | Complete | Live desktop/mobile round-trip verified for two locations on different days. |
+| Keep group preference charts readable and responsive | Not complete | 20-person content tests passed; five-pixel mobile Group/overlay overflow remains in the live fixture. |
+| Lighthouse Accessibility >=90 for the affected states | Complete | 20 live audits scored 96–100 at desktop/mobile widths. |
+| Preserve database records and reject invalid writes atomically | Complete | Invalid-coordinate rollback, anonymous read denial, restored QA account state, generated-trip cleanup and unchanged pre-existing QA-visible trip bundles. |
+| Document statuses, merge into main and serve a public cloud URL | Complete | This report/README and audit tooling are on main; the audited implementation is [live](https://danieltsao0103.github.io/trip-planner-prototype/). |
+
+**Acceptance is not yet fully verified**, specifically because of the small visual findings and the remaining live multi-account/inbox checks—not because of unrelated prototype work. The audit also passed 98 sprint-related desktop/mobile browser regressions. API-mocked tests are distinguished from real database checks in the report.
+
+## Earlier whole-application audit — not sprint acceptance
 
 **Whole-application status: Not complete.** The implemented planner passes the automated checks below, but prototype integrations and the live verification gaps listed in the [audit report](assignment/definition-of-done-audit-2026-11-07.md) prevent a blanket claim that every feature is done. Earlier “Complete” statements apply to their named historical release scopes.
 

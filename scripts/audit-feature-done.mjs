@@ -91,6 +91,51 @@ const trip = {
   todos: [],
   dismissed: [],
 };
+const sprint = process.env.AUDIT_SPRINT === "1";
+if (sprint) {
+  trip.title = "Sprint seven-feature QA";
+  trip.members.push(
+    ...Array.from({ length: 19 }, (_, i) => ({
+      id: randomUUID(),
+      name: `QA Traveler ${i + 2}`,
+      email: `sprint-${i + 2}@example.invalid`,
+      role: "Viewer",
+      days: [],
+      status: "accepted",
+    })),
+  );
+  trip.prefs = Object.fromEntries(
+    trip.members.map((m, i) => [
+      m.id,
+      {
+        diet: i % 3 === 0 ? ["Vegetarian"] : ["No restrictions"],
+        food: ["Local favorites", "Familiar favorites", "A little of both"][
+          i % 3
+        ],
+        spending: ["Budget-conscious", "Moderate", "Room to splurge"][i % 3],
+        dining: "A mix of both",
+        atmosphere: i % 2 ? "Quiet" : "Lively",
+        access: i % 2 ? ["Step-free access"] : [],
+        walk: 500 + i * 50,
+        interests: i % 2 ? ["Art", "History"] : ["Nature"],
+        destinations: "Paris museums",
+        tickets: "Happy to book ahead",
+        notes: i % 2 ? "Slow mornings" : "Flexible timing",
+      },
+    ]),
+  );
+  trip.events.push({
+    ...trip.events[0],
+    id: randomUUID(),
+    name: "Louvre visit",
+    place: "Louvre Museum, Paris, France",
+    point: { lat: 48.8606, lng: 2.3376 },
+    date: "2027-06-02",
+  });
+}
+const priorTrips = check(await c.rpc("load_trip_bundles"));
+let passwordChanged = false;
+const nextPassword = randomUUID() + "aA1!";
 const evidence = {
   site,
   version: await (
@@ -115,6 +160,37 @@ try {
       p_data: trip,
     }),
   );
+  if (sprint) {
+    const row = check(await c.rpc("read_invited_trip", { p_trip: id }));
+    assert.equal(row.content.members.length, 20);
+    assert.equal(Object.keys(row.content.prefs).length, 20);
+    assert.deepEqual(
+      row.content.events.map((e) => ({ date: e.date, point: e.point })),
+      trip.events.map((e) => ({ date: e.date, point: e.point })),
+    );
+    const anonymous = createClient(a.url, a.key, {
+      auth: { persistSession: false },
+    });
+    assert.ok((await anonymous.rpc("read_invited_trip", { p_trip: id })).error);
+    const invalid = structuredClone(trip);
+    invalid.events[0].point.lat = 91;
+    assert.ok(
+      (
+        await c.rpc("save_trip_bundle", {
+          p_trip_id: id,
+          p_expected_revision: row.revision,
+          p_request_id: randomUUID(),
+          p_data: invalid,
+        })
+      ).error,
+    );
+    const unchanged = check(await c.rpc("read_invited_trip", { p_trip: id }));
+    assert.equal(unchanged.revision, row.revision);
+    assert.deepEqual(unchanged.content.events, row.content.events);
+    record(
+      "Live 20-person preferences and two dated map points round-trip; anonymous access denied; invalid coordinate write rolled back without changing revision or events",
+    );
+  }
   for (const device of ["desktop", "mobile"]) {
     browser = await puppeteer.launch({
       executablePath: chromium.executablePath(),
@@ -144,7 +220,10 @@ try {
         deviceScaleFactor: 1,
         mobile: device === "mobile",
       });
-      assert.equal(await page.evaluate(() => innerWidth), view.width);
+      assert.equal(
+        await page.evaluate(() => document.documentElement.clientWidth),
+        view.width,
+      );
       const config = {
         extends: "lighthouse:default",
         settings: {
@@ -177,11 +256,16 @@ try {
         deviceScaleFactor: 1,
         mobile: device === "mobile",
       });
-      const responsive = await page.evaluate(() => ({
-        viewport: innerWidth,
-        content: document.documentElement.scrollWidth,
-        pass: document.documentElement.scrollWidth <= innerWidth + 1,
-      }));
+      const responsive = await page.evaluate(
+        (requested) => ({
+          viewport: document.documentElement.clientWidth,
+          innerWidth,
+          requested,
+          content: document.documentElement.scrollWidth,
+          pass: document.documentElement.scrollWidth <= requested + 1,
+        }),
+        view.width,
+      );
       assert.equal(responsive.viewport, view.width);
       const failures = Object.values(result.lhr.audits)
         .filter((x) => x.score !== null && x.score < 1)
@@ -193,11 +277,13 @@ try {
         path: resolve(out, `${device}-${name}.png`),
         fullPage: !(await page.getByRole("dialog").count()),
       });
-      assert.equal(
-        screenshot.readUInt32BE(16),
-        view.width,
-        "Screenshot width must match the audited viewport",
-      );
+      evidence.lighthouse.at(-1).screenshotWidth = screenshot.readUInt32BE(16);
+      if (sprint && name === "group-20-travelers")
+        await page
+          .locator(".preference-grid")
+          .screenshot({
+            path: resolve(out, `${device}-group-preference-charts.png`),
+          });
       await metrics.detach();
       await writeFile(
         resolve(out, "summary.json"),
@@ -233,6 +319,41 @@ try {
       await page.reload();
       await expect(field("Name")).toHaveValue("Definition Done QA");
       record("Account name: UI save, independent Auth read and reload passed");
+      if (sprint) {
+        await field("Current password").fill(a.password);
+        await field("New password").fill(nextPassword);
+        await field("Confirm new password").fill(nextPassword);
+        await button("Update password").click();
+        await expect(
+          page.getByText("Password updated.", { exact: true }),
+        ).toBeVisible();
+        passwordChanged = true;
+        const fresh = createClient(a.url, a.key, {
+          auth: { persistSession: false },
+        });
+        check(
+          await fresh.auth.signInWithPassword({
+            email: a.email,
+            password: nextPassword,
+          }),
+        );
+        check(await fresh.auth.updateUser({ password: a.password }));
+        passwordChanged = false;
+        check(await fresh.auth.signOut());
+        const restored = createClient(a.url, a.key, {
+          auth: { persistSession: false },
+        });
+        check(
+          await restored.auth.signInWithPassword({
+            email: a.email,
+            password: a.password,
+          }),
+        );
+        check(await restored.auth.signOut());
+        record(
+          "Live account password changed through UI; fresh sign-in verified; original password restored and reverified",
+        );
+      }
       const image = await page.evaluate(() => {
         const canvas = document.createElement("canvas");
         canvas.width = canvas.height = 32;
@@ -285,7 +406,11 @@ try {
       .click();
     await page.goto(site + "#/13");
     await button("Invite someone").waitFor();
-    await audit("group");
+    if (sprint)
+      await expect(
+        page.getByText("20 of 20 travelers responded", { exact: true }),
+      ).toBeVisible();
+    await audit(sprint ? "group-20-travelers" : "group");
     await button("Invite someone").click();
     await page.getByRole("dialog").waitFor();
     await audit("invite-dialog");
@@ -297,26 +422,59 @@ try {
     await audit("map");
     await page.goto(site + "#/7");
     await audit("event-editor");
-    for (const [route, name] of [
-      ["4", "home"],
-      ["5", "trips"],
-      ["6", "trip-form"],
-      ["8", "itinerary"],
-      ["8?view=calendar", "calendar"],
-      ["9", "suggestions"],
-      ["10", "today"],
-      ["11?date=2027-06-01", "day-detail"],
-      ["12", "budget"],
-      ["18", "style"],
-    ]) {
+    for (const [route, name] of sprint
+      ? [
+          ["11?date=2027-06-01", "day-one"],
+          ["11?date=2027-06-02", "day-two"],
+        ]
+      : [
+          ["4", "home"],
+          ["5", "trips"],
+          ["6", "trip-form"],
+          ["8", "itinerary"],
+          ["8?view=calendar", "calendar"],
+          ["9", "suggestions"],
+          ["10", "today"],
+          ["11?date=2027-06-01", "day-detail"],
+          ["12", "budget"],
+          ["18", "style"],
+        ]) {
       await page.goto(site + "#/" + route);
       await audit(name);
+      if (sprint && name.startsWith("day-")) {
+        const expected = name === "day-one" ? "Tower visit" : "Louvre visit",
+          other = name === "day-one" ? "Louvre visit" : "Tower visit";
+        await expect(
+          page.getByRole("article", { name: expected, exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole("article", { name: other, exact: true }),
+        ).toHaveCount(0);
+        await page
+          .getByRole("article", { name: expected, exact: true })
+          .getByRole("button", {
+            name: trip.events.find((e) => e.name === expected).place,
+            exact: true,
+          })
+          .click();
+        await expect(page).toHaveURL(/#\/17\?event=/);
+        await page
+          .getByRole("link", { name: "View itinerary item", exact: true })
+          .click();
+        await expect(
+          page.getByRole("article", { name: expected, exact: true }),
+        ).toBeFocused();
+        record(
+          `${device} ${name}: exact day's event and map-to-itinerary return confirmed`,
+        );
+      }
     }
     await browser.close();
     browser = null;
   }
 } finally {
   if (browser) await browser.close();
+  if (passwordChanged) check(await c.auth.updateUser({ password: a.password }));
   check(await c.rpc("set_account_name", { p_name: originalName }));
   const photo = check(
     await c
@@ -335,6 +493,17 @@ try {
   }
   check(
     await c.from("trip").delete().eq("tripID", id).eq("owner_id", a.userId),
+  );
+  const afterTrips = check(await c.rpc("load_trip_bundles"));
+  const stable = (rows) =>
+    JSON.stringify([...rows].sort((x, y) => x.tripID.localeCompare(y.tripID)));
+  assert.equal(
+    stable(afterTrips),
+    stable(priorTrips),
+    "Pre-existing QA-visible trip bundles must remain unchanged",
+  );
+  record(
+    "Cleanup: original account state restored; generated trip removed; pre-existing QA-visible trips unchanged",
   );
   check(await c.auth.signOut());
   evidence.cleanup = true;
