@@ -6,6 +6,10 @@ export type InviteClaim = {
   ticket: string;
   email: string;
   canSetup: boolean;
+  /** A plain notification URL carries a trip identifier, never login credentials. */
+  notice?: boolean;
+  /** An existing membership belongs to this account even when the email is forwarded. */
+  accountId?: string | null;
 };
 type Entry = {
   trip: string | null;
@@ -13,6 +17,8 @@ type Entry = {
   refresh: string;
   claim?: InviteClaim;
   choosing?: boolean;
+  authMode?: "signup" | "login";
+  notice?: boolean;
   error?: string;
 };
 
@@ -20,11 +26,13 @@ type Entry = {
 function capture(): Entry | null {
   const url = new URL(location.href);
   const hash = new URLSearchParams(url.hash.slice(1));
-  if (url.searchParams.has("trip_invite")) {
-    const access = hash.get("access_token");
-    const refresh = hash.get("refresh_token");
+  const notice = url.searchParams.has("trip_notice");
+  if (notice || url.searchParams.has("trip_invite")) {
+    const access = notice ? null : hash.get("access_token");
+    const refresh = notice ? null : hash.get("refresh_token");
     const entry: Entry = {
-      trip: url.searchParams.get("trip_invite"),
+      trip: url.searchParams.get(notice ? "trip_notice" : "trip_invite"),
+      notice,
       access: access || "",
       refresh: refresh || "",
     };
@@ -32,6 +40,7 @@ function capture(): Entry | null {
       entry.error =
         "This invitation link is incomplete or expired. Ask the trip owner for a fresh invitation.";
     url.searchParams.delete("trip_invite");
+    url.searchParams.delete("trip_notice");
     url.hash = "";
     history.replaceState(history.state, "", url);
     sessionStorage.removeItem("trip-planner-demo-session");
@@ -85,10 +94,16 @@ export async function verifiedInviteClient() {
 export async function openInvite(): Promise<InviteClaim> {
   if (!inviteEntry || inviteEntry.error)
     throw new Error(inviteEntry?.error || "No invitation found.");
-  if (inviteEntry.claim) return inviteEntry.claim;
+  if (inviteEntry.notice) {
+    if (!inviteEntry.trip || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inviteEntry.trip))
+      throw new Error("This invitation link is incomplete. Ask the trip owner for a fresh invitation.");
+    return { trip: inviteEntry.trip, ticket: "", email: "", canSetup: false, notice: true };
+  }
   const client = await verifiedInviteClient();
   const { data, error } = await client.rpc("open_trip_invite", {
     p_trip: inviteEntry.trip,
+    // Revalidate setup status without invalidating this tab's existing ticket.
+    ...(inviteEntry.claim?.ticket ? { p_ticket: inviteEntry.claim.ticket } : {}),
   });
   if (error || !data?.ticket)
     throw new Error(

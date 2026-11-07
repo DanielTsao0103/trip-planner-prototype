@@ -37,7 +37,7 @@ export function AuthApp({
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [problem, setProblem] = useState("");
-  const [signup, setSignup] = useState(false);
+  const [signup, setSignup] = useState(inviteEntry?.authMode === "signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -50,6 +50,14 @@ export function AuthApp({
   const [joinedTrip, setJoinedTrip] = useState<string>();
   const [chosen, setChosen] = useState(Boolean(inviteEntry?.choosing));
   const [attempt, setAttempt] = useState(0);
+  const wrongInviteAccount = !!(claim?.accountId && session && claim.accountId !== session.user.id);
+  function setAuthMode(signingUp: boolean): void {
+    setSignup(signingUp);
+    if (inviteEntry) {
+      inviteEntry.authMode = signingUp ? "signup" : "login";
+      storeInvite();
+    }
+  }
   function chooseAccount(): void {
     if (inviteEntry) {
       inviteEntry.choosing = true;
@@ -65,6 +73,7 @@ export function AuthApp({
         if (active) {
           setClaim(value);
           setEmail(value.email);
+          setSignup(inviteEntry?.authMode ? inviteEntry.authMode === "signup" : value.canSetup);
         }
       })
       .catch((e) => {
@@ -75,11 +84,13 @@ export function AuthApp({
     };
   }, [attempt]);
   useEffect(() => {
-    if (!claim || !session || !chosen || joinedTrip) return;
+    if (!claim || !session || !chosen || joinedTrip || wrongInviteAccount) return;
     let active = true;
-    void getSupabase()
-      .rpc("accept_trip_invite", { p_trip: claim.trip, p_ticket: claim.ticket })
-      .then(({ error }) => {
+    const client = getSupabase();
+    const joining = claim.notice
+      ? client.rpc("open_trip_notice", { p_trip: claim.trip })
+      : client.rpc("accept_trip_invite", { p_trip: claim.trip, p_ticket: claim.ticket });
+    void joining.then(({ error }) => {
         if (!active) return;
         if (error)
           setJoiningError(
@@ -100,7 +111,7 @@ export function AuthApp({
     return () => {
       active = false;
     };
-  }, [claim, session?.user.id, chosen, attempt, joinedTrip]);
+  }, [claim, session?.user.id, chosen, joinedTrip, wrongInviteAccount]);
 
   useEffect(() => {
     let active = true;
@@ -165,9 +176,9 @@ export function AuthApp({
   }, []);
 
   useEffect(() => {
-    if (!session && !demo)
-      document.title = `${signup ? "Create account" : "Log in"} · Trip Planner`;
-  }, [session, signup, demo]);
+    if (!demo && (!session || inviteEntry))
+      document.title = `${session && claim ? "Trip invitation" : signup ? "Create account" : "Log in"} · Trip Planner`;
+  }, [session, signup, demo, claim]);
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -190,6 +201,14 @@ export function AuthApp({
       ) {
         // Supabase already reserved this email for the invite. Finish that passwordless
         // identity only after the traveler explicitly chooses it on the standard form.
+        const current = await openInvite();
+        setClaim(current);
+        if (!current.canSetup) {
+          setAuthMode(false);
+          setPassword("");
+          setNotice("This account is ready. Log in to open your trip.");
+          return;
+        }
         const proof = await verifiedInviteClient();
         const updated = await proof.auth.updateUser({
           password,
@@ -219,7 +238,7 @@ export function AuthApp({
           setNotice(
             "Check your email to confirm your account, then return here and log in.",
           );
-          setSignup(false);
+          setAuthMode(false);
         }
       } else {
         const { error } = await auth.signInWithPassword({
@@ -281,6 +300,26 @@ export function AuthApp({
     if (joinedTrip) location.reload();
   }
 
+  async function switchAccount(): Promise<void> {
+    setBusy(true);
+    setError("");
+    setChosen(false);
+    if (inviteEntry) {
+      inviteEntry.choosing = false;
+      storeInvite();
+    }
+    try {
+      await signOut();
+      setAuthMode(false);
+      if (claim) setEmail(claim.email);
+      setJoiningError("");
+    } catch (issue) {
+      setError(issue instanceof Error ? issue.message : "Could not switch accounts. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function enterDemo(): void {
     // A local demo is not a Supabase session and receives no database credentials.
     try {
@@ -332,6 +371,7 @@ export function AuthApp({
                 className="btn"
                 onClick={() => {
                   setJoiningError("");
+                  setClaim(null);
                   setAttempt((n) => n + 1);
                 }}
               >
@@ -340,19 +380,13 @@ export function AuthApp({
               {session && (
                 <button
                   className="btn outline"
-                  onClick={async () => {
-                    await signOut();
-                    setChosen(false);
-                    if (inviteEntry) {
-                      inviteEntry.choosing = false;
-                      storeInvite();
-                    }
-                    setJoiningError("");
-                  }}
+                  disabled={busy}
+                  onClick={() => void switchAccount()}
                 >
                   Use another account
                 </button>
               )}
+              {error && <p role="alert">{error}</p>}
               <button
                 className="auth-toggle"
                 onClick={() => {
@@ -365,7 +399,7 @@ export function AuthApp({
             </>
           ) : !ready ||
             (inviteEntry && !claim) ||
-            (claim && session && chosen) ? (
+            (claim && session && chosen && !wrongInviteAccount) ? (
             <p role="status">Connecting…</p>
           ) : problem ? (
             <>
@@ -378,23 +412,34 @@ export function AuthApp({
           ) : (
             <>
               <h2>
-                {signup ? "Create your account." : "Welcome to Trip Planner"}
+                {claim && session ? "Trip invitation" : signup ? "Create your account." : "Welcome to Trip Planner"}
               </h2>
               <p>
-                {claim
-                  ? "Sign in or create an account to join your trip and answer the travel questions."
+                {wrongInviteAccount
+                  ? `This invitation is for ${claim!.email}. Sign in with that account to open the trip.`
+                  : claim && session
+                    ? "Continue with your signed-in account to open this trip."
+                    : claim
+                      ? signup
+                        ? "Create your account to join this trip."
+                        : "Log in to open this trip."
                   : signup
                     ? "A little planning. More time together."
                     : "Log in with your email and password."}
               </p>
               {claim && session && (
                 <div>
-                  <button className="btn full" onClick={chooseAccount}>
-                    Continue as {session.user.email}
-                  </button>
+                  {!wrongInviteAccount && (
+                    <button className="btn full" disabled={busy} onClick={chooseAccount}>
+                      Continue as {session.user.email}
+                    </button>
+                  )}
+                  {wrongInviteAccount && <p>Currently signed in as {session.user.email}.</p>}
+                  {error && <p role="alert">{error}</p>}
                   <button
                     className="auth-toggle"
-                    onClick={() => void signOut()}
+                    disabled={busy}
+                    onClick={() => void switchAccount()}
                   >
                     Use another account
                   </button>
@@ -503,7 +548,7 @@ export function AuthApp({
                     type="button"
                     disabled={busy}
                     onClick={() => {
-                      setSignup(!signup);
+                      setAuthMode(!signup);
                       setPassword("");
                       setError("");
                       setNotice("");

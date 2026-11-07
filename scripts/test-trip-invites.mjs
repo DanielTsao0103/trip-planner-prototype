@@ -1,6 +1,7 @@
 /** Opt-in hosted integration check. Uses disposable accounts and generates an invite link without sending mail. */
 import assert from "node:assert/strict";
 import { verifyGroupPermissions, verifyGroupPermissionScreens } from "./test-group-permissions.mjs";
+import { verifyInvitationRouting } from "./test-invitation-routing.mjs";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
@@ -23,6 +24,7 @@ const check = (response) => {
 };
 const tripId = randomUUID();
 const accountIds = [];
+const tripIds = [tripId];
 const makeEmail = () => `trip-invite-qa-${randomUUID()}@example.com`;
 
 try {
@@ -134,9 +136,7 @@ try {
       await page.goto(base.href);
       await page.getByRole("button", { name: "Sign in with Google" }).waitFor();
       await page.reload();
-      await page
-        .getByRole("button", { name: "New here? Create an account" })
-        .click();
+      await page.getByRole("button", { name: "Create account", exact: true }).waitFor();
       await page.getByLabel("Your name").fill("Browser Traveler");
       await page.getByLabel("Email", { exact: true }).fill(selectedEmail);
       const browserPassword = randomUUID();
@@ -192,6 +192,8 @@ try {
     const ticket = check(
       await guest.rpc("open_trip_invite", { p_trip: tripId }),
     );
+    assert.equal(ticket.canSetup, true);
+    assert.equal(ticket.accountId ?? null, null);
     assert.equal(ticket.trip, tripId);
     assert.equal(ticket.email, recipient);
     assert.equal(check(await guest.rpc("load_trip_bundles")).length, 0);
@@ -328,8 +330,10 @@ try {
       "Add the published app URL to Supabase Auth redirect URLs.",
     );
   }
+  await verifyInvitationRouting({ admin, owner, client: () => client(env.VITE_SUPABASE_PUBLISHABLE_KEY),
+    tripIds, accountIds, ownerAccount: user, target, outsider: guest });
 } finally {
-  check(await admin.from("trip").delete().eq("tripID", tripId));
+  for (const id of tripIds) check(await admin.from("trip").delete().eq("tripID", id));
   for (const id of accountIds) {
     check(await admin.from("user").delete().eq("userID", id));
     check(await admin.auth.admin.deleteUser(id));

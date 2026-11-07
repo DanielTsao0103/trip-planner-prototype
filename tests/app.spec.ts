@@ -316,7 +316,8 @@ test('an email invitation survives Google login and selects its own trip survey'
   let joined = false;
   await page.route('**/rest/v1/trip_photo_credit?**', route => route.fulfill({json:[]}));
   await page.route('**/rpc/open_trip_invite', route => {
-    expect(route.request().postDataJSON()).toEqual({p_trip: target});
+    const payload = route.request().postDataJSON();
+    expect(payload).toEqual({p_trip: target, ...(payload.p_ticket ? {p_ticket: target} : {})});
     return route.fulfill({json:{trip:target, email:inbox, canSetup:true, ticket:target}});
   });
   await page.route('**/rpc/accept_trip_invite', route => {

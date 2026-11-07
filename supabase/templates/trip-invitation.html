@@ -1,3 +1,4 @@
+{{ $join := print .SiteURL "?trip_notice=" (slice $redirect (len $prefix)) }}{{ with $trip }}{{ if .setup }}{{ $join = $.ConfirmationURL }}{{ end }}{{ end }}
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>You're invited to join a trip</title></head>
 <body style="margin:0;background:#f4f1e9;color:#203d33;">
@@ -11,8 +12,8 @@
 <h1 style="margin:0;color:#234637;font:normal 36px/1.12 Georgia,serif;">Come along with me.</h1>
 <p style="margin:18px 0 22px;color:#344c41;font:16px/1.55 Arial,sans-serif;">{{with $trip}}<strong>{{.host}}</strong> invited you to join <strong>{{.title}}</strong>.{{else}}You have a trip waiting for you.{{end}} Pick a spot for dinner, share the places you’ve been dreaming of, and start counting down together.</p>
 {{with $trip}}{{with .place}}<p style="margin:0 0 24px;padding:11px 15px;border-left:3px solid #ae8b54;background:#f4f0e5;color:#354b3e;font:17px/1.4 Georgia,serif;overflow-wrap:anywhere;"><span style="font:bold 10px/16px Arial,sans-serif;letter-spacing:1.4px;color:#706045;">ON THE ITINERARY</span><br>{{.}}</p>{{end}}{{end}}
-<table role="presentation" cellspacing="0" cellpadding="0"><tr><td bgcolor="#244e40" style="border-radius:6px;"><a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 26px;border:1px solid #244e40;border-radius:6px;color:#ffffff;text-decoration:none;font:bold 16px/20px Arial,sans-serif;">Join the trip</a></td></tr></table>
-<p style="margin:12px 0 18px;color:#58665c;font:13px/1.5 Arial,sans-serif;">Open your invitation to set up your account and see the plans.</p>
+<table role="presentation" cellspacing="0" cellpadding="0"><tr><td bgcolor="#244e40" style="border-radius:6px;"><a href="{{ $join }}" style="display:inline-block;padding:14px 26px;border:1px solid #244e40;border-radius:6px;color:#ffffff;text-decoration:none;font:bold 16px/20px Arial,sans-serif;">Join the trip</a></td></tr></table>
+<p style="margin:12px 0 18px;color:#58665c;font:13px/1.5 Arial,sans-serif;">Open your invitation to log in or create an account and see the plans.</p>
 </td></tr>
 <tr><td style="border-top:1px solid #e5e1d5;padding:16px 26px;color:#667064;font:12px/1.5 Arial,sans-serif;">This invitation is for {{ .Email }}. If it was unexpected, you can ignore this email.</td></tr>
 </table></td></tr></table></body></html>

@@ -12,7 +12,7 @@ import { Check } from "lucide-react";
 import { demoStorageKey, loadDemoStore, type DemoAccount } from "./demo-store";
 import { type Store, type Preference, type Trip, type User, isActive, isOwner, member, canEdit, EVENT_PERMISSION_MESSAGE } from "./domain";
 import { TripSaveQueue, type PendingTrip } from "./trip-save-queue";
-import { getSupabase, sendTripSignupLink } from "./supabase";
+import { getSupabase, sendTripInvitationEmail } from "./supabase";
 import type { SignInMethod } from "./account";
 import { useCompanionPictures, useProfilePicture, type ProfilePicture } from "./use-profile-picture";
 import {
@@ -457,20 +457,20 @@ export function Provider({
       await queue.wait(tripId);
       const client = getSupabase();
       const failures: { email: string; error: string }[] = [];
-      const unknown: string[] = [];
+      const awaitingEmail: string[] = [];
       for (const email of emails) {
         const { data, error } = await client.rpc("share_trip_recipient", { p_trip: tripId, p_email: email });
         if (error) failures.push({ email, error: error.message });
-        else if (data === "needs_email") unknown.push(email);
+        else if (data === "needs_email") awaitingEmail.push(email);
       }
-      if (unknown.length) {
-        for (const email of unknown) {
+      if (awaitingEmail.length) {
+        for (const email of awaitingEmail) {
           try {
-            await sendTripSignupLink(email, tripId);
+            await sendTripInvitationEmail(email, tripId);
             const confirmation = await client.rpc("share_trip_recipient", { p_trip: tripId, p_email: email, p_delivered: true });
             if (confirmation.error) throw new Error("Link requested. Retry to confirm the invitation.");
           } catch (error) {
-            failures.push({ email, error: error instanceof Error ? error.message : "Could not send the setup link." });
+            failures.push({ email, error: error instanceof Error ? error.message : "Could not send the invitation email." });
           }
         }
       }

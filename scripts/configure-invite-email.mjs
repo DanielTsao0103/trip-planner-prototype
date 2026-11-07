@@ -10,13 +10,14 @@ const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application
 const invite = readFileSync(new URL("../supabase/templates/trip-invitation.html", import.meta.url), "utf8");
 // Only the invitation callback selects this design, even for a former invitee.
 const setup = '{{ $prefix := print .SiteURL "?trip_invite=" }}{{ $redirect := or .RedirectTo "" }}{{ $invited := and (gt (len $redirect) (len $prefix)) (eq (slice $redirect 0 (len $prefix)) $prefix) }}';
+const subjectSetup = '{{$p:=print .SiteURL "?trip_invite="}}{{$r:=or .RedirectTo ""}}{{if and (gt (len $r) (len $p)) (eq (slice $r 0 (len $p)) $p)}}';
 const context = '{{ $trip := false }}{{ with .Data.trip_mail }}{{ $trip = index . (slice $redirect (len $prefix)) }}{{ end }}';
 const changes = {};
 for (const [kind, subject, action] of [
   ["magic_link", "Your Trip Planner sign-in link", "Sign in to Trip Planner"],
   ["confirmation", "Confirm your Trip Planner email address", "Confirm your email address"],
 ]) {
-  changes[`mailer_subjects_${kind}`] = setup + "{{ if $invited }}You're invited to join a trip{{ else }}" + subject + "{{ end }}";
+  changes[`mailer_subjects_${kind}`] = subjectSetup + "You're invited to join a trip{{else}}" + subject + "{{end}}";
   changes[`mailer_templates_${kind}_content`] = setup + "{{ if $invited }}" + context + invite
     + '{{ else }}<h2>' + action + '</h2><p><a href="{{ .ConfirmationURL }}">' + action + '</a></p>{{ end }}';
 }

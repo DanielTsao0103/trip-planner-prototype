@@ -413,6 +413,16 @@ try {
       };
       const context = await browser.newContext();
       const page = await context.newPage();
+      // Exercise the real invite preparation/acknowledgement without mailing a generated QA address.
+      await page.route("**/auth/v1/otp**", async (route) => {
+        const request = route.request().postDataJSON();
+        assert.equal(request.email, other.email);
+        const redirectTo = new URL(route.request().url()).searchParams.get("redirect_to");
+        assert.ok(redirectTo && new URL(redirectTo).searchParams.has("trip_invite"));
+        check(await admin.auth.admin.generateLink({ type: "magiclink", email: other.email,
+          options: { redirectTo } }));
+        await route.fulfill({ json: {} });
+      });
       await login(page);
       const observer = await browser.newContext();
       const second = await observer.newPage();

@@ -91,3 +91,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Anchor custom dropdowns to the input itself, leaving only enough space for its focus outline. Destination suggestions should match the text field width and stop before the Add button.
 
 - Group permissions (November 6, 2026): invited accounts start as Viewers. Only the owner can grant Editor or Day Editor access. Check both dates for event moves, enforce grants on database writes, and show a simple permission prompt when an edit is denied.
+
+- Invitation email correction (November 6, 2026): send an invitation email to existing accounts too. The same initial account screen selects login for existing accounts and signup for new invitees; preserve the exact trip through authentication. Remember valid sessions, but never infer account access from a browser-visit cookie.

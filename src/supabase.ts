@@ -38,10 +38,10 @@ export function getSupabase(): SupabaseClient {
   return client;
 }
 
-// Isolate signup-link requests so they never change the trip owner’s session.
+// Isolate invitation email requests so they never change the trip owner’s session.
 let mailClient: SupabaseClient | undefined;
 
-export async function sendTripSignupLink(email: string, tripId: string): Promise<void> {
+export async function sendTripInvitationEmail(email: string, tripId: string): Promise<void> {
   const { url, key } = connectionSettings();
   mailClient ??= createClient(url, key, {
     auth: {
@@ -66,7 +66,7 @@ export async function sendTripSignupLink(email: string, tripId: string): Promise
     throw new Error(
       error.status === 429
         ? "Email sending is temporarily limited. Please retry later."
-        : "The email service could not send the setup link.",
+        : "The email service could not send the invitation email.",
     );
 }
 

@@ -12,6 +12,7 @@ const owner = {
 };
 async function backend(page: Page) {
   const rows: any[] = [];
+  const delivered: string[] = [];
   let fail = false;
   let held: Promise<void> | undefined;
   await page.route("https://*.supabase.co/**", async (route) => {
@@ -40,6 +41,10 @@ async function backend(page: Page) {
       return route.fulfill({ json: rows });
     if (path === "/rest/v1/trip_photo_credit" && req.method() === "GET")
       return route.fulfill({ json: [] });
+    if (path.endsWith("/otp")) {
+      delivered.push(req.postDataJSON().email);
+      return route.fulfill({ json: {} });
+    }
     if (path.endsWith("/resolve_trip_emails")) return route.fulfill({ json: { "guest@example.test": "Guest Traveler" } });
     if (path.endsWith("/share_trip_recipient")) {
       const { p_email, p_trip, p_delivered } = req.postDataJSON();
@@ -51,7 +56,7 @@ async function backend(page: Page) {
         row.content.members.push({ id, accountId: id, name: "Guest Traveler", email: p_email, role: "Viewer", days: [], status: "accepted" });
         row.revision++;
       }
-      return route.fulfill({ json: "shared" });
+      return route.fulfill({ json: "needs_email" });
     }
     if (path.endsWith("/read_invited_trip")) return route.fulfill({ json: rows.find(t => t.tripID === req.postDataJSON().p_trip) });
     if (path.endsWith("/save_trip_bundle")) {
@@ -103,6 +108,7 @@ async function backend(page: Page) {
   ).toBeVisible();
   return {
     rows,
+    delivered,
     holdSave: () => {
       let release!: () => void;
       held = new Promise<void>((resolve) => {
@@ -127,6 +133,7 @@ test("all detail screens persist changes and preserve financial history", async 
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   const { today } = await detailJourney(page, baseURL!, "guest@example.test");
+  expect(api.delivered).toEqual(["guest@example.test"]);
   const row = api.rows[0],
     c = row.content;
   expect(c.events[0]).toMatchObject({
@@ -485,10 +492,14 @@ test('location suggestions prioritize the selected trip stop and retain worldwid
 test("a mixed invite keeps only failed addresses and retries without creating another trip", async ({ page }) => {
   const api = await backend(page);
   let attempts = 0;
+  const mailed: string[] = [];
   await page.route("**/auth/v1/otp**", route => {
-    expect(route.request().postDataJSON().email).toBe("new@example.test");
+    const email = route.request().postDataJSON().email;
+    mailed.push(email);
     const callback = new URL(new URL(route.request().url()).searchParams.get("redirect_to")!);
     expect(callback.searchParams.get("trip_invite")).toBe(api.rows[0].tripID);
+    if (email === "guest@example.test") return route.fulfill({ json: {} });
+    expect(email).toBe("new@example.test");
     attempts++;
     return route.fulfill(attempts > 1 ? {json:{}} : {status:429,json:{message:"Rate limit reached"}});
   });
@@ -508,4 +519,5 @@ test("a mixed invite keeps only failed addresses and retries without creating an
   await expect(page.getByRole("button", {name:"Shared trip",exact:true})).toBeVisible();
   expect(api.rows).toHaveLength(1);
   expect(attempts).toBe(2);
+  expect(mailed).toEqual(["guest@example.test", "new@example.test", "new@example.test"]);
 });
