@@ -363,7 +363,29 @@ export function EventForm() {
   const [uploadedEventPhoto, setUploadedEventPhoto] = useState("");
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState("");
-  const findEventPhotos = async () => { setPhotoBusy(true); setPhotoError(""); try { setEventPhotos(await searchDestinationPhotos([name, place, t.destinations[0]].filter(Boolean).join(" "))); } catch (err) { setPhotoError(err instanceof Error ? err.message : "Could not find event photos."); } finally { setPhotoBusy(false); } };
+  const findEventPhotos = async () => {
+    setPhotoBusy(true);
+    setPhotoError("");
+    try {
+      const eventQuery = [name, place, t.destinations[0]].filter(Boolean).join(" ");
+      const eventMatches = await searchDestinationPhotos(eventQuery);
+      if (eventMatches.length) {
+        setEventPhotos(eventMatches);
+        return;
+      }
+
+      // Specific venue searches can be too narrow. Fall back to a general
+      // destination query so the event can still use a city or country photo.
+      const destination = t.destinations.join(" ");
+      const destinationMatches = await searchDestinationPhotos(destination);
+      setEventPhotos(destinationMatches);
+      if (!destinationMatches.length) setPhotoError(`No photos found for ${destination}. Try another destination or upload your own.`);
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : "Could not find event photos.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
   const extract = (fail = false) => {
     setScan("loading");
     setTimeout(() => {
