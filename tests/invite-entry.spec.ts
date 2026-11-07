@@ -1,6 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 
 const tripId = "77777777-7777-4777-8777-777777777777";
+const invitationId = "44444444-4444-4444-8444-444444444444";
+const receiptToken = "a".repeat(64);
 const ticket = "99999999-9999-4999-8999-999999999999";
 const recipient = { id: "11111111-1111-4111-8111-111111111111", email: "invited@example.test" };
 const alternate = { id: "22222222-2222-4222-8222-222222222222", email: "other@example.test" };
@@ -22,6 +24,11 @@ async function invitation(page: Page, registered: boolean) {
   let opens = 0;
   let canSetup = !registered;
   let passwordUpdates = 0;
+  let setupMarker = true;
+  let signupIdentity = recipient;
+  let expired = false;
+  let historicalSetup: "valid" | "expired" | null = null;
+  let sentEmails = 0;
   const accepts: string[] = [];
   const requests: string[] = [];
   let failNextAccept = false;
@@ -35,16 +42,17 @@ async function invitation(page: Page, registered: boolean) {
         role: "Viewer", status: "accepted", days: [] }] } });
   await page.route("https://*.supabase.co/**", async route => {
     const req = route.request(), url = new URL(req.url()), path = url.pathname;
-    if (path.endsWith("/open_trip_invite")) {
+    if (path.endsWith("/open_trip_token")) {
       opens++;
       requests.push("open");
-      expect(req.postDataJSON()).toEqual({ p_trip: tripId, ...(opens > 1 ? { p_ticket: ticket } : {}) });
-      expect(req.headers().authorization).toBe("Bearer " + token(recipient));
+      expect(req.postDataJSON()).toEqual({ p_trip: tripId, p_token: receiptToken, p_invitation: invitationId, ...(opens > 1 ? { p_ticket: ticket } : {}) });
+      expect(req.headers().authorization).not.toBe("Bearer " + token(recipient));
+      if (expired) return route.fulfill({ status: 403, json: { code: "42501", message: "Invitation expired." } });
       return route.fulfill({ json: { trip: tripId, email: recipient.email, ticket,
-        canSetup, accountId: registered ? recipient.id : null } });
+        canSetup, accountId: registered ? recipient.id : null, tokenInvite: true, invitationId, setupAccountId: recipient.id } });
     }
     if (path.endsWith("/accept_trip_invite") || path.endsWith("/open_trip_notice")) {
-      expect(req.postDataJSON()).toEqual(registered ? { p_trip: tripId } : { p_trip: tripId, p_ticket: ticket });
+      expect(req.postDataJSON()).toEqual(registered ? { p_trip: tripId, p_invitation: invitationId } : { p_trip: tripId, p_ticket: ticket });
       accepts.push(selected.id);
       requests.push(registered ? "notice" : "accept");
       if (failNextAccept) {
@@ -63,14 +71,27 @@ async function invitation(page: Page, registered: boolean) {
       callback.searchParams.set("code", "test-google-code");
       return route.fulfill({ status: 302, headers: { location: callback.href } });
     }
+    if (path.endsWith("/verify")) {
+      expect(req.postDataJSON()).toMatchObject({ token_hash: receiptToken, type: "email" });
+      return historicalSetup === "expired"
+        ? route.fulfill({ status: 403, json: { code: "otp_expired", msg: "Token expired" } })
+        : route.fulfill({ json: session(recipient) });
+    }
+    if (path.endsWith("/otp")) {
+      expect(req.postDataJSON().email).toBe(recipient.email);
+      sentEmails++;
+      return route.fulfill({ json: {} });
+    }
+    if (path.endsWith("/signup") && historicalSetup)
+      return route.fulfill({ status: 422, headers: { "x-supabase-api-version": "2024-01-01", "access-control-expose-headers": "x-supabase-api-version" }, json: { code: "user_already_exists", msg: "User already registered" } });
     if (path.endsWith("/token") || path.endsWith("/signup")) {
       const data = req.postDataJSON();
-      selected = data.email === alternate.email ? alternate : recipient;
+      selected = path.endsWith("/signup") ? signupIdentity : data.email === alternate.email ? alternate : recipient;
       return route.fulfill({ json: session(selected) });
     }
     if (path === "/auth/v1/user" && req.method() === "PUT") passwordUpdates++;
     if (path === "/auth/v1/user")
-      return route.fulfill({ json: user(req.headers().authorization === "Bearer " + token(recipient) ? recipient : selected) });
+      return route.fulfill({ json: { ...user(req.headers().authorization === "Bearer " + token(recipient) ? recipient : selected), app_metadata: { provider: "email", trip_planner_needs_setup: setupMarker } } });
     if (path.endsWith("/logout")) return route.fulfill({ status: 204 });
     if (path.endsWith("/settings")) return route.fulfill({ json: { external: { apple: false } } });
     if (path.endsWith("/load_trip_bundles")) return route.fulfill({ json: joined
@@ -81,8 +102,8 @@ async function invitation(page: Page, registered: boolean) {
     throw Error("Unexpected request: " + path);
   });
   const open = () => registered
-    ? page.goto("./?trip_notice=" + tripId)
-    : page.goto("./?trip_invite=" + tripId + "#type=magiclink&access_token=" + token(recipient) + "&refresh_token=test-proof");
+    ? page.goto("./?trip_notice=" + tripId + "&invitation=" + invitationId)
+    : page.goto("./?trip_invite=" + tripId + "&trip_token=" + receiptToken + "&invitation=" + invitationId);
   const login = async (identity: Identity) => {
     await page.getByLabel("Email", { exact: true }).fill(identity.email);
     await page.getByLabel("Password", { exact: true }).fill("test-password");
@@ -94,7 +115,9 @@ async function invitation(page: Page, registered: boolean) {
     expect(errors).toEqual([]);
   };
   return { open, login, survey, accepts, errors, opened: () => opens, completedElsewhere: () => { canSetup = false; },
-    passwordUpdates: () => passwordUpdates, requests, failAcceptanceOnce: () => { failNextAccept = true; } };
+    passwordUpdates: () => passwordUpdates, emails: () => sentEmails,
+    historicalSetup: (value: "valid" | "expired") => { historicalSetup = value; }, requests, expire: () => { expired = true; },
+    changeSignupIdentity: () => { signupIdentity = alternate; }, clearSetupMarker: () => { setupMarker = false; }, failAcceptanceOnce: () => { failNextAccept = true; } };
 }
 
 for (const registered of [false, true]) {
@@ -211,7 +234,7 @@ for (const registered of [false, true]) {
 
 test("a plain existing-account notice drops forged auth tokens and reveals no account details before login", async ({ page }) => {
   const api = await invitation(page, true);
-  await page.goto("./?trip_notice=" + tripId + "&email=" + recipient.email + "&signup=true" +
+  await page.goto("./?trip_notice=" + tripId + "&invitation=" + invitationId + "&email=" + recipient.email + "&signup=true" +
     "#type=magiclink&access_token=" + token(recipient) + "&refresh_token=forged-refresh");
   await expect(page.getByRole("button", { name: "Log in", exact: true })).toBeVisible();
   await expect(page.getByLabel("Email", { exact: true })).toHaveValue("");
@@ -223,4 +246,87 @@ test("a plain existing-account notice drops forged auth tokens and reveals no ac
   expect(pending.refresh || "").toBe("");
   await api.login(recipient);
   await api.survey();
+});
+
+
+test("a seven-day receipt never creates an account session just by opening or refreshing", async ({ page }) => {
+  const api = await invitation(page, false);
+  await page.goto("./?trip_invite=" + tripId + "&trip_token=" + receiptToken + "&invitation=" + invitationId +
+    "#type=magiclink&access_token=" + token(recipient) + "&refresh_token=forged-refresh");
+  await expect(page.getByRole("button", { name: "Create account", exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Create account", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Continue as/ })).toHaveCount(0);
+  expect(page.url()).not.toContain(receiptToken);
+  const entry = await page.evaluate(() => JSON.parse(sessionStorage.getItem("trip-planner-invite-entry-v1")!));
+  expect(entry.access).toBe("");
+  expect(entry.refresh).toBe("");
+  expect(entry.invitationId).toBe(invitationId);
+  expect(api.accepts).toEqual([]);
+});
+
+test("a reserved signup completes only the verified setup identity", async ({ page }) => {
+  const api = await invitation(page, false);
+  await api.open();
+  await page.getByLabel("Your name", { exact: true }).fill("Traveler");
+  await page.getByLabel("Password", { exact: true }).fill("new-password");
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await api.survey();
+  expect(api.passwordUpdates()).toBe(1);
+});
+
+for (const guard of ["identity", "protected marker"] as const) {
+  test(`a reserved signup cannot replace a password after its ${guard} changes`, async ({ page }) => {
+    const api = await invitation(page, false);
+    await api.open();
+    await page.getByLabel("Your name", { exact: true }).fill("Traveler");
+    await page.getByLabel("Password", { exact: true }).fill("new-password");
+    if (guard === "identity") api.changeSignupIdentity();
+    else api.clearSetupMarker();
+    await page.getByRole("button", { name: "Create account", exact: true }).click();
+    await expect(page.getByText("Your account details changed. Continue with your signed-in account or use another account.", { exact: true })).toBeVisible();
+    expect(api.passwordUpdates()).toBe(0);
+    expect(api.accepts).toEqual([]);
+  });
+}
+
+test("a cached seven-day receipt rechecks server expiry on refresh", async ({ page }) => {
+  const api = await invitation(page, false);
+  await api.open();
+  await expect(page.getByRole("button", { name: "Create account", exact: true })).toBeVisible();
+  api.expire();
+  await page.reload();
+  await expect(page.getByRole("alert")).toContainText("Couldn’t open this invitation");
+  expect(api.accepts).toEqual([]);
+  expect(api.passwordUpdates()).toBe(0);
+});
+
+
+test("an unfinished historical reservation completes only after its isolated proof verifies", async ({ page }) => {
+  const api = await invitation(page, false);
+  api.historicalSetup("valid");
+  await api.open();
+  await page.getByLabel("Your name", { exact: true }).fill("Traveler");
+  await page.getByLabel("Password", { exact: true }).fill("new-password");
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await api.survey();
+  expect(api.passwordUpdates()).toBe(1);
+  expect(api.emails()).toBe(0);
+});
+
+test("an expired historical setup proof sends fresh mail only after the explicit action", async ({ page }) => {
+  const api = await invitation(page, false);
+  api.historicalSetup("expired");
+  await api.open();
+  await page.getByLabel("Your name", { exact: true }).fill("Traveler");
+  await page.getByLabel("Password", { exact: true }).fill("new-password");
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Email me a fresh setup link", exact: true })).toBeVisible();
+  expect(api.passwordUpdates()).toBe(0);
+  expect(api.accepts).toEqual([]);
+  expect(api.emails()).toBe(0);
+  await page.getByRole("button", { name: "Email me a fresh setup link", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Check your email");
+  expect(api.emails()).toBe(1);
+  expect(api.passwordUpdates()).toBe(0);
 });

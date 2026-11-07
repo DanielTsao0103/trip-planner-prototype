@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { verifyGroupPermissions, verifyGroupPermissionScreens } from "./test-group-permissions.mjs";
 import { verifyInvitationRouting } from "./test-invitation-routing.mjs";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { setTimeout as delay } from "node:timers/promises";
 import { parseEnv } from "node:util";
 import { createClient } from "@supabase/supabase-js";
 
@@ -110,12 +111,24 @@ try {
   );
   accountIds.push(invitation.user.id);
   assert.equal(check(await share(true)), "sent");
-  const first = await fetch(invitation.properties.action_link, {
-    redirect: "manual",
-  });
-  const destination = new URL(first.headers.get("location"));
-  const tokens = new URLSearchParams(destination.hash.slice(1));
-  assert.ok(["magiclink", "signup"].includes(tokens.get("type")));
+  const mailContext = check(await admin.auth.admin.getUserById(invitation.user.id)).user.user_metadata.trip_mail[tripId];
+  assert.ok(mailContext.invitation, "The email must carry its own delivery ID");
+  if (process.env.INVITE_FIXTURE_PAUSE) {
+    // Let the database tester age only this disposable delivery, without changing Auth expiry.
+    const marker = process.env.INVITE_FIXTURE_PAUSE;
+    assert.ok(marker.startsWith("/tmp/") || marker.startsWith("/private/tmp/"));
+    rmSync(marker + ".ready", { force: true });
+    writeFileSync(marker, JSON.stringify({ trip: tripId, invitation: mailContext.invitation }), { mode: 0o600 });
+    console.log("Disposable delivery ready for expiry fixture adjustment.");
+    try {
+      const deadline = Date.now() + 300000;
+      while (!existsSync(marker + ".ready") && Date.now() < deadline) await delay(500);
+      assert.ok(existsSync(marker + ".ready"), "Timed out waiting for disposable fixture adjustment");
+    } finally {
+      rmSync(marker, { force: true });
+      rmSync(marker + ".ready", { force: true });
+    }
+  }
   if (process.env.INVITE_BROWSER_URL) {
     // Exercise the actual redirect payload against a local build or the published site.
     const { chromium } = await import("@playwright/test");
@@ -127,11 +140,15 @@ try {
       assert.ok(
         base.hostname === "127.0.0.1" || base.origin + base.pathname === target,
       );
-      assert.equal(destination.searchParams.get("trip_invite"), tripId);
-      base.search = destination.search;
-      base.hash = destination.hash;
+      base.search = new URLSearchParams({ trip_invite: tripId,
+        trip_token: invitation.properties.hashed_token, invitation: mailContext.invitation }).toString();
+      base.hash = "";
       const page = await browser.newPage({
         viewport: { width: useInvitedEmail ? 390 : 1280, height: 850 },
+      });
+      const authVerifications = [];
+      page.on("request", request => {
+        if (new URL(request.url()).pathname === "/auth/v1/verify") authVerifications.push(request.url());
       });
       await page.goto(base.href);
       await page.getByRole("button", { name: "Sign in with Google" }).waitFor();
@@ -153,6 +170,7 @@ try {
               (await page.getByRole("alert").allTextContents()),
           );
         });
+      assert.equal(authVerifications.length, 0, "A new reserved account completes without an expiring Auth OTP verification");
       const selected = check(
         await guest.auth.signInWithPassword({
           email: selectedEmail,
@@ -183,20 +201,17 @@ try {
       await browser.close();
     }
   } else {
-    check(
-      await guest.auth.setSession({
-        access_token: tokens.get("access_token"),
-        refresh_token: tokens.get("refresh_token"),
-      }),
-    );
-    const ticket = check(
-      await guest.rpc("open_trip_invite", { p_trip: tripId }),
-    );
+    const ticket = check(await guest.rpc("open_trip_token", {
+      p_trip: tripId, p_token: invitation.properties.hashed_token, p_invitation: mailContext.invitation,
+    }));
+    assert.equal(ticket.tokenInvite, true);
+    assert.equal(ticket.setupAccountId, invitation.user.id);
     assert.equal(ticket.canSetup, true);
     assert.equal(ticket.accountId ?? null, null);
     assert.equal(ticket.trip, tripId);
     assert.equal(ticket.email, recipient);
-    assert.equal(check(await guest.rpc("load_trip_bundles")).length, 0);
+    assert.equal(check(await guest.auth.getSession()).session, null, "Trip proof must not create a login session");
+    assert.ok((await guest.rpc("read_invited_trip", { p_trip: tripId })).error);
     const newEmail = makeEmail();
     const newPassword = randomUUID();
     const signed = check(
@@ -216,6 +231,9 @@ try {
     check(await accept(guest, ticket.ticket)); // safe after a lost acknowledgement
     assert.ok((await accept(owner, ticket.ticket)).error);
     const formerInbox = client(env.VITE_SUPABASE_PUBLISHABLE_KEY);
+    const verified = await fetch(invitation.properties.action_link, { redirect: "manual" });
+    const tokens = new URLSearchParams(new URL(verified.headers.get("location")).hash.slice(1));
+    assert.ok(tokens.get("access_token"));
     check(
       await formerInbox.auth.setSession({
         access_token: tokens.get("access_token"),
@@ -223,6 +241,7 @@ try {
       }),
     );
     assert.ok((await accept(formerInbox, ticket.ticket)).error);
+    assert.ok((await formerInbox.rpc("open_trip_invite", { p_trip: tripId })).error, "A session from a new token cannot bypass delivery binding through the legacy RPC");
     assert.ok(
       check(await guest.rpc("load_trip_bundles")).some(
         (t) => t.tripID === tripId,

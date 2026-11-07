@@ -1,7 +1,7 @@
 import { TEXT_LIMITS, textError, emailError } from "./limits.ts";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { getSupabase, hasEmailLink, appleSignInEnabled } from "./supabase";
+import { getSupabase, hasEmailLink, appleSignInEnabled, inviteProofClient, sendTripInvitationEmail } from "./supabase";
 import {
   inviteEntry,
   leaveInvite,
@@ -44,6 +44,7 @@ export function AuthApp({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [setupRefresh, setSetupRefresh] = useState(false);
 
   const [claim, setClaim] = useState<InviteClaim | null>(null);
   const [joiningError, setJoiningError] = useState("");
@@ -53,6 +54,7 @@ export function AuthApp({
   const wrongInviteAccount = !!(claim?.accountId && session && claim.accountId !== session.user.id);
   function setAuthMode(signingUp: boolean): void {
     setSignup(signingUp);
+    setSetupRefresh(false);
     if (inviteEntry) {
       inviteEntry.authMode = signingUp ? "signup" : "login";
       storeInvite();
@@ -88,7 +90,7 @@ export function AuthApp({
     let active = true;
     const client = getSupabase();
     const joining = claim.notice
-      ? client.rpc("open_trip_notice", { p_trip: claim.trip })
+      ? client.rpc("open_trip_notice", { p_trip: claim.trip, ...(claim.invitationId ? { p_invitation: claim.invitationId } : {}) })
       : client.rpc("accept_trip_invite", { p_trip: claim.trip, p_ticket: claim.ticket });
     void joining.then(({ error }) => {
         if (!active) return;
@@ -209,17 +211,66 @@ export function AuthApp({
           setNotice("This account is ready. Log in to open your trip.");
           return;
         }
-        const proof = await verifiedInviteClient();
-        const updated = await proof.auth.updateUser({
-          password,
-          data: { name: name.trim() },
-        });
-        if (updated.error) throw updated.error;
-        const signed = await auth.signInWithPassword({
-          email: claim.email,
-          password,
-        });
-        if (signed.error) throw signed.error;
+        if (current.tokenInvite) {
+          const signed = await auth.signUp({
+            email: current.email,
+            password,
+            options: { data: { name: name.trim() } },
+          });
+          let completionAuth = auth;
+          let completingId = signed.data.user?.id;
+          if (signed.error) {
+            if (signed.error.code !== "user_already_exists" || !current.setupAccountId || !inviteEntry?.token)
+              throw signed.error;
+            // A historical invitation may already have verified this otherwise
+            // unfinished identity. Keep that account proof out of the main session.
+            const proof = inviteProofClient();
+            const verified = await proof.auth.verifyOtp({ token_hash: inviteEntry.token, type: "email" });
+            if (verified.error || !verified.data.session) {
+              setSetupRefresh(true);
+              setPassword("");
+              setNotice("This account was started earlier. Email yourself a fresh setup link to finish.");
+              return;
+            }
+            completionAuth = proof.auth;
+            completingId = verified.data.user?.id;
+          } else if (!signed.data.session) {
+            setAuthMode(false);
+            setNotice("Check your email to confirm your account, then return here and log in.");
+            setPassword("");
+            return;
+          }
+          if (current.setupAccountId) {
+            // Supabase signup returns a session for a reserved passwordless identity,
+            // but does not save its submitted password/name. Check the server-owned
+            // setup marker before completing that exact account with its new session.
+            const fresh = await completionAuth.getUser();
+            if (fresh.error) throw fresh.error;
+            if (completingId !== current.setupAccountId ||
+                fresh.data.user.id !== current.setupAccountId ||
+                fresh.data.user.app_metadata.trip_planner_needs_setup !== true) {
+              setAuthMode(false);
+              setPassword("");
+              setNotice(completionAuth === auth
+                ? "Your account details changed. Continue with your signed-in account or use another account."
+                : "This account is ready. Log in to open your trip.");
+              return;
+            }
+            const updated = await completionAuth.updateUser({ password, data: { name: name.trim() } });
+            if (updated.error) throw updated.error;
+            if (completionAuth !== auth) {
+              const loggedIn = await auth.signInWithPassword({ email: current.email, password });
+              if (loggedIn.error) throw loggedIn.error;
+            }
+          }
+        } else {
+          // Previously delivered OTP links retain their existing verification path.
+          const proof = await verifiedInviteClient();
+          const updated = await proof.auth.updateUser({ password, data: { name: name.trim() } });
+          if (updated.error) throw updated.error;
+          const signed = await auth.signInWithPassword({ email: current.email, password });
+          if (signed.error) throw signed.error;
+        }
         chooseAccount();
         setPassword("");
       } else if (signup) {
@@ -298,6 +349,27 @@ export function AuthApp({
     setSignup(false);
     location.hash = "/1";
     if (joinedTrip) location.reload();
+  }
+
+  async function emailFreshSetup(): Promise<void> {
+    setBusy(true);
+    setError("");
+    try {
+      const current = await openInvite();
+      setClaim(current);
+      if (!current.tokenInvite || !current.canSetup || !current.setupAccountId) {
+        setAuthMode(false);
+        setNotice("This account is ready. Log in to open your trip.");
+        return;
+      }
+      await sendTripInvitationEmail(current.email, current.trip, current.invitationId);
+      setSetupRefresh(false);
+      setNotice("Check your email to finish setting up your account.");
+    } catch (issue) {
+      setError(issue instanceof Error ? issue.message : "Could not send the setup email. Please retry.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function switchAccount(): Promise<void> {
@@ -427,6 +499,11 @@ export function AuthApp({
                     ? "A little planning. More time together."
                     : "Log in with your email and password."}
               </p>
+              {notice && (
+                <p className="auth-notice" role="status">
+                  {notice}
+                </p>
+              )}
               {claim && session && (
                 <div>
                   {!wrongInviteAccount && (
@@ -482,11 +559,7 @@ export function AuthApp({
                       />
                     </button>
                   </div>
-                  {notice && (
-                    <p className="auth-notice" role="status">
-                      {notice}
-                    </p>
-                  )}
+
                   <div className="divider">
                     <span>or with email</span>
                   </div>
@@ -543,6 +616,9 @@ export function AuthApp({
                           : "Log in"}
                     </button>
                   </form>
+                  {setupRefresh && <button className="btn outline full" type="button" disabled={busy} onClick={() => void emailFreshSetup()}>
+                    Email me a fresh setup link
+                  </button>}
                   <button
                     className="auth-toggle"
                     type="button"

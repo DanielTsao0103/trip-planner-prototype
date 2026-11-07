@@ -41,7 +41,7 @@ export function getSupabase(): SupabaseClient {
 // Isolate invitation email requests so they never change the trip owner’s session.
 let mailClient: SupabaseClient | undefined;
 
-export async function sendTripInvitationEmail(email: string, tripId: string): Promise<void> {
+export async function sendTripInvitationEmail(email: string, tripId: string, invitationId?: string | null): Promise<void> {
   const { url, key } = connectionSettings();
   mailClient ??= createClient(url, key, {
     auth: {
@@ -59,7 +59,8 @@ export async function sendTripInvitationEmail(email: string, tripId: string): Pr
     options: {
       shouldCreateUser: true,
       emailRedirectTo: callback.href,
-      data: { trip_account_setup: true },
+      data: { trip_account_setup: true, trip_invite_id: tripId,
+        ...(invitationId ? { trip_invitation_id: invitationId } : {}) },
     },
   });
   if (error)

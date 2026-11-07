@@ -26,16 +26,15 @@ export async function verifyInvitationRouting({ admin, owner, client, tripIds, a
     const generated = check(await admin.auth.admin.generateLink({ type: "magiclink", email,
       options: { redirectTo: target + "?trip_invite=" + id, ...(setup ? { data: { trip_account_setup: true } } : {}) } }));
     if (!accountIds.includes(generated.user.id)) accountIds.push(generated.user.id);
-    const response = await fetch(generated.properties.action_link, { redirect: "manual" });
-    const callback = new URL(response.headers.get("location"));
-    const hash = new URLSearchParams(callback.hash.slice(1));
-    assert.equal(callback.searchParams.get("trip_invite"), id);
-    assert.ok(hash.get("access_token"), "Generated proof should verify without sending mail");
-    const proof = client();
-    check(await proof.auth.setSession({ access_token: hash.get("access_token"), refresh_token: hash.get("refresh_token") }));
-    return { proof, accountId: generated.user.id };
+    const metadata = check(await admin.auth.admin.getUserById(generated.user.id)).user.user_metadata.trip_mail[id];
+    assert.ok(metadata.invitation, "Email context must identify this delivery");
+    assert.equal(metadata.setup, true);
+    return { proof: client(), token: generated.properties.hashed_token,
+      invitation: metadata.invitation, accountId: generated.user.id };
   };
-  const open = (proof, id, ticket) => proof.rpc("open_trip_invite", { p_trip: id, ...(ticket ? { p_ticket: ticket } : {}) });
+  const open = (receipt, id, ticket) => receipt.proof.rpc("open_trip_token", {
+    p_trip: id, p_token: receipt.token, p_invitation: receipt.invitation, ...(ticket ? { p_ticket: ticket } : {}),
+  });
 
   for (const named of [true, false]) {
     const email = `invite-routing-${randomUUID()}@example.com`, password = randomUUID();
@@ -50,18 +49,22 @@ export async function verifyInvitationRouting({ admin, owner, client, tripIds, a
     assert.equal(visible.content.members.find(m => m.accountId === created.user.id).status, "accepted");
     assert.ok((await client().rpc("open_trip_notice", { p_trip: id })).error,
       "A signed-out caller cannot inspect a notification destination");
-    assert.ok((await open(registered, id)).error, "A password session cannot inspect an OTP claim");
+    assert.ok((await registered.rpc("open_trip_invite", { p_trip: id })).error, "A password session cannot inspect an OTP claim");
     const account = check(await admin.auth.admin.getUserById(created.user.id)).user;
     assert.equal(account.user_metadata.trip_mail[id].setup, false);
-    assert.equal(account.user_metadata.trip_mail[id].login_url, target + "?trip_notice=" + id,
-      "Existing-account email contains an ordinary login URL");
+    const delivery = account.user_metadata.trip_mail[id].invitation;
+    assert.ok(delivery);
+    assert.equal(account.user_metadata.trip_mail[id].login_url, target + "?trip_notice=" + id + "&invitation=" + delivery,
+      "Existing-account email contains a delivery-specific ordinary login URL");
     assert.equal(check(await share(id, email, true)), "sent");
     assert.equal(check(await share(id, email)), "sent", "An immediate duplicate does not resend mail");
-    assert.ok((await outsider.rpc("open_trip_notice", { p_trip: id })).error,
+    assert.ok((await outsider.rpc("open_trip_notice", { p_trip: id, p_invitation: delivery })).error,
       "A different signed-in account cannot open the notice destination");
-    assert.ok((await registered.rpc("open_trip_notice", { p_trip: randomUUID() })).error,
+    assert.ok((await registered.rpc("open_trip_notice", { p_trip: randomUUID(), p_invitation: delivery })).error,
       "A forged trip ID grants no membership");
-    assert.deepEqual(check(await registered.rpc("open_trip_notice", { p_trip: id })), { trip: id });
+    assert.ok((await registered.rpc("open_trip_notice", { p_trip: id })).error, "Bare old notices require a fresh email");
+    assert.ok((await registered.rpc("open_trip_notice", { p_trip: id, p_invitation: randomUUID() })).error, "A forged delivery cannot open even an accepted member’s email link");
+    assert.deepEqual(check(await registered.rpc("open_trip_notice", { p_trip: id, p_invitation: delivery })), { trip: id });
     assert.equal(check(await registered.rpc("read_invited_trip", { p_trip: id })).tripID, id);
   }
 
@@ -74,7 +77,9 @@ export async function verifyInvitationRouting({ admin, owner, client, tripIds, a
   accountIds.push(unprovenUser.user.id);
   const unproven = client();
   check(await unproven.auth.signInWithPassword({ email: unprovenEmail, password: unprovenPassword }));
-  assert.equal((await unproven.rpc("open_trip_notice", { p_trip: unprovenTrip })).error?.code, "42501",
+  const unprovenDelivery = check(await admin.auth.admin.getUserById(unprovenUser.user.id)).user.user_metadata.trip_mail[unprovenTrip].invitation;
+  assert.ok(unprovenDelivery);
+  assert.equal((await unproven.rpc("open_trip_notice", { p_trip: unprovenTrip, p_invitation: unprovenDelivery })).error?.code, "42501",
     "Merely signing up for an invited email cannot capture its pending membership");
   assert.ok((await unproven.rpc("read_invited_trip", { p_trip: unprovenTrip })).error);
 
@@ -83,17 +88,28 @@ export async function verifyInvitationRouting({ admin, owner, client, tripIds, a
   assert.equal(check(await share(first, email)), "needs_email");
   const reserved = await makeProof(first, email, true);
   check(await share(first, email, true));
-  const firstClaim = check(await open(reserved.proof, first));
+  const firstClaim = check(await open(reserved, first));
+  assert.equal(firstClaim.tokenInvite, true);
+  assert.equal(firstClaim.setupAccountId, reserved.accountId);
+  assert.ok((await reserved.proof.rpc("open_trip_token", { p_trip: first, p_token: "forged", p_invitation: reserved.invitation })).error);
+  assert.ok((await reserved.proof.rpc("open_trip_token", { p_trip: first, p_token: reserved.token, p_invitation: randomUUID() })).error);
+  assert.ok((await reserved.proof.rpc("open_trip_token", { p_trip: second, p_token: reserved.token, p_invitation: reserved.invitation })).error);
   assert.equal(firstClaim.canSetup, true);
   assert.equal(firstClaim.accountId ?? null, null);
   assert.equal(check(await share(second, email)), "needs_email");
   const secondProof = await makeProof(second, email, true);
   check(await share(second, email, true));
-  assert.equal(check(await open(secondProof.proof, second)).canSetup, true,
+  assert.equal(check(await open(secondProof, second)).canSetup, true,
     "An OTP-reserved identity still needs signup when invited to a second trip");
-  check(await reserved.proof.auth.updateUser({ password: randomUUID(), data: { name: "Completed QA Traveler" } }));
-  const staleClaim = check(await open(reserved.proof, first, firstClaim.ticket));
+  const setup = client(), setupPassword = randomUUID();
+  const signed = check(await setup.auth.signUp({ email, password: setupPassword, options: { data: { name: "Completed QA Traveler" } } }));
+  assert.equal(signed.user.id, reserved.accountId);
+  const current = check(await setup.auth.getUser()).user;
+  assert.equal(current.id, reserved.accountId);
+  assert.equal(current.app_metadata.trip_planner_needs_setup, true);
+  check(await setup.auth.updateUser({ password: setupPassword, data: { name: "Completed QA Traveler" } }));
+  const staleClaim = check(await open(reserved, first, firstClaim.ticket));
   assert.equal(staleClaim.canSetup, false, "An old setup link cannot offer password setup after signup finished");
   assert.equal(staleClaim.ticket, firstClaim.ticket);
-  console.log("Verified existing-account email requests, ordinary authenticated notice URLs, setup defaults, ticket refresh, and forgery rejection.");
+  console.log("Verified existing-account email requests, delivery-specific authenticated notices, scoped email receipts, guarded setup, ticket refresh, and forgery rejection.");
 }

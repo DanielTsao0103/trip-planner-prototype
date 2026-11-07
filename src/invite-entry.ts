@@ -8,6 +8,10 @@ export type InviteClaim = {
   canSetup: boolean;
   /** A plain notification URL carries a trip identifier, never login credentials. */
   notice?: boolean;
+  /** A trip-only email receipt never authenticates a Supabase account. */
+  tokenInvite?: boolean;
+  invitationId?: string | null;
+  setupAccountId?: string | null;
   /** An existing membership belongs to this account even when the email is forwarded. */
   accountId?: string | null;
 };
@@ -15,6 +19,8 @@ type Entry = {
   trip: string | null;
   access: string;
   refresh: string;
+  token?: string;
+  invitationId?: string | null;
   claim?: InviteClaim;
   choosing?: boolean;
   authMode?: "signup" | "login";
@@ -28,11 +34,14 @@ function capture(): Entry | null {
   const hash = new URLSearchParams(url.hash.slice(1));
   const notice = url.searchParams.has("trip_notice");
   if (notice || url.searchParams.has("trip_invite")) {
-    const access = notice ? null : hash.get("access_token");
-    const refresh = notice ? null : hash.get("refresh_token");
+    const token = notice ? null : url.searchParams.get("trip_token");
+    const access = notice || token ? null : hash.get("access_token");
+    const refresh = notice || token ? null : hash.get("refresh_token");
     const entry: Entry = {
       trip: url.searchParams.get(notice ? "trip_notice" : "trip_invite"),
       notice,
+      invitationId: url.searchParams.get("invitation"),
+      ...(token ? { token } : {}),
       access: access || "",
       refresh: refresh || "",
     };
@@ -41,6 +50,8 @@ function capture(): Entry | null {
         "This invitation link is incomplete or expired. Ask the trip owner for a fresh invitation.";
     url.searchParams.delete("trip_invite");
     url.searchParams.delete("trip_notice");
+    url.searchParams.delete("trip_token");
+    url.searchParams.delete("invitation");
     url.hash = "";
     history.replaceState(history.state, "", url);
     sessionStorage.removeItem("trip-planner-demo-session");
@@ -97,10 +108,12 @@ export async function openInvite(): Promise<InviteClaim> {
   if (inviteEntry.notice) {
     if (!inviteEntry.trip || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inviteEntry.trip))
       throw new Error("This invitation link is incomplete. Ask the trip owner for a fresh invitation.");
-    return { trip: inviteEntry.trip, ticket: "", email: "", canSetup: false, notice: true };
+    return { trip: inviteEntry.trip, ticket: "", email: "", canSetup: false, notice: true, invitationId: inviteEntry.invitationId };
   }
-  const client = await verifiedInviteClient();
-  const { data, error } = await client.rpc("open_trip_invite", {
+  // This isolated client has no account session; the token proves only this invitation.
+  const client = inviteEntry.token ? inviteProofClient() : await verifiedInviteClient();
+  const { data, error } = await client.rpc(inviteEntry.token ? "open_trip_token" : "open_trip_invite", {
+    ...(inviteEntry.token ? { p_token: inviteEntry.token, p_invitation: inviteEntry.invitationId } : {}),
     p_trip: inviteEntry.trip,
     // Revalidate setup status without invalidating this tab's existing ticket.
     ...(inviteEntry.claim?.ticket ? { p_ticket: inviteEntry.claim.ticket } : {}),

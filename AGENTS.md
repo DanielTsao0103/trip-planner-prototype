@@ -93,3 +93,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Group permissions (November 6, 2026): invited accounts start as Viewers. Only the owner can grant Editor or Day Editor access. Check both dates for event moves, enforce grants on database writes, and show a simple permission prompt when an edit is denied.
 
 - Invitation email correction (November 6, 2026): send an invitation email to existing accounts too. The same initial account screen selects login for existing accounts and signup for new invitees; preserve the exact trip through authentication. Remember valid sessions, but never infer account access from a browser-visit cookie.
+
+- Invitation expiry (November 6, 2026): all newly sent trip invitations last seven days. Enforce expiry on the server without expiring accepted trip memberships or extending unrelated password-reset links.
