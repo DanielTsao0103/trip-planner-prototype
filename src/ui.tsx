@@ -527,22 +527,25 @@ export function Shell({ children }: { children: ReactNode }) {
             <button className="prototype-button" onClick={() => open("demo")}>
               Prototype <span className="status-dot" />
             </button>
-            {trip && (
-              <div className="avatar-stack">
-                {trip.members
-                  .filter((m) => m.status === "accepted")
-                  .slice(0, 4)
-                  .map((m, i) => (
+            {trip && (() => {
+              // The signed-in person is the picture button on the right, so only show the others here.
+              const others = trip.members.filter(
+                (m) => m.status === "accepted" && m.id !== s.userId && m.accountId !== s.userId,
+              );
+              return others.length > 0 ? (
+                <div className="avatar-stack">
+                  {others.slice(0, 4).map((m, i) => (
                     <Avatar key={m.id} name={m.name} index={i} id={m.accountId || m.id} />
                   ))}
-              </div>
-            )}
+                </div>
+              ) : null;
+            })()}
             <button
-              className="icon-btn"
+              className="account-button"
               aria-label="Account and preferences"
               onClick={() => open("account")}
             >
-              <Users size={18} />
+              <Avatar name={user?.name || "Guest"} id={user?.id} />
             </button>
           </div>
         </header>

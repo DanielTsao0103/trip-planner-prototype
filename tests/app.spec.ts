@@ -413,3 +413,15 @@ test('profile picture: Google accounts show their Google photo until they upload
   await expect(dialog.getByText('Showing your Google photo until you upload one.')).toBeVisible();
   await expect(dialog.locator('img').first()).toHaveAttribute('src', 'https://lh3.googleusercontent.com/test/pic=s96-c');
 });
+
+test('the profile picture is the only account button in the top bar, on every screen size', async ({ page }) => {
+  await login(page);
+  const button = page.getByRole('button', { name: 'Account and preferences', exact: true });
+  await expect(button).toHaveCount(1);
+  await expect(button).toBeVisible();
+  await expect(button.locator('.avatar')).toBeVisible();
+  // The old people-icon button is gone.
+  await expect(page.locator('.topbar-right .icon-btn')).toHaveCount(0);
+  await button.click();
+  await expect(page.getByRole('dialog', { name: 'Your corner of the trip' })).toBeVisible();
+});
