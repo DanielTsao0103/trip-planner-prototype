@@ -7,6 +7,7 @@ import { ReleaseNotice } from "./release-notice";
 import { StyleSync } from "./style-sync-mount";
 import { startSiteStyle } from "./theme";
 import { googlePictureOf } from "./profile-picture";
+import { signInMethodOf } from "./account";
 
 startSiteStyle();
 
@@ -17,7 +18,7 @@ createRoot(document.getElementById("root")!).render(
       <PrototypeApp />
     </Provider>
   )}>{(session, signOut) => (
-    <Provider key={session.user.id} cloud googlePicture={googlePictureOf(session.user)} account={{
+    <Provider key={session.user.id} cloud googlePicture={googlePictureOf(session.user)} signInMethod={signInMethodOf(session.user)} account={{
       id: session.user.id,
       email: session.user.email || "",
       name: session.user.user_metadata.name || "Traveler",

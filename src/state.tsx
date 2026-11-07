@@ -13,6 +13,7 @@ import { demoStorageKey, loadDemoStore, type DemoAccount } from "./demo-store";
 import { type Store, type Preference, type Trip, type User, isActive, isOwner, member, canEdit, EVENT_PERMISSION_MESSAGE } from "./domain";
 import { TripSaveQueue, type PendingTrip } from "./trip-save-queue";
 import { getSupabase, sendTripSignupLink } from "./supabase";
+import type { SignInMethod } from "./account";
 import { useCompanionPictures, useProfilePicture, type ProfilePicture } from "./use-profile-picture";
 import {
   loadAccountTrips,
@@ -34,6 +35,8 @@ type Context = {
   signOut: () => Promise<void>;
   /** The signed-in account's own picture (uploaded, else Google, else initials). */
   picture: ProfilePicture;
+  /** Which account this is and how it signs in ("demo" for the standalone Maya demo). */
+  accountInfo: { cloud: boolean; email: string; method: SignInMethod | "demo" };
   /** Picture URL for an account id: the signed-in account's own, or a trip companion's. */
   avatarFor: (id?: string) => string | undefined;
   mutate: (fn: (s: Store) => void) => void;
@@ -64,11 +67,13 @@ export function Provider({
   initialTripId,
   cloud = false,
   googlePicture,
+  signInMethod,
 }: {
   children: ReactNode;
   account: DemoAccount;
   cloud?: boolean;
   googlePicture?: string;
+  signInMethod?: SignInMethod;
   initialTripId?: string;
   onSignOut: () => Promise<void>;
 }) {
@@ -91,6 +96,9 @@ export function Provider({
     return saved;
   });
   const stateRef = useRef(s);
+  // Long-lived callbacks (the save queue, background sync) must see the latest name, not the first.
+  const accountRef = useRef(account);
+  accountRef.current = account;
   const legacyTrips = useRef(s.trips);
   const recoveryKey = `trip-planner-pending-v1:${account.id}`;
   const [, setSaveTick] = useState(0);
@@ -110,14 +118,14 @@ export function Provider({
     queueRef.current = new TripSaveQueue(
       async (draft) => {
         try {
-          return await saveAccountTrip(getSupabase(), account, draft);
+          return await saveAccountTrip(getSupabase(), accountRef.current, draft);
         } catch (error) {
           // An owner can revoke access while an editor is typing. Replace that
           // optimistic copy with the authorized state; never retry a denied edit.
           if ((error as { refreshPermissions?: boolean })?.refreshPermissions) {
             const { data, error: readError } = await getSupabase().rpc("read_invited_trip", { p_trip: draft.id });
             if (!readError || readError.code === "42501") {
-              const remote = data ? tripFromRow(data, account) : undefined;
+              const remote = data ? tripFromRow(data, accountRef.current) : undefined;
               const role = member(draft, account.id), currentRole = remote && member(remote, account.id);
               const grantChanged = role?.role !== currentRole?.role || JSON.stringify(role?.days) !== JSON.stringify(currentRole?.days);
               // Role updates bump the revision. A conflict caused by promotion or
@@ -172,6 +180,22 @@ export function Provider({
   const queue = queueRef.current;
   const picture = useProfilePicture(cloud, account.id, googlePicture);
   const companionPictures = useCompanionPictures(cloud);
+  // When the account is renamed, update every local copy of the name so an older one is never
+  // saved back to a trip.
+  useEffect(() => {
+    if (!cloud) return;
+    const current = stateRef.current;
+    const renamed = (m: { id: string; accountId?: string | null; name: string }) =>
+      (m.id === account.id || m.accountId === account.id) && m.name !== account.name;
+    const stale =
+      current.users.some((u) => u.id === account.id && u.name !== account.name) ||
+      current.trips.some((t) => t.members.some(renamed));
+    if (!stale) return;
+    const next = structuredClone(current);
+    for (const u of next.users) if (u.id === account.id) u.name = account.name;
+    for (const t of next.trips) for (const m of t.members) if (renamed(m)) m.name = account.name;
+    commit(next);
+  }, [cloud, account.id, account.name]);
   const pending = [...queue.pending.values()];
   const saveError = pending.find((entry) => entry.error)?.error;
   const [loadState, setLoadState] = useState(cloud ? "loading" : "ready");
@@ -550,6 +574,7 @@ export function Provider({
       }
     },
     picture,
+    accountInfo: { cloud, email: account.email, method: cloud ? (signInMethod ?? "other") : "demo" },
     avatarFor: (id) =>
       !cloud || !id ? undefined : id === account.id ? picture.url : companionPictures.get(id),
     mutate,

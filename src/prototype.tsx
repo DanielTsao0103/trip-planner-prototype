@@ -19,6 +19,7 @@ import { Group, Survey } from "./group";
 import { MapPage } from "./travelmap";
 import { Overlays } from "./overlays";
 import { StylePage } from "./style-page";
+import { AccountPage } from "./account-page";
 import { Shell, Empty, Button } from "./ui";
 import { PAGES } from "./data";
 import { member, type Trip } from "./domain";
@@ -93,6 +94,7 @@ export function PrototypeApp() {
       16: <Dashboard />,
       17: <MapPage />,
       18: <StylePage />,
+      19: <AccountPage />,
     };
     content = (
       <Shell>

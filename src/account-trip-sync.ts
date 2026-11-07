@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { loadAccountTrips, tripFromRow } from "./account-trips";
 import type { DemoAccount } from "./demo-store";
 import type { Store } from "./domain";
@@ -14,6 +14,9 @@ export function useAccountTripSync(
   commit: (next: Store) => void,
 ) {
   const [offline, setOffline] = useState(false);
+  // The effect below lives for the whole session, so read the account through a ref to see renames.
+  const accountRef = useRef(account);
+  accountRef.current = account;
   useEffect(() => {
     setOffline(false);
     if (!enabled) return;
@@ -46,7 +49,7 @@ export function useAccountTripSync(
           const row = remote.get(t.id);
           if (row && row.revision <= (t.revision ?? 0)) return [t];
           changed = true;
-          return row ? [tripFromRow(row, account)] : [];
+          return row ? [tripFromRow(row, accountRef.current)] : [];
         });
         for (const row of rows) {
           // Don't resurrect a trip deleted locally while the read was in flight.
@@ -56,7 +59,7 @@ export function useAccountTripSync(
             pendingAtStart.has(row.tripID)
           )
             continue;
-          trips.push(tripFromRow(row, account));
+          trips.push(tripFromRow(row, accountRef.current));
           changed = true;
         }
         if (changed)

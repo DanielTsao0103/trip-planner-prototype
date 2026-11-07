@@ -94,3 +94,10 @@ export async function appleSignInEnabled(): Promise<boolean> {
   if (!response.ok) throw new Error("Could not check Apple sign-in. Try again or use email.");
   return (await response.json()).external?.apple === true;
 }
+
+/** A throwaway client that checks a password without touching the real signed-in session. */
+export function passwordCheckClient(): SupabaseClient {
+  const { url, key } = connectionSettings();
+  return createClient(url, key, { auth: { storageKey: "trip-password-check",
+    persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+}

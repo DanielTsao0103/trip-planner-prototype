@@ -388,7 +388,9 @@ function Breadcrumbs() {
   const tripPage = [7, 8, 9, 10, 11, 12, 13, 15, 16, 17].includes(page);
   const editingTrip = page === 6 && route.params.get("edit") === "true" && trip;
 
-  if (page === 2 || page === 3) {
+  if (page === 19) {
+    add("Account", 19);
+  } else if (page === 2 || page === 3) {
     add("Connected accounts", 2);
     if (page === 3) add(route.params.get("service") || "Connect provider", 3);
   } else if (page === 5 || page === 6 || tripPage) {
@@ -499,7 +501,7 @@ export function Shell({ children }: { children: ReactNode }) {
             ))}
         </nav>
         <div className="sidebar-bottom">
-          <button className="profile" onClick={() => open("account")}>
+          <button className="profile" onClick={() => go(19)}>
             <Avatar name={user?.name || "Guest"} id={user?.id} />
             <span>
               <strong>{user?.name || "Guest"}</strong>
@@ -543,7 +545,8 @@ export function Shell({ children }: { children: ReactNode }) {
             <button
               className="account-button"
               aria-label="Account and preferences"
-              onClick={() => open("account")}
+              aria-current={route.page === 19 ? "page" : undefined}
+              onClick={() => go(19)}
             >
               <Avatar name={user?.name || "Guest"} id={user?.id} />
             </button>

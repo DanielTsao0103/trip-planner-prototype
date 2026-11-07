@@ -55,12 +55,8 @@ async function controls(page: Page) {
   return page.getByRole('dialog', { name: 'Prototype controls' });
 }
 async function openAccount(page: Page) {
-  if (await page.getByRole('button', { name: 'Account and preferences', exact: true }).isVisible()) {
-    await page.getByRole('button', { name: 'Account and preferences', exact: true }).click();
-  } else {
-    await page.getByRole('button', { name: 'Open navigation menu', exact: true }).click();
-    await page.getByRole('button', { name: 'Your account', exact: true }).click();
-  }
+  await page.getByRole('button', { name: 'Account and preferences', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Account', exact: true, level: 1 })).toBeVisible();
 }
 async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
@@ -365,19 +361,18 @@ test('profile picture: initials, upload, persists after reload, and remove for a
   });
   await login(page);
   await openAccount(page);
-  const dialog = page.getByRole('dialog', { name: 'Your corner of the trip' });
-  await expect(dialog.getByText('Showing your initials until you upload a photo.')).toBeVisible();
-  await expect(dialog.locator('img')).toHaveCount(0);
-  await dialog.locator('input[type=file]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: PNG });
-  await expect(dialog.getByText('Your uploaded photo.')).toBeVisible();
-  await expect(dialog.locator('img').first()).toHaveAttribute('src', new RegExp(`/profile-pictures/${account.id}/[0-9a-f-]{36}\\.webp$`));
+  const panel = page.locator('.account-page');
+  await expect(panel.getByText('Showing your initials until you upload a photo.')).toBeVisible();
+  await expect(panel.locator('img')).toHaveCount(0);
+  await panel.locator('input[type=file]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: PNG });
+  await expect(panel.getByText('Your uploaded photo.')).toBeVisible();
+  await expect(panel.locator('img').first()).toHaveAttribute('src', new RegExp(`/profile-pictures/${account.id}/[0-9a-f-]{36}\\.webp$`));
   expect(savedPath).toMatch(new RegExp(`^${account.id}/[0-9a-f-]{36}\\.webp$`));
   expect(uploads.some(path => path.includes(`/profile-pictures/${account.id}/`))).toBe(true);
   // A fresh page load reads the saved path back from the profile row.
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
-  await openAccount(page);
-  const reopened = page.getByRole('dialog', { name: 'Your corner of the trip' });
+  await expect(page.getByRole('heading', { name: 'Account', exact: true, level: 1 })).toBeVisible();
+  const reopened = page.locator('.account-page');
   await expect(reopened.getByText('Your uploaded photo.')).toBeVisible();
   await expect(reopened.locator('img').first()).toBeVisible();
   await reopened.getByRole('button', { name: 'Remove' }).click();
@@ -390,9 +385,9 @@ test('profile picture: rejects unsupported files without calling the server', as
   await page.route('**/rpc/set_profile_picture', route => { called = true; return route.fulfill({ status: 204 }); });
   await login(page);
   await openAccount(page);
-  const dialog = page.getByRole('dialog', { name: 'Your corner of the trip' });
-  await dialog.locator('input[type=file]').setInputFiles({ name: 'x.gif', mimeType: 'image/gif', buffer: Buffer.from('GIF89a') });
-  await expect(dialog.getByRole('alert')).toContainText('Choose a JPEG, PNG, or WebP image.');
+  const panel = page.locator('.account-page');
+  await panel.locator('input[type=file]').setInputFiles({ name: 'x.gif', mimeType: 'image/gif', buffer: Buffer.from('GIF89a') });
+  await expect(panel.getByRole('alert')).toContainText('Choose a JPEG, PNG, or WebP image.');
   expect(called).toBe(false);
 });
 
@@ -408,10 +403,10 @@ test('profile picture: Google accounts show their Google photo until they upload
   await page.route('**/rpc/set_google_picture', route => { shared.push(route.request().postDataJSON().p_url); return route.fulfill({ status: 204 }); });
   await login(page);
   await openAccount(page);
-  const dialog = page.getByRole('dialog', { name: 'Your corner of the trip' });
+  const panel = page.locator('.account-page');
   await expect.poll(() => shared).toEqual(['https://lh3.googleusercontent.com/test/pic=s96-c']);
-  await expect(dialog.getByText('Showing your Google photo until you upload one.')).toBeVisible();
-  await expect(dialog.locator('img').first()).toHaveAttribute('src', 'https://lh3.googleusercontent.com/test/pic=s96-c');
+  await expect(panel.getByText('Showing your Google photo until you upload one.')).toBeVisible();
+  await expect(panel.locator('img').first()).toHaveAttribute('src', 'https://lh3.googleusercontent.com/test/pic=s96-c');
 });
 
 test('the profile picture is the only account button in the top bar, on every screen size', async ({ page }) => {
@@ -423,5 +418,99 @@ test('the profile picture is the only account button in the top bar, on every sc
   // The old people-icon button is gone.
   await expect(page.locator('.topbar-right .icon-btn')).toHaveCount(0);
   await button.click();
-  await expect(page.getByRole('dialog', { name: 'Your corner of the trip' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Account', exact: true, level: 1 })).toBeVisible();
+  await expect(page).toHaveURL(/#\/19$/);
+});
+
+
+const googleAccount = { ...account, app_metadata: { provider: 'google', providers: ['google'] },
+  identities: [{ provider: 'google', identity_data: {} }] };
+
+test('account page: email accounts can change their name and it shows everywhere', async ({ page }) => {
+  let renamed = '';
+  await page.route('**/rpc/set_account_name', route => { renamed = route.request().postDataJSON().p_name; return route.fulfill({ status: 204 }); });
+  await page.route('**/auth/v1/token**', route => route.fulfill({ json: { ...session(),
+    user: renamed ? { ...account, user_metadata: { name: renamed } } : account } }));
+  await login(page);
+  await openAccount(page);
+  const panel = page.locator('.account-page');
+  await expect(panel.getByRole('button', { name: 'Save name' })).toBeDisabled();
+  await panel.getByLabel('Name', { exact: true }).fill('   ');
+  await panel.getByRole('button', { name: 'Save name' }).click();
+  await expect(panel.getByRole('alert')).toContainText('Enter name');
+  expect(renamed).toBe('');
+  await panel.getByLabel('Name', { exact: true }).fill('  Ivy Sanford  ');
+  await panel.getByRole('button', { name: 'Save name' }).click();
+  await expect(panel.getByRole('status').filter({ hasText: 'Name saved.' })).toBeVisible();
+  expect(renamed).toBe('Ivy Sanford');
+  await expect(panel.locator('.person strong')).toHaveText('Ivy Sanford');
+});
+
+test('account page: the name field stops at 90 characters', async ({ page }) => {
+  await login(page);
+  await openAccount(page);
+  const field = page.locator('.account-page').getByLabel('Name', { exact: true });
+  await field.fill('x'.repeat(95));
+  expect((await field.inputValue()).length).toBe(90);
+});
+
+test('account page: email accounts can change their password after confirming the current one', async ({ page }) => {
+  const changed: string[] = [];
+  await page.route('**/auth/v1/user', route => {
+    if (route.request().method() === 'PUT') { changed.push(route.request().postDataJSON().password); }
+    return route.fulfill({ json: account });
+  });
+  await login(page);
+  await page.route('**/auth/v1/token?grant_type=password', route => route.request().postDataJSON().password === 'wrong-password'
+    ? route.fulfill({ status: 400, json: { code: 'invalid_credentials', error_code: 'invalid_credentials', message: 'Invalid login credentials' } })
+    : route.fulfill({ json: session() }));
+  await openAccount(page);
+  const panel = page.locator('.account-page');
+  await expect(panel.getByText('Email and password')).toBeVisible();
+  const form = panel.getByRole('form', { name: 'Change password' });
+  await form.getByLabel('Current password', { exact: true }).fill('prototype-test-password');
+  await form.getByLabel('New password', { exact: true }).fill('short');
+  await form.getByRole('button', { name: 'Update password' }).click();
+  await expect(form.getByRole('alert')).toContainText('at least 8 characters');
+  await form.getByLabel('New password', { exact: true }).fill('a-brand-new-password');
+  await form.getByLabel('Confirm new password', { exact: true }).fill('a-different-password');
+  await form.getByRole('button', { name: 'Update password' }).click();
+  await expect(form.getByRole('alert')).toContainText('do not match');
+  expect(changed).toEqual([]);
+  await form.getByLabel('Current password', { exact: true }).fill('wrong-password');
+  await form.getByLabel('Confirm new password', { exact: true }).fill('a-brand-new-password');
+  await form.getByRole('button', { name: 'Update password' }).click();
+  await expect(form.getByRole('alert')).toContainText('current password is incorrect');
+  expect(changed).toEqual([]);
+  await form.getByLabel('Current password', { exact: true }).fill('prototype-test-password');
+  await form.getByRole('button', { name: 'Update password' }).click();
+  await expect(form.getByRole('status')).toContainText('Password updated.');
+  expect(changed).toEqual(['a-brand-new-password']);
+  await expect(form.getByLabel('Current password', { exact: true })).toHaveValue('');
+});
+
+test('account page: Google accounts never see a password form', async ({ page }) => {
+  await page.route('**/auth/v1/token**', route => route.fulfill({ json: { ...session(), user: googleAccount } }));
+  await page.route('**/auth/v1/user', route => route.fulfill({ json: googleAccount }));
+  await page.route('**/rest/v1/user?**', route => route.fulfill({ json: [{ profile_picture_path: null, google_picture_url: null }] }));
+  await login(page);
+  await openAccount(page);
+  const panel = page.locator('.account-page');
+  await expect(panel.getByText('You sign in with Google.')).toBeVisible();
+  await expect(panel.getByText('managed by Google, not Trip Planner')).toBeVisible();
+  await expect(panel.getByRole('form', { name: 'Change password' })).toHaveCount(0);
+  await expect(panel.getByText('Change password')).toHaveCount(0);
+  await expect(panel.locator('input[type=password]')).toHaveCount(0);
+  // Name editing still works for Google accounts.
+  await expect(panel.getByLabel('Name', { exact: true })).toBeVisible();
+});
+
+test('account page: the Maya demo has no editable account details', async ({ page }) => {
+  await demo(page);
+  await page.getByRole('button', { name: 'Account and preferences', exact: true }).click();
+  const panel = page.locator('.account-page');
+  await expect(panel.getByText('local demo account')).toBeVisible();
+  await expect(panel.getByLabel('Name', { exact: true })).toHaveCount(0);
+  await expect(panel.getByText('Change password')).toHaveCount(0);
+  await expect(panel.getByRole('button', { name: 'Log out' })).toBeVisible();
 });

@@ -43,7 +43,6 @@ import {
   type Role,
 } from "./domain";
 import { BudgetSetup, ExpenseForm } from "./finance";
-import { ProfilePictureEditor } from "./profile-picture-editor";
 function AuthProvider() {
   const { overlay, s, mutate, go, login, close } = useApp();
   const { service, signup } = overlay!.data;
@@ -634,7 +633,7 @@ export function Overlays() {
     return (
       <Modal title="Your next stop">
         <div className="menu-links">
-          <button onClick={() => open("account")}>
+          <button onClick={() => go(19)}>
             Your account <Users size={17} />
           </button>
           {[
@@ -666,45 +665,6 @@ export function Overlays() {
             }
           >
             Pre-planned trips<Badge>Coming soon</Badge>
-          </button>
-        </div>
-      </Modal>
-    );
-  if (o.kind === "account")
-    return (
-      <Modal title="Your corner of the trip">
-        <div className="person">
-          <Avatar name={user?.name || "Guest"} id={user?.id} large />
-          <div>
-            <strong>{user?.name}</strong>
-            <small>{user?.email}</small>
-          </div>
-        </div>
-        <ProfilePictureEditor />
-        <div className="menu-links">
-          <button onClick={() => tripGo(15)}>
-            My travel preferences
-            <ArrowRight size={16} />
-          </button>
-          <button onClick={() => go(5)}>
-            My trips
-            <ArrowRight size={16} />
-          </button>
-          <button onClick={() => go(18)}>
-            Style
-            <Palette size={16} />
-          </button>
-          <button onClick={() => open("demo")}>
-            Switch demo participant
-            <Users size={16} />
-          </button>
-          <button
-            onClick={() => {
-              void app.signOut();
-            }}
-          >
-            Log out
-            <LogOut size={16} />
           </button>
         </div>
       </Modal>

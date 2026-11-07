@@ -65,6 +65,7 @@ export const PAGES: Record<number, string> = {
   16: "Nearby suggestion",
   17: "Map",
   18: "Style",
+  19: "Account",
 };
 export const SERVICES = ["Instagram", "Facebook", "TikTok", "Gmail"];
 export const PERMISSIONS = (service: string) =>
