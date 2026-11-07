@@ -6778,7 +6778,7 @@ legend {
 .event-location-bias small { grid-column:1/-1; }
 .event-location-field > label { font-size:12px; }
 .event-photo-picker { margin: 18px 0 28px; }
-.event-photo-picker h3 { margin: 0 0 10px; }
+.event-photo-picker h3 { margin: 0 0 10px; font-size: 12px; font-weight: 500; }
 .event-photo-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .event-photo-actions > span { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .08em; }
 .event-photo-upload { position: relative; display:inline-flex; align-items:center; min-height:40px; padding:0 12px; border:1px solid hsl(calc(var(--hue) + -2) calc(15.8% * var(--sm)) calc(var(--la) + var(--lb) * 81.4%)); border-radius:calc(8px * var(--rs)); color:var(--green); font-size:13px; font-weight:600; cursor:pointer; }
