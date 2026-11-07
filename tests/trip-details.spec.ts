@@ -182,8 +182,8 @@ test("all detail screens persist changes and preserve financial history", async 
   await expect(
     page.getByLabel("Notes (optional)", { exact: true }),
   ).toHaveValue("Bring printed tickets");
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Delete event", exact: true }).click();
+  await page.locator(".delete-event-panel").getByRole("button", { name: "Delete event", exact: true }).click();
   await saved(page);
   expect(api.rows[0].content.events).toEqual([]);
   await expect(

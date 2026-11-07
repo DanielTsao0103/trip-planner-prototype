@@ -40,8 +40,8 @@ test("map-origin edits reopen the selected stop after save or unchanged cancel",
 test("deleted event links offer recovery and never open an empty event form", async ({ page }) => {
   const edit = "./#/7?event=museum&date=2026-10-16&return=17";
   await page.goto(edit);
-  page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", {name:"Delete event"}).click();
+  await page.getByRole("button", {name:"Delete event",exact:true}).click();
+  await page.locator(".delete-event-panel").getByRole("button", {name:"Delete event",exact:true}).click();
   await expect(page).toHaveURL(/#\/17$/);
   await page.goto("./#/17?event=museum");
   await expect(page.getByText("This itinerary stop is unavailable.")).toBeVisible();
