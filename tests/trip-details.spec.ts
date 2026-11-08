@@ -51,8 +51,15 @@ async function backend(page: Page) {
       return route.fulfill({ json: rows });
     if (path === "/rest/v1/trip_photo_credit" && req.method() === "GET")
       return route.fulfill({ json: [] });
-    if (path === "/functions/v1/unsplash-search" && req.method() === "GET")
-      return route.fulfill({ json: { results: [] } });
+    if (path === "/functions/v1/unsplash-search") {
+      const headers = {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET, OPTIONS",
+        "access-control-allow-headers": "apikey, authorization, x-client-info",
+      };
+      if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers });
+      return route.fulfill({ json: { results: [] }, headers });
+    }
     if (path.endsWith("/otp")) {
       delivered.push(req.postDataJSON().email);
       return route.fulfill({ json: {} });
