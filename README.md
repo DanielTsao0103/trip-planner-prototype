@@ -1,5 +1,17 @@
 # Trip Planner
 
+## Additional sprint checks — itinerary pictures and budgets
+
+Both additional screenshot features meet the checked definition of done. [Verification report](assignment/photos-budget-definition-of-done-2026-11-07.md) · [Lighthouse/database evidence](assignment/photos-budget-definition-of-done-2026-11-07.json).
+
+| Behavioral requirement | Status | Evidence |
+| --- | --- | --- |
+| Edit itinerary pictures using Unsplash or custom upload and retain them after reload | Complete | Live selection/upload/save, independent event image URL and Storage checks, desktop/mobile itinerary reload. |
+| Persist group budgets, individual budgets, tracking mode and expenses | Complete | Live UI saves and independent relational/bundle readback confirmed integer cents and reload persistence on both devices. |
+| Reject invalid budget writes without changing saved data | Complete | Negative budget rejected; saved revision and complete trip content unchanged. Generated test images/trip removed; pre-existing QA-visible trips unchanged. |
+| Responsive desktop/mobile and Lighthouse Accessibility >=90 | Complete | All 19 states fit tested widths; Lighthouse 98–100, with budget states scoring 100. Screenshots reviewed. |
+| Requirements documented, feature code on main and public deployment verified | Complete | Audited public implementation `e556148` is on main and was served at the public URL during the checks. |
+
 ## Sprint definition of done — November 7, 2026
 
 **Scope: only the seven features in the sprint screenshots.** Unrelated unfinished integrations do not count against this sprint. [Sprint verification report](assignment/sprint-definition-of-done-2026-11-07.md) · [Lighthouse/database summary](assignment/sprint-definition-of-done-2026-11-07.json).

@@ -92,6 +92,7 @@ const trip = {
   dismissed: [],
 };
 const sprint = process.env.AUDIT_SPRINT === "1";
+const photosBudget = process.env.AUDIT_PHOTOS_BUDGET === "1";
 if (sprint) {
   trip.title = "Sprint seven-feature QA";
   trip.members.push(
@@ -279,11 +280,9 @@ try {
       });
       evidence.lighthouse.at(-1).screenshotWidth = screenshot.readUInt32BE(16);
       if (sprint && name === "group-20-travelers")
-        await page
-          .locator(".preference-grid")
-          .screenshot({
-            path: resolve(out, `${device}-group-preference-charts.png`),
-          });
+        await page.locator(".preference-grid").screenshot({
+          path: resolve(out, `${device}-group-preference-charts.png`),
+        });
       await metrics.detach();
       await writeFile(
         resolve(out, "summary.json"),
@@ -303,6 +302,185 @@ try {
     await field("Password").fill(a.password);
     await button("Log in").click();
     await button("Account and preferences").waitFor();
+    if (photosBudget) {
+      await page.goto(site + "#/5");
+      await page.getByText(trip.title, { exact: true }).first().waitFor();
+      await button("Open itinerary").click();
+      await page.goto(site + `#/7?event=${eventId}`);
+      await field("Event name").waitFor();
+      await audit("event-photo-editor");
+      if (device === "desktop") {
+        await button("Find with Unsplash").click();
+        await expect(button("Find with Unsplash")).toBeEnabled({
+          timeout: 25000,
+        });
+        const options = page.locator(
+          ".event-photo-picker .trip-photo-options button",
+        );
+        if (await options.count()) {
+          await options.first().click();
+          await audit("event-photo-unsplash-selected");
+          await button("Save changes").click();
+          await expect
+            .poll(
+              async () =>
+                check(await c.rpc("read_invited_trip", { p_trip: id })).content
+                  .events[0].image,
+            )
+            .toMatch(/^https:\/\/images\.unsplash\.com\//);
+          record(
+            "Live Unsplash search, pointer selection and saved event image URL passed",
+          );
+          await page.goto(site + `#/7?event=${eventId}`);
+          await field("Event name").waitFor();
+        } else
+          record(
+            "Unsplash search returned no selectable results; custom-upload path checked separately",
+          );
+      }
+      const image = await page.evaluate(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 96;
+        canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#24745c";
+        ctx.fillRect(0, 0, 96, 64);
+        return canvas.toDataURL("image/png").split(",")[1];
+      });
+      await field("Upload your own event photo").setInputFiles({
+        name: `qa-${device}.png`,
+        mimeType: "image/png",
+        buffer: Buffer.from(image, "base64"),
+      });
+      await expect(
+        page.getByRole("img", {
+          name: "Your event photo preview",
+          exact: true,
+        }),
+      ).toBeVisible();
+      const uploadedUrl = await page
+        .getByRole("img", { name: "Your event photo preview", exact: true })
+        .getAttribute("src");
+      await audit("event-photo-upload-preview");
+      await button("Save changes").click();
+      await expect
+        .poll(
+          async () =>
+            check(await c.rpc("read_invited_trip", { p_trip: id })).content
+              .events[0].image,
+        )
+        .toBe(uploadedUrl);
+      let row = check(await c.rpc("read_invited_trip", { p_trip: id }));
+      const imageUrl = row.content.events[0].image;
+      assert.equal(
+        check(
+          await c
+            .from("event")
+            .select("image_url")
+            .eq("eventID", eventId)
+            .single(),
+        ).image_url,
+        imageUrl,
+      );
+      assert.equal((await fetch(imageUrl)).status, 200);
+      await page.goto(site + "#/11?date=2027-06-01");
+      await page.reload();
+      await expect(
+        page
+          .getByRole("article", { name: "Tower visit", exact: true })
+          .locator("img"),
+      ).toHaveAttribute("src", imageUrl);
+      await audit("itinerary-saved-photo");
+      record(
+        `${device}: custom itinerary photo UI upload/save, event.image_url readback, public Storage fetch and itinerary reload passed`,
+      );
+      await page.goto(site + "#/12");
+      await page
+        .getByRole("button", { name: /^(Set budget|Budget settings)$/ })
+        .first()
+        .click();
+      await field("How should we track spending?").selectOption("group");
+      await field("Group budget (USD)").fill("1000.01");
+      await audit("group-budget-dialog");
+      await button("Save budget").click();
+      await expect
+        .poll(async () =>
+          check(
+            await c
+              .from("trip")
+              .select("budget_cents,budget_mode")
+              .eq("tripID", id)
+              .single(),
+          ),
+        )
+        .toMatchObject({ budget_cents: 100001, budget_mode: "group" });
+      await button("Budget settings").click();
+      await field("How should we track spending?").selectOption("individual");
+      await field("Your individual budget (USD)").fill("600.02");
+      await audit("individual-budget-dialog");
+      await button("Save budget").click();
+      await expect
+        .poll(
+          async () =>
+            check(
+              await c
+                .from("trip_person_budget")
+                .select("amount_cents")
+                .eq("trip_id", id)
+                .eq("participant_id", a.userId)
+                .maybeSingle(),
+            )?.amount_cents,
+        )
+        .toBe(60002);
+      await button("Add expense").click();
+      await field("What was it for?").fill(`Audit lunch ${device}`);
+      await field("Amount (USD)").fill("12.34");
+      await audit("expense-dialog");
+      await button("Save expense").click();
+      await expect
+        .poll(
+          async () =>
+            check(
+              await c.rpc("read_invited_trip", { p_trip: id }),
+            ).content.expenses.find(
+              (e) => e.purpose === `Audit lunch ${device}`,
+            )?.amount,
+        )
+        .toBe(1234);
+      await page.reload();
+      await expect(
+        page
+          .locator(".expense-row")
+          .filter({ hasText: `Audit lunch ${device}` }),
+      ).toBeVisible();
+      await audit("budget-saved");
+      row = check(await c.rpc("read_invited_trip", { p_trip: id }));
+      assert.equal(row.content.budget, 100001);
+      assert.equal(row.content.individual[a.userId], 60002);
+      assert.equal(row.content.budgetMode, "individual");
+      const invalid = structuredClone(trip);
+      Object.assign(invalid, row.content);
+      invalid.budget = -1;
+      assert.ok(
+        (
+          await c.rpc("save_trip_bundle", {
+            p_trip_id: id,
+            p_expected_revision: row.revision,
+            p_request_id: randomUUID(),
+            p_data: invalid,
+          })
+        ).error,
+      );
+      const after = check(await c.rpc("read_invited_trip", { p_trip: id }));
+      assert.equal(after.revision, row.revision);
+      assert.deepEqual(after.content, row.content);
+      record(
+        `${device}: group and individual budgets and expense cents saved/read back/reloaded; invalid negative budget rejected with unchanged revision/content`,
+      );
+      await browser.close();
+      browser = null;
+      continue;
+    }
     await page.goto(site + "#/19");
     await field("Name").waitFor();
     await audit("account");
@@ -489,6 +667,20 @@ try {
       await c.storage
         .from("profile-pictures")
         .remove([photo.profile_picture_path]),
+    );
+  }
+  if (photosBudget) {
+    const folder = `${a.userId}/${id}`;
+    const files = check(await c.storage.from("trip-photos").list(folder));
+    if (files.length)
+      check(
+        await c.storage
+          .from("trip-photos")
+          .remove(files.map((f) => `${folder}/${f.name}`)),
+      );
+    assert.equal(
+      check(await c.storage.from("trip-photos").list(folder)).length,
+      0,
     );
   }
   check(

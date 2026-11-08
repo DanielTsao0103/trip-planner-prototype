@@ -97,3 +97,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Invitation expiry (November 6, 2026): all newly sent trip invitations last seven days. Enforce expiry on the server without expiring accepted trip memberships or extending unrelated password-reset links.
 
 - Sprint audit scope clarification (November 7, 2026): Dan's definition of done applies only to the seven screenshot features: edit account, profile pictures, immediate post-join trip preferences, collaborators sharing the same map pins, invitations, correct map/day itinerary linkage, and readable group preference charts. Do not count unrelated unfinished OCR, banking/payments, nearby alerts, or other prototype integrations against this sprint. Distinguish API-mocked browser checks from live multi-account/inbox/database verification.
+
+- Additional sprint audit scope (November 7, 2026): Dan added editable itinerary pictures and database-backed budget information as two further screenshot features to check against the same definition of done. Audit these independently of unrelated unfinished prototype integrations.
