@@ -12,6 +12,7 @@ export type TripRow = {
   trip_name: string;
   destination: string;
   destinations: string[];
+  destinationTimezones?: (string | null)[];
   start_date: string;
   end_date: string;
   timezone: string;
@@ -30,6 +31,7 @@ export type TripRow = {
     | "individual"
     | "todos"
     | "dismissed"
+    | "destinationTimezones"
   >;
 };
 
@@ -83,6 +85,7 @@ export function tripFromRow(
       start: row.start_date,
       end: row.end_date,
       zone: row.timezone,
+      destinationTimezones: row.content.destinationTimezones ?? row.destinations.map((_, index) => index === 0 ? row.timezone : null),
       persistence: "account",
       revision: row.revision,
       contentVersion: 1,
@@ -103,6 +106,7 @@ export function tripFromRow(
     start: row.start_date,
     end: row.end_date,
     zone: row.timezone,
+    destinationTimezones: row.content?.destinationTimezones ?? row.destinationTimezones ?? row.destinations.map((_, index) => index === 0 ? row.timezone : null),
     image: local?.image ?? IMAGES.coast,
     persistence: "account",
     revision: row.revision,
@@ -217,13 +221,16 @@ export async function saveAccountTrip(
   const problem = tripDetailsError(trip);
   if (problem) throw new Error(problem);
   // Send the complete trip in one transaction; the server normalizes each entity.
-  const { persistence, revision, contentVersion, sample, imageSource, imageCredit, ...content } = trip;
+  const { persistence, revision, contentVersion, sample, imageSource, imageCredit, destinationTimezones: storedTimezones, ...content } = trip;
+  const destinationTimezones = storedTimezones ?? trip.destinations.map((_, index) => index === 0 ? trip.zone : null);
+  const tripData = { ...content, destinationTimezones };
   const owner = isOwner(trip, account.id);
-  const { data, error, status } = await client.rpc(owner ? "save_trip_bundle" : "save_shared_trip_changes", {
+  const { data, error, status } = await client.rpc(owner ? "save_trip_bundle_with_timezones" : "save_shared_trip_changes", {
     p_trip_id: trip.id,
     p_expected_revision: trip.revision ?? null,
     p_request_id: crypto.randomUUID(),
-    p_data: content,
+    p_data: tripData,
+    ...(owner ? { p_destination_timezones: destinationTimezones } : {}),
   });
   if (error) {
     if (error.code === "PT409" || error.code === "42501")

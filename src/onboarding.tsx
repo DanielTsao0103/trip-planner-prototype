@@ -44,6 +44,7 @@ import {
 import { HERO_IMAGE, HERO_ALT } from "./hero";
 import { IMAGES, SERVICES, PERMISSIONS } from "./data";
 import { searchDestinationPhotos, trackUnsplashSelection, uploadTripPhoto, type UnsplashPhoto } from "./trip-photos";
+import { destinationTimeZone, timeZoneLabel } from "./destination-timezones";
 import {
   uid,
   days,
@@ -749,6 +750,14 @@ export function TripForm() {
   const [selectedPhoto, setSelectedPhoto] = useState<UnsplashPhoto | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadPreview, setUploadPreview] = useState("");
+  const [zoneByDestination, setZoneByDestination] = useState<Record<string, string | null>>(
+    Object.fromEntries((original?.destinations ?? []).flatMap((destination, index) => {
+      const value = original?.destinationTimezones?.[index] ?? (index === 0 ? original?.zone : undefined);
+      return value ? [[destination, value]] : [];
+    })),
+  );
+  const [zoneLoading, setZoneLoading] = useState(false);
+  const [zoneError, setZoneError] = useState("");
   const firstDestination = locations[0] || "";
   const [photoDestination, setPhotoDestination] = useState(firstDestination);
   const activePhotoDestination = locations.includes(photoDestination) ? photoDestination : firstDestination;
@@ -759,6 +768,25 @@ export function TripForm() {
       previousDestination.current = activePhotoDestination;
     }
   }, [activePhotoDestination]);
+  useEffect(() => {
+    const missing = locations.filter(destination => !(destination in zoneByDestination));
+    if (!missing.length) return;
+    const controller = new AbortController();
+    setZoneLoading(true);
+    setZoneError("");
+    Promise.all(missing.map(async destination => [destination, await destinationTimeZone(destination, controller.signal)] as const))
+      .then(entries => {
+        if (controller.signal.aborted) return;
+        setZoneByDestination(current => ({ ...current, ...Object.fromEntries(entries) }));
+      })
+      .catch(() => { if (!controller.signal.aborted) setZoneError("Some destination time zones could not be found. You can still save the trip."); })
+      .finally(() => { if (!controller.signal.aborted) setZoneLoading(false); });
+    return () => controller.abort();
+  }, [locations, zoneByDestination]);
+  useEffect(() => {
+    const primaryZone = zoneByDestination[locations[0]];
+    if (primaryZone && primaryZone !== zone) setZone(primaryZone);
+  }, [locations, zoneByDestination, zone]);
   useEffect(() => {
     setPhotoResults([]);
     if (!activePhotoDestination) { setPhotoStatus(""); return; }
@@ -886,6 +914,7 @@ export function TripForm() {
     Object.assign(draft, {
       title: title.trim(),
       destinations: previewPlaces,
+      destinationTimezones: previewPlaces.map(destination => zoneByDestination[destination] ?? null),
       start,
       end,
       zone,
@@ -946,6 +975,10 @@ export function TripForm() {
       />
       <form className="form-layout" onSubmit={submit} aria-busy={busy}>
         <div className="card form-card">
+          <div className="trip-form-intro">
+            <p><CalendarDays size={17} /> Dates turn your itinerary into an on-trip dashboard when the time comes.</p>
+            <p><Check size={17} /> Your new trip starts empty. Add only the plans you want.</p>
+          </div>
           <fieldset
             disabled={busy || !!savedId}
             style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
@@ -1053,24 +1086,14 @@ export function TripForm() {
                 onChange={setEnd}
               />
             </div>
-            <Field label="Trip time zone">
-              <select value={zone} onChange={(e) => setZone(e.target.value)}>
-                {[
-                  ["America/Los_Angeles", "Los Angeles · Pacific Time"],
-                  ["America/Denver", "Denver · Mountain Time"],
-                  ["America/Chicago", "Chicago · Central Time"],
-                  ["America/New_York", "New York · Eastern Time"],
-                  ["Europe/London", "London · United Kingdom"],
-                  ["Europe/Paris", "Paris · Central Europe"],
-                  ["Asia/Taipei", "Taipei · Taiwan"],
-                  ["Asia/Tokyo", "Tokyo · Japan"],
-                  ["Australia/Sydney", "Sydney · Australia"],
-                ].map(([z, label]) => (
-                  <option key={z} value={z}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+            <Field label="Trip time zones" hint={zoneLoading ? "Finding time zones for your destinations…" : zoneError || "Each time zone follows its destination order."}>
+              {locations.length ? <ul className="trip-timezone-list">
+                {locations.map(destination => {
+                  const [city, ...area] = destination.split(",").map(part => part.trim());
+                  const timeZone = zoneByDestination[destination];
+                  return <li key={destination}><strong>{city}{timeZone ? ` — ${timeZoneLabel(timeZone)}` : " — Time zone unavailable"}</strong>{area.length > 0 && <small>{area.join(", ")}</small>}</li>;
+                })}
+              </ul> : <p className="trip-timezone-empty">Add destinations to see their time zones.</p>}
             </Field>
           </fieldset>
           <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
@@ -1126,14 +1149,8 @@ export function TripForm() {
           </fieldset>
         </div>
         <aside className="form-aside">
-          <p>
-            <CalendarDays size={17} /> Dates turn your itinerary into an on-trip
-            dashboard when the time comes.
-          </p>
-          <p>
-            <Check size={17} /> Your new trip starts empty. Add only the plans
-            you want.
-          </p>
+          <p><CalendarDays size={17} /> Dates turn your itinerary into an on-trip dashboard when the time comes.</p>
+          <p><Check size={17} /> Your new trip starts empty. Add only the plans you want.</p>
         </aside>
       </form>
     </>

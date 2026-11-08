@@ -6777,6 +6777,14 @@ legend {
 .event-location-bias select { min-width:0; width:100%; padding:8px 10px; font-size:12px; }
 .event-location-bias small { grid-column:1/-1; }
 .event-location-field > label { font-size:12px; }
+.trip-form-intro { display:none; margin: 0 0 24px; }
+.trip-form-intro p { display:flex; align-items:flex-start; gap:12px; margin:0 0 10px; color:var(--muted); font-size:13px; line-height:1.55; }
+.trip-form-intro svg { flex:none; margin-top:2px; color:var(--green); }
+.trip-timezone-list { display:grid; gap:8px; padding:0; margin:0; list-style:none; }
+.trip-timezone-list li { display:flex; flex-direction:column; gap:3px; padding:10px 12px; border:1px solid var(--line); border-radius:calc(7px * var(--rs)); background:var(--paper); }
+.trip-timezone-list strong { font-size:13px; font-weight:600; }
+.trip-timezone-list small,.trip-timezone-empty { color:var(--muted); font-size:11px; }
+@media (max-width: 1199px) { .trip-form-intro { display:block; } }
 .event-photo-picker { margin: 18px 0 28px; }
 .event-photo-picker h3 { margin: 0 0 10px; font-size: 12px; font-weight: 500; }
 .event-photo-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }

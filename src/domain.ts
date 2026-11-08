@@ -58,6 +58,8 @@ export type Trip = {
   id: string;
   title: string;
   destinations: string[];
+  /** IANA time zones aligned by index with destinations. */
+  destinationTimezones?: (string | null)[];
   start: string;
   end: string;
   zone: string;
