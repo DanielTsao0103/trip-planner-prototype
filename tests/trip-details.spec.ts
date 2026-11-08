@@ -15,6 +15,16 @@ async function backend(page: Page) {
   const delivered: string[] = [];
   let fail = false;
   let held: Promise<void> | undefined;
+  await page.route("https://geocoding-api.open-meteo.com/**", async route => {
+    const destination = new URL(route.request().url()).searchParams.get("name")?.split(",")[0] ?? "";
+    const timezones: Record<string, string> = {
+      Taipei: "Asia/Taipei",
+      Seattle: "America/Los_Angeles",
+      Paris: "Europe/Paris",
+    };
+    const timezone = timezones[destination];
+    return route.fulfill({ json: { results: timezone ? [{ name: destination, timezone }] : [] } });
+  });
   await page.route("https://*.supabase.co/**", async (route) => {
     const req = route.request(),
       path = new URL(req.url()).pathname;

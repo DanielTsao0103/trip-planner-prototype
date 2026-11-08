@@ -19,7 +19,7 @@ export async function detailJourney(page, base, travelerEmail) {
   await field("Where are you going?").fill("Taipei");
   await field("Start date").fill(today);
   await field("End date").fill(today);
-  await field("Trip time zone").selectOption("Asia/Taipei");
+  await expect(page.getByText("Taipei — Taipei Standard Time", { exact: true })).toBeVisible();
   await button("Create trip").click();
   await button("Full detail browser QA").click();
   await saved(page);
