@@ -51,6 +51,8 @@ async function backend(page: Page) {
       return route.fulfill({ json: rows });
     if (path === "/rest/v1/trip_photo_credit" && req.method() === "GET")
       return route.fulfill({ json: [] });
+    if (path === "/functions/v1/unsplash-search" && req.method() === "GET")
+      return route.fulfill({ json: { results: [] } });
     if (path.endsWith("/otp")) {
       delivered.push(req.postDataJSON().email);
       return route.fulfill({ json: {} });
