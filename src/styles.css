@@ -1239,6 +1239,178 @@ legend {
 .destination-card p span {
   float: right;
 }
+.planned-carousel-controls,
+.planned-carousel-controls > div {
+  display: flex;
+  align-items: center;
+}
+.planned-carousel-controls {
+  justify-content: space-between;
+  gap: 14px;
+  margin: -6px 0 14px;
+}
+.planned-carousel-controls > div {
+  gap: 8px;
+}
+.planned-carousel-window {
+  width: 100%;
+  overflow: hidden;
+}
+.planned-track {
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
+  width: max-content;
+  transition: transform 680ms cubic-bezier(.22, .68, 0, 1);
+  will-change: transform;
+}
+.planned-track.without-transition {
+  transition: none;
+}
+.carousel-pause {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 11px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.planned-trip-card {
+  display: block;
+  flex: 0 0 360px;
+  width: 360px;
+  height: 320px;
+  padding: 0;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.planned-trip-card > img {
+  display: block;
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+}
+.planned-trip-card:hover,
+.planned-trip-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 7px 18px #0002;
+}
+.planned-trip-card:focus-visible,
+.carousel-pause:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.planned-trip-card .planned-card-copy {
+  display: block;
+  box-sizing: border-box;
+  height: 148px;
+  padding: 18px 20px 20px;
+}
+.planned-card-destination,
+.planned-card-meta {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.planned-card-destination {
+  height: 1.4em;
+  margin-bottom: 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.planned-card-title {
+  display: block;
+  min-height: 2.1em;
+  margin-bottom: 11px;
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.12;
+}
+.planned-card-meta > strong {
+  color: var(--ink);
+}
+.planned-card-meta > span {
+  float: right;
+}
+.planned-modal-intro {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.planned-modal-intro > img {
+  flex: 0 0 260px;
+  width: 260px;
+  height: 160px;
+  border-radius: 9px;
+  object-fit: cover;
+}
+.planned-modal-intro p {
+  margin: 0;
+  color: var(--muted);
+}
+.planned-modal-intro .eyebrow {
+  display: block;
+  margin-bottom: 8px;
+}
+.planned-modal-estimate {
+  margin-top: 12px !important;
+  font-size: 12px;
+}
+.planned-modal-estimate strong {
+  color: var(--ink);
+}
+.planned-modal-subhead {
+  margin: 22px 0 4px;
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 400;
+}
+.planned-stop-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.planned-stop-list li {
+  display: grid;
+  grid-template-columns: 55px minmax(0, 1fr);
+  gap: 12px;
+  padding: 13px 0;
+  border-top: 1px solid var(--line);
+}
+.planned-stop-day {
+  color: var(--muted);
+  font-size: 11px;
+}
+.planned-stop-list li strong,
+.planned-stop-list li small {
+  display: block;
+}
+.planned-stop-list li small {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.planned-estimate-note {
+  margin: 14px 0 0;
+  font-size: 12px;
+}
+.planned-modal-actions {
+  margin-top: 12px;
+}
 .trip-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -5685,6 +5857,43 @@ legend {
     animation: none !important;
     transition: none !important;
   }
+}
+@media (max-width: 767px) {
+  .planned-carousel-controls {
+    align-items: flex-start;
+  }
+  .planned-carousel-controls > div {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 5px;
+  }
+  .carousel-pause {
+    min-height: 36px;
+    padding: 0 8px;
+    font-size: 10px;
+  }
+  .planned-trip-card .planned-card-copy {
+    padding: 18px 18px 20px;
+  }
+  .planned-modal-intro {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 15px;
+  }
+  .planned-modal-intro > img {
+    flex-basis: auto;
+    width: 100%;
+    height: 170px;
+  }
+  .planned-modal-stops {
+    grid-template-columns: 1fr;
+  }
+  .planned-stop-list {
+    grid-template-columns: 1fr;
+  }
+}
+.planned-trip-card > img {
+  height: 170px;
 }
 /* Readability pass for the working surfaces. */
 .event-info h3 {

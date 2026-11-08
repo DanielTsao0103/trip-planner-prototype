@@ -16,6 +16,9 @@ import {
   MapPin,
   Check,
   ChevronRight,
+  ChevronLeft,
+  Pause,
+  Play,
   Link2,
   Mail,
   CalendarDays,
@@ -43,6 +46,7 @@ import {
 } from "./ui";
 import { HERO_IMAGE, HERO_ALT } from "./hero";
 import { IMAGES, SERVICES, PERMISSIONS } from "./data";
+import { PREPLANNED_TRIPS, plannedTrip } from "./preplanned-trips";
 import { searchDestinationPhotos, trackUnsplashSelection, uploadTripPhoto, type UnsplashPhoto } from "./trip-photos";
 import { destinationTimeZone, timeZoneLabel } from "./destination-timezones";
 import {
@@ -55,6 +59,9 @@ import {
   type Trip,
   type User,
 } from "./domain";
+const PREPLANNED_CARD_WIDTH = 360;
+const PREPLANNED_CARD_GAP = 20;
+const PREPLANNED_CARD_STEP = PREPLANNED_CARD_WIDTH + PREPLANNED_CARD_GAP;
 export function Auth() {
   const { s, mutate, go, open, login, explore, toast } = useApp();
   const [signup, setSignup] = useState(false),
@@ -483,7 +490,49 @@ export function ConnectProvider() {
   );
 }
 export function Home() {
-  const { go, explore, accountTrips } = useApp();
+  const { go, explore, open, overlay, accountTrips } = useApp();
+  const [carouselPosition, setCarouselPosition] = useState(1);
+  const [trackAnimating, setTrackAnimating] = useState(true);
+  const [visibleCardCount, setVisibleCardCount] = useState(3);
+  const carouselWindow = useRef<HTMLDivElement>(null);
+  const [carouselPaused, setCarouselPaused] = useState(false);
+  const tripSequence = [PREPLANNED_TRIPS[PREPLANNED_TRIPS.length - 1], ...PREPLANNED_TRIPS, ...PREPLANNED_TRIPS.slice(0, 3)];
+  const logicalIndex = (carouselPosition - 1 + PREPLANNED_TRIPS.length) % PREPLANNED_TRIPS.length;
+  useEffect(() => {
+    if (carouselPaused || overlay || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setInterval(() => {
+      setCarouselPosition(index => index + 1);
+    }, 6000);
+    return () => window.clearInterval(timer);
+  }, [carouselPaused, overlay]);
+  useEffect(() => {
+    const element = carouselWindow.current;
+    if (!element) return;
+    const updateVisibleCount = () => setVisibleCardCount(Math.max(1, Math.min(3, Math.floor((element.clientWidth + PREPLANNED_CARD_GAP) / PREPLANNED_CARD_STEP))));
+    updateVisibleCount();
+    const observer = new ResizeObserver(updateVisibleCount);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const moveCarousel = (direction: number) => {
+    setCarouselPaused(true);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setCarouselPosition(index => direction > 0
+        ? (index >= PREPLANNED_TRIPS.length ? 1 : index + 1)
+        : (index <= 1 ? PREPLANNED_TRIPS.length : index - 1));
+    } else {
+      setCarouselPosition(index => Math.max(0, Math.min(PREPLANNED_TRIPS.length + 1, index + direction)));
+    }
+  };
+  const settleCarouselLoop = (event: React.TransitionEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    const loopForward = carouselPosition === PREPLANNED_TRIPS.length + 1;
+    const loopBackward = carouselPosition === 0;
+    if (!loopForward && !loopBackward) return;
+    setTrackAnimating(false);
+    setCarouselPosition(loopForward ? 1 : PREPLANNED_TRIPS.length);
+    requestAnimationFrame(() => requestAnimationFrame(() => setTrackAnimating(true)));
+  };
   return (
     <>
       <PageHead title="Home" />
@@ -514,45 +563,60 @@ export function Home() {
       {accountTrips && <ImportedBookings />}
       <div className="section-title">
         <div>
-          <h2>Destinations</h2>
+          <h2>Pre-planned trips</h2>
+          <p>Choose a starting point. You can adjust the plan and dates when you add it.</p>
         </div>
-        <span className="muted">Illustrative trip estimates</span>
+        <span className="muted">Illustrative estimates per person</span>
       </div>
-      <div className="destination-grid">
-        {[
-          {
-            name: "Seattle",
-            image: IMAGES.seattle,
-            cost: "$750",
-            days: "4 days",
-          },
-          {
-            name: "San Diego",
-            image: IMAGES.coast,
-            cost: "$920",
-            days: "5 days",
-          },
-          {
-            name: "Chicago",
-            image: IMAGES.city,
-            cost: "$680",
-            days: "3 days",
-          },
-        ].map((d) => (
-          <article className="destination-card" key={d.name}>
-            <Photo src={d.image} alt={d.name} />
-            <div>
-              <h3>{d.name}</h3>
-              <p>
-                <strong>{d.cost}</strong> / person <span>{d.days}</span>
-              </p>
-            </div>
-          </article>
-        ))}
+      <div className="planned-carousel" role="region" aria-roledescription="carousel" aria-label="Pre-planned trip carousel">
+        <div className="planned-carousel-controls">
+          <span className="muted">Trip {logicalIndex + 1} of {PREPLANNED_TRIPS.length}</span>
+          <div>
+            <button type="button" className="icon-btn" aria-label="Previous trips" onClick={() => moveCarousel(-1)}><ChevronLeft size={19} /></button>
+            <button type="button" className="icon-btn" aria-label="Next trips" onClick={() => moveCarousel(1)}><ChevronRight size={19} /></button>
+            <button type="button" className="carousel-pause" aria-pressed={carouselPaused} onClick={() => setCarouselPaused(paused => !paused)}>
+              {carouselPaused ? <Play size={15} /> : <Pause size={15} />}
+              {carouselPaused ? "Resume" : "Pause"} rotation
+            </button>
+          </div>
+        </div>
+        <div className="planned-carousel-window" ref={carouselWindow}>
+          <div
+            className={`planned-track ${trackAnimating ? "" : "without-transition"}`}
+            style={{ transform: `translate3d(-${carouselPosition * PREPLANNED_CARD_STEP}px, 0, 0)` }}
+            onTransitionEnd={settleCarouselLoop}
+          >
+            {tripSequence.map((planned, sequenceIndex) => {
+              const isVisible = sequenceIndex >= carouselPosition && sequenceIndex < carouselPosition + visibleCardCount;
+              return (
+                <button
+                  type="button"
+                  className="destination-card planned-trip-card"
+                  key={`${planned.id}-${sequenceIndex}`}
+                  aria-hidden={!isVisible}
+                  tabIndex={isVisible ? 0 : -1}
+                  onClick={() => open("plannedTrip", { id: planned.id })}
+                >
+                  <Photo src={planned.image} alt={`${planned.destinations[0]} trip`} />
+                  <span className="planned-card-copy">
+                    <span className="planned-card-destination">{planned.destinations.join(" · ")}</span>
+                    <strong className="planned-card-title">{planned.title}</strong>
+                    <span className="planned-card-meta"><strong>${planned.estimate}</strong> / person <span>{planned.days} days</span></span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </>
   );
 }
+const dateAfter = (iso: string, offset: number) => {
+  const date = new Date(`${iso}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + offset);
+  return date.toISOString().slice(0, 10);
+};
 export function Trips() {
   const { s, user, mutate, go, open, route, pendingTripIds } = useApp();
   const [filter, setFilter] = useState("All");
@@ -733,9 +797,10 @@ export function TripForm() {
   const saving = useRef(false);
   const editing = route.params.get("edit") === "true" && trip;
   const original = editing ? trip : undefined;
-  const [title, setTitle] = useState(original?.title || ""),
+  const template = original ? undefined : plannedTrip(route.params.get("template"));
+  const [title, setTitle] = useState(original?.title || template?.title || ""),
     [locations, setLocations] = useState<string[]>(
-      original?.destinations || [],
+      original?.destinations || template?.destinations || [],
     ),
     [place, setPlace] = useState(""),
     [start, setStart] = useState(original?.start || ""),
@@ -918,6 +983,21 @@ export function TripForm() {
           todos: [],
           dismissed: [],
         };
+    if (template && !original) {
+      draft.events = template.stops.map(stop => ({
+        id: uid(),
+        name: stop.name,
+        date: dateAfter(start, stop.day),
+        start: stop.start,
+        end: stop.end,
+        cost: 0,
+        attendees: [user!.id],
+        image: template.image,
+        notes: stop.notes,
+        place: stop.place,
+      }));
+      draft.image = template.image;
+    }
     Object.assign(draft, {
       title: title.trim(),
       destinations: previewPlaces,
@@ -984,7 +1064,7 @@ export function TripForm() {
         <div className="card form-card">
           <div className="trip-form-intro">
             <p><CalendarDays size={17} /> Dates turn your itinerary into an on-trip dashboard when the time comes.</p>
-            <p><Check size={17} /> Your new trip starts empty. Add only the plans you want.</p>
+            <p><Check size={17} /> {template ? "Edit this starter plan and choose your trip dates." : "Your new trip starts empty. Add only the plans you want."}</p>
           </div>
           <fieldset
             disabled={busy || !!savedId}
@@ -1081,13 +1161,14 @@ export function TripForm() {
                 value={start}
                 onChange={(next) => {
                   setStart(next);
-                  if (!end || end < next) setEnd(next);
+                  if (template) setEnd(dateAfter(next, template.days - 1));
+                  else if (!end || end < next) setEnd(next);
                 }}
               />
               <DatePicker
                 label="End date"
                 required
-                min={start}
+                min={template && start ? dateAfter(start, template.days - 1) : start}
                 align="right"
                 value={end}
                 onChange={setEnd}

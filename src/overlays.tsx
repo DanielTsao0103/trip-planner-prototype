@@ -43,6 +43,7 @@ import {
   type Role,
 } from "./domain";
 import { BudgetSetup, ExpenseForm } from "./finance";
+import { plannedTrip } from "./preplanned-trips";
 function AuthProvider() {
   const { overlay, s, mutate, go, login, close } = useApp();
   const { service, signup } = overlay!.data;
@@ -566,6 +567,7 @@ export function Overlays() {
     toast,
   } = app;
   if (!o) return null;
+  if (o.kind === "plannedTrip") return <PlannedTripPreview />;
   if (o.kind === "deleteTrip") return <DeleteTrip />;
   if (o.kind === "demo") return <Demo />;
   if (o.kind === "authProvider") return <AuthProvider />;
@@ -945,4 +947,36 @@ export function Overlays() {
     );
   }
   return null;
+}
+
+function PlannedTripPreview() {
+  const { overlay, close, go } = useApp();
+  const planned = plannedTrip(overlay?.data?.id ?? null);
+  if (!planned) return null;
+  return (
+    <Modal title={planned.title} wide>
+      <div className="planned-modal-intro">
+        <img src={planned.image} alt={`${planned.destinations[0]} scenery`} />
+        <div>
+          <span className="eyebrow">{planned.days} day starter itinerary</span>
+          <p>{planned.summary}</p>
+          <p className="planned-modal-estimate"><strong>${planned.estimate}</strong> / person · illustrative estimate</p>
+        </div>
+      </div>
+      <h3 className="planned-modal-subhead">A look at the itinerary</h3>
+      <ol className="planned-stop-list planned-modal-stops">
+        {planned.stops.map((stop, index) => (
+          <li key={`${stop.day}-${stop.name}-${index}`}>
+            <span className="planned-stop-day">Day {stop.day + 1}</span>
+            <span><strong>{stop.name}</strong><small>{stop.start}–{stop.end} · {stop.place}</small></span>
+          </li>
+        ))}
+      </ol>
+      <p className="muted planned-estimate-note">Choose your dates after adding. You can edit the activities, destinations, and dates before saving.</p>
+      <div className="form-actions planned-modal-actions">
+        <Button variant="outline" onClick={close}>Keep browsing</Button>
+        <Button onClick={() => go(6, { template: planned.id })}>Add this trip <ArrowRight size={17} /></Button>
+      </div>
+    </Modal>
+  );
 }
