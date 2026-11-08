@@ -63,7 +63,10 @@ test("account saves recover from lost responses without duplicate trips, reload,
       return route.fulfill({ json: [] });
     if (url.pathname === "/functions/v1/unsplash-search" && request.method() === "GET")
       return route.fulfill({ json: { results: [] } });
-    if (url.pathname === "/rest/v1/rpc/save_trip_bundle") {
+    if (
+      url.pathname === "/rest/v1/rpc/save_trip_bundle" ||
+      url.pathname === "/rest/v1/rpc/save_trip_bundle_with_timezones"
+    ) {
       const requestData = request.postDataJSON();
       const draft = requestData.p_data;
       ids.push(draft.id);
@@ -90,6 +93,7 @@ test("account saves recover from lost responses without duplicate trips, reload,
         content_version: 1,
         content: {
           image: draft.image,
+          destinationTimezones: requestData.p_destination_timezones ?? draft.destinationTimezones,
           members: draft.members,
           events: draft.events,
           expenses: draft.expenses,

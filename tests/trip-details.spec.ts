@@ -59,10 +59,13 @@ async function backend(page: Page) {
       return route.fulfill({ json: "needs_email" });
     }
     if (path.endsWith("/read_invited_trip")) return route.fulfill({ json: rows.find(t => t.tripID === req.postDataJSON().p_trip) });
-    if (path.endsWith("/save_trip_bundle")) {
+    if (
+      path.endsWith("/save_trip_bundle") ||
+      path.endsWith("/save_trip_bundle_with_timezones")
+    ) {
       if (held) await held;
       if (fail) return route.abort("failed");
-      const { p_data: d, p_expected_revision: r } = req.postDataJSON();
+      const { p_data: d, p_expected_revision: r, p_destination_timezones: timezones } = req.postDataJSON();
       const old = rows.find((x) => x.tripID === d.id);
       if (old && r !== old.revision)
         return route.fulfill({
@@ -82,6 +85,7 @@ async function backend(page: Page) {
         content_version: 1,
         content: {
           image: d.image,
+          destinationTimezones: timezones ?? d.destinationTimezones,
           members: d.members,
           events: d.events,
           expenses: d.expenses,
