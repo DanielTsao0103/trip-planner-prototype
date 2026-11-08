@@ -20,7 +20,7 @@ export async function detailJourney(page, base, travelerEmail) {
   await button("Add").click();
   await field("Start date").fill(today);
   await field("End date").fill(today);
-  await expect(page.getByText("Taipei — Taipei Standard Time", { exact: true })).toBeVisible();
+  await expect(page.getByText("Taipei — Taiwan Standard Time", { exact: true })).toBeVisible();
   await button("Create trip").click();
   await button("Full detail browser QA").click();
   await saved(page);
