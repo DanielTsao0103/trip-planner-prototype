@@ -17,6 +17,7 @@ export async function detailJourney(page, base, travelerEmail) {
   await goto("6");
   await field("Trip title").fill("Full detail browser QA");
   await field("Where are you going?").fill("Taipei");
+  await button("Add").click();
   await field("Start date").fill(today);
   await field("End date").fill(today);
   await expect(page.getByText("Taipei — Taipei Standard Time", { exact: true })).toBeVisible();
