@@ -812,6 +812,13 @@ export function TripForm() {
       ]),
     ).values(),
   );
+  const timezoneGroups = locations.reduce<{ timeZone: string | null; destinations: string[] }[]>((groups, destination) => {
+    const timeZone = zoneByDestination[destination] ?? null;
+    const group = timeZone ? groups.find(item => item.timeZone === timeZone) : undefined;
+    if (group) group.destinations.push(destination);
+    else groups.push({ timeZone, destinations: [destination] });
+    return groups;
+  }, []);
   const tripLength = start && end && end >= start ? days(start, end).length : 0;
   const addPlace = () => {
     if (!place.trim()) return;
@@ -1088,10 +1095,14 @@ export function TripForm() {
             </div>
             <Field label="Trip time zones" hint={zoneLoading ? "Finding time zones for your destinations…" : zoneError || "Each time zone follows its destination order."}>
               {locations.length ? <ul className="trip-timezone-list">
-                {locations.map(destination => {
-                  const [city, ...area] = destination.split(",").map(part => part.trim());
-                  const timeZone = zoneByDestination[destination];
-                  return <li key={destination}><strong>{city}{timeZone ? ` — ${timeZoneLabel(timeZone)}` : " — Time zone unavailable"}</strong>{area.length > 0 && <small>{area.join(", ")}</small>}</li>;
+                {timezoneGroups.map(group => {
+                  const labels = group.destinations.map(destination => {
+                    const [city, ...area] = destination.split(",").map(part => part.trim());
+                    return { city, area: area.join(", ") };
+                  });
+                  const areas = [...new Set(labels.map(label => label.area).filter(Boolean))];
+                  const timezone = group.timeZone ? timeZoneLabel(group.timeZone) : "Time zone unavailable";
+                  return <li key={group.timeZone ?? group.destinations[0]}><ul className="trip-timezone-group">{labels.map(label => <li key={label.city}><strong>{label.city} — {timezone}</strong></li>)}</ul>{areas.length > 0 && <small>{areas.join(", ")}</small>}</li>;
                 })}
               </ul> : <p className="trip-timezone-empty">Add destinations to see their time zones.</p>}
             </Field>

@@ -6781,7 +6781,9 @@ legend {
 .trip-form-intro p { display:flex; align-items:flex-start; gap:12px; margin:0 0 10px; color:var(--muted); font-size:13px; line-height:1.55; }
 .trip-form-intro svg { flex:none; margin-top:2px; color:var(--green); }
 .trip-timezone-list { display:grid; gap:8px; padding:0; margin:0; list-style:none; }
-.trip-timezone-list li { display:flex; flex-direction:column; gap:3px; padding:10px 12px; border:1px solid var(--line); border-radius:calc(7px * var(--rs)); background:var(--paper); }
+.trip-timezone-list > li { display:flex; flex-direction:column; gap:3px; padding:10px 12px; border:1px solid var(--line); border-radius:calc(7px * var(--rs)); background:var(--paper); }
+.trip-timezone-group { display:grid; gap:4px; list-style:none; margin:0; padding:0; }
+.trip-timezone-group > li { margin:0; padding:0; border:0; background:transparent; }
 .trip-timezone-list strong { font-size:13px; font-weight:600; }
 .trip-timezone-list small,.trip-timezone-empty { color:var(--muted); font-size:11px; }
 @media (max-width: 1199px) { .trip-form-intro { display:block; } }
