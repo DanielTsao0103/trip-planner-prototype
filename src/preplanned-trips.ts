@@ -57,7 +57,7 @@ export const PREPLANNED_TRIPS: PlannedTrip[] = [
     { day: 1, name: "Art Institute of Chicago", start: "14:00", end: "17:00", place: "Art Institute of Chicago, Chicago, IL", notes: "Set aside a few hours for the galleries." },
     { day: 2, name: "Millennium Park", start: "09:30", end: "11:00", place: "Millennium Park, Chicago, IL", notes: "Walk the park before heading home." },
   ]),
-  trip("nyc", "New York first-timer favorites", ["New York, NY"], 4, 1180, "/images/preplanned-new-york.jpg", "Classic landmarks, a museum afternoon, and a Broadway night.", [
+  trip("nyc", "New York first-timer favorites", ["New York, NY"], 4, 1180, "images/preplanned-new-york.jpg", "Classic landmarks, a museum afternoon, and a Broadway night.", [
     { day: 0, name: "Times Square after dark", start: "19:00", end: "20:00", place: "Times Square, New York, NY", notes: "Take in the lights, then head to dinner nearby." },
     { day: 1, name: "Central Park stroll", start: "09:00", end: "11:30", place: "Central Park, New York, NY", notes: "Choose a short loop and leave room for coffee." },
     { day: 1, name: "The Metropolitan Museum of Art", start: "13:00", end: "16:00", place: "The Metropolitan Museum of Art, New York, NY", notes: "Pick a few galleries that interest your group." },
@@ -65,7 +65,7 @@ export const PREPLANNED_TRIPS: PlannedTrip[] = [
     { day: 2, name: "Broadway evening", start: "19:00", end: "22:00", place: "Theater District, New York, NY", notes: "Choose a show and plan an early dinner." },
     { day: 3, name: "High Line walk", start: "10:00", end: "12:00", place: "The High Line, New York, NY", notes: "Walk the elevated park south toward Chelsea Market." },
   ]),
-  trip("sf", "San Francisco neighborhoods", ["San Francisco, CA"], 4, 990, "/images/preplanned-san-francisco.jpg", "Cable cars, bay views, and time to wander local neighborhoods.", [
+  trip("sf", "San Francisco neighborhoods", ["San Francisco, CA"], 4, 990, "images/preplanned-san-francisco.jpg", "Cable cars, bay views, and time to wander local neighborhoods.", [
     { day: 0, name: "Ferry Building Marketplace", start: "16:00", end: "18:00", place: "Ferry Building, San Francisco, CA", notes: "Browse the food stalls and waterfront promenade." },
     { day: 1, name: "Golden Gate Bridge overlook", start: "09:00", end: "11:00", place: "Golden Gate Bridge, San Francisco, CA", notes: "Check the weather and bring a layer for the coast." },
     { day: 1, name: "Lands End trail", start: "13:00", end: "15:00", place: "Lands End, San Francisco, CA", notes: "Follow the coastal path at a comfortable pace." },
@@ -80,7 +80,7 @@ export const PREPLANNED_TRIPS: PlannedTrip[] = [
     { day: 1, name: "Washington Park", start: "11:30", end: "14:00", place: "Washington Park, Portland, OR", notes: "Pair the gardens with a relaxed picnic lunch." },
     { day: 2, name: "Saturday Market waterfront", start: "10:00", end: "12:00", place: "Portland Saturday Market, Portland, OR", notes: "Check market days before your visit." },
   ]),
-  trip("new-orleans", "New Orleans music & flavor", ["New Orleans, LA"], 4, 840, "/images/preplanned-new-orleans.jpg", "Live music, historic streets, and unhurried meals.", [
+  trip("new-orleans", "New Orleans music & flavor", ["New Orleans, LA"], 4, 840, "images/preplanned-new-orleans.jpg", "Live music, historic streets, and unhurried meals.", [
     { day: 0, name: "Frenchmen Street music", start: "20:00", end: "22:00", place: "Frenchmen Street, New Orleans, LA", notes: "Check venue schedules and arrive early for popular sets." },
     { day: 1, name: "French Quarter walk", start: "09:00", end: "11:00", place: "French Quarter, New Orleans, LA", notes: "Explore the historic streets before the afternoon heat." },
     { day: 1, name: "Jackson Square", start: "11:00", end: "12:30", place: "Jackson Square, New Orleans, LA", notes: "Enjoy the architecture and nearby riverfront." },
@@ -94,14 +94,14 @@ export const PREPLANNED_TRIPS: PlannedTrip[] = [
     { day: 2, name: "Lincoln Memorial and Tidal Basin", start: "09:00", end: "12:00", place: "Lincoln Memorial, Washington, DC", notes: "Wear comfortable shoes for the Mall walk." },
     { day: 3, name: "Georgetown waterfront", start: "10:00", end: "12:00", place: "Georgetown Waterfront Park, Washington, DC", notes: "Explore the neighborhood before heading out." },
   ]),
-  trip("boston", "Boston history on foot", ["Boston, MA"], 3, 720, "/images/preplanned-boston.jpg", "A compact, walkable history trip with a harbor finish.", [
+  trip("boston", "Boston history on foot", ["Boston, MA"], 3, 720, "images/preplanned-boston.jpg", "A compact, walkable history trip with a harbor finish.", [
     { day: 0, name: "Boston Common", start: "16:00", end: "17:30", place: "Boston Common, Boston, MA", notes: "Start with a short loop through the oldest public park." },
     { day: 1, name: "Freedom Trail", start: "09:00", end: "12:00", place: "Boston Freedom Trail, Boston, MA", notes: "Follow a portion of the trail and choose stops as you go." },
     { day: 1, name: "North End lunch", start: "12:30", end: "14:00", place: "North End, Boston, MA", notes: "Settle in for lunch and a bakery stop." },
     { day: 2, name: "Museum of Fine Arts", start: "10:00", end: "13:00", place: "Museum of Fine Arts, Boston, MA", notes: "Pick a few highlights rather than trying to see everything." },
     { day: 2, name: "Harborwalk", start: "15:00", end: "17:00", place: "Boston Harborwalk, Boston, MA", notes: "Finish with a breezy waterfront walk." },
   ]),
-  trip("honolulu", "Oahu beach & island days", ["Honolulu, HI"], 5, 1450, "/images/preplanned-honolulu.jpg", "Beach mornings and city evenings with space to slow down.", [
+  trip("honolulu", "Oahu beach & island days", ["Honolulu, HI"], 5, 1450, "images/preplanned-honolulu.jpg", "Beach mornings and city evenings with space to slow down.", [
     { day: 0, name: "Waikiki sunset", start: "17:00", end: "18:30", place: "Waikiki Beach, Honolulu, HI", notes: "Unpack, then take an easy beach walk." },
     { day: 1, name: "Diamond Head morning hike", start: "07:30", end: "10:00", place: "Diamond Head State Monument, Honolulu, HI", notes: "Timed reservations are required; bring water." },
     { day: 1, name: "Waikiki beach afternoon", start: "13:00", end: "16:00", place: "Waikiki Beach, Honolulu, HI", notes: "Keep the afternoon flexible for swimming or rest." },
@@ -109,35 +109,35 @@ export const PREPLANNED_TRIPS: PlannedTrip[] = [
     { day: 3, name: "Hanauma Bay", start: "08:00", end: "12:00", place: "Hanauma Bay, Honolulu, HI", notes: "Check current access rules and reserve ahead." },
     { day: 4, name: "Kapiolani Park", start: "09:00", end: "11:00", place: "Kapiolani Park, Honolulu, HI", notes: "Enjoy a final easy morning near the coast." },
   ]),
-  trip("austin", "Austin live music & lakeside", ["Austin, TX"], 3, 660, "/images/preplanned-austin.jpg", "Live music, tacos, and a little time by the water.", [
+  trip("austin", "Austin live music & lakeside", ["Austin, TX"], 3, 660, "images/preplanned-austin.jpg", "Live music, tacos, and a little time by the water.", [
     { day: 0, name: "South Congress stroll", start: "16:00", end: "18:00", place: "South Congress Avenue, Austin, TX", notes: "Browse the shops and grab a snack." },
     { day: 0, name: "Live music on Red River", start: "20:00", end: "22:00", place: "Red River Cultural District, Austin, TX", notes: "Look up show times and age policies before you go." },
     { day: 1, name: "Lady Bird Lake trail", start: "09:00", end: "11:00", place: "Lady Bird Lake, Austin, TX", notes: "Walk or rent a kayak if conditions are good." },
     { day: 1, name: "Texas State Capitol", start: "13:00", end: "15:00", place: "Texas State Capitol, Austin, TX", notes: "Join a tour or explore the grounds." },
     { day: 2, name: "Breakfast tacos", start: "09:00", end: "10:30", place: "Austin, TX", notes: "Try a local breakfast spot before departure." },
   ]),
-  trip("denver", "Denver & mountain views", ["Denver, CO"], 4, 850, "/images/preplanned-denver.jpg", "City museums and an optional foothills day trip.", [
+  trip("denver", "Denver & mountain views", ["Denver, CO"], 4, 850, "images/preplanned-denver.jpg", "City museums and an optional foothills day trip.", [
     { day: 0, name: "Union Station", start: "16:00", end: "18:00", place: "Denver Union Station, Denver, CO", notes: "Explore LoDo and settle in for dinner." },
     { day: 1, name: "Denver Art Museum", start: "10:00", end: "13:00", place: "Denver Art Museum, Denver, CO", notes: "Pick a few galleries to explore at a relaxed pace." },
     { day: 1, name: "Civic Center Park", start: "14:00", end: "15:30", place: "Civic Center Park, Denver, CO", notes: "Walk the civic center and nearby library." },
     { day: 2, name: "Red Rocks Amphitheatre", start: "09:00", end: "13:00", place: "Red Rocks Park and Amphitheatre, Morrison, CO", notes: "Check event schedules and trail conditions." },
     { day: 3, name: "Denver Botanic Gardens", start: "09:30", end: "12:00", place: "Denver Botanic Gardens, Denver, CO", notes: "An easy green-space visit before leaving." },
   ]),
-  trip("nashville", "Nashville music weekend", ["Nashville, TN"], 3, 760, "/images/preplanned-nashville.jpg", "Country music history and a night out with live bands.", [
+  trip("nashville", "Nashville music weekend", ["Nashville, TN"], 3, 760, "images/preplanned-nashville.jpg", "Country music history and a night out with live bands.", [
     { day: 0, name: "Broadway live music", start: "19:00", end: "22:00", place: "Lower Broadway, Nashville, TN", notes: "Check venue policies and keep the evening flexible." },
     { day: 1, name: "Country Music Hall of Fame", start: "10:00", end: "13:00", place: "Country Music Hall of Fame, Nashville, TN", notes: "Reserve tickets and take time with the exhibits." },
     { day: 1, name: "Ryman Auditorium tour", start: "14:00", end: "15:30", place: "Ryman Auditorium, Nashville, TN", notes: "Tour availability varies around performances." },
     { day: 2, name: "Centennial Park", start: "09:30", end: "11:00", place: "Centennial Park, Nashville, TN", notes: "Take a relaxed walk around the Parthenon." },
     { day: 2, name: "East Nashville brunch", start: "11:30", end: "13:00", place: "East Nashville, Nashville, TN", notes: "Explore a neighborhood cafe before departure." },
   ]),
-  trip("las-vegas", "Las Vegas shows & desert", ["Las Vegas, NV"], 3, 1080, "/images/preplanned-las-vegas.jpg", "A show night, a little Strip time, and a desert escape.", [
+  trip("las-vegas", "Las Vegas shows & desert", ["Las Vegas, NV"], 3, 1080, "images/preplanned-las-vegas.jpg", "A show night, a little Strip time, and a desert escape.", [
     { day: 0, name: "Welcome to the Strip", start: "18:00", end: "20:00", place: "Las Vegas Strip, Las Vegas, NV", notes: "Explore nearby and plan an early dinner." },
     { day: 0, name: "Evening show", start: "20:30", end: "22:30", place: "Las Vegas, NV", notes: "Book a show that fits your group's interests." },
     { day: 1, name: "Red Rock Canyon", start: "08:00", end: "13:00", place: "Red Rock Canyon National Conservation Area, NV", notes: "Check timed entry, weather, and trail conditions." },
     { day: 1, name: "Arts District dinner", start: "18:00", end: "20:00", place: "Las Vegas Arts District, Las Vegas, NV", notes: "Choose a local spot away from the resort corridor." },
     { day: 2, name: "Bellagio Conservatory", start: "10:00", end: "11:30", place: "Bellagio, Las Vegas, NV", notes: "A low-key stop before checkout." },
   ]),
-  trip("miami", "Miami art & beach days", ["Miami, FL"], 4, 1120, "/images/preplanned-miami.jpg", "Art Deco architecture, colorful murals, and beach breaks.", [
+  trip("miami", "Miami art & beach days", ["Miami, FL"], 4, 1120, "images/preplanned-miami.jpg", "Art Deco architecture, colorful murals, and beach breaks.", [
     { day: 0, name: "Ocean Drive walk", start: "17:00", end: "18:30", place: "Ocean Drive, Miami Beach, FL", notes: "See the Art Deco district in the softer evening light." },
     { day: 1, name: "South Beach morning", start: "09:00", end: "12:00", place: "South Beach, Miami Beach, FL", notes: "Keep the beach time flexible around the weather." },
     { day: 1, name: "Art Deco Welcome Center", start: "14:00", end: "16:00", place: "Art Deco Welcome Center, Miami Beach, FL", notes: "Learn more about the neighborhood architecture." },
@@ -145,7 +145,7 @@ export const PREPLANNED_TRIPS: PlannedTrip[] = [
     { day: 2, name: "Little Havana food walk", start: "13:00", end: "15:00", place: "Little Havana, Miami, FL", notes: "Sample Cuban coffee and neighborhood favorites." },
     { day: 3, name: "Bayfront Park", start: "09:30", end: "11:00", place: "Bayfront Park, Miami, FL", notes: "Enjoy one last bayfront walk before leaving." },
   ]),
-  trip("charleston", "Charleston historic district", ["Charleston, SC"], 3, 790, "/images/preplanned-charleston.jpg", "A slower weekend of historic streets and Lowcountry flavors.", [
+  trip("charleston", "Charleston historic district", ["Charleston, SC"], 3, 790, "images/preplanned-charleston.jpg", "A slower weekend of historic streets and Lowcountry flavors.", [
     { day: 0, name: "Waterfront Park", start: "17:00", end: "18:30", place: "Waterfront Park, Charleston, SC", notes: "Walk the harbor and settle into downtown." },
     { day: 1, name: "Historic district walking tour", start: "09:00", end: "11:30", place: "Charleston Historic District, Charleston, SC", notes: "Join a guided tour or follow a self-guided route." },
     { day: 1, name: "Charleston City Market", start: "12:00", end: "14:00", place: "Charleston City Market, Charleston, SC", notes: "Browse local makers and find a lunch stop." },
