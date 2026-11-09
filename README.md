@@ -6,13 +6,15 @@ Only the five cards in the latest sprint screenshot are graded here. [Current ve
 
 | Card requirement | Status | Verification boundary |
 | --- | --- | --- |
-| Invite someone to a group | Not complete | Browser routing passes and deployed RPC denies anonymous calls; controlled-inbox delivery/acceptance still needs a real second-account test. |
+| Invite someone to a group | Complete | Real email delivery and signup/login acceptance passed for new and existing QA accounts; see live acceptance report below. |
 | Edit itinerary pictures | Complete | Fresh live selection/upload, database/Storage readback, reload, desktop/mobile and Lighthouse 98–100. |
-| All collaborators save their own preferences to the database | Not complete | Collaborator survey/save API-boundary tests pass; independent two-account live readback remains unverified. |
+| All collaborators save their own preferences to the database | Complete | Real Viewer saved answers; independent owner readback, owner-answer isolation and unrelated-trip denial passed. |
 | Connect budgets to the database | Complete | Fresh live group/individual/mode/expense saves, reload and invalid-write rollback; budget Lighthouse 100. |
-| Group permissions work and are enforced by the database | Not complete | Role/day UI and browser regressions pass; real Owner/Viewer/Editor/Day Editor grants, forbidden writes and revocation remain unverified across independent accounts. |
+| Group permissions work and are enforced by the database | Complete | Live Owner/Viewer/Editor/Day Editor enforcement, separate-browser role refresh, denied/allowed writes, date boundaries and removal of an Editor passed. |
 
-The current run passed 83 unit tests and 60 focused browser tests. Its live photo/budget audit passed all 19 width checks and Lighthouse scored 98–100. “Not complete” distinguishes missing acceptance evidence from a reproduced implementation failure; unrelated prototype integrations are not counted against these cards.
+**All five cards now have completed acceptance evidence for the checked scope.** The three earlier live-verification gaps were closed using real inbox delivery, separate accounts and actual database authorization checks. [Live group acceptance report](assignment/live-group-acceptance-2026-11-08.md) · [Evidence](assignment/live-group-acceptance-2026-11-08.json). Role-dialog Lighthouse scored 100 on desktop/mobile. Existing unrelated mobile-polish findings remain separate.
+
+The earlier current-source run passed 83 unit tests and 60 focused browser tests; its live photo/budget audit passed 19 width checks with Lighthouse 98–100. The new live group checks are independent of those mocked regressions.
 
 ## Additional sprint checks — itinerary pictures and budgets
 
@@ -26,7 +28,7 @@ Both additional screenshot features meet the checked definition of done. [Verifi
 | Responsive desktop/mobile and Lighthouse Accessibility >=90 | Complete | All 19 states fit tested widths; Lighthouse 98–100, with budget states scoring 100. Screenshots reviewed. |
 | Requirements documented, feature code on main and public deployment verified | Complete | Audited public implementation `e556148` is on main and was served at the public URL during the checks. |
 
-## Sprint definition of done — November 7, 2026
+## Historical sprint audit — November 7, 2026 (superseded where updated above)
 
 **Scope: only the seven features in the sprint screenshots.** Unrelated unfinished integrations do not count against this sprint. [Sprint verification report](assignment/sprint-definition-of-done-2026-11-07.md) · [Lighthouse/database summary](assignment/sprint-definition-of-done-2026-11-07.json).
 

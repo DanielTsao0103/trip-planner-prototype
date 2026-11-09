@@ -1,5 +1,7 @@
 # Verification of the five Done-column cards — November 8, 2026
 
+**Follow-up:** The three missing live verification paths below were subsequently completed. See [live group acceptance](live-group-acceptance-2026-11-08.md) for real email delivery, separate accounts, database enforcement and the current Complete statuses. This document preserves the earlier audit record.
+
 Scope is exactly the five cards in the latest screenshot. Unrelated prototype work is excluded. “Not complete” below means the definition-of-done verification is unfinished; it is not a claim that the implementation is absent or that a reproducible product failure was found.
 
 | Card | Acceptance status | Current evidence / remaining check |

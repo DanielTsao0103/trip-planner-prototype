@@ -92,6 +92,7 @@ const trip = {
   dismissed: [],
 };
 const sprint = process.env.AUDIT_SPRINT === "1";
+const roleDialog = process.env.AUDIT_ROLE_DIALOG === "1";
 const photosBudget = process.env.AUDIT_PHOTOS_BUDGET === "1";
 if (sprint) {
   trip.title = "Sprint seven-feature QA";
@@ -132,6 +133,17 @@ if (sprint) {
     place: "Louvre Museum, Paris, France",
     point: { lat: 48.8606, lng: 2.3376 },
     date: "2027-06-02",
+  });
+}
+if (roleDialog) {
+  trip.title = "Role dialog QA";
+  trip.members.push({
+    id: randomUUID(),
+    name: "Role QA Traveler",
+    email: "role-qa@example.invalid",
+    role: "Viewer",
+    days: [],
+    status: "accepted",
   });
 }
 const priorTrips = check(await c.rpc("load_trip_bundles"));
@@ -320,6 +332,34 @@ try {
     await field("Password").fill(a.password);
     await button("Log in").click();
     await button("Account and preferences").waitFor();
+    if (roleDialog) {
+      await page.goto(site + "#/5");
+      await page.getByRole("button", { name: trip.title, exact: true }).click();
+      await page.goto(site + "#/13");
+      await button("Change permissions for Role QA Traveler").click();
+      await field("Role").selectOption("Day Editor");
+      await page.getByRole("checkbox", { name: /Day 2/ }).check();
+      await audit("day-editor-permissions-dialog");
+      await button("Save permissions").click();
+      await expect
+        .poll(
+          async () =>
+            check(
+              await c.rpc("read_invited_trip", { p_trip: id }),
+            ).content.members.find((m) => m.name === "Role QA Traveler").role,
+        )
+        .toBe("Day Editor");
+      await page.reload();
+      await button("Change permissions for Role QA Traveler").click();
+      await expect(field("Role")).toHaveValue("Day Editor");
+      await expect(page.getByRole("checkbox", { name: /Day 2/ })).toBeChecked();
+      record(
+        `${device}: owner role/day dialog saved and reloaded through live database`,
+      );
+      await browser.close();
+      browser = null;
+      continue;
+    }
     if (photosBudget) {
       await page.goto(site + "#/5");
       await page.getByText(trip.title, { exact: true }).first().waitFor();

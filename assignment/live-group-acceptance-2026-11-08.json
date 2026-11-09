@@ -1,0 +1,152 @@
+{
+  "localDate": "2026-11-08",
+  "timezone": "America/Los_Angeles",
+  "newAccountInvitation": {
+    "site": "https://danieltsao0103.github.io/trip-planner-prototype/",
+    "version": {
+      "commit": "7e90c3fde424eb2eed9855a991c3316797f8aee0",
+      "entryScript": "/trip-planner-prototype/assets/index-Br0epR4p.js",
+      "builtAt": "2026-11-09T05:01:44.609Z"
+    },
+    "checkedAt": "2026-11-09T05:10:24.700Z",
+    "checks": [
+      "Owner sent the live invitation through the published Group UI",
+      "Real invitation email arrived in the controlled inbox and contains a trip link",
+      "Separate mobile account accepted the email invitation, was required to save preferences, joined as Viewer, and survived reload; owner independently read its saved answers",
+      "Live database role suite passed: Viewer denial, no self-promotion, owner-route/table bypass blocked, assigned-day edits allowed, both move dates checked, unauthorized mixed writes rolled back, Editor grants/retries/stale writes/demotion enforced",
+      "Independent desktop owner/mobile traveler UI sessions passed promotion, live role refresh, Editor save and demotion/denied edit",
+      "Removal revoked the existing collaborator session: trip read and preference write denied by the live backend"
+    ],
+    "cleanup": true,
+    "retainedQaIdentity": true
+  },
+  "existingAccountInvitation": {
+    "site": "https://danieltsao0103.github.io/trip-planner-prototype/",
+    "version": {
+      "commit": "7e90c3fde424eb2eed9855a991c3316797f8aee0",
+      "entryScript": "/trip-planner-prototype/assets/index-Br0epR4p.js",
+      "builtAt": "2026-11-09T05:01:44.609Z"
+    },
+    "checkedAt": "2026-11-09T06:07:01.191Z",
+    "checks": [
+      "Owner sent the live invitation through the published Group UI",
+      "Real invitation email arrived in the controlled inbox and contains a trip link",
+      "Separate mobile account accepted the email invitation, was required to save preferences, joined as Viewer, and survived reload; owner independently read its saved answers",
+      "Live database role suite passed: Viewer denial, no self-promotion, owner-route/table bypass blocked, assigned-day edits allowed, both move dates checked, unauthorized mixed writes rolled back, Editor grants/retries/stale writes/demotion enforced",
+      "Independent desktop owner/mobile traveler UI sessions passed promotion, live role refresh, Editor save and demotion/denied edit",
+      "Removal revoked the existing Editor session: trip reads, shared writes and preference writes denied by the live backend"
+    ],
+    "cleanup": true,
+    "retainedQaIdentity": true
+  },
+  "preferenceIsolation": {
+    "checkedAt": "2026-11-09T06:05:38.725Z",
+    "checks": [
+      "Real Viewer saved its own answers; independent owner read confirmed both participants answers",
+      "Viewer overwrite of owner preferences was rejected with unchanged revision and complete content",
+      "Authenticated account could not save preferences to an unrelated trip"
+    ],
+    "cleanup": true
+  },
+  "permissionDialog": {
+    "site": "https://danieltsao0103.github.io/trip-planner-prototype/",
+    "version": {
+      "commit": "7e90c3fde424eb2eed9855a991c3316797f8aee0",
+      "entryScript": "/trip-planner-prototype/assets/index-Br0epR4p.js",
+      "builtAt": "2026-11-09T05:01:44.609Z"
+    },
+    "checkedAt": "2026-11-09T05:12:52.430Z",
+    "lighthouse": [
+      {
+        "device": "desktop",
+        "name": "login",
+        "score": 100,
+        "responsive": {
+          "viewport": 1365,
+          "innerWidth": 1365,
+          "requested": 1365,
+          "content": 1365,
+          "pass": true
+        },
+        "failures": [],
+        "screenshotWidth": 1365
+      },
+      {
+        "device": "desktop",
+        "name": "signup",
+        "score": 100,
+        "responsive": {
+          "viewport": 1365,
+          "innerWidth": 1365,
+          "requested": 1365,
+          "content": 1365,
+          "pass": true
+        },
+        "failures": [],
+        "screenshotWidth": 1365
+      },
+      {
+        "device": "desktop",
+        "name": "day-editor-permissions-dialog",
+        "score": 100,
+        "responsive": {
+          "viewport": 1365,
+          "innerWidth": 1365,
+          "requested": 1365,
+          "content": 1365,
+          "pass": true
+        },
+        "failures": [],
+        "screenshotWidth": 1365
+      },
+      {
+        "device": "mobile",
+        "name": "login",
+        "score": 100,
+        "responsive": {
+          "viewport": 390,
+          "innerWidth": 390,
+          "requested": 390,
+          "content": 390,
+          "pass": true
+        },
+        "failures": [],
+        "screenshotWidth": 390
+      },
+      {
+        "device": "mobile",
+        "name": "signup",
+        "score": 100,
+        "responsive": {
+          "viewport": 390,
+          "innerWidth": 390,
+          "requested": 390,
+          "content": 390,
+          "pass": true
+        },
+        "failures": [],
+        "screenshotWidth": 390
+      },
+      {
+        "device": "mobile",
+        "name": "day-editor-permissions-dialog",
+        "score": 100,
+        "responsive": {
+          "viewport": 390,
+          "innerWidth": 390,
+          "requested": 390,
+          "content": 390,
+          "pass": true
+        },
+        "failures": [],
+        "screenshotWidth": 390
+      }
+    ],
+    "checks": [
+      "desktop: owner role/day dialog saved and reloaded through live database",
+      "mobile: owner role/day dialog saved and reloaded through live database",
+      "Cleanup: original account state restored; generated trip removed; pre-existing QA-visible trips unchanged"
+    ],
+    "cleanup": true
+  }
+}
