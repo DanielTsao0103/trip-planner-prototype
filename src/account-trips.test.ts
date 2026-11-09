@@ -79,6 +79,27 @@ test("database ownership becomes an account member without importing fictional i
   assert.deepEqual(trip.events, []);
 });
 
+test("owner edits repair empty legacy destination zones without changing shared settings", async () => {
+  const account = { id: "owner", name: "Owner", email: "owner@example.com" };
+  const trip = structuredClone(seed().trips[0]);
+  trip.members = [{ ...trip.members[0], id: account.id, role: "Owner" }];
+  trip.destinationTimezones = [];
+  trip.destinations = ["Seattle", "Taipei"];
+  trip.zone = "America/Los_Angeles";
+  const calls: { name: string; args: Record<string, any> }[] = [];
+  const client = { rpc: async (name: string, args: Record<string, any>) => {
+    calls.push({ name, args });
+    return { error: { code: "P0001", message: "Captured request" }, status: 400 };
+  } } as unknown as SupabaseClient;
+  await assert.rejects(saveAccountTrip(client, account, trip), /Captured request/);
+  assert.deepEqual(calls[0].args.p_destination_timezones, [trip.zone, null]);
+  assert.deepEqual(calls[0].args.p_data.destinationTimezones, [trip.zone, null]);
+  await assert.rejects(saveAccountTrip(client, { ...account, id: "editor" }, trip), /Captured request/);
+  assert.equal(calls[1].name, "save_shared_trip_changes");
+  assert.deepEqual(calls[1].args.p_data.destinationTimezones, []);
+  assert.deepEqual(trip.destinationTimezones, []);
+});
+
 test("legacy guest IDs and orphaned financial references migrate without claiming accounts", () => {
   const ownerId = "11111111-1111-4111-8111-111111111111";
   const account = { id: ownerId, name: "Owner", email: "owner@example.com" };

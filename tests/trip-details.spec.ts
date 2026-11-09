@@ -195,12 +195,13 @@ test("all detail screens persist changes and preserve financial history", async 
   const local = await page.evaluate(
     (id) => ({
       store: JSON.parse(localStorage.getItem(`trip-planner-demo-v1:${id}`)!),
-      recovery: localStorage.getItem(`trip-planner-pending-v1:${id}`),
+      recovery: Object.keys(localStorage).filter(key =>
+        key === `trip-planner-pending-v1:${id}` || key.startsWith(`trip-planner-pending-v2:${id}:`)),
     }),
     owner.id,
   );
   expect(local.store.trips.some((t: any) => t.id === row.tripID)).toBe(false);
-  expect(local.recovery).toBeNull();
+  expect(local.recovery).toEqual([]);
   await page.goto(`./#/7?event=${c.events[0].id}`);
   await expect(
     page.getByLabel("Notes (optional)", { exact: true }),

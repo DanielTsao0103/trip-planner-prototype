@@ -222,9 +222,13 @@ export async function saveAccountTrip(
   if (problem) throw new Error(problem);
   // Send the complete trip in one transaction; the server normalizes each entity.
   const { persistence, revision, contentVersion, sample, imageSource, imageCredit, destinationTimezones: storedTimezones, ...content } = trip;
-  const destinationTimezones = storedTimezones ?? trip.destinations.map((_, index) => index === 0 ? trip.zone : null);
-  const tripData = { ...content, destinationTimezones };
   const owner = isOwner(trip, account.id);
+  // Trips written by the original RPC can have an empty timezone list. Repair
+  // that legacy shape on an owner save; shared edits must retain immutable fields.
+  const destinationTimezones = storedTimezones && (!owner || storedTimezones.length > 0)
+    ? storedTimezones
+    : trip.destinations.map((_, index) => index === 0 ? trip.zone : null);
+  const tripData = { ...content, destinationTimezones };
   const request = {
     p_trip_id: trip.id,
     p_expected_revision: trip.revision ?? null,

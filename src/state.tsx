@@ -12,6 +12,7 @@ import { Check } from "lucide-react";
 import { demoStorageKey, loadDemoStore, type DemoAccount } from "./demo-store";
 import { type Store, type Preference, type Trip, type User, isActive, isOwner, member, canEdit, EVENT_PERMISSION_MESSAGE } from "./domain";
 import { TripSaveQueue, type PendingTrip } from "./trip-save-queue";
+import { TripRecoveryJournal } from "./trip-recovery";
 import { getSupabase, sendTripInvitationEmail } from "./supabase";
 import type { SignInMethod } from "./account";
 import { useCompanionPictures, useProfilePicture, type ProfilePicture } from "./use-profile-picture";
@@ -100,7 +101,11 @@ export function Provider({
   const accountRef = useRef(account);
   accountRef.current = account;
   const legacyTrips = useRef(s.trips);
-  const recoveryKey = `trip-planner-pending-v1:${account.id}`;
+  const recoveryRef = useRef<TripRecoveryJournal | null>(null);
+  if (!recoveryRef.current) {
+    try { recoveryRef.current = new TripRecoveryJournal(localStorage, sessionStorage, account.id); }
+    catch { /* The save banner and unload guard still protect in-memory drafts. */ }
+  }
   const [, setSaveTick] = useState(0);
   const [message, setMessage] = useState("");
   const [saveNotice, setSaveNotice] = useState(0);
@@ -145,12 +150,7 @@ export function Provider({
         setSaveTick((n) => n + 1);
         if (queueRef.current!.pending.size) setSaveNotice(0);
         try {
-          const drafts = [...queueRef.current!.pending.values()].map(
-            (entry) => ({ draft: entry.draft, retryDraft: entry.retryDraft?.generation !== entry.generation ? entry.retryDraft : undefined }),
-          );
-          if (drafts.length)
-            localStorage.setItem(recoveryKey, JSON.stringify(drafts));
-          else localStorage.removeItem(recoveryKey);
+          recoveryRef.current?.sync(queueRef.current!.pending);
         } catch {
           /* The persistent unsaved banner and unload guard remain active. */
         }
@@ -229,7 +229,7 @@ export function Provider({
         let recovered: (Trip | Pick<PendingTrip, "draft" | "retryDraft">)[] =
           [];
         try {
-          recovered = JSON.parse(localStorage.getItem(recoveryKey) || "[]");
+          recovered = recoveryRef.current?.read() ?? [];
         } catch {
           /* Ignore unreadable recovery storage. */
         }
@@ -266,7 +266,8 @@ export function Provider({
             ...restored,
           ],
         });
-        if (!queue.pending.size) localStorage.removeItem(recoveryKey);
+        try { recoveryRef.current?.sync(queue.pending); }
+        catch { /* Keep the in-memory draft and any previous recovery records. */ }
         queue.resume();
         // Import only this account's existing browser plans for a server-owned trip.
         // Unassigned sample trips and fictional email matches are never claimed.
@@ -670,8 +671,11 @@ export function Provider({
                       "Discard unsaved changes and reload the database version? Download your unsaved copy first if you want to keep it.",
                     )
                   ) {
+                    const discardedIds = [...queue.pending.keys()];
                     queue.pending.clear();
-                    localStorage.removeItem(recoveryKey);
+                    queue.stop();
+                    try { recoveryRef.current?.discard(discardedIds); }
+                    catch { /* Reload still reads the authoritative database version. */ }
                     location.reload();
                   }
                 }}
