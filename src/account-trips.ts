@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isOwner, type Trip } from "./domain.ts";
 import type { DemoAccount } from "./demo-store.ts";
 import { IMAGES } from "./data.ts";
+import { validRecoveryTrip } from "./trip-recovery-validation.ts";
 
 /** Database trip root plus its normalized planning records. */
 export type TripRow = {
@@ -18,7 +19,7 @@ export type TripRow = {
   timezone: string;
   revision: number;
   content_version?: number;
-  photoCredit?: { source: "unsplash" | "upload"; photographer_name: string | null; photographer_profile_url: string | null; photo_url: string | null };
+  photoCredit?: { source: "unsplash" | "upload"; photographer_name: string | null; photographer_profile_url: string | null; photo_url: string | null } | null;
   content?: Pick<
     Trip,
     | "image"
@@ -186,7 +187,7 @@ function migrateLegacyDetails(source: Trip, ownerId: string): Trip {
 
 export async function loadAccountTrips(
   client: SupabaseClient,
-  accountId: string,
+  _accountId: string,
 ): Promise<TripRow[]> {
   // Paginate to avoid silently losing trips at the API's default row limit.
   const rows: TripRow[] = [];
@@ -202,14 +203,8 @@ export async function loadAccountTrips(
     rows.push(...(data as TripRow[]));
     if (data.length < 500) break;
   }
-  if (rows.length) {
-    const { data, error } = await client.from("trip_photo_credit")
-      .select("trip_id,source,photographer_name,photographer_profile_url,photo_url")
-      .eq("owner_id", accountId).in("trip_id", rows.map((row) => row.tripID));
-    if (error) throw new Error("Could not load trip photo credits. Apply the trip photo migration.");
-    const credits = new Map((data ?? []).map((credit) => [credit.trip_id, credit]));
-    rows.forEach((row) => { row.photoCredit = credits.get(row.tripID) as TripRow["photoCredit"]; });
-  }
+  // Bundles include their own photo metadata in the same database snapshot.
+  // A second query could pair an older image with a newer photographer credit.
   return rows;
 }
 
@@ -221,65 +216,52 @@ export async function saveAccountTrip(
   const problem = tripDetailsError(trip);
   if (problem) throw new Error(problem);
   // Send the complete trip in one transaction; the server normalizes each entity.
-  const { persistence, revision, contentVersion, sample, imageSource, imageCredit, destinationTimezones: storedTimezones, ...content } = trip;
+  const { persistence, revision, contentVersion, sample, imageSource, imageCredit, ...content } = trip;
   const owner = isOwner(trip, account.id);
-  // Trips written by the original RPC can have an empty timezone list. Repair
-  // that legacy shape on an owner save; shared edits must retain immutable fields.
-  const destinationTimezones = storedTimezones && (!owner || storedTimezones.length > 0)
-    ? storedTimezones
-    : trip.destinations.map((_, index) => index === 0 ? trip.zone : null);
-  const tripData = { ...content, destinationTimezones };
+  const photoCredit = imageSource ? {
+    source: imageSource,
+    photographer_name: imageCredit?.name ?? null,
+    photographer_profile_url: imageCredit?.profileUrl ?? null,
+    photo_url: imageCredit?.photoUrl ?? null,
+  } : null;
   const request = {
     p_trip_id: trip.id,
     p_expected_revision: trip.revision ?? null,
     p_request_id: crypto.randomUUID(),
-    p_data: tripData,
+    p_data: content,
   };
-  let result = await client.rpc(owner ? "save_trip_bundle_with_timezones" : "save_shared_trip_changes", {
+  // One transaction owns trip content, timezone reconciliation and photo credit.
+  // Never fall back to the old split write: a partial success can corrupt metadata.
+  const result = await client.rpc(owner ? "save_account_trip" : "save_shared_trip_changes", {
     ...request,
-    ...(owner ? { p_destination_timezones: destinationTimezones } : {}),
+    ...(owner ? { p_photo_credit: photoCredit } : {}),
   });
-  // Older projects can still save a single-zone trip through the original RPC.
-  // A multi-destination fallback would silently discard the ordered time zones.
-  if (owner && result.error?.code === "PGRST202") {
-    if (destinationTimezones.length !== 1 || destinationTimezones[0] !== trip.zone)
-      throw new Error("The trip database needs an update before it can save these destination time zones. Your changes are still here.");
-    result = await client.rpc("save_trip_bundle", request);
-  }
   const { data, error, status } = result;
   if (error) {
+    if (error.code === "PGRST202")
+      throw new Error("The app and database versions do not match. Reload the app or retry after the database update.");
     if (error.code === "PT409" || error.code === "42501")
       throw Object.assign(new Error(error.message), { refreshPermissions: !owner, forbidden: error.code === "42501" });
     if (error.code === "P0001") throw new Error(error.message);
     throw Object.assign(
       new Error(
-        "Could not save trip changes. Your unsaved copy is kept here; please retry.",
+        "Could not confirm your trip changes. Please retry.",
       ),
       { retryOriginal: status === 0 || status === 408 || status === 429 || status >= 500 },
     );
   }
-  if ((data as TripRow).content?.image !== trip.image)
-    throw new Error("The trip photo was not confirmed by Supabase. Please retry.");
-  if (imageSource && owner) {
-    const { error: creditError, status: creditStatus } = await client.from("trip_photo_credit").upsert({
-      trip_id: trip.id,
-      owner_id: account.id,
-      source: imageSource,
-      photographer_name: imageCredit?.name ?? null,
-      photographer_profile_url: imageCredit?.profileUrl ?? null,
-      photo_url: imageCredit?.photoUrl ?? null,
-    }, { onConflict: "trip_id" });
-    if (creditError) throw Object.assign(
-      new Error("Trip saved, but its photo credit could not be saved. Please retry."),
-      { confirmedRevision: (data as TripRow).revision, retryOriginal: creditStatus === 0 || creditStatus === 408 || creditStatus === 429 || creditStatus >= 500 },
-    );
+  if (!data || data.tripID !== trip.id || data.content_version !== 1 || !Number.isSafeInteger(data.revision) ||
+      data.revision < (trip.revision ?? 0) || data.content?.image !== trip.image ||
+      (owner && photoCredit && Object.entries(photoCredit).some(([key, value]) => data.photoCredit?.[key] !== value)))
+    throw Object.assign(new Error("The database did not confirm the complete save. Please retry."), { retryOriginal: true });
+  let saved: Trip;
+  try { saved = tripFromRow(data as TripRow, account); }
+  catch {
+    throw Object.assign(new Error("The database returned an incompatible trip. Your save could not be confirmed."), { retryOriginal: true });
   }
-  return tripFromRow({ ...(data as TripRow), photoCredit: imageSource ? {
-    source: imageSource,
-    photographer_name: imageCredit?.name ?? null,
-    photographer_profile_url: imageCredit?.profileUrl ?? null,
-    photo_url: imageCredit?.photoUrl ?? null,
-  } : undefined }, account);
+  if (!validRecoveryTrip(saved, account.id))
+    throw Object.assign(new Error("The database returned an incompatible trip. Your save could not be confirmed."), { retryOriginal: true });
+  return saved;
 }
 
 export async function deleteAccountTrip(

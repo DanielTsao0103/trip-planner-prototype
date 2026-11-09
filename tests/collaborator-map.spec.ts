@@ -37,7 +37,7 @@ test("a viewer follows a shared pin, receives itinerary changes, and loses acces
     if (path.endsWith("/read_invited_trip")) return revoked
       ? route.fulfill({ status: 403, json: { code: "42501", message: "Trip access denied" } })
       : route.fulfill({ json: trip });
-    if (path.endsWith("/save_trip_bundle")) throw new Error("Invited account attempted an owner write");
+    if (path.endsWith("/save_account_trip") || path.endsWith("/save_trip_bundle")) throw new Error("Invited account attempted an owner write");
     if (path.endsWith("/save_shared_trip_changes")) {
       // Demote the editor while their save is in flight, before this database transaction starts.
       writes++;

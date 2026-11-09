@@ -79,12 +79,11 @@ async function backend(page: Page) {
     }
     if (path.endsWith("/read_invited_trip")) return route.fulfill({ json: rows.find(t => t.tripID === req.postDataJSON().p_trip) });
     if (
-      path.endsWith("/save_trip_bundle") ||
-      path.endsWith("/save_trip_bundle_with_timezones")
+      path.endsWith("/save_account_trip")
     ) {
       if (held) await held;
       if (fail) return route.abort("failed");
-      const { p_data: d, p_expected_revision: r, p_destination_timezones: timezones } = req.postDataJSON();
+      const { p_data: d, p_expected_revision: r, p_destination_timezones: timezones, p_photo_credit: photoCredit } = req.postDataJSON();
       const old = rows.find((x) => x.tripID === d.id);
       if (old && r !== old.revision)
         return route.fulfill({
@@ -101,6 +100,7 @@ async function backend(page: Page) {
         end_date: d.end,
         timezone: d.zone,
         revision: (old?.revision ?? 0) + 1,
+        photoCredit: photoCredit === undefined ? (old?.photoCredit ?? null) : photoCredit,
         content_version: 1,
         content: {
           image: d.image,
@@ -544,4 +544,115 @@ test("a mixed invite keeps only failed addresses and retries without creating an
   expect(api.rows).toHaveLength(1);
   expect(attempts).toBe(2);
   expect(mailed).toEqual(["guest@example.test", "new@example.test", "new@example.test"]);
+});
+
+/** A complete account draft keeps malformed-storage tests focused on one bad field. */
+function recoveryFixture() {
+  const draft = {
+    id: "88888888-8888-4888-8888-888888888888",
+    title: "Recovery validation trip",
+    persistence: "account" as const,
+    revision: 1,
+    contentVersion: 1,
+    destinations: ["Taipei"],
+    destinationTimezones: ["Asia/Taipei"],
+    start: "2027-06-01",
+    end: "2027-06-07",
+    zone: "Asia/Taipei",
+    image: "",
+    members: [{ id: owner.id, name: "QA Traveler", email: owner.email,
+      role: "Owner", status: "accepted", days: [] }],
+    events: [], expenses: [], prefs: {}, todos: [], dismissed: [],
+    budget: null, budgetMode: "group", individual: {},
+  };
+  return { draft, row: {
+    tripID: draft.id, owner_id: owner.id, created_by: owner.id,
+    trip_name: draft.title, destinations: draft.destinations,
+    start_date: draft.start, end_date: draft.end, timezone: draft.zone,
+    revision: 1, content_version: 1, content: structuredClone(draft), photoCredit: null,
+  } };
+}
+
+for (const malformedPart of ["draft", "retryDraft"] as const) {
+  test(`malformed recovery ${malformedPart} keeps the database trip usable`, async ({ page }) => {
+    const api = await backend(page);
+    const { draft, row } = recoveryFixture();
+    api.rows.push(row);
+    const errors: string[] = [];
+    const writes: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    page.on("request", request => {
+      if (new URL(request.url()).pathname.endsWith("/save_account_trip"))
+        writes.push(request.url());
+    });
+    await page.evaluate(({ accountId, draft, malformedPart }) => {
+      const corrupted = { ...draft, events: null };
+      const entry = malformedPart === "draft"
+        ? { draft: corrupted }
+        : { draft, retryDraft: { draft: corrupted, generation: 1 } };
+      localStorage.setItem(`trip-planner-pending-v2:${accountId}:abandoned:${draft.id}`,
+        JSON.stringify({ ...entry, updated: Date.now() }));
+    }, { accountId: owner.id, draft, malformedPart });
+    await page.goto("./#/5");
+    await page.reload();
+    await page.getByRole("button", { name: "Open itinerary", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Add event", exact: true })).toBeVisible();
+    await expect(page.locator(".account-save-banner")).toContainText("Some local recovery data could not be read");
+    await expect(page.getByRole("button", { name: "Retry save", exact: true })).toHaveCount(0);
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download unsaved copy", exact: true }).click();
+    const stream = await (await downloadPromise).createReadStream();
+    let content = "";
+    for await (const chunk of stream!) content += chunk.toString();
+    const exported = JSON.parse(content);
+    expect(exported.pending).toEqual([]);
+    expect(exported.unreadable).toHaveLength(1);
+    expect(exported.unreadable[0].raw).toContain('"events":null');
+    expect(errors).toEqual([]);
+    expect(writes).toEqual([]);
+    expect(api.rows[0]).toEqual(row);
+  });
+}
+
+test("storage quota failure warns honestly and offers a usable unsaved download", async ({ page }) => {
+  const api = await backend(page);
+  const { row } = recoveryFixture();
+  api.rows.push(row);
+  await page.goto("./#/5");
+  await page.reload();
+  await page.getByRole("button", { name: "Open itinerary", exact: true }).click();
+  // Fail only recovery storage; authentication and the rest of browser storage remain usable.
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string) {
+      if (key.startsWith("trip-planner-pending"))
+        throw new DOMException("QA storage is full", "QuotaExceededError");
+      return original.call(this, key, value);
+    };
+  });
+  api.setFail(true);
+  await page.goto("./#/7");
+  await page.getByLabel("Event name", { exact: true }).fill("Download my unsaved plan");
+  await page.getByLabel("Where", { exact: true }).fill("QA meeting room");
+  await page.getByRole("button", { name: "Add to itinerary", exact: true }).click();
+  const banner = page.locator(".account-save-banner");
+  await expect(banner).toContainText("This browser cannot keep a recovery copy");
+  await expect(banner).not.toContainText("Your unsaved copy is kept here");
+  await expect(banner).toContainText(/download/i);
+  expect(await page.evaluate(() => Object.keys(localStorage).filter(key =>
+    key.startsWith("trip-planner-pending")))).toEqual([]);
+  expect(api.rows[0].content.events).toEqual([]);
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download unsaved copy", exact: true }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("unsaved-trip-changes.json");
+  const stream = await download.createReadStream();
+  let content = "";
+  for await (const chunk of stream!) content += chunk.toString();
+  expect(JSON.parse(content)[0].events[0].name).toBe("Download my unsaved plan");
+  // A successful API retry can still finish without durable local storage.
+  api.setFail(false);
+  await page.getByRole("button", { name: "Retry save", exact: true }).click();
+  await saved(page);
+  expect(api.rows[0].content.events[0].name).toBe("Download my unsaved plan");
 });

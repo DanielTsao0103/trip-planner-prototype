@@ -8,7 +8,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 2 : undefined,
   timeout: 30000,
-  globalTimeout: 240000,
+  globalTimeout: 360000,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: `http://127.0.0.1:${port}/trip-planner-prototype/`,
@@ -20,6 +20,12 @@ export default defineConfig({
     {
       name: "mobile",
       use: { ...devices["iPhone 13"], defaultBrowserType: "chromium" },
+    },
+    {
+      name: "webkit-persistence",
+      // Safari's engine exercises the real browser-storage/lock implementation.
+      testMatch: /(?:account-trips|recovery-isolation|trip-details)\.spec\.ts/,
+      use: { ...devices["iPhone 13"] },
     },
   ],
   webServer: {

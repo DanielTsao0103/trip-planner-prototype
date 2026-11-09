@@ -102,6 +102,8 @@ export function Provider({
   accountRef.current = account;
   const legacyTrips = useRef(s.trips);
   const recoveryRef = useRef<TripRecoveryJournal | null>(null);
+  const [recoveryError, setRecoveryError] = useState(false);
+  const [rejectedRecovery, setRejectedRecovery] = useState<{ key: string; reason: string; raw: string }[]>([]);
   if (!recoveryRef.current) {
     try { recoveryRef.current = new TripRecoveryJournal(localStorage, sessionStorage, account.id); }
     catch { /* The save banner and unload guard still protect in-memory drafts. */ }
@@ -150,9 +152,11 @@ export function Provider({
         setSaveTick((n) => n + 1);
         if (queueRef.current!.pending.size) setSaveNotice(0);
         try {
-          recoveryRef.current?.sync(queueRef.current!.pending);
+          if (!recoveryRef.current) throw new Error("Recovery storage unavailable");
+          recoveryRef.current.sync(queueRef.current!.pending);
+          setRecoveryError(false);
         } catch {
-          /* The persistent unsaved banner and unload guard remain active. */
+          setRecoveryError(true);
         }
       },
       (saved, newer) => {
@@ -209,6 +213,7 @@ export function Provider({
       window.removeEventListener("online", reconnect);
       mounted.current = false;
       queue.stop();
+      recoveryRef.current?.close();
     };
   }, []);
   useEffect(() => {
@@ -216,7 +221,7 @@ export function Provider({
     let active = true;
     setLoadState("loading");
     void loadAccountTrips(getSupabase(), account.id)
-      .then((rows) => {
+      .then(async (rows) => {
         if (!active) return;
         const previous = stateRef.current;
         const restored = rows.map((row) =>
@@ -229,10 +234,14 @@ export function Provider({
         let recovered: (Trip | Pick<PendingTrip, "draft" | "retryDraft">)[] =
           [];
         try {
-          recovered = recoveryRef.current?.read() ?? [];
+          if (!recoveryRef.current) throw new Error("Recovery storage unavailable");
+          recovered = await recoveryRef.current.read();
+          if (!active) return;
+          setRejectedRecovery([...recoveryRef.current.rejected]);
         } catch {
-          /* Ignore unreadable recovery storage. */
+          if (active) setRecoveryError(true);
         }
+        if (!active) return;
         if (!Array.isArray(recovered)) recovered = [];
         for (const entry of recovered) {
           if (!entry || typeof entry !== "object") continue;
@@ -266,8 +275,11 @@ export function Provider({
             ...restored,
           ],
         });
-        try { recoveryRef.current?.sync(queue.pending); }
-        catch { /* Keep the in-memory draft and any previous recovery records. */ }
+        try {
+          if (!recoveryRef.current) throw new Error("Recovery storage unavailable");
+          recoveryRef.current.sync(queue.pending);
+          setRecoveryError(false);
+        } catch { setRecoveryError(true); }
         queue.resume();
         // Import only this account's existing browser plans for a server-owned trip.
         // Unassigned sample trips and fictional email matches are never claimed.
@@ -564,7 +576,9 @@ export function Provider({
       if (
         queue.pending.size &&
         !window.confirm(
-          "Some trip changes have not reached the database. Sign out and keep a recovery copy on this device?",
+          recoveryError
+            ? "This browser cannot keep a recovery copy. Signing out may lose unsaved changes. Download your unsaved copy first. Sign out anyway?"
+            : "Some trip changes have not reached the database. Sign out and keep a recovery copy on this device?",
         )
       )
         return;
@@ -622,31 +636,39 @@ export function Provider({
   };
   return (
     <C.Provider value={value}>
-      {cloud && loadState === "ready" && pending.length > 0 && (
+      {cloud && loadState === "ready" && (pending.length > 0 || rejectedRecovery.length > 0) && (
         <div
           className="account-save-banner"
-          role={saveError ? "alert" : "status"}
+          role={saveError || recoveryError || rejectedRecovery.length ? "alert" : "status"}
         >
           <span>
-            {saveError
+            {pending.length === 0 ? "Some local recovery data could not be read. Your saved trips are available. Download the recovery copy before clearing browser data." : saveError
               ? `Not saved: ${saveError}`
               : "Saving trip changes… Keep this page open."}
           </span>
-          {saveError && (
+          {recoveryError && pending.length > 0 && <span>
+            This browser cannot keep a recovery copy. Keep this page open until saving finishes, or download your changes before leaving.
+          </span>}
+          {rejectedRecovery.length > 0 && pending.length > 0 && <span>
+            Some older recovery data could not be read and has been kept for download.
+          </span>}
+          {(saveError || recoveryError || rejectedRecovery.length > 0) && (
             <>
-              <button
+              {pending.length > 0 && <button
                 className="btn outline small"
                 onClick={() => queue.retry()}
               >
                 Retry save
-              </button>
+              </button>}
               <button
                 className="btn outline small"
                 onClick={() => {
                   const blob = new Blob(
                     [
                       JSON.stringify(
-                        pending.map((p) => p.draft),
+                        rejectedRecovery.length
+                          ? { pending: pending.map(p => p.draft), unreadable: rejectedRecovery }
+                          : pending.map((p) => p.draft),
                         null,
                         2,
                       ),
@@ -663,7 +685,7 @@ export function Provider({
               >
                 Download unsaved copy
               </button>
-              <button
+              {pending.length > 0 && <button
                 className="btn outline small"
                 onClick={() => {
                   if (
@@ -672,16 +694,21 @@ export function Provider({
                     )
                   ) {
                     const discardedIds = [...queue.pending.keys()];
+                    try {
+                      if (!recoveryRef.current) throw new Error("Recovery storage unavailable");
+                      recoveryRef.current.discard(discardedIds);
+                    } catch {
+                      setRecoveryError(true);
+                      return;
+                    }
                     queue.pending.clear();
                     queue.stop();
-                    try { recoveryRef.current?.discard(discardedIds); }
-                    catch { /* Reload still reads the authoritative database version. */ }
                     location.reload();
                   }
                 }}
               >
                 Reload saved version
-              </button>
+              </button>}
             </>
           )}
         </div>

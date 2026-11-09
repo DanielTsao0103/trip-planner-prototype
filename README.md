@@ -301,7 +301,7 @@ For production-browser checks from a Git checkout, use:
 
 ```sh
 npm run build:pages
-npx playwright install chromium
+npx playwright install chromium webkit
 npm run test:e2e
 ```
 
@@ -318,6 +318,8 @@ Travel photos are bundled from Unsplash; [its license](https://unsplash.com/lice
 The live SDK/browser checks passed for atomic owner membership, duplicate retries, validation, stale edits, anonymous/cross-account denial, browser creation, fresh-browser login, and deletion. Temporary QA accounts and their data were removed. Supabase's hosted security-advisor endpoint was unavailable to the configured scoped token (`advisors_read` missing); direct database access checks and adversarial API tests were performed. See [Supabase setup](SUPABASE-SETUP.md) for migration boundaries.
 
 ## Full-detail persistence verification
+
+Follow [the persistence contract](PERSISTENCE_CONTRACT.md) when extending any saved field. Owner trip content, ordered timezones, and photo attribution now save in one atomic RPC. Browser-managed recovery ownership, strict recovery validation, and Chromium/WebKit regressions protect interrupted edits. Run `npm run test:live-contract` against disposable QA records before releasing changes to persistence; this live-database gate is separate from the API-mocked CI browser tests.
 
 Account trips now use `load_trip_bundles` and `save_trip_bundle`. Owners use the bundle writer; invited accounts use `save_shared_trip_changes`, which checks the current membership, assigned days, and changed records. Each save validates the complete trip, and commits every related record together. Concurrent edits produce a recoverable conflict. Failed saves show a persistent banner with retry, download, and reload options; only pending recovery copies remain in the browser. Older browser details import once for a matching database-owned trip.
 

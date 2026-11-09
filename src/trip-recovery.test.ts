@@ -1,240 +1,236 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { TripRecoveryJournal } from "./trip-recovery.ts";
-import { seed } from "./data.ts";
+import { storage, lockManager, pending } from "./trip-recovery-test-support.ts";
 import type { PendingTrip } from "./trip-save-queue.ts";
 
-/** A browser-like storage fake shared by independent tab journals. */
-function storage(): Storage {
-  const data = new Map<string, string>();
-  return {
-    get length() {
-      return data.size;
-    },
-    key: (index) => [...data.keys()][index] ?? null,
-    getItem: (key) => data.get(key) ?? null,
-    setItem: (key, value) => {
-      data.set(key, value);
-    },
-    removeItem: (key) => {
-      data.delete(key);
-    },
-    clear: () => data.clear(),
+function fixture() {
+  const local = storage(),
+    locks = lockManager();
+  const journal = async (
+    writer: string,
+    session = storage(),
+    account = "owner",
+  ) => {
+    const value = new TripRecoveryJournal(
+      local,
+      session,
+      account,
+      writer,
+      locks,
+    );
+    await value.start();
+    return value;
   };
-}
-function pending(id: string, title = id): Map<string, PendingTrip> {
-  return new Map([
-    [
-      id,
-      {
-        draft: { ...structuredClone(seed().trips[0]), id, title },
-        error: "",
-        generation: 1,
-      },
-    ],
-  ]);
+  return { local, locks, journal };
 }
 
-test("one tab finishing never removes another tab's interrupted trip", () => {
-  const local = storage();
-  const a = new TripRecoveryJournal(local, storage(), "owner", "a");
-  const b = new TripRecoveryJournal(local, storage(), "owner", "b");
+test("one tab finishing never removes another tab's interrupted trip", async () => {
+  const { local, journal } = fixture();
+  const a = await journal("a"),
+    b = await journal("b");
   a.sync(pending("first"));
   b.sync(pending("second"));
   b.sync(new Map());
-  const reopened = new TripRecoveryJournal(local, storage(), "owner", "new");
+  const reopened = await journal("new");
+  assert.deepEqual(await reopened.read(), []);
+  assert.equal(reopened.ignoredActiveWriters, 1);
+  a.close();
   assert.deepEqual(
-    reopened.read().map((entry) => entry.draft.id),
+    (await reopened.read()).map((entry) => entry.draft.id),
     ["first"],
   );
+  assert.equal(local.length, 1);
+  b.close();
+  reopened.close();
 });
 
-test("a fresh tab discovers abandoned drafts and retires them after confirmation", () => {
-  const local = storage();
-  new TripRecoveryJournal(local, storage(), "owner", "closed").sync(
-    pending("first"),
-  );
-  const reopened = new TripRecoveryJournal(local, storage(), "owner", "new");
-  const [entry] = reopened.read();
+test("a fresh tab discovers abandoned drafts and retires them after confirmation", async () => {
+  const { local, journal } = fixture();
+  const original = await journal("closed");
+  original.sync(pending("first"));
+  original.close();
+  const reopened = await journal("new");
+  const [entry] = await reopened.read();
   reopened.sync(
     new Map([[entry.draft.id, { ...entry, error: "", generation: 1 }]]),
   );
   reopened.sync(new Map());
   assert.equal(local.length, 0);
+  reopened.close();
 });
 
-test("completing an adopted copy preserves newer changes in its originating tab", () => {
-  const local = storage();
-  const a = new TripRecoveryJournal(local, storage(), "owner", "a");
-  a.sync(pending("first", "Original"));
-  const b = new TripRecoveryJournal(local, storage(), "owner", "b");
-  b.read();
-  a.sync(pending("first", "Still typing"));
-  b.sync(new Map());
-  const reopened = new TripRecoveryJournal(local, storage(), "owner", "new");
-  assert.equal(reopened.read()[0].draft.title, "Still typing");
+test("simultaneous tabs cannot both claim the same abandoned recovery", async () => {
+  const { journal } = fixture();
+  const source = await journal("source");
+  source.sync(pending("first"));
+  source.close();
+  const a = await journal("a"),
+    b = await journal("b");
+  const [first, second] = await Promise.all([a.read(), b.read()]);
+  assert.equal(first.length + second.length, 1);
+  a.close();
+  b.close();
 });
 
-test("reload prefers its own interrupted version and keeps a competing same-trip draft", () => {
-  const local = storage(),
-    sessionA = storage();
-  new TripRecoveryJournal(local, sessionA, "owner", "a").sync(
-    pending("first", "Tab A"),
-  );
-  new TripRecoveryJournal(local, storage(), "owner", "b").sync(
-    pending("first", "Tab B"),
-  );
-  const reopened = new TripRecoveryJournal(local, sessionA, "owner", "a2");
-  assert.equal(reopened.read()[0].draft.title, "Tab A");
+test("reload prefers its own abandoned version and preserves a competing draft", async () => {
+  const { journal } = fixture();
+  const sessionA = storage();
+  const a = await journal("a", sessionA),
+    b = await journal("b");
+  a.sync(pending("first", "Tab A"));
+  b.sync(pending("first", "Tab B"));
+  a.close();
+  b.close();
+  const reopened = await journal("a2", sessionA);
+  assert.equal((await reopened.read())[0].draft.title, "Tab A");
   reopened.sync(new Map());
-  const other = new TripRecoveryJournal(local, storage(), "owner", "c");
-  assert.equal(other.read()[0].draft.title, "Tab B");
+  reopened.close();
+  const other = await journal("c");
+  assert.equal((await other.read())[0].draft.title, "Tab B");
+  other.close();
 });
 
-test("legacy multi-trip journals and exact retry snapshots survive migration", () => {
-  const local = storage(),
-    key = "trip-planner-pending-v1:owner";
-  const first = pending("first").get("first")!;
-  const second = pending("second").get("second")!;
+test("legacy multi-trip journals preserve exact retry snapshots during migration", async () => {
+  const { local, journal } = fixture();
+  const key = "trip-planner-pending-v1:owner";
+  const first = pending("first").get("first")!,
+    second = pending("second").get("second")!;
   first.retryDraft = {
     draft: { ...first.draft, title: "Unconfirmed write" },
     generation: 0,
   };
   local.setItem(key, JSON.stringify([first, second]));
-  const journal = new TripRecoveryJournal(local, storage(), "owner", "new");
-  assert.equal(journal.read()[0].retryDraft?.draft.title, "Unconfirmed write");
-  journal.sync(new Map([["second", second]]));
-  assert.equal(local.getItem(key), null);
-  assert.deepEqual(
-    new TripRecoveryJournal(local, storage(), "owner", "inspect")
-      .read()
-      .map((entry) => entry.draft.id),
-    ["second"],
+  const reopened = await journal("new");
+  assert.equal(
+    (await reopened.read())[0].retryDraft?.draft.title,
+    "Unconfirmed write",
   );
-  journal.sync(new Map());
+  reopened.sync(new Map([["second", second]]));
+  assert.equal(local.getItem(key), null);
+  assert.equal(local.length, 1);
+  reopened.sync(new Map());
   assert.equal(local.length, 0);
+  reopened.close();
 });
 
-test("journals cannot discover or delete another account's recovery", () => {
-  const local = storage();
-  new TripRecoveryJournal(local, storage(), "owner", "a").sync(
-    pending("first"),
-  );
-  const other = new TripRecoveryJournal(local, storage(), "other-account", "b");
-  assert.deepEqual(other.read(), []);
+test("journals cannot discover or delete another account's recovery", async () => {
+  const { local, journal } = fixture();
+  const owner = await journal("a");
+  owner.sync(pending("first"));
+  owner.close();
+  const other = await journal("b", storage(), "other-account");
+  assert.deepEqual(await other.read(), []);
   other.sync(new Map());
   assert.equal(local.length, 1);
+  other.close();
 });
 
-test("repeated offline reloads do not leave an older duplicate to replay after a successful save", () => {
-  const local = storage(),
-    session = storage();
-  const first = new TripRecoveryJournal(local, session, "owner", "first-load");
+test("repeated offline reloads retire ancestors once the replacement is durable", async () => {
+  const { local, journal } = fixture();
+  const session = storage();
+  const first = await journal("first", session);
   first.sync(pending("trip", "Interrupted event"));
-  const second = new TripRecoveryJournal(
-    local,
-    session,
-    "owner",
-    "second-load",
-  );
-  second.read();
-  second.sync(pending("trip", "Interrupted event"));
-  const third = new TripRecoveryJournal(local, session, "owner", "third-load");
-  assert.equal(third.read()[0].draft.title, "Interrupted event");
-  third.sync(pending("trip", "Interrupted event"));
+  first.close();
+  const second = await journal("second", session);
+  await second.read();
+  second.sync(pending("trip", "Corrected event"));
+  second.close();
+  const third = await journal("third", session);
+  assert.equal((await third.read())[0].draft.title, "Corrected event");
+  third.sync(pending("trip", "Corrected event"));
   third.sync(new Map());
   assert.equal(local.length, 0);
-  assert.deepEqual(
-    new TripRecoveryJournal(local, session, "owner", "later-load").read(),
-    [],
-  );
+  third.close();
 });
 
-test("explicit discard removes known alternatives without deleting another tab's newer edit", () => {
-  const local = storage();
-  const a = new TripRecoveryJournal(local, storage(), "owner", "a");
-  const b = new TripRecoveryJournal(local, storage(), "owner", "b");
-  const c = new TripRecoveryJournal(local, storage(), "owner", "c");
+test("explicit discard removes claimed alternatives while preserving active writers", async () => {
+  const { journal } = fixture();
+  const a = await journal("a"),
+    b = await journal("b"),
+    c = await journal("c");
   a.sync(pending("trip", "Version A"));
   b.sync(pending("trip", "Version B"));
-  c.sync(pending("other-trip", "Unrelated trip"));
-  const reopened = new TripRecoveryJournal(
-    local,
-    storage(),
-    "owner",
-    "reopened",
-  );
-  reopened.read();
-  reopened.sync(
-    new Map([
-      ...pending("trip", "Own pending copy"),
-      ...pending("other-trip", "Unrelated trip"),
-    ]),
-  );
+  c.sync(pending("other-trip"));
+  a.close();
+  const reopened = await journal("reopened");
+  await reopened.read();
+  reopened.sync(pending("trip", "Own pending copy"));
   b.sync(pending("trip", "Newer version B"));
   reopened.discard(["trip"]);
-  const remaining = new TripRecoveryJournal(
-    local,
-    storage(),
-    "owner",
-    "after-discard",
-  ).read();
-  assert.deepEqual(remaining.map((entry) => entry.draft.title).sort(), [
-    "Newer version B",
-    "Unrelated trip",
-  ]);
+  reopened.close();
+  b.close();
+  c.close();
+  const after = await journal("after");
+  assert.deepEqual(
+    (await after.read()).map((entry) => entry.draft.title).sort(),
+    ["Newer version B", "other-trip"],
+  );
+  after.close();
 });
 
-test("editing a recovered draft transfers its ancestor only after the replacement is durable", () => {
-  const local = storage(),
-    session = storage();
-  new TripRecoveryJournal(local, session, "owner", "first").sync(
-    pending("trip", "Original offline edit"),
-  );
-  const resumed = new TripRecoveryJournal(local, session, "owner", "second");
-  resumed.read();
-  const originalSet = local.setItem;
+test("storage quota failure keeps the source and rejects a false durability claim", async () => {
+  const { local, journal } = fixture();
+  const original = await journal("original");
+  original.sync(pending("trip", "Original offline edit"));
+  original.close();
+  const resumed = await journal("resumed");
+  await resumed.read();
+  const setItem = local.setItem;
   local.setItem = () => {
     throw new Error("Storage full");
   };
   assert.throws(
-    () => resumed.sync(pending("trip", "Corrected offline edit")),
+    () => resumed.sync(pending("trip", "Corrected edit")),
     /Storage full/,
   );
   assert.equal(local.length, 1);
-  local.setItem = originalSet;
-  resumed.sync(pending("trip", "Corrected offline edit"));
+  local.setItem = setItem;
+  resumed.sync(pending("trip", "Corrected edit"));
   assert.equal(local.length, 1);
-  const final = new TripRecoveryJournal(local, session, "owner", "third");
-  assert.equal(final.read()[0].draft.title, "Corrected offline edit");
+  resumed.close();
+  const final = await journal("final");
+  assert.equal((await final.read())[0].draft.title, "Corrected edit");
   final.sync(new Map());
   assert.equal(local.length, 0);
+  final.close();
 });
 
-test("a tab writing between another tab's comparison and removal keeps its newer snapshot", () => {
+test("unsupported locks fail explicitly without touching pending recovery", async () => {
   const local = storage();
-  const original = new TripRecoveryJournal(
+  local.setItem("unrelated", "keep");
+  const journal = new TripRecoveryJournal(
     local,
     storage(),
     "owner",
-    "original",
+    "writer",
+    null,
   );
-  original.sync(pending("trip", "Initial draft"));
-  const resumed = new TripRecoveryJournal(local, storage(), "owner", "resumed");
-  resumed.read();
-  const sourceKey = local.key(0)!;
-  const getItem = local.getItem;
-  let interleave = true;
-  local.getItem = (key) => {
-    const raw = getItem(key);
-    if (key === sourceKey && interleave) {
-      interleave = false;
-      original.sync(pending("trip", "Typed during cleanup"));
-    }
-    return raw;
-  };
-  resumed.sync(new Map());
-  local.getItem = getItem;
-  const fresh = new TripRecoveryJournal(local, storage(), "owner", "fresh");
-  assert.equal(fresh.read()[0].draft.title, "Typed during cleanup");
+  await assert.rejects(journal.start(), /cannot safely coordinate/);
+  assert.throws(() => journal.sync(pending("trip")), /unavailable/);
+  assert.equal(local.getItem("unrelated"), "keep");
+  journal.close();
+});
+
+test("closing while lock acquisition is pending never leaves a held claim", async () => {
+  const { local, locks } = fixture();
+  const first = new TripRecoveryJournal(
+    local,
+    storage(),
+    "owner",
+    "same",
+    locks,
+  );
+  const starting = first.start();
+  first.close();
+  await assert.rejects(starting, /acquire/);
+  const second = new TripRecoveryJournal(
+    local,
+    storage(),
+    "owner",
+    "same",
+    locks,
+  );
+  await second.start();
+  second.close();
 });

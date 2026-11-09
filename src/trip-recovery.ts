@@ -1,7 +1,7 @@
-import type { Trip } from "./domain.ts";
 import type { PendingTrip } from "./trip-save-queue.ts";
 
-type Recovery = Pick<PendingTrip, "draft" | "retryDraft">;
+import { parseRecovery, type Recovery } from "./trip-recovery-validation.ts";
+export type RejectedRecovery = { key: string; reason: string; raw: string };
 type Source = {
   key: string;
   raw: string;
@@ -23,15 +23,27 @@ export class TripRecoveryJournal {
   private adopted = new Map<string, Source>();
   private observed: Source[] = [];
   private storage: Storage;
+  private accountId: string;
+  private locks: LockManager | null | undefined;
+  private releases = new Map<string, () => void>();
+  private starting: Promise<void> | undefined;
+  private closed = false;
+  readonly rejected: RejectedRecovery[] = [];
+  ignoredActiveWriters = 0;
 
   constructor(
     storage: Storage,
     session: Storage,
     accountId: string,
     writer: string = crypto.randomUUID(),
+    locks: LockManager | null | undefined = typeof navigator === "undefined"
+      ? undefined
+      : navigator.locks,
   ) {
     this.storage = storage;
     this.writer = writer;
+    this.accountId = accountId;
+    this.locks = locks;
     this.prefix = `trip-planner-pending-v2:${accountId}:`;
     this.legacyKey = `trip-planner-pending-v1:${accountId}`;
     try {
@@ -43,33 +55,107 @@ export class TripRecoveryJournal {
     }
   }
 
-  read(): Recovery[] {
+  /** Hold ownership for this tab's lifetime, independently of network state. */
+  start(): Promise<void> {
+    if (this.closed)
+      return Promise.reject(new Error("Trip recovery is closed."));
+    this.starting ??= this.claim(this.writer).then((acquired) => {
+      if (!acquired)
+        throw new Error("Could not acquire this tab's recovery storage.");
+    });
+    return this.starting;
+  }
+
+  private async claim(writer: string): Promise<boolean> {
+    if (this.closed) return false;
+    if (this.releases.has(writer)) return true;
+    if (!this.locks)
+      throw new Error(
+        "This browser cannot safely coordinate recovery across tabs. Keep this page open until changes save.",
+      );
+    return new Promise<boolean>((resolve, reject) => {
+      void this.locks!.request(
+        `${this.prefix}writer:${writer}`,
+        { ifAvailable: true },
+        async (lock) => {
+          if (!lock || this.closed) {
+            resolve(false);
+            return;
+          }
+          let release!: () => void;
+          const lifetime = new Promise<void>((done) => {
+            release = done;
+          });
+          this.releases.set(writer, release);
+          resolve(true);
+          await lifetime;
+        },
+      ).catch(reject);
+    });
+  }
+
+  /** Browser Web Locks distinguish active writers from abandoned journals.
+   * Only this owner or a claimant holding the abandoned writer's lock may read,
+   * transfer, or discard its records. Never infer abandonment from a timeout. */
+  async read(): Promise<Recovery[]> {
+    await this.start();
     const sources: Source[] = [];
-    for (let index = 0; index < this.storage.length; index++) {
-      const key = this.storage.key(index);
-      if (!key) continue;
-      if (!key.startsWith(this.prefix) && key !== this.legacyKey) continue;
+    this.rejected.length = 0;
+    this.ignoredActiveWriters = 0;
+    // Enumerate once; cleanup in another tab cannot shift this list mid-read.
+    const keys = Object.keys(this.storage).filter(
+      (key) => key.startsWith(this.prefix) || key === this.legacyKey,
+    );
+    const available = new Map<string, boolean>();
+    for (const key of keys) {
+      const writer =
+        key === this.legacyKey
+          ? "legacy"
+          : key.slice(this.prefix.length).split(":")[0];
+      if (!available.has(writer)) {
+        const acquired = await this.claim(writer);
+        if (this.closed) return [];
+        available.set(writer, acquired);
+        if (!acquired) this.ignoredActiveWriters++;
+      }
+      if (!available.get(writer)) continue;
       const raw = this.storage.getItem(key);
       if (!raw) continue;
       try {
-        const value = JSON.parse(raw);
+        const value: unknown = JSON.parse(raw);
         const entries = key === this.legacyKey ? value : [value];
-        if (!Array.isArray(entries)) continue;
+        if (!Array.isArray(entries))
+          throw new Error("Unrecognized recovery journal format.");
         for (const item of entries) {
-          if (!item || typeof item !== "object") continue;
-          const entry: Recovery =
-            "draft" in item ? item : { draft: item as Trip };
-          if (!entry.draft?.id || !Array.isArray(entry.draft.members)) continue;
+          const entry = parseRecovery(item, this.accountId);
+          if (!entry) {
+            this.rejected.push({
+              key,
+              raw,
+              reason:
+                "A recovery copy has invalid or incompatible trip data and was not loaded.",
+            });
+            continue;
+          }
           sources.push({
             key,
             raw,
             entry,
-            updated: Number(item.updated) || 0,
+            updated:
+              typeof item.updated === "number" && Number.isFinite(item.updated)
+                ? item.updated
+                : 0,
             ...(key === this.legacyKey ? { legacy: item } : {}),
           });
         }
       } catch {
-        /* One damaged record must not hide the other recovery copies. */
+        // Quarantine in place: retain the exact raw copy for export even if the
+        // storage device is full. Never parse it into application state.
+        this.rejected.push({
+          key,
+          raw,
+          reason: "A recovery copy is unreadable and was not loaded.",
+        });
       }
     }
     // Prefer this tab's interrupted draft. Keep competing same-trip records in
@@ -83,6 +169,7 @@ export class TripRecoveryJournal {
       return own(b) - own(a) || b.updated - a.updated;
     });
     this.observed = sources;
+    this.adopted.clear();
     for (const source of sources)
       if (!this.adopted.has(source.entry.draft.id))
         this.adopted.set(source.entry.draft.id, source);
@@ -90,6 +177,10 @@ export class TripRecoveryJournal {
   }
 
   sync(pending: ReadonlyMap<string, PendingTrip>): void {
+    if (this.closed || !this.releases.has(this.writer))
+      throw new Error(
+        "Recovery storage is unavailable. Keep this page open until changes save.",
+      );
     // Write new recovery copies before removing anything. A full storage device
     // must leave the previous journal intact.
     for (const [id, entry] of pending) {
@@ -134,6 +225,10 @@ export class TripRecoveryJournal {
   /** Explicit discard covers the known alternatives for these trips only.
    * A different tab's subsequent changes remain protected by compare-and-delete. */
   discard(ids: Iterable<string>): void {
+    if (this.closed || !this.releases.has(this.writer))
+      throw new Error(
+        "Recovery storage is unavailable; unsaved copies were not discarded.",
+      );
     const selected = new Set(ids);
     for (const source of this.observed)
       if (selected.has(source.entry.draft.id)) this.removeUnchanged(source);
@@ -146,6 +241,14 @@ export class TripRecoveryJournal {
     this.observed = this.observed.filter(
       (source) => !selected.has(source.entry.draft.id),
     );
+  }
+
+  /** Release writer and orphan claims on sign-out/unmount; browsers also release
+   * Web Locks automatically when a tab closes or its process terminates. */
+  close(): void {
+    this.closed = true;
+    for (const release of this.releases.values()) release();
+    this.releases.clear();
   }
 
   private retireCopies(source: Source): void {

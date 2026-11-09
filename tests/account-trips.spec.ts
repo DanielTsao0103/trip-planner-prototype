@@ -64,8 +64,7 @@ test("account saves recover from lost responses without duplicate trips, reload,
     if (url.pathname === "/functions/v1/unsplash-search" && request.method() === "GET")
       return route.fulfill({ json: { results: [] } });
     if (
-      url.pathname === "/rest/v1/rpc/save_trip_bundle" ||
-      url.pathname === "/rest/v1/rpc/save_trip_bundle_with_timezones"
+      url.pathname === "/rest/v1/rpc/save_account_trip"
     ) {
       const requestData = request.postDataJSON();
       const draft = requestData.p_data;
@@ -90,6 +89,7 @@ test("account saves recover from lost responses without duplicate trips, reload,
         end_date: draft.end,
         timezone: draft.zone,
         revision: rows[0]?.revision ?? 1,
+        photoCredit: requestData.p_photo_credit ?? rows[0]?.photoCredit ?? null,
         content_version: 1,
         content: {
           image: draft.image,
@@ -146,8 +146,8 @@ test("account saves recover from lost responses without duplicate trips, reload,
   });
   await page.getByRole("button", { name: "Create trip", exact: true }).click();
   await expect(
-    page.getByRole("alert").filter({ hasText: "Could not save" }).first(),
-  ).toContainText("Could not save");
+    page.getByRole("alert").filter({ hasText: "Could not confirm" }).first(),
+  ).toContainText("Could not confirm");
   await expect(page.getByLabel("Trip title", { exact: true })).toHaveValue(
     "Account weekend",
   );
@@ -297,7 +297,7 @@ test("invitees submit their own trip survey before entering the shared trip", as
       row.content.prefs = { [travelerId]: p_answers };
       return route.fulfill({ json: row });
     }
-    if (path.endsWith("/save_trip_bundle")) throw new Error("Viewer attempted an owner-only save");
+    if (path.endsWith("/save_account_trip") || path.endsWith("/save_trip_bundle")) throw new Error("Viewer attempted an owner-only save");
     return route.fulfill({ json: [] });
   });
   await login(page);

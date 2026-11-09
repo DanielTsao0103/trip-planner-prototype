@@ -15,6 +15,8 @@ const owner = {
 /** Separate fixtures let the second tab save without creating a revision conflict. */
 function tripRow(id: string, title: string): TripRow {
   const trip = structuredClone(seed().trips[0]);
+  // Real account fixtures must not retain the seed trip's demo marker.
+  delete trip.sample;
   return {
     tripID: id,
     owner_id: owner.id,
@@ -91,8 +93,7 @@ for (const secondTabFails of [false, true]) {
         if (path.endsWith("/load_trip_bundles"))
           return route.fulfill({ json: rows });
         if (
-          path.endsWith("/save_trip_bundle_with_timezones") ||
-          path.endsWith("/save_trip_bundle")
+          path.endsWith("/save_account_trip")
         ) {
           if (request.frame().page() === page ? failFirstTab : failOtherTab)
             return route.abort("failed");

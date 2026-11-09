@@ -25,30 +25,17 @@ test("trip details reject invalid dates, long ranges, and empty destinations", (
   }
   assert.equal(tripDetailsError({ ...details, end: details.start }), "");
 });
-test("missing timezone RPC uses the legacy writer only when one destination keeps its zone", async () => {
-  const account = { id: "11111111-1111-4111-8111-111111111111", name: "Owner", email: "owner@example.com" };
+test("missing atomic save RPC fails without falling back to partial writes", async () => {
+  const account = { id: "owner", name: "Owner", email: "owner@example.com" };
   const trip = structuredClone(seed().trips[0]);
-  trip.id = "33333333-3333-4333-8333-333333333333";
-  trip.destinations = ["Michigan"];
-  trip.destinationTimezones = ["America/Chicago"];
-  trip.zone = "America/Chicago";
-  trip.members = [{ ...trip.members[0], id: account.id, name: account.name, email: account.email }];
-  const calls: { name: string; args: Record<string, unknown> }[] = [];
-  const client = { rpc: async (name: string, args: Record<string, unknown>) => {
-    calls.push({ name, args });
-    return calls.length === 1
-      ? { data: null, error: { code: "PGRST202", message: "Function not found" }, status: 404 }
-      : { data: null, error: { code: "P0001", message: "Legacy writer reached" }, status: 400 };
+  trip.members = [{ ...trip.members[0], id: account.id, role: "Owner" }];
+  const calls: string[] = [];
+  const client = { rpc: async (name: string) => {
+    calls.push(name);
+    return { data: null, error: { code: "PGRST202", message: "Function not found" }, status: 404 };
   } } as unknown as SupabaseClient;
-  await assert.rejects(saveAccountTrip(client, account, trip), /Legacy writer reached/);
-  assert.deepEqual(calls.map(call => call.name), ["save_trip_bundle_with_timezones", "save_trip_bundle"]);
-  assert.equal(calls[0].args.p_request_id, calls[1].args.p_request_id);
-
-  trip.destinations = ["Michigan", "Chicago"];
-  trip.destinationTimezones = ["America/Chicago", "America/Chicago"];
-  calls.length = 0;
-  await assert.rejects(saveAccountTrip(client, account, trip), /database needs an update/);
-  assert.deepEqual(calls.map(call => call.name), ["save_trip_bundle_with_timezones"]);
+  await assert.rejects(saveAccountTrip(client, account, trip), /versions do not match/);
+  assert.deepEqual(calls, ["save_account_trip"]);
 });
 test("database ownership becomes an account member without importing fictional identity", () => {
   const account = {
@@ -79,7 +66,7 @@ test("database ownership becomes an account member without importing fictional i
   assert.deepEqual(trip.events, []);
 });
 
-test("owner edits repair empty legacy destination zones without changing shared settings", async () => {
+test("legacy destination zones reach server reconciliation without rewriting shared settings", async () => {
   const account = { id: "owner", name: "Owner", email: "owner@example.com" };
   const trip = structuredClone(seed().trips[0]);
   trip.members = [{ ...trip.members[0], id: account.id, role: "Owner" }];
@@ -92,8 +79,9 @@ test("owner edits repair empty legacy destination zones without changing shared 
     return { error: { code: "P0001", message: "Captured request" }, status: 400 };
   } } as unknown as SupabaseClient;
   await assert.rejects(saveAccountTrip(client, account, trip), /Captured request/);
-  assert.deepEqual(calls[0].args.p_destination_timezones, [trip.zone, null]);
-  assert.deepEqual(calls[0].args.p_data.destinationTimezones, [trip.zone, null]);
+  assert.equal(calls[0].name, "save_account_trip");
+  assert.equal("p_destination_timezones" in calls[0].args, false);
+  assert.deepEqual(calls[0].args.p_data.destinationTimezones, []);
   await assert.rejects(saveAccountTrip(client, { ...account, id: "editor" }, trip), /Captured request/);
   assert.equal(calls[1].name, "save_shared_trip_changes");
   assert.deepEqual(calls[1].args.p_data.destinationTimezones, []);
@@ -163,4 +151,44 @@ test("legacy guest IDs and orphaned financial references migrate without claimin
     { ...local, events: [] },
   );
   assert.equal(database.events[0].notes, "Keep this");
+});
+
+test("photo credit and trip changes use one transaction and only acknowledge server data", async () => {
+  const account = { id: "owner", name: "Owner", email: "owner@example.com" };
+  const trip = structuredClone(seed().trips[0]);
+  delete trip.sample;
+  trip.members = [{ ...trip.members[0], id: account.id, role: "Owner" }];
+  trip.imageSource = "unsplash";
+  trip.image = "https://images.unsplash.com/example.jpg";
+  trip.imageCredit = { name: "Photographer", profileUrl: "https://unsplash.com/@example", photoUrl: trip.image };
+  const credit = { source: "unsplash", photographer_name: trip.imageCredit.name,
+    photographer_profile_url: trip.imageCredit.profileUrl, photo_url: trip.image };
+  const row = { tripID: trip.id, trip_name: trip.title, destinations: trip.destinations,
+    start_date: trip.start, end_date: trip.end, timezone: trip.zone,
+    revision: 2, content_version: 1, content: trip, photoCredit: credit };
+  const calls: string[] = [];
+  // No from() method: any split photo-credit request must fail this test.
+  const client = { rpc: async (name: string, args: Record<string, unknown>) => {
+    calls.push(name);
+    assert.deepEqual(args.p_photo_credit, credit);
+    return { data: row, error: null, status: 200 };
+  } } as unknown as SupabaseClient;
+  const saved = await saveAccountTrip(client, account, trip);
+  assert.deepEqual(saved.imageCredit, trip.imageCredit);
+  assert.deepEqual(calls, ["save_account_trip"]);
+  row.photoCredit = { ...credit, photographer_name: "Wrong credit" };
+  await assert.rejects(saveAccountTrip(client, account, trip), error =>
+    error instanceof Error && "retryOriginal" in error && error.retryOriginal === true);
+});
+
+test("an incomplete database acknowledgement never counts as a confirmed save", async () => {
+  const account = { id: "owner", name: "Owner", email: "owner@example.com" };
+  const trip = structuredClone(seed().trips[0]);
+  trip.members = [{ ...trip.members[0], id: account.id, role: "Owner" }];
+  for (const data of [null, { tripID: trip.id, revision: 2, content: { image: trip.image },
+    trip_name: trip.title, destinations: trip.destinations, start_date: trip.start,
+    end_date: trip.end, timezone: trip.zone }]) {
+    const client = { rpc: async () => ({ data, error: null, status: 200 }) } as unknown as SupabaseClient;
+    await assert.rejects(saveAccountTrip(client, account, trip), /did not confirm the complete save/);
+  }
 });
