@@ -150,7 +150,7 @@ test('trip photo search follows the chosen destination and keeps two to five opt
 
 test('login shows neutral copy, branded buttons, Apple availability, and recoverable auth errors', async ({ page }) => {
   await page.goto('./');
-  await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome to Stir Crazy', exact: true })).toBeVisible();
   for (const provider of ['Google', 'Apple']) {
     const button = page.getByRole('button', { name: `Sign in with ${provider}`, exact: true });
     await expect(button.locator('img')).toBeVisible();
@@ -205,9 +205,9 @@ test('signup opens the app immediately, persists the session, and signs out', as
   await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
   await openAccount(page);
   await page.getByRole('button', { name: 'Log out', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome to Stir Crazy' })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome to Stir Crazy' })).toBeVisible();
 });
 
 test('demo core screens render and sample trips survive refresh', async ({ page }) => {
@@ -259,9 +259,9 @@ test('prototype start-at-login actually exits demo and remains signed out after 
     await demo(page);
     const dialog = await controls(page);
     await dialog.getByRole('button', { name: entry, exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Welcome to Stir Crazy' })).toBeVisible();
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Welcome to Stir Crazy' })).toBeVisible();
   }
 });
 
@@ -289,7 +289,7 @@ test('new release offers reload without interrupting a form', async ({ page }) =
   await noOverflow(page);
   await page.getByRole('button', { name: 'Reload app', exact: true }).click();
   await expect(page).toHaveURL(/release=ffffffff/);
-  await expect(page.getByRole('heading', { name: 'Welcome to Trip Planner' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome to Stir Crazy' })).toBeVisible();
 });
 
 
@@ -498,7 +498,7 @@ test('account page: Google accounts never see a password form', async ({ page })
   await openAccount(page);
   const panel = page.locator('.account-page');
   await expect(panel.getByText('You sign in with Google.')).toBeVisible();
-  await expect(panel.getByText('managed by Google, not Trip Planner')).toBeVisible();
+  await expect(panel.getByText('managed by Google, not Stir Crazy')).toBeVisible();
   await expect(panel.getByRole('form', { name: 'Change password' })).toHaveCount(0);
   await expect(panel.getByText('Change password')).toHaveCount(0);
   await expect(panel.locator('input[type=password]')).toHaveCount(0);

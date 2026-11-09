@@ -51,7 +51,7 @@ export function PrototypeApp() {
     previousRoute.current = routeKey;
   }, [routeKey, trip?.id, Boolean(pendingSurvey)]);
   useEffect(() => {
-    document.title = pendingSurvey ? `Trip preferences · ${pendingSurvey.title}` : `${PAGES[route.page] || "Home"} · Trip Planner`;
+    document.title = pendingSurvey ? `Trip preferences · ${pendingSurvey.title}` : `${PAGES[route.page] || "Home"} · Stir Crazy`;
     if (!pendingSurvey && route.page === 16 && user) open("nearby");
   }, [route.page, user?.id, pendingSurvey]);
   if (pendingSurvey) return (

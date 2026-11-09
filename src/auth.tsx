@@ -179,7 +179,7 @@ export function AuthApp({
 
   useEffect(() => {
     if (!demo && (!session || inviteEntry))
-      document.title = `${session && claim ? "Trip invitation" : signup ? "Create account" : "Log in"} · Trip Planner`;
+      document.title = `${session && claim ? "Trip invitation" : signup ? "Create account" : "Log in"} · Stir Crazy`;
   }, [session, signup, demo, claim]);
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -434,7 +434,7 @@ export function AuthApp({
       </div>
       <section className="auth-panel" aria-label="Your account">
         <div className="auth-form-wrap">
-          <span className="eyebrow">TRIP PLANNER</span>
+          <span className="eyebrow">STIR CRAZY</span>
           {joiningError ? (
             <>
               <h2>Trip invitation</h2>
@@ -484,7 +484,7 @@ export function AuthApp({
           ) : (
             <>
               <h2>
-                {claim && session ? "Trip invitation" : signup ? "Create your account." : "Welcome to Trip Planner"}
+                {claim && session ? "Trip invitation" : signup ? "Create your account." : "Welcome to Stir Crazy"}
               </h2>
               <p>
                 {wrongInviteAccount

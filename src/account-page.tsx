@@ -52,7 +52,7 @@ export function AccountPage() {
             // Passwords for Google (or other provider) accounts belong to that provider, so no form here.
             <p className="account-note">
               {method === "google"
-                ? "You sign in with Google. Your Google password is managed by Google, not Trip Planner."
+                ? "You sign in with Google. Your Google password is managed by Google, not Stir Crazy."
                 : "You sign in with an outside provider, which manages your password."}
             </p>
           )}
