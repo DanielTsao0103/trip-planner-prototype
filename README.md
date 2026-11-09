@@ -1,380 +1,231 @@
 # Trip Planner
 
-## Latest Done-column card check — November 8, 2026
-
-Only the five cards in the latest sprint screenshot are graded here. [Current verification report](assignment/done-cards-verification-2026-11-08.md) · [Evidence](assignment/done-cards-verification-2026-11-08.json).
-
-| Card requirement | Status | Verification boundary |
-| --- | --- | --- |
-| Invite someone to a group | Complete | Real email delivery and signup/login acceptance passed for new and existing QA accounts; see live acceptance report below. |
-| Edit itinerary pictures | Complete | Fresh live selection/upload, database/Storage readback, reload, desktop/mobile and Lighthouse 98–100. |
-| All collaborators save their own preferences to the database | Complete | Real Viewer saved answers; independent owner readback, owner-answer isolation and unrelated-trip denial passed. |
-| Connect budgets to the database | Complete | Fresh live group/individual/mode/expense saves, reload and invalid-write rollback; budget Lighthouse 100. |
-| Group permissions work and are enforced by the database | Complete | Live Owner/Viewer/Editor/Day Editor enforcement, separate-browser role refresh, denied/allowed writes, date boundaries and removal of an Editor passed. |
-
-**All five cards now have completed acceptance evidence for the checked scope.** The three earlier live-verification gaps were closed using real inbox delivery, separate accounts and actual database authorization checks. [Live group acceptance report](assignment/live-group-acceptance-2026-11-08.md) · [Evidence](assignment/live-group-acceptance-2026-11-08.json). Role-dialog Lighthouse scored 100 on desktop/mobile. Existing unrelated mobile-polish findings remain separate.
-
-The earlier current-source run passed 83 unit tests and 60 focused browser tests; its live photo/budget audit passed 19 width checks with Lighthouse 98–100. The new live group checks are independent of those mocked regressions.
-
-## Additional sprint checks — itinerary pictures and budgets
-
-Both additional screenshot features meet the checked definition of done. [Verification report](assignment/photos-budget-definition-of-done-2026-11-07.md) · [Lighthouse/database evidence](assignment/photos-budget-definition-of-done-2026-11-07.json).
-
-| Behavioral requirement | Status | Evidence |
-| --- | --- | --- |
-| Edit itinerary pictures using Unsplash or custom upload and retain them after reload | Complete | Live selection/upload/save, independent event image URL and Storage checks, desktop/mobile itinerary reload. |
-| Persist group budgets, individual budgets, tracking mode and expenses | Complete | Live UI saves and independent relational/bundle readback confirmed integer cents and reload persistence on both devices. |
-| Reject invalid budget writes without changing saved data | Complete | Negative budget rejected; saved revision and complete trip content unchanged. Generated test images/trip removed; pre-existing QA-visible trips unchanged. |
-| Responsive desktop/mobile and Lighthouse Accessibility >=90 | Complete | All 19 states fit tested widths; Lighthouse 98–100, with budget states scoring 100. Screenshots reviewed. |
-| Requirements documented, feature code on main and public deployment verified | Complete | Audited public implementation `e556148` is on main and was served at the public URL during the checks. |
-
-## Historical sprint audit — November 7, 2026 (superseded where updated above)
-
-**Scope: only the seven features in the sprint screenshots.** Unrelated unfinished integrations do not count against this sprint. [Sprint verification report](assignment/sprint-definition-of-done-2026-11-07.md) · [Lighthouse/database summary](assignment/sprint-definition-of-done-2026-11-07.json).
-
-| Behavioral requirement | Status | Verification / remaining gap |
-| --- | --- | --- |
-| Edit account name/password through the live backend | Not complete | Name, password change and fresh sign-in passed; a long email needs minor label-layout polish on mobile. |
-| Upload, persist and remove an account profile picture | Complete | Live UI → profile row/Storage → reload/removal checks passed. |
-| Require preferences immediately after joining a trip | Not complete | UI/API-mocked routing and real preference storage passed; real invitation-to-survey acceptance with a second account remains unverified. |
-| Show collaborators the same map and saved pins | Not complete | Live saved coordinates and real Google map passed; two-real-account synchronization/revocation remains unverified in this audit. |
-| Deliver and accept invitations | Not complete | Desktop/mobile routing tests passed; real mailbox/acceptance needs the private server connection and controlled inbox. |
-| Link each map location to the correct daily itinerary item | Complete | Live desktop/mobile round-trip verified for two locations on different days. |
-| Keep group preference charts readable and responsive | Not complete | 20-person content tests passed; five-pixel mobile Group/overlay overflow remains in the live fixture. |
-| Lighthouse Accessibility >=90 for the affected states | Complete | 20 live audits scored 96–100 at desktop/mobile widths. |
-| Preserve database records and reject invalid writes atomically | Complete | Invalid-coordinate rollback, anonymous read denial, restored QA account state, generated-trip cleanup and unchanged pre-existing QA-visible trip bundles. |
-| Document statuses, merge into main and serve a public cloud URL | Complete | This report/README and audit tooling are on main; the audited implementation is [live](https://danieltsao0103.github.io/trip-planner-prototype/). |
-
-**Acceptance is not yet fully verified**, specifically because of the small visual findings and the remaining live multi-account/inbox checks—not because of unrelated prototype work. The audit also passed 98 sprint-related desktop/mobile browser regressions. API-mocked tests are distinguished from real database checks in the report.
-
-## Earlier whole-application audit — not sprint acceptance
-
-**Whole-application status: Not complete.** The implemented planner passes the automated checks below, but prototype integrations and the live verification gaps listed in the [audit report](assignment/definition-of-done-audit-2026-11-07.md) prevent a blanket claim that every feature is done. Earlier “Complete” statements apply to their named historical release scopes.
-
-| Requirement | Status | Current evidence |
-| --- | --- | --- |
-| Responsive, polished desktop/mobile core planner pages | Not complete | All 36 width checks pass at 1,365 px and 390 px. Visual review found the Account page’s Email label wraps vertically beside a very long email on mobile; minor polish remains. |
-| Every feature works User → Frontend → Backend → Database | Not complete | Live name/photo persistence and isolated database trip/map checks passed. 81 unit tests and 134 desktop/mobile browser tests passed. Browser APIs are mocked; mailbox delivery, password changes and two-real-account sharing were not independently repeated in this audit. OCR, banking/payments and nearby alerts remain previews. |
-| Lighthouse Accessibility at least 90 | Complete | Lighthouse 13.6.0 accessibility snapshots scored 96–100 across 36 live states on deployed implementation `2e46d1e`. Not a manual accessibility certification. |
-| README lists behavioral requirements as Complete or Not complete | Complete | This table, the feature tables below, and the linked audit report state boundaries explicitly. |
-| Implementation and audit changes are on main | Complete | Corrected deletion regression tests passed the normal release workflow; this report and reproducible audit harness are committed with the final audit update. |
-| Public cloud deployment | Complete | [Live app](https://danieltsao0103.github.io/trip-planner-prototype/); the Pages workflow checks version.json and the deployed entry script. |
-
-Audit outputs: [verification report](assignment/definition-of-done-audit-2026-11-07.md) and [machine-readable Lighthouse summary](assignment/definition-of-done-audit-2026-11-07.json). Raw screenshots and Lighthouse HTML stay outside the published repository.
-
-## Trip photos: behavioral requirements and completion status
-
-The trip form searches the first added destination through the Supabase `unsplash-search` Edge Function by default. For a trip with multiple destinations, the user can choose which destination to search. It offers two to five landscape photos when enough matches are available, or the user can upload a JPEG, PNG, or WebP photo under 5 MB. The client requests up to 30 search results and filters by photo dimensions because the deployed search function does not currently forward Unsplash's orientation filter. Uploaded photos go to the public `trip-photos` Supabase Storage bucket, and the selected URL is saved with the account trip. Unsplash photographer and photo links are saved in `trip_photo_credit` and shown beside the cover. The `unsplash-track` Edge Function calls the selected photo's exact Unsplash `download_location` when it becomes a cover; its public-key-only request also works for browser-only demo trips.
-
-Apply `supabase/migrations/20261029120000_trip_photos.sql`, set `Unsplash_Key` as a Supabase Edge Function secret, and deploy `supabase/functions/unsplash-track`. The existing `unsplash-search` function must accept a GET request with `query` and `per_page` and return Unsplash's `results` array (or the array directly). The browser needs the usual `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` values. Do not put the Unsplash key in a `VITE_` variable or commit it. A public Storage bucket means anyone with an uploaded photo's URL can view that photo.
-
-| Behavioral requirement | Status | Verification / boundary |
-| --- | --- | --- |
-| Search the first added destination automatically; show a destination dropdown only when two or more destinations are added | Complete | Desktop/mobile browser tests check the dropdown, default choice, switching, and removal. |
-| Offer two to five landscape Unsplash photos for the chosen destination | Complete | The client requests up to 30 results, rejects images whose width is not greater than their height, and displays at most five. Browser tests cover portrait rejection and both result limits. The deployed search proxy ignores `orientation`, so the filtering currently happens in the client. |
-| Keep photo selection optional and allow a custom cover upload | Complete | The form accepts JPEG, PNG, or WebP files up to 5 MB. Account uploads use the `trip-photos` bucket; the browser-only demo requires sign-in before an upload can be saved. If fewer than two suitable Unsplash photos remain or search fails, the upload control stays available. |
-| Save the chosen cover with the trip and retain Unsplash credit | Complete | Account saves send the image URL through `save_trip_bundle` to the trip's `image_url`, retain photographer and photo links in `trip_photo_credit`, and register a selected Unsplash photo through `unsplash-track`. Demo saves keep the chosen cover in the browser and also register the Unsplash selection. The picker shows one linked Unsplash caption above the grid and linked photographer names under photos. Existing covers and custom uploads are not automatically cropped or replaced. |
-
-[Live app](https://danieltsao0103.github.io/trip-planner-prototype/) · [GitHub repository](https://github.com/DanielTsao0103/trip-planner-prototype) · [Demo video](https://www.loom.com/share/be0601e7285d4cf5876df31a91e2bba6)
-
-## App Summary
-
-Planning a group trip often means keeping track of messages, calendars, bookings, and shared expenses in different places. Trip Planner is for friends, families, and other groups who want those plans in one place. The app brings together trip dates, destinations, a day-by-day itinerary, group members, preferences, and budget screens. Travelers can explore a fictional Seattle and Bainbridge trip or create a separate trip in the prototype. Our working backend feature is email and password account creation, login, and sign-out through Supabase. Creating an account saves the account and its name in the database, then opens the planner with that person's name. Creating a trip now saves its name, destinations, dates, and time zone to the signed-in account in Supabase. Saved trips load after sign-in on another browser; editing trip details and deleting a trip also persist. Events and attendees, guest travelers and role/day settings, preferences, budgets, expenses and split/repayment records, reminders, and dismissed suggestions also save to the account. Sample trips remain local. Owners can share trips with registered accounts by email. Email invitations are sent to both existing and new accounts. They open the same account screen, with login selected for existing accounts and signup selected for new invitees. Existing invitations require the invited account; new invitees can use the verified invitation to choose their invited address, another account, or an enabled social provider. The traveler joins as a Viewer and sees the trip’s preference survey. In Group, the owner can promote an accepted traveler to Editor for every day or Day Editor for specific dates. Moving an event requires access to both dates; a Viewer who tries to edit sees a permission prompt. New invitation links expire seven days after sending; joining a trip does not make membership expire. Resending creates a fresh invitation and replaces the previous link. Invitation delivery requires a configured SMTP sender.
-
-## System Architecture
-
-![Trip Planner system architecture and planned receipt flow: customer emails a receipt, AI extracts an expense, admin reviews it, Supabase saves it, and the customer sees it in the app. Customer and AWS admin components, external services, and data exchanged are labeled.](assignment/system-architecture.png)
-
-[Open full-size diagram](assignment/system-architecture.png) · [Scalable SVG copy](assignment/system-architecture.svg) · [FigJam board — Diagram frame](https://www.figma.com/board/I4HBVhgTCyki0lvjDZyMZ8/Untitled?node-id=44-271)
-
-Solid green paths show connections implemented in source; dashed amber paths show planned connections. Service configuration may still be required; this diagram is a source review, not a fresh live-service audit. The current map uses the Google Maps JavaScript API; Photon/OpenStreetMap provides destination search with a bundled GeoNames fallback. Supabase Auth handles email/password and the implemented Google OAuth flow. Its Data API/RPCs read and save account trips in PostgreSQL, while Supabase Storage holds uploaded cover photos. Edge Functions connect to Unsplash for photo search/selection tracking and Mailtrap for existing rule-based forwarded booking imports. The React frontend was built with AI assistance and is hosted on GitHub Pages; Node.js currently runs build tools, not a deployed application server.
-
-The **admin portal is planned**: HTML/CSS pages served by an Express/Node.js server on AWS Elastic Beanstalk, with Amazon RDS PostgreSQL storing receipt drafts, review status, and audit records. These AWS services are proposed hosting choices, not deployed resources. The server will validate admin access and connect to Supabase for authorized trip lookups and approved expense writes. Supabase stays the source of truth for customer trip data; RDS stores the admin processing records.
-
-The **AI receipt workflow is planned**: a traveler emails a receipt and trip reference to a dedicated Gmail inbox. An automation retrieves the message and attachment, calls an AI/OCR service to extract merchant, date, total, and currency, and submits a draft to the admin server. After an admin reviews or corrects it, the server saves the approved expense to the matching Supabase trip; the customer sees it on the next trip load. Matching must verify account/trip authorization, and repeated emails must not create duplicate expenses. The automation platform and AI/OCR provider are still to be selected; the inbox and workflow are not configured yet. This workflow receives emailed receipts; it does not scan a traveler's entire personal inbox.
-
-Existing Mailtrap booking imports are separate from the planned Gmail receipt workflow: they use rule-based parsing, store unverified booking fields, and do not attach bookings to trips or perform AI expense extraction. Apple sign-in requires Apple provider configuration; social connections, bank matching, and payments remain outside this implementation plan; their preview UI does not indicate a live service connection. Current implementation boundaries are listed in [Implementation status](IMPLEMENTATION_STATUS.md).
-
-## Trip persistence: behavioral requirements and completion status
-
-Scope: the full account-trip persistence task only. The six definition-of-done checks and their evidence are recorded in [trip-persistence verification](assignment/trip-persistence-verification.md). This does not expand the suggestion engine or implement unrelated integrations.
-
-**Definition of done: Complete.** Desktop/mobile layouts passed 42 state audits and 32 width checks; the hosted user-to-database flow passed 90 checks; Lighthouse Accessibility scored **95–100** across 42 checks. The behavioral requirements are marked below, the implementation is on `main`, and the [public app](https://danieltsao0103.github.io/trip-planner-prototype/) serves it. See the linked report for exact versions and remaining out-of-scope work.
-
-| Behavioral requirement | Status | Verification / boundary |
-| --- | --- | --- |
-| Create, list, edit and delete a trip under the signed-in owning account | Complete | Live UI → Supabase API → PostgreSQL checks; exactly one owner membership and account isolation. |
-| Save destinations, dates, time zone, image URL, events, locations, times, costs, notes and attendees | Complete | Complete database round-trip; event add/edit/delete and fresh-browser reads. |
-| Save guest travelers, names/emails, roles, editable days and removal state | Complete | Guest IDs remain separate from Auth IDs; removed travelers retain financial history. |
-| Save all survey answers, group/individual budgets, expenses, split shares and repayment markers | Complete | Live field-by-field readback, odd-cent splits, budget-mode switching and protected completed repayments. |
-| Save reminders, completion state and existing dismissed suggestion IDs | Complete | Create/update/delete, reload and database checks. Recommendation generation is unchanged. |
-| Replace permanent browser copies of account trips with database storage | Complete | Samples remain local; only unsaved recovery drafts are retained for account trips, then removed on success. |
-| Preserve older browser details for an already-owned database trip | Complete | One-time import remaps legacy IDs and preserves historical allocations; email does not establish ownership. |
-| Prevent partial writes and silent overwrites; visibly recover from failed saves | Complete | Account drafts resume on reload; transient failures retry automatically with backoff or on reconnect. A real conflict keeps the local copy available for download or manual recovery. |
-| Deliver cross-account editing, file uploads/OCR, messages or payments | Not complete | Outside this task; stored guest roles do not grant another account access, and uploaded file previews are temporary. |
-
-## Field limits: behavioral requirements and completion status
-
-Historical field-limit release scope: character and money limits, verified through the account-trip save path. The separate persistence release below now extends database saving to events, budgets, preferences, guest travelers, and reminders.
-
-| Behavioral requirement | Status | Verification |
-| --- | --- | --- |
-| Limit trip/event titles to 100 characters, trip destinations to 220, names to 90, and email inputs to 280 | Complete | Native input limits plus save-handler validation; email format validation still applies. |
-| Limit event/additional notes to 2,200 characters, preference places to 1,100, expense descriptions to 130, and reminders to 220 | Complete | Desktop/mobile boundary tests check pasted input, saves, and reloads. |
-| Limit bulk invitation text to 5,600 characters and 20 addresses; limit trips to 20 destinations | Complete | Individual addresses, total text length, and item counts are validated before saving. |
-| Hide routine character counters and preserve oversized saved text | Complete | Forms retain their validation and describe oversized entries when they need correction. |
-| Limit group/individual budgets to $999,999.99 and expenses/event estimates to $99,999.99, with at most two decimal places | Complete | Form and save validation reject excessive amounts, extra decimals, exponents, and non-finite values; free event estimates remain allowed. |
-| Persist the new 100/220 trip limits through User → Frontend → Supabase → PostgreSQL | Complete | Live mobile creation, database readback, fresh-browser sign-in, editing, and reload passed; direct oversized API writes were rejected without changing the saved row. Temporary test records were removed. |
-| Keep changed forms responsive and at or above Lighthouse Accessibility 90 | Complete | Verified desktop/mobile screenshots, 320–1365px layout checks, and Lighthouse results in [field-limit verification](assignment/field-limits-verification.md). |
-| Deliver the field-limit source on main at the public URL | Complete | Implementation commit 9eb8ea6 is on main and live; the Pages workflow verifies the published revision. |
-
-The task's six definition-of-done checks, scores, and repeatable commands are recorded in [field-limit verification](assignment/field-limits-verification.md). Existing backend features outside this task retain their separate **Not complete** statuses below.
-
-## Budget and Suggestions copy cleanup: behavioral requirements
-
-The current release extends account-trip persistence to all structured planning details. It also preserves the previously published Budget/Suggestions copy cleanup and Home navigation highlight.
-
-| Behavioral requirement | Status | Verification / boundary |
-| --- | --- | --- |
-| Hide implementation commentary on Suggestions, including its illustrative-data note and shared footer | Complete | Checked on desktop and mobile; suggestion controls remain available. |
-| Hide implementation commentary on Budget, including its demo-finance note and shared footer | Complete | Checked on desktop and mobile; budget and expense controls remain available. |
-| Preserve the existing notes on all other pages and dialogs | Complete | The shared footer remains on every other planner route; storage wording now reflects database persistence. |
-| Keep real-versus-simulated behavior documented for future development | Complete | [Implementation status](IMPLEMENTATION_STATUS.md) maps every screen to its actual persistence/integration boundary; source comments identify the database and simulation boundaries. |
-| Keep the affected pages responsive and accessible | Complete | Desktop/mobile browser checks, keyboard dialog check, visual review, and Lighthouse results are recorded in [release verification](assignment/note-cleanup-verification.md). |
-| Preserve the existing user → frontend → backend → database trip workflow | Complete | Live Supabase regression checks passed for browser creation, reload, fresh-browser sign-in, deletion, owner membership, validation, and account isolation; temporary test records were removed. The full-detail extension adds reviewed relational tables and atomic save/load RPCs. |
-| Save itinerary events, budgets, expenses, and survey answers to the backend | Complete | Full database round-trip and real browser/fresh-browser checks; reminders, attendees, guest roles/days, split shares, and repayments also persist. |
-| Share a trip by email | Complete | Registered and new accounts receive invitation emails through the configured SMTP sender. Both entry paths were verified through real inbox delivery, authentication, saved preferences, and reload. |
-| Use real receipt OCR, Gmail/social integrations, recommendations, or payments | Not complete | Existing fixtures and previews remain; the persistence release does not expand these integrations. |
-
-The definition of done for this feature includes passing tests and Lighthouse Accessibility scores of at least 90, source on `main`, and deployment through the [Pages workflow](https://github.com/DanielTsao0103/trip-planner-prototype/actions/workflows/pages.yml) to the [public app](https://danieltsao0103.github.io/trip-planner-prototype/). The workflow verifies that live `version.json`, HTML, and JavaScript match the deployed commit.
-
-## ERD
-
-![Trip Planner database: five tables, their attributes, and six labeled foreign-key relationships](assignment/team-erd.png)
-
-This is the team's original ERD, corrected in Lucidchart and exported after checking the live Supabase schema on October 10, 2026; see [Lucidchart Page 1](https://lucid.app/lucidchart/03d6d88e-7779-4ff9-ab5c-e40edb375353/edit?page=0_0). The image is the October 10 baseline. The October 28 account-trip slice adds `trip.owner_id`, `trip.destinations`, `trip.revision`, and an Owner role. The full-detail extension adds the child tables below; the public tables are:
-
-| Entity | What it stores | Screen connection |
-| --- | --- | --- |
-| `user` | Name, email, and provider for a person | Signup and account identity |
-| `trip` | Original creator, owning Auth account, name, ordered destinations, dates, time zone, and revision | Trip creation and trip list |
-| `event` | Creator, trip, title, location, date, times, estimated cost, and notes | Itinerary and Add event |
-| `role` | Role name and edit/invite flags | Group permissions |
-| `trip_member` | Trip, optional linked account, guest planner ID, display name/email, role, and status | Group travelers |
-| `trip_member_day`, `trip_event_attendee` | Assigned dates and event attendance with same-trip foreign keys | Permissions and itinerary |
-| `trip_expense`, `trip_expense_share` | Integer-cent expenses, allocations, and completed repayment markers | Budget and reimbursements |
-| `trip_person_budget`, `trip_preference` | Per-traveler budgets and survey answers | Budget settings and preferences |
-| `trip_todo`, `trip_dismissed_suggestion` | Reminder text/date/completion and dismissed idea IDs | Today and existing suggestions |
-
-A user can create many trips and events. A trip can contain many events and memberships. A user and a role can each appear in many memberships. `trip_member` connects users and trips as a many-to-many relationship. In crow's-foot notation, a circle means zero, a bar means one, and a crow's foot means many. The original six foreign keys allow NULL for legacy team records. New account trips require an authenticated owner, valid details, and an Owner membership. `owner_id` separately references `auth.users`; `created_by` retains the original creator profile. Legacy trips remain unassigned and are not exposed to new accounts. Each trip has one owner and many potential memberships; each membership links one user to one role. A unique trip/user key prevents duplicate membership, and a private trigger creates the Owner membership in the same transaction as the trip. Email invitations link a traveler to an Auth account with Viewer access. Older guest records stay local to the trip until explicitly shared. Account edits save atomically across relational tables, with owner access checks and revision conflicts.
-
-Supabase also manages `auth.users`. On signup, a private trigger creates a `public.user` profile with the same UUID. Existing fictional group users are not automatically Auth accounts, and there is no foreign-key constraint from `public.user` to `auth.users`. The legacy `user.password` column remains in the team schema but is unused for new accounts; Supabase Auth handles password storage, and the browser cannot read that column.
-
-See [Supabase setup](SUPABASE-SETUP.md) for the existing database configuration and schema history.
-
-## Tech Stack
-
-| Layer | Technology | Why it fits this project |
-| --- | --- | --- |
-| Frontend | React 19, TypeScript, CSS, and Vite 7 | Preserves the team's existing responsive screens; TypeScript checks data shapes before building. |
-| Backend | Supabase Auth and its JavaScript client | Provides account creation, password checking, sessions, and sign-out without a separate custom server. |
-| Database | PostgreSQL hosted by Supabase | Stores relational trip data and Auth accounts; a database trigger creates the matching profile. |
-| Hosting | GitHub Pages | Hosts the built frontend at the shared live-app link. Supabase runs the backend separately. |
-| Development | Node.js, npm, and GitHub | A committed lockfile gives teammates the same dependencies and source version. |
-
-This approach reuses our existing frontend and lets the team extend the backend one verified feature at a time. We can inspect both the code in GitHub and the tables in Supabase. The tradeoff is dependence on Supabase availability and plan limits; teammates should check the project's current usage before expanding it. Node.js runs development and build tools here, not a custom production API server. AI-assisted code generation does not replace the hosted database or backend.
-
-## How to Get It Running
-
-### Open the hosted app
-
-1. Open the [live app](https://danieltsao0103.github.io/trip-planner-prototype/).
-2. Use **Create an account** for the working database feature, or log in with an account you previously created.
-3. **Try demo as Maya** is an optional local preview. It does not create a database account and is not the assignment's vertical slice.
-
-### Run a fresh copy locally
-
-1. Install Node.js 22.18 or newer with npm. Clone the repository and open a terminal in its project folder.
-
-   ```sh
-   git clone https://github.com/DanielTsao0103/trip-planner-prototype.git
-   cd trip-planner-prototype
-   ```
-
-2. Install the locked dependencies:
-
-   ```sh
-   npm ci
-   ```
-
-3. Copy the configuration template:
-
-   ```sh
-   cp .env.example .env.local
-   ```
-
-   In `.env.local`, fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` using the existing team project's **Connect** dialog. The team project reference is `mzwydinhvgmwhnwlomnn`. An existing team member can provide the browser configuration if you lack dashboard access. Never put a secret key, service-role key, database password, or management token in a `VITE_` variable. Real environment files are ignored by Git.
-
-4. Check the public connection, then start Vite:
-
-   ```sh
-   npm run supabase:check
-   npm run dev -- --port 5190
-   ```
-
-5. Open [the local app](http://127.0.0.1:5190/). Keep the terminal running; press Control+C to stop. Restart Vite after changing environment variables. If Supabase is not configured, account actions are unavailable, but **Try demo as Maya** still opens the local preview.
-
-6. Run the existing checks when changing code:
-
-   ```sh
-   npm test
-   npm run build
-   ```
-
-The existing hosted database already has the tables, sample rows, and signup trigger. Do not rerun `supabase/migrations/20261010194129_auth_only_lucid_schema.sql`: it records a one-time correction to the team's existing project, not an initial database migration. See [Supabase setup](SUPABASE-SETUP.md) for details. No Python server or SQLite database is used by this version.
-
-## Verifying the Vertical Slice
-
-The current trip action is **Create trip** under a real signed-in account.
-
-1. Create an account or log in with your email and password. Do not enter the Maya demo for this test.
-2. Choose **New trip**, enter a title, destination(s), dates, and time zone, then select **Create trip**.
-3. The form shows **Saving…** and only confirms success after Supabase returns the saved row. The trip card says **Saved to your account**.
-4. Refresh, then sign in with that account in a private window. The trip remains available without the original browser's planner storage.
-5. Open the trip, choose **Edit trip**, and save changed details. These details persist. A stale edit from another tab is rejected instead of overwriting newer changes.
-6. Log in with a different account: it cannot see, edit, or delete the trip. Database row-level security enforces this even if the UI is bypassed.
-7. Delete a test trip and refresh. Both the trip and its membership are removed.
-
-```text
-Trip form -> account-trips.ts -> Supabase Data API with the user's JWT
-  -> RLS checks owner_id and created_by against auth.uid()
-  -> database validates trip details
-  -> trip insert + Owner membership trigger commit together
-  -> saved row returns -> trip appears in the account
-Fresh login -> read trips by owner_id -> account trip list
+Trip Planner brings group trips, itineraries, shared maps, traveler preferences, and budgets into one app. Signed-in accounts save their trips to Supabase and can invite collaborators; the fictional Maya/Seattle sample remains separate in browser storage.
+
+[Live app](https://danieltsao0103.github.io/trip-planner-prototype/) · [GitHub repository](https://github.com/DanielTsao0103/trip-planner-prototype)
+
+**System overview updated November 9, 2026**, against source revision `7380a57`. This README describes the current implementation. Linked acceptance reports record checks performed on their stated dates and revisions; this documentation update is not a new live-service audit.
+
+## Current features
+
+| Area | Implemented behavior |
+| --- | --- |
+| Accounts | Email/password signup, login and sign-out; Google OAuth; persistent sessions; account name and password editing; profile picture upload, replacement and removal. Provider accounts manage their password with their provider. |
+| Trips | Create, list, edit and delete account trips; multiple ordered destinations and destination time zones; optional Unsplash or uploaded covers; copy curated trip templates into a trip. |
+| Itinerary | Events with locations, dates, times, costs, notes, attendees and pictures; daily list and seven-day calendar; drag or use the Move dialog to reschedule while preserving duration. |
+| Collaboration | Email invitations for existing and new accounts; trip-preserving authentication and post-join preferences; Viewer, Editor and Day Editor access enforced by the database. |
+| Maps | Google road/satellite maps, itinerary pins, automatic location resolution, saved coordinates/place IDs, pin adjustment and links to the matching daily itinerary item. |
+| Preferences | Each accepted traveler can save their own survey; the group can view aggregated preferences. |
+| Budget | Group and individual budgets, tracking mode, expenses, split allocations and repayment markers stored in relational tables. Money is stored in integer cents. |
+| Reminders | Trip reminders and completion state persist. Dismissed suggestion IDs also persist; suggestion content is still illustrative. |
+| Appearance | Account theme, light/dark mode, heading font and corner preferences save to Supabase; demo styling stays local. |
+| Save recovery | Serialized autosaves, atomic owner writes, revision checks, transient retries, validated recovery journals and visible failure/download controls. |
+
+### Permissions and invitations
+
+Each trip has one owning Auth account. Guest traveler records are distinct from authenticated memberships; a matching email or the demo participant selector never grants account access.
+
+| Role | Allowed actions |
+| --- | --- |
+| Owner | Manage the trip, invitations, roles, group settings and budgets, plus itinerary content. |
+| Editor | Edit itinerary events and reminders across the trip. |
+| Day Editor | Edit events and reminders on assigned dates; moving an event requires permission on both its original and destination dates. |
+| Viewer | Read the shared trip without editing events or reminders. |
+
+Accepted travelers can also manage their own preferences, expenses and individual budget within the server's validation rules. Only the owner grants Editor or Day Editor access; invited accounts start as Viewers.
+
+Invitations require configured email delivery. Existing-account invitations are tied to the invited account; eligible new-account invitations preserve the trip while the traveler chooses signup, login or an enabled social provider. After joining, the traveler opens that trip's preference survey. New invitation links last seven days; resending replaces the previous link. Accepted memberships do not expire with the invitation.
+
+### Itinerary, maps and photos
+
+- Calendar moves use the event's top edge and round to the nearest minute. The Move dialog supports keyboard and touch use. Trip dates, overlaps and edit permissions are checked before saving.
+- Photon/OpenStreetMap supplies destination and event-location suggestions. Searches can favor a selected trip stop or use worldwide results; manual entry remains available. Open-Meteo helps resolve destination time zones from coordinates.
+- Google Maps resolves typed itinerary locations and unpinned existing events. Saved manual positions take priority. Named areas can show a center pin; unresolved locations are edited in the itinerary.
+- Account screens refresh shared trip data every five seconds while visible and on focus/reconnect, while preserving pending local edits. This uses foreground polling, not a Supabase Realtime subscription. Device location and map viewport stay local.
+- Trip covers and itinerary pictures support Unsplash selection and custom uploads. Cover search offers up to five landscape matches; JPEG, PNG and WebP uploads accept files up to 5 MB. Unsplash credit and selection tracking are retained. Uploaded trip and profile images use public Storage buckets, so anyone with an image URL can view it.
+- The event editor's popular-times link opens a Google Maps search; it does not fetch crowd data into the app.
+
+## Architecture
+
+The customer app is **React 19 + TypeScript**, built with **Vite 7** and hosted on **GitHub Pages**. Node.js runs development, build and test tools; there is no deployed Express server for the current customer app.
+
+```mermaid
+flowchart LR
+    User[Traveler browser] --> App[React / TypeScript app]
+    Pages[GitHub Pages static hosting] --> App
+    App --> Auth[Supabase Auth]
+    App --> API[Supabase Data API / RPCs]
+    API --> DB[(PostgreSQL: trips and memberships)]
+    App --> Storage[Supabase Storage: images]
+    App --> Maps[Google Maps]
+    App --> Search[Photon / OpenStreetMap]
+    App --> Zones[Open-Meteo time zones]
+    App --> Photos[Supabase photo Edge Functions]
+    Photos --> Unsplash[Unsplash]
+    Mailtrap[Mailtrap inbound email] --> Inbound[inbound-email Edge Function]
+    Inbound --> DB
 ```
 
-The database binds ownership to the authenticated UUID, never an email match or fictional participant. Only the browser-safe publishable key ships to the client; privileged keys stay in ignored server files. See [Supabase RLS documentation](https://supabase.com/docs/guides/database/postgres/row-level-security).
+Supabase Auth identifies the signed-in account. Database policies and membership-checked RPCs enforce authorization independently of the UI. Supabase Storage holds images; Edge Functions handle photo services and the separate rule-based booking import. External features depend on their service configuration.
 
-Failed loads offer retry instead of pretending the account is empty. Failed saves retain form input. A stable draft UUID prevents duplicate creation when a response is lost and retried. A revision check prevents stale edits and deletes. Existing browser-only trips are retained and labeled; saving their details from your real account explicitly stores them in Supabase. Local demo samples are never uploaded automatically.
+### Persistence and recovery
 
-**Scope:** all structured account trip details sync, including events, guests, preferences, budgets, expenses, and reminders. Browser storage holds sample trips and temporary unsaved recovery only. Newly invited accounts start as Viewers; the owner can grant itinerary editing for all or selected days. Apple is not enabled on the hosted project; OCR and financial integrations remain previews or future features.
+All account-trip screens use the shared state and save queue:
 
-### Demo video and submission
+```text
+Screen edit → state.tsx → TripSaveQueue → account-trips.ts
+  Owner:        save_account_trip
+  Collaborator: save_shared_trip_changes
+  → server permission and revision checks → transaction → validated saved bundle
+```
 
-[Watch the demo video](https://www.loom.com/share/be0601e7285d4cf5876df31a91e2bba6). Account creation, the returned account name, and refresh demonstrate the backend feature; the recording also shows the new account in Supabase. This historical video predates the account-trip slice; its trip and event walkthrough shows the older browser-local behavior. Record a new Create trip demo to demonstrate the current persistence feature.
+Owner saves commit trip content, ordered destination time zones and cover-photo credit together. Read bundles include consistent root, child and photo data. The client only acknowledges a save after receiving a complete, valid response for the expected trip. A brief “Changes saved” notification follows confirmed writes; failed or pending writes do not report success.
 
-Canvas requires a text entry with the demo video link and the public GitHub repository/README link, one submission per team. The video must be two minutes or less and focus on the vertical slice.
+Revision checks reject stale writes rather than overwrite newer work. Retry handling prevents a lost response from duplicating a completed save. Failed loads show an error and retry option instead of an empty account. Unsaved changes retry after temporary failures or reconnect; conflicts retain recovery controls instead of merging automatically.
 
-## Trip map
+Browser storage contains sample trips and temporary account recovery records, not the authoritative saved account trip. Each tab holds a Web Lock for its recovery writer; another tab can adopt a journal only after ownership becomes available. Recovery data is validated before loading, replacement records are stored before predecessors are removed, and confirmed saves retire their recovery records. Invalid records remain available for download. Storage failures show a warning; browsers without Web Locks cannot safely adopt another tab's journal.
 
-The Map tab and active-trip dashboard use the Google Maps JavaScript API. Set the website-restricted browser key in `VITE_GOOGLE_MAPS_API_KEY` for local builds and in the matching GitHub Actions variable for Pages. An optional `VITE_GOOGLE_MAP_ID` selects a custom Google map style. Selecting a Photon address saves its coordinates with the event. Saving a typed itinerary location resolves its Google place ID. A district or postal area appears as an area-center pin. Opening the map automatically looks up unpinned itinerary addresses with Google, including older events. Accepted travelers see the pins. The trip stores the matched Google place ID, and a saved manual position takes priority. If Google cannot identify a specific location, choose **Edit itinerary location**. Choose **Adjust pin** to move it to an entrance or meeting point.
+Concurrent whole-trip edits can still conflict, even when they affect different events. Clearing browser storage can erase unsaved recovery data. See [Persistence contract](PERSISTENCE_CONTRACT.md) for the required write path, field-extension checklist and release checks.
 
-Accepted travelers read the same event records. All signed-in planner screens refresh account trips on focus, on reconnect, and every five seconds while visible. Device location and viewport stay local. Directions open in Google Maps at the saved coordinates.
+## Database model
 
-## Database and Sample Data
+The schema is relational, with account ownership separated from guest traveler identities.
 
-The pre-recording database inspection on October 10, 2026 found 6 `user` rows, 2 `trip` rows, 2 `event` rows, 3 `role` rows, and 5 `trip_member` rows. These are hosted database counts, separate from the fictional fixtures in `src/data.ts`. One public profile matched an Auth account at that inspection; subsequent signups add more accounts and profiles. All five public tables have row-level security enabled. The October 28 migration enables owner-only trip CRUD, own/owned-trip membership reads, and authenticated role-definition reads. The event table remains inaccessible to the browser. Original rows were fingerprint-checked and preserved; the Owner role was added intentionally.
+| Tables | Purpose |
+| --- | --- |
+| `auth.users`, `public.user` | Authentication and public profiles, including account/profile picture metadata. Passwords belong to Supabase Auth. |
+| `trip`, `trip_destination_timezone`, `trip_photo_credit` | Trip details, owning Auth UUID, revision, ordered destination zones and cover attribution. |
+| `role`, `trip_member`, `trip_member_day` | Role definitions, guest or linked-account membership, status and editable dates. |
+| `event`, `trip_event_attendee` | Itinerary content, pictures, map coordinates/place IDs and attendance. |
+| `trip_expense`, `trip_expense_share`, `trip_person_budget` | Expenses, allocations/repayment markers and individual budgets; group budget/mode live on `trip`. |
+| `trip_preference`, `trip_todo`, `trip_dismissed_suggestion` | Traveler surveys, reminders and dismissed ideas. |
+| `user_style`, `user_style_log` | Appearance preferences and their change history. |
+| `forwarded_booking`, `inbound_email_log` | Extracted booking fields and inbound-message deduplication. |
+| Private invitation tables | Invitation requests, expiry and acceptance proof. |
 
-## Project Files
+New account trips create their owner membership atomically. Legacy team records are not assigned to a new account by email inference. Removed travelers retain references needed for financial history. Shared writes validate the actual changed records against current membership and role permissions.
+
+[Original team ERD](assignment/team-erd.png) · [Lucidchart Page 1](https://lucid.app/lucidchart/03d6d88e-7779-4ff9-ab5c-e40edb375353/edit?page=0_0)
+
+The original ERD is the **October 10 five-table baseline**, not the complete current schema. Later changes are recorded in [Supabase migrations](supabase/migrations/), including the atomic-save and consistent-snapshot migrations dated November 9 UTC.
+
+## Run locally
+
+Use **Node.js 24** to match CI, and npm.
+
+```sh
+git clone https://github.com/DanielTsao0103/trip-planner-prototype.git
+cd trip-planner-prototype
+npm ci
+cp .env.example .env.local
+```
+
+Fill in `.env.local` using the existing team's service configuration:
+
+| Variable | Purpose |
+| --- | --- |
+| `VITE_SUPABASE_URL` | Existing Supabase project URL. |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Browser-safe `sb_publishable_` key for Auth and account data. |
+| `VITE_GOOGLE_MAPS_API_KEY` | Website-restricted Google Maps browser key. |
+| `VITE_GOOGLE_MAP_ID` | Optional custom Google map style. |
+| `VITE_BOOKINGS_INBOX_ADDRESS` | Optional forwarding address displayed on Home; leave blank to hide it. |
+
+```sh
+npm run supabase:check
+npm run dev -- --port 5190
+```
+
+Open [the local app](http://127.0.0.1:5190/). Restart Vite after environment changes. Without Supabase configuration, **Try demo as Maya** still opens the local preview. Google Maps and other external features need their own configuration.
+
+Never put service-role/secret keys, management tokens, SMTP credentials or database passwords in `VITE_` variables. Real environment files are ignored. Private QA/admin scripts use separate ignored files; see [Supabase setup](SUPABASE-SETUP.md), whose dated sections also preserve historical setup steps.
+
+This checkout connects to an existing team database. The migration directory is **not a standalone fresh-project bootstrap**: `20261010194129_auth_only_lucid_schema.sql` records a one-time correction and must not be rerun against the current project. Inspect deployed migration state before database changes. Current clients require the atomic save/read contract; a mismatched database produces an explicit recoverable error.
+
+Email invitations require SMTP and Auth redirect/template configuration. Photo search uses the existing `unsplash-search` service and the tracked `unsplash-track` function; the search function's implementation is not bundled here. Unsplash and Mailtrap secrets belong on the server. Running the frontend does not provision these services.
+
+## Tests and deployment
+
+```sh
+npm test                       # Domain, persistence, recovery and inbound parser tests
+npm run build                  # TypeScript check and local production build
+npm run build:pages             # Pages base path, credential scan and version metadata
+npx playwright install chromium webkit
+npm run test:e2e                # Built-app browser regression checks
+```
+
+Browser tests use the Pages build and launch a preview server. Set `PLAYWRIGHT_PORT` to an unused port when another preview is running. Projects cover desktop/mobile Chromium plus a focused WebKit persistence suite. API-mocked browser tests do not prove hosted database authorization or email delivery.
+
+Live checks require the configured team project and ignored QA credentials, create disposable accounts/records, and attempt cleanup:
+
+```sh
+npm run test:live-contract      # Atomic save/read, retry and concurrency contract
+npm run test:live-persistence   # Full relational trip persistence
+npm run test:live-trips         # Account-trip browser flow; preview on port 4173
+```
+
+Follow [Persistence contract](PERSISTENCE_CONTRACT.md) before publishing persistence changes. Live database suites are an explicit pre-release step, not part of GitHub Actions; CI does not have the privileged database test secret.
+
+The [Pages workflow](.github/workflows/pages.yml) runs unit tests, TypeScript/build checks and Playwright. Successful pushes to `main` deploy the built `dist/` artifact, then verify live `version.json`, HTML and JavaScript against the exact commit. Pull requests run checks without deploying. Source files are authoritative; generated `dist/` and old `docs/` are not source.
+
+### Manual acceptance flow
+
+1. Sign in with a real account, create a trip and wait for confirmed saving.
+2. Add an event, preferences, budget/expense and reminder; reload and verify the data in another signed-in browser.
+3. Invite a controlled second account. Verify email delivery, acceptance into the correct trip, the preference survey and saved answers.
+4. Confirm Viewer restrictions, then grant Editor or Day Editor and check allowed edits plus forbidden date moves. Verify the owner sees saved changes.
+5. Interrupt a save, check recovery/retry behavior, and confirm a competing newer revision is not overwritten. Check that failures retain an unsaved download.
+6. Remove the collaborator and verify access is revoked; delete the test trip and confirm it stays deleted after reload.
+
+### Recorded verification
+
+These are historical reports with explicit scope, revisions and verification boundaries:
+
+| Report | Coverage |
+| --- | --- |
+| [November 8 Done-card checks](assignment/done-cards-verification-2026-11-08.md) | Invitations, itinerary pictures, collaborator preferences, budgets and permissions. |
+| [November 8 live group acceptance](assignment/live-group-acceptance-2026-11-08.md) | Real invitation delivery/acceptance, preference isolation and database role enforcement. |
+| [November 7 photos and budgets](assignment/photos-budget-definition-of-done-2026-11-07.md) | Live storage/database readback, reload, responsive layouts and Lighthouse checks. |
+| [November 7 sprint audit](assignment/sprint-definition-of-done-2026-11-07.md) | Earlier seven-feature audit; later reports supersede gaps they explicitly rechecked. |
+| [Trip persistence](assignment/trip-persistence-verification.md) | Original full-detail persistence acceptance. |
+| [Field limits](assignment/field-limits-verification.md) and [copy cleanup](assignment/note-cleanup-verification.md) | Earlier scoped releases. |
+
+“Complete” in a report applies to its checked feature and revision, not every prototype integration. Historical Lighthouse scores are not a new audit of the current build.
+
+## Not complete and planned work
+
+| Feature | Current boundary |
+| --- | --- |
+| Apple sign-in | Not enabled on the hosted project; email/password and Google are the available paths. |
+| Email change and account deletion | Not built. |
+| Automatic concurrent-edit merging | Not built; revisions detect conflicts and preserve recovery choices. |
+| Recommendations and nearby alerts | Illustrative suggestions/proximity fixtures, not live recommendations, background geofencing or delivered notifications. |
+| Banking and payments | Expense splits and repayment markers persist, but no bank connection or money movement occurs. |
+| Gmail/social connections and receipt OCR | Connection/receipt previews do not represent live inbox access or OCR. |
+| Forwarded bookings | Rule-based Mailtrap import exists, but bookings are not attached to trips. Sender matching is unverified and parsing can be incomplete. Availability depends on deployed service configuration. |
+| Admin portal and AI receipt processing | Planned only; no deployed admin server, AWS database or automated receipt-review workflow. |
+
+The proposed receipt flow is: **traveler emails a receipt and trip reference to a dedicated Gmail inbox → automation/AI extracts a draft → admin reviews it → authorized server writes an approved expense to Supabase → traveler sees it in the app**. It does not scan a traveler's personal inbox. Proposed admin hosting is Express/Node.js on AWS Elastic Beanstalk, with RDS PostgreSQL for processing/review records; customer trip data stays in Supabase. Automation and AI/OCR providers remain undecided.
+
+[Architecture illustration with planned receipt flow](assignment/system-architecture.png) · [SVG](assignment/system-architecture.svg) · [FigJam](https://www.figma.com/board/I4HBVhgTCyki0lvjDZyMZ8/Untitled?node-id=44-271)
+
+The illustration includes planned components and predates the latest persistence hardening. The architecture and persistence sections above describe the current source. [Implementation status](IMPLEMENTATION_STATUS.md) provides the detailed screen inventory and dated service notes.
+
+## Project guide
 
 | Path | Purpose |
 | --- | --- |
-| `src/auth.tsx`, `src/supabase.ts` | Real email/password signup, login, session handling, and Supabase client |
-| `src/main.tsx` | Connects the Auth session to the existing planner |
-| `src/prototype.tsx`, `src/onboarding.tsx`, `src/planning.tsx` | Planner screens and navigation |
-| `src/account-trips.ts`, `src/state.tsx` | Account trip persistence, loading, and local preview state |
-| `src/demo-store.ts`, `src/data.ts` | Preserved browser-only saves and fictional samples |
-| `src/finance.tsx`, `src/group.tsx`, `src/travelmap.tsx` | Budget, group, and shared map screens |
-| `src/styles.css` | Responsive interface styling |
-| `assignment/team-erd.png` | Team ERD verified against the existing five-table schema |
-| `public/screens/` | Historical screenshot gallery; some screens predate real Auth |
-| `SUPABASE-SETUP.md` | Existing-project configuration and schema history |
+| `src/auth.tsx`, `src/supabase.ts`, `src/main.tsx` | Authentication, client configuration and app entry. |
+| `src/state.tsx`, `src/account-trips.ts`, `src/trip-save-queue.ts` | Shared state, validated RPC boundary and serialized account saves. |
+| `src/trip-recovery-validation.ts`, `src/account-trip-sync.ts` | Recovery validation and foreground shared-trip refresh. |
+| `src/domain.ts`, `src/limits.ts` | Typed domain rules and input limits. |
+| `src/planning.tsx`, `src/weekly-calendar.tsx`, `src/travelmap.tsx` | Itinerary, calendar and maps. |
+| `src/finance.tsx`, `src/group.tsx` | Budgets, expenses, members and preferences. |
+| `src/account-page.tsx`, `src/profile-picture.ts`, `src/style-page.tsx` | Account settings, pictures and appearance. |
+| `src/demo-store.ts`, `src/data.ts`, `src/preplanned-trips.ts` | Browser-only demo state and curated fixtures/templates. |
+| `supabase/migrations/`, `supabase/functions/`, `supabase/templates/` | Database evolution, tracked Edge Functions and invitation email template. |
+| `tests/`, `src/*.test.ts`, `scripts/` | Browser/unit tests, live verification and build/deployment utilities. |
+| `assignment/` | Historical ERD, architecture illustrations and acceptance evidence. |
 
-## Publishing
+## Coursework demo
 
-GitHub Actions runs `.github/workflows/pages.yml` on pushes to `main` and pull requests. It installs the locked dependencies, runs the unit tests, builds the site, and runs desktop/mobile browser tests. A passing main-branch build deploys `dist/` to GitHub Pages and checks the live `version.json` against the deployed commit. Set Pages source to **GitHub Actions** and configure repository Actions variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Never add private credentials to those variables.
-
-Commit source and assignment documentation; `docs/` and `dist/` are generated and ignored. Keep the README image in `assignment/team-erd.png` so it can be committed. Open app tabs offer **Reload app** when they detect a new release.
-
-For production-browser checks from a Git checkout, use:
-
-```sh
-npm run build:pages
-npx playwright install chromium webkit
-npm run test:e2e
-```
-
-For a source archive without Git metadata, set `GITHUB_SHA` to the commit the archive was downloaded from when running `npm run build:pages`. This keeps release metadata tied to the correct source.
-
-The default browser suite mocks Auth and trip responses: it verifies frontend behavior, failure recovery, and session restoration, but does not itself prove a live database write. The opt-in `npm run test:live-persistence` verifies the full normalized trip model and failure cases; set `TRIP_QA_URL` to a running production preview to also exercise the complete UI with real accounts. `npm run test:live-trips` uses temporary accounts against the configured project and a running production preview; it verifies real trip/membership writes, cross-account isolation, fresh-browser persistence, and cleanup. Separate live Supabase signup, profile, and fresh-client login checks passed on October 10, 2026; the temporary QA account was removed and original records were unchanged. Follow the real-account steps above to verify the backend feature.
-
-## Assets
-
-Travel photos are bundled from Unsplash; [its license](https://unsplash.com/license) applies. Seattle skyline: `photo-1438401171849-74ac270044ee`; ocean: `photo-1518837695005-2083093ee35b`; city: `photo-1477959858617-67f85cf4f1df`; dining: `photo-1414235077428-338989a2e8c0`; artwork: `photo-1561214115-f2f134cc4912`. Other than the skyline, photos are mood imagery rather than verified venue images. DM Sans and Fraunces come from Fontsource; icon artwork uses Lucide. Bundled licenses are in `public/licenses/`, and provider-artwork sources are in `src/assets/auth/SOURCES.md`. Sample travelers, bookings, expenses, and permissions are fictional.
-
-## Account-trip verification (October 28, 2026)
-
-The live SDK/browser checks passed for atomic owner membership, duplicate retries, validation, stale edits, anonymous/cross-account denial, browser creation, fresh-browser login, and deletion. Temporary QA accounts and their data were removed. Supabase's hosted security-advisor endpoint was unavailable to the configured scoped token (`advisors_read` missing); direct database access checks and adversarial API tests were performed. See [Supabase setup](SUPABASE-SETUP.md) for migration boundaries.
-
-## Full-detail persistence verification
-
-Follow [the persistence contract](PERSISTENCE_CONTRACT.md) when extending any saved field. Owner trip content, ordered timezones, and photo attribution now save in one atomic RPC. Browser-managed recovery ownership, strict recovery validation, and Chromium/WebKit regressions protect interrupted edits. Run `npm run test:live-contract` against disposable QA records before releasing changes to persistence; this live-database gate is separate from the API-mocked CI browser tests.
-
-Account trips now use `load_trip_bundles` and `save_trip_bundle`. Owners use the bundle writer; invited accounts use `save_shared_trip_changes`, which checks the current membership, assigned days, and changed records. Each save validates the complete trip, and commits every related record together. Concurrent edits produce a recoverable conflict. Failed saves show a persistent banner with retry, download, and reload options; only pending recovery copies remain in the browser. Older browser details import once for a matching database-owned trip.
-
-Run `npm test`, `npm run build:pages`, and `npm run test:e2e`. Use `PLAYWRIGHT_PORT=4187` if another checkout is using the default test port. For opt-in live database and browser QA:
-
-```sh
-npm run preview -- --port 4188 --base=/trip-planner-prototype/
-# In another terminal, with ignored QA credentials configured:
-TRIP_QA_URL=http://127.0.0.1:4188/trip-planner-prototype/ npm run test:live-persistence
-```
-
-The live test uses generated accounts, checks complete round-trips, rejected-write rollback, cross-account isolation, concurrent edits, completed repayments, deletion cascades, and fresh-browser reload. It removes its generated records in `finally`. See [persistence QA](assignment/trip-persistence-verification.md) and [implementation status](IMPLEMENTATION_STATUS.md) for exact scope and limitations.
-
-## Forwarded booking emails
-
-Signed-in accounts see a "Forwarded booking" section on Home. Forward a confirmation email from the address on your account to the inbox shown there and it appears as a card (type, dates, place, confirmation code). Setup is in SUPABASE-SETUP.md.
-
-- Complete: table with row-level security, Edge Function, parser with unit tests, Home list with remove.
-- Not complete: bookings are not yet attached to a trip. The sender check trusts the From address, which can be faked, so entries are unverified. Parsing is rule based (schema.org data when the email has it, otherwise labels like "Check-in:"), so unusual emails may only get a title.
-
-
-## Seven-day calendar requirements
-
-| Requirement | Status |
-| --- | --- |
-| Switch between itinerary List and Calendar views, including after reload | Complete |
-| Display seven days, navigate earlier/later weeks, and show event times | Complete |
-| Reschedule by dragging to a day/time or using the keyboard/touch Move dialog | Complete |
-| Preserve duration, identity, attendees, notes, and cost | Complete |
-| Enforce trip dates, edit permissions, and overlapping-event checks | Complete |
-| Save account reschedules through the existing Supabase save/recovery path | Complete — calendar UI move verified against the live relational event table |
-| Verify database round-trip and public deployment | Complete — release is gated by the Pages tests and live-revision check |
-
-On narrow screens the calendar scrolls horizontally within its own region. The time shown at the dragged event's top edge is its start time, rounded to the nearest minute. The Move dialog also accepts exact start times. Times use the trip time zone.
-
-## Event location autocomplete requirements
-
-| Requirement | Status |
-| --- | --- |
-| Search landmarks, venues and street addresses worldwide while typing in Where | Complete |
-| Prioritize nearby matches using the trip destination, with a stop selector and worldwide option | Complete |
-| Select using pointer/touch or arrow keys and Enter, with Escape to dismiss | Complete |
-| Keep manual entry available when search fails or returns no matches | Complete |
-| Debounce requests, cancel stale responses and bound the session cache | Complete |
-| Accept itinerary locations up to 2,048 characters without a counter and preserve existing longer addresses | Complete |
-| Save the selected full place/address string through the existing event database path | Complete; verified during release QA |
-
-Search uses Photon/OpenStreetMap with no country or bounding-box restriction. The typed query and selected trip destination are sent to resolve a geographic search bias; no device location is requested. Nearby matches are prioritized without excluding worldwide alternatives. Search near defaults to the first trip stop and allows switching stops or choosing Worldwide. Informal directional regions use an approximate area within the parent region; unresolved destinations fall back to worldwide search. Coverage and availability depend on the upstream map data and public endpoint. Before substantial production traffic, use a hosted provider or your own Photon instance.
-
-## Popular times link
-
-| Requirement | Status |
-| --- | --- |
-| Replace the event editor’s simulated crowd estimate with a Google Maps search for the entered location | Complete |
-| Open Google Maps in a new tab without API keys or additional billing | Complete |
-| Hide the link when the location is blank and explain that coverage varies | Complete |
-
-The link opens Google Maps search results; it cannot force Google Maps to display popular times for a place.
+[Original demo video](https://www.loom.com/share/be0601e7285d4cf5876df31a91e2bba6) demonstrates the earlier signup/profile slice. It predates current account-trip persistence and collaboration; its browser-local itinerary behavior is historical. A current demonstration should follow the manual acceptance flow above. The recorded assignment instructions call for a video of two minutes or less and one team Canvas text submission containing the video and public repository/README links.
