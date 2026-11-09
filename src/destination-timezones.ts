@@ -9,6 +9,7 @@ function normalized(value: string): string {
 }
 
 async function coordinateTimeZone(destination: string, signal?: AbortSignal): Promise<string | null> {
+  if (!destination.includes(",")) return null;
   const parts = destination.split(",").map(part => normalized(part));
   const url = new URL("https://photon.komoot.io/api/");
   url.searchParams.set("q", destination);
