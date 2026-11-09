@@ -159,6 +159,8 @@ test("all detail screens persist changes and preserve financial history", async 
   expect(api.delivered).toEqual(["guest@example.test"]);
   const row = api.rows[0],
     c = row.content;
+  expect(row.timezone).toBe("Asia/Taipei");
+  expect(c.destinationTimezones).toEqual(["Asia/Taipei"]);
   expect(c.events[0]).toMatchObject({
     name: "Museum visit",
     notes: "Bring printed tickets",

@@ -20,7 +20,12 @@ export async function detailJourney(page, base, travelerEmail) {
   await button("Add").click();
   await field("Start date").fill(today);
   await field("End date").fill(today);
-  await expect(page.getByText("Taipei — Taiwan Standard Time", { exact: true })).toBeVisible();
+  // ICU's localized label differs across browser/OS builds; the IANA zone is
+  // the stable contract. Verify this browser's label and the saved zone below.
+  const taipeiLabel = await page.evaluate(() => new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Taipei", timeZoneName: "longGeneric",
+  }).formatToParts(new Date()).find(part => part.type === "timeZoneName")?.value ?? "Asia/Taipei");
+  await expect(page.getByText(`Taipei — ${taipeiLabel}`, { exact: true })).toBeVisible();
   await button("Create trip").click();
   await button("Full detail browser QA").click();
   await saved(page);

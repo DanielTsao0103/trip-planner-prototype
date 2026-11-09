@@ -154,8 +154,9 @@ for (const secondTabFails of [false, true]) {
         "Not saved:",
       );
       // Freeze retry timers so a later retry cannot accidentally repair the damaged journal.
-      await page.clock.install();
-      await page.clock.pauseAt(new Date());
+      const firstClock = await page.evaluate(() => Date.now());
+      await page.clock.install({ time: firstClock });
+      await page.clock.pauseAt(firstClock + 1000);
       expect(rows[0].content!.events).toEqual([]);
 
       await addEvent(other, "Successfully saved in tab two");
@@ -163,8 +164,9 @@ for (const secondTabFails of [false, true]) {
         await expect(other.locator(".account-save-banner")).toContainText(
           "Not saved:",
         );
-        await other.clock.install();
-        await other.clock.pauseAt(new Date());
+        const otherClock = await other.evaluate(() => Date.now());
+        await other.clock.install({ time: otherClock });
+        await other.clock.pauseAt(otherClock + 1000);
         expect(rows[1].content!.events).toEqual([]);
       } else {
         await expect(other.locator(".account-save-banner")).toHaveCount(0);
