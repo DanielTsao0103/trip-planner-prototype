@@ -1,5 +1,19 @@
 # Trip Planner
 
+## Latest Done-column card check — November 8, 2026
+
+Only the five cards in the latest sprint screenshot are graded here. [Current verification report](assignment/done-cards-verification-2026-11-08.md) · [Evidence](assignment/done-cards-verification-2026-11-08.json).
+
+| Card requirement | Status | Verification boundary |
+| --- | --- | --- |
+| Invite someone to a group | Not complete | Browser routing passes and deployed RPC denies anonymous calls; controlled-inbox delivery/acceptance still needs a real second-account test. |
+| Edit itinerary pictures | Complete | Fresh live selection/upload, database/Storage readback, reload, desktop/mobile and Lighthouse 98–100. |
+| All collaborators save their own preferences to the database | Not complete | Collaborator survey/save API-boundary tests pass; independent two-account live readback remains unverified. |
+| Connect budgets to the database | Complete | Fresh live group/individual/mode/expense saves, reload and invalid-write rollback; budget Lighthouse 100. |
+| Group permissions work and are enforced by the database | Not complete | Role/day UI and browser regressions pass; real Owner/Viewer/Editor/Day Editor grants, forbidden writes and revocation remain unverified across independent accounts. |
+
+The current run passed 83 unit tests and 60 focused browser tests. Its live photo/budget audit passed all 19 width checks and Lighthouse scored 98–100. “Not complete” distinguishes missing acceptance evidence from a reproduced implementation failure; unrelated prototype integrations are not counted against these cards.
+
 ## Additional sprint checks — itinerary pictures and budgets
 
 Both additional screenshot features meet the checked definition of done. [Verification report](assignment/photos-budget-definition-of-done-2026-11-07.md) · [Lighthouse/database evidence](assignment/photos-budget-definition-of-done-2026-11-07.json).

@@ -1,0 +1,692 @@
+{
+  "site": "https://danieltsao0103.github.io/trip-planner-prototype/",
+  "version": {
+    "commit": "0f43ab4fbbc126ca55a8bd7f2d52744a94901bad",
+    "entryScript": "/trip-planner-prototype/assets/index-CdFejYxr.js",
+    "builtAt": "2026-11-09T03:42:40.090Z"
+  },
+  "checkedAt": "2026-11-09T04:58:39.874Z",
+  "lighthouse": [
+    {
+      "device": "desktop",
+      "name": "login",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "innerWidth": 1365,
+        "requested": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [],
+      "screenshotWidth": 1365
+    },
+    {
+      "device": "desktop",
+      "name": "signup",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "innerWidth": 1365,
+        "requested": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [],
+      "screenshotWidth": 1365
+    },
+    {
+      "device": "desktop",
+      "name": "event-photo-editor",
+      "score": 98,
+      "responsive": {
+        "viewport": 1365,
+        "innerWidth": 1365,
+        "requested": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "heading-order",
+          "title": "Heading elements are not in a sequentially-descending order",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-H3",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,1,DIV,0,FORM,3,SECTION,0,H3",
+                "selector": "div.form-layout > form.card > section.event-photo-picker > h3",
+                "boundingRect": {
+                  "top": 539,
+                  "bottom": 557,
+                  "left": 303,
+                  "right": 875,
+                  "width": 572,
+                  "height": 17
+                },
+                "snippet": "<h3>",
+                "nodeLabel": "Event Photo",
+                "explanation": "Fix any of the following:\n  Heading order invalid"
+              }
+            }
+          ]
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-4-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ],
+      "screenshotWidth": 1365
+    },
+    {
+      "device": "desktop",
+      "name": "event-photo-unsplash-selected",
+      "score": 99,
+      "responsive": {
+        "viewport": 1365,
+        "innerWidth": 1365,
+        "requested": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "heading-order",
+          "title": "Heading elements are not in a sequentially-descending order",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-3-H3",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,1,DIV,0,FORM,3,SECTION,0,H3",
+                "selector": "div.form-layout > form.card > section.event-photo-picker > h3",
+                "boundingRect": {
+                  "top": 539,
+                  "bottom": 557,
+                  "left": 303,
+                  "right": 875,
+                  "width": 572,
+                  "height": 17
+                },
+                "snippet": "<h3>",
+                "nodeLabel": "Event Photo",
+                "explanation": "Fix any of the following:\n  Heading order invalid"
+              }
+            }
+          ]
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-4-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ],
+      "screenshotWidth": 1365
+    },
+    {
+      "device": "desktop",
+      "name": "event-photo-upload-preview",
+      "score": 99,
+      "responsive": {
+        "viewport": 1365,
+        "innerWidth": 1365,
+        "requested": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "heading-order",
+          "title": "Heading elements are not in a sequentially-descending order",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-5-H3",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,1,DIV,0,FORM,3,SECTION,0,H3",
+                "selector": "div.form-layout > form.card > section.event-photo-picker > h3",
+                "boundingRect": {
+                  "top": 539,
+                  "bottom": 557,
+                  "left": 303,
+                  "right": 875,
+                  "width": 572,
+                  "height": 17
+                },
+                "snippet": "<h3>",
+                "nodeLabel": "Event Photo",
+                "explanation": "Fix any of the following:\n  Heading order invalid"
+              }
+            }
+          ]
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-4-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ],
+      "screenshotWidth": 1365
+    },
+    {
+      "device": "desktop",
+      "name": "itinerary-saved-photo",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "innerWidth": 1365,
+        "requested": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-0-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ],
+      "screenshotWidth": 1365
+    },
+    {
+      "device": "desktop",
+      "name": "group-budget-dialog",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "innerWidth": 1365,
+        "requested": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [],
+      "screenshotWidth": 1365
+    },
+    {
+      "device": "desktop",
+      "name": "individual-budget-dialog",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "innerWidth": 1365,
+        "requested": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [],
+      "screenshotWidth": 1365
+    },
+    {
+      "device": "desktop",
+      "name": "expense-dialog",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "innerWidth": 1365,
+        "requested": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [],
+      "screenshotWidth": 1365
+    },
+    {
+      "device": "desktop",
+      "name": "budget-saved",
+      "score": 100,
+      "responsive": {
+        "viewport": 1365,
+        "innerWidth": 1365,
+        "requested": 1365,
+        "content": 1365,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-0-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 19,
+                  "bottom": 57,
+                  "left": 1285,
+                  "right": 1323,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ],
+      "screenshotWidth": 1365
+    },
+    {
+      "device": "mobile",
+      "name": "login",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "innerWidth": 390,
+        "requested": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [],
+      "screenshotWidth": 390
+    },
+    {
+      "device": "mobile",
+      "name": "signup",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "innerWidth": 390,
+        "requested": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [],
+      "screenshotWidth": 390
+    },
+    {
+      "device": "mobile",
+      "name": "event-photo-editor",
+      "score": 98,
+      "responsive": {
+        "viewport": 390,
+        "innerWidth": 390,
+        "requested": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "heading-order",
+          "title": "Heading elements are not in a sequentially-descending order",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-H3",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,1,DIV,0,FORM,3,SECTION,0,H3",
+                "selector": "div.form-layout > form.card > section.event-photo-picker > h3",
+                "boundingRect": {
+                  "top": 596,
+                  "bottom": 614,
+                  "left": 42,
+                  "right": 348,
+                  "width": 306,
+                  "height": 17
+                },
+                "snippet": "<h3>",
+                "nodeLabel": "Event Photo",
+                "explanation": "Fix any of the following:\n  Heading order invalid"
+              }
+            }
+          ]
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-2-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ],
+      "screenshotWidth": 390
+    },
+    {
+      "device": "mobile",
+      "name": "event-photo-upload-preview",
+      "score": 99,
+      "responsive": {
+        "viewport": 390,
+        "innerWidth": 390,
+        "requested": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "heading-order",
+          "title": "Heading elements are not in a sequentially-descending order",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-1-H3",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,2,MAIN,1,DIV,0,FORM,3,SECTION,0,H3",
+                "selector": "div.form-layout > form.card > section.event-photo-picker > h3",
+                "boundingRect": {
+                  "top": 596,
+                  "bottom": 614,
+                  "left": 42,
+                  "right": 348,
+                  "width": 306,
+                  "height": 17
+                },
+                "snippet": "<h3>",
+                "nodeLabel": "Event Photo",
+                "explanation": "Fix any of the following:\n  Heading order invalid"
+              }
+            }
+          ]
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-2-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ],
+      "screenshotWidth": 390
+    },
+    {
+      "device": "mobile",
+      "name": "itinerary-saved-photo",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "innerWidth": 390,
+        "requested": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-0-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ],
+      "screenshotWidth": 390
+    },
+    {
+      "device": "mobile",
+      "name": "group-budget-dialog",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "innerWidth": 390,
+        "requested": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [],
+      "screenshotWidth": 390
+    },
+    {
+      "device": "mobile",
+      "name": "individual-budget-dialog",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "innerWidth": 390,
+        "requested": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [],
+      "screenshotWidth": 390
+    },
+    {
+      "device": "mobile",
+      "name": "expense-dialog",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "innerWidth": 390,
+        "requested": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [],
+      "screenshotWidth": 390
+    },
+    {
+      "device": "mobile",
+      "name": "budget-saved",
+      "score": 100,
+      "responsive": {
+        "viewport": 390,
+        "innerWidth": 390,
+        "requested": 390,
+        "content": 390,
+        "pass": true
+      },
+      "failures": [
+        {
+          "id": "label-content-name-mismatch",
+          "title": "Elements with visible text labels do not have matching accessible names.",
+          "items": [
+            {
+              "node": {
+                "type": "node",
+                "lhId": "1-0-BUTTON",
+                "path": "1,HTML,1,BODY,0,DIV,1,DIV,1,DIV,0,HEADER,1,DIV,1,BUTTON",
+                "selector": "div.main-wrap > header.topbar > div.topbar-right > button.account-button",
+                "boundingRect": {
+                  "top": 9,
+                  "bottom": 47,
+                  "left": 335,
+                  "right": 373,
+                  "width": 38,
+                  "height": 38
+                },
+                "snippet": "<button class=\"account-button\" aria-label=\"Account and preferences\">",
+                "nodeLabel": "DQ",
+                "explanation": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+              }
+            }
+          ]
+        }
+      ],
+      "screenshotWidth": 390
+    }
+  ],
+  "checks": [
+    "Live Unsplash search, pointer selection and saved event image URL passed",
+    "desktop: custom itinerary photo UI upload/save, event.image_url readback, public Storage fetch and itinerary reload passed",
+    "desktop: group and individual budgets and expense cents saved/read back/reloaded; invalid negative budget rejected with unchanged revision/content",
+    "mobile: custom itinerary photo UI upload/save, event.image_url readback, public Storage fetch and itinerary reload passed",
+    "mobile: group and individual budgets and expense cents saved/read back/reloaded; invalid negative budget rejected with unchanged revision/content",
+    "Cleanup: original account state restored; generated trip removed; pre-existing QA-visible trips unchanged"
+  ],
+  "cleanup": true,
+  "cards": [
+    {
+      "name": "Invite someone to group",
+      "status": "Not complete: live acceptance verification pending"
+    },
+    {
+      "name": "Editable itinerary pictures",
+      "status": "Complete"
+    },
+    {
+      "name": "All collaborators save preferences",
+      "status": "Not complete: real collaborator verification pending"
+    },
+    {
+      "name": "Budget information connected to database",
+      "status": "Complete"
+    },
+    {
+      "name": "Group permissions",
+      "status": "Not complete: real multi-account enforcement verification pending"
+    }
+  ],
+  "regressions": {
+    "unit": 83,
+    "browser": 60,
+    "apiMocked": true
+  },
+  "anonymousGuards": [
+    {
+      "rpc": "save_invited_preferences",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function save_invited_preferences"
+    },
+    {
+      "rpc": "save_shared_trip_changes",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function save_shared_trip_changes"
+    },
+    {
+      "rpc": "share_trip_recipient",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function share_trip_recipient"
+    }
+  ]
+}

@@ -153,14 +153,21 @@ const record = (x) => {
 };
 let browser;
 try {
-  check(
-    await c.rpc("save_trip_bundle", {
-      p_trip_id: id,
-      p_expected_revision: null,
-      p_request_id: randomUUID(),
-      p_data: trip,
-    }),
-  );
+  const fixtureRequest = {
+    p_trip_id: id,
+    p_expected_revision: null,
+    p_request_id: randomUUID(),
+    p_data: trip,
+  };
+  const destinationTimezones = trip.destinations.map(() => trip.zone);
+  let fixture = await c.rpc("save_trip_bundle_with_timezones", {
+    ...fixtureRequest,
+    p_destination_timezones: destinationTimezones,
+    p_data: { ...trip, destinationTimezones },
+  });
+  if (fixture.error?.code === "PGRST202")
+    fixture = await c.rpc("save_trip_bundle", fixtureRequest);
+  check(fixture);
   if (sprint) {
     const row = check(await c.rpc("read_invited_trip", { p_trip: id }));
     assert.equal(row.content.members.length, 20);
@@ -210,6 +217,17 @@ try {
     const pw = await chromium.connectOverCDP(browser.wsEndpoint());
     const page = pw.contexts()[0].pages()[0];
     await page.setViewportSize(view);
+    page.on("response", async (response) => {
+      if (response.status() >= 400 && response.url().includes("/rest/v1/")) {
+        const body = await response.json().catch(() => ({}));
+        (evidence.networkErrors ??= []).push({
+          path: new URL(response.url()).pathname,
+          status: response.status(),
+          code: body.code,
+          message: body.message,
+        });
+      }
+    });
     const button = (n) => page.getByRole("button", { name: n, exact: true });
     const field = (n) => page.getByLabel(n, { exact: true });
     async function audit(name) {
@@ -650,6 +668,19 @@ try {
     await browser.close();
     browser = null;
   }
+} catch (failure) {
+  if (browser) {
+    const last = (await browser.pages())[0];
+    await last.screenshot({
+      path: resolve(out, "failure.png"),
+      fullPage: true,
+    });
+    await writeFile(
+      resolve(out, "failure.txt"),
+      await last.evaluate(() => document.body.innerText),
+    );
+  }
+  throw failure;
 } finally {
   if (browser) await browser.close();
   if (passwordChanged) check(await c.auth.updateUser({ password: a.password }));
