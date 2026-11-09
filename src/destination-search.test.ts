@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { buildIndex, searchIndex, mergePlaces, normalize, searchWorldwide } from './destination-search.ts';
+import { destinationTimeZone } from './destination-timezones.ts';
 const index = buildIndex(JSON.parse(readFileSync(new URL('../public/data/destinations.json', import.meta.url), 'utf8')));
 
 test('a state query suggests its cities with complete, unambiguous labels', () => {
@@ -40,5 +41,22 @@ test('live search sends only a bounded place query and handles failures', async 
     assert.equal(result[0].label,'Hallstatt, Upper Austria, Austria');
     globalThis.fetch = async () => new Response('',{status:503});
     await assert.rejects(searchWorldwide('Hallstatt',new AbortController().signal));
+  } finally { globalThis.fetch = original; }
+});
+test('a state uses the selected state coordinates instead of a same-named town', async () => {
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async input => {
+      const url = new URL(String(input));
+      if (url.hostname === 'photon.komoot.io')
+        return new Response(JSON.stringify({features:[
+          {properties:{name:'Michigan', state:'North Dakota', country:'United States', type:'city'},geometry:{coordinates:[-98.1,48.0]}},
+          {properties:{name:'Michigan', country:'United States', type:'state'},geometry:{coordinates:[-84.68,43.62]}},
+        ]}));
+      assert.equal(url.hostname, 'api.open-meteo.com');
+      assert.equal(url.searchParams.get('longitude'), '-84.68');
+      return new Response(JSON.stringify({timezone:'America/Detroit'}));
+    };
+    assert.equal(await destinationTimeZone('Michigan, United States'), 'America/Detroit');
   } finally { globalThis.fetch = original; }
 });

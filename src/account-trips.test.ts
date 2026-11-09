@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { tripDetailsError, tripFromRow } from "./account-trips.ts";
+import { tripDetailsError, tripFromRow, saveAccountTrip } from "./account-trips.ts";
+import { seed } from "./data.ts";
+import type { SupabaseClient } from "@supabase/supabase-js";
 const details = {
   title: "Taipei",
   destinations: ["Taipei"],
@@ -22,6 +24,31 @@ test("trip details reject invalid dates, long ranges, and empty destinations", (
     assert.notEqual(tripDetailsError({ ...details, ...change }), "");
   }
   assert.equal(tripDetailsError({ ...details, end: details.start }), "");
+});
+test("missing timezone RPC uses the legacy writer only when one destination keeps its zone", async () => {
+  const account = { id: "11111111-1111-4111-8111-111111111111", name: "Owner", email: "owner@example.com" };
+  const trip = structuredClone(seed().trips[0]);
+  trip.id = "33333333-3333-4333-8333-333333333333";
+  trip.destinations = ["Michigan"];
+  trip.destinationTimezones = ["America/Chicago"];
+  trip.zone = "America/Chicago";
+  trip.members = [{ ...trip.members[0], id: account.id, name: account.name, email: account.email }];
+  const calls: { name: string; args: Record<string, unknown> }[] = [];
+  const client = { rpc: async (name: string, args: Record<string, unknown>) => {
+    calls.push({ name, args });
+    return calls.length === 1
+      ? { data: null, error: { code: "PGRST202", message: "Function not found" }, status: 404 }
+      : { data: null, error: { code: "P0001", message: "Legacy writer reached" }, status: 400 };
+  } } as unknown as SupabaseClient;
+  await assert.rejects(saveAccountTrip(client, account, trip), /Legacy writer reached/);
+  assert.deepEqual(calls.map(call => call.name), ["save_trip_bundle_with_timezones", "save_trip_bundle"]);
+  assert.equal(calls[0].args.p_request_id, calls[1].args.p_request_id);
+
+  trip.destinations = ["Michigan", "Chicago"];
+  trip.destinationTimezones = ["America/Chicago", "America/Chicago"];
+  calls.length = 0;
+  await assert.rejects(saveAccountTrip(client, account, trip), /database needs an update/);
+  assert.deepEqual(calls.map(call => call.name), ["save_trip_bundle_with_timezones"]);
 });
 test("database ownership becomes an account member without importing fictional identity", () => {
   const account = {

@@ -225,13 +225,24 @@ export async function saveAccountTrip(
   const destinationTimezones = storedTimezones ?? trip.destinations.map((_, index) => index === 0 ? trip.zone : null);
   const tripData = { ...content, destinationTimezones };
   const owner = isOwner(trip, account.id);
-  const { data, error, status } = await client.rpc(owner ? "save_trip_bundle_with_timezones" : "save_shared_trip_changes", {
+  const request = {
     p_trip_id: trip.id,
     p_expected_revision: trip.revision ?? null,
     p_request_id: crypto.randomUUID(),
     p_data: tripData,
+  };
+  let result = await client.rpc(owner ? "save_trip_bundle_with_timezones" : "save_shared_trip_changes", {
+    ...request,
     ...(owner ? { p_destination_timezones: destinationTimezones } : {}),
   });
+  // Older projects can still save a single-zone trip through the original RPC.
+  // A multi-destination fallback would silently discard the ordered time zones.
+  if (owner && result.error?.code === "PGRST202") {
+    if (destinationTimezones.length !== 1 || destinationTimezones[0] !== trip.zone)
+      throw new Error("The trip database needs an update before it can save these destination time zones. Your changes are still here.");
+    result = await client.rpc("save_trip_bundle", request);
+  }
+  const { data, error, status } = result;
   if (error) {
     if (error.code === "PT409" || error.code === "42501")
       throw Object.assign(new Error(error.message), { refreshPermissions: !owner, forbidden: error.code === "42501" });
