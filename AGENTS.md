@@ -39,7 +39,7 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - GitHub Pages publishing correction (October 10, 2026): deploy current source using .github/workflows/pages.yml and Pages source GitHub Actions. Commit source only; generated docs/dist are not authoritative. Tests and the production build must pass before deployment; verify live version.json matches the deployed commit. This replaces the earlier manual main:/docs workflow.
 - Demo navigation must not clear the participant as a substitute for signing out. Sample return controls must remain reachable after changing fictional participants, and re-entering the sample must preserve the original return account.
 
-- Use a neutral login greeting (Welcome to Trip Planner); the app does not know whether a signed-out visitor is returning.
+- Use a neutral login greeting (Welcome to Stir Crazy); the app does not know whether a signed-out visitor is returning.
 
 - Scope expanded October 28, 2026: Dan requested a working Create trip / Save trip vertical slice tied to the signed-in account. This supersedes earlier auth-only restrictions. Use the existing trip table, database-enforced ownership, confirmed saves, failure recovery, and reload/fresh-browser verification; preserve old group records and local sample data.
 

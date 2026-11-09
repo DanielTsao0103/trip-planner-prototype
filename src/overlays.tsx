@@ -72,7 +72,7 @@ function AuthProvider() {
       </h3>
       {unknown && !signup ? (
         <>
-          <p>This account hasn’t joined Trip Planner yet.</p>
+          <p>This account hasn’t joined Stir Crazy yet.</p>
           <Button variant="full" onClick={create}>
             Create an account
           </Button>

@@ -432,7 +432,7 @@ export function ConnectProvider() {
       <div className="consent-brand">{service.slice(0, 1)}</div>
       <h1>Connect {service}</h1>
       <p>
-        Trip Planner would like the following access for
+        Stir Crazy would like the following access for
         <br />
         <strong>{user?.email}</strong>
       </p>
