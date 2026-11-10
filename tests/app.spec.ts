@@ -148,16 +148,13 @@ test('trip photo search follows the chosen destination and keeps two to five opt
   expect(trackedLocation).toBe('https://api.unsplash.com/photos/Spain-1/download?ixid=Spain-1');
 });
 
-test('login shows neutral copy, branded buttons, Apple availability, and recoverable auth errors', async ({ page }) => {
+test('login shows neutral copy, the Google button (Apple is hidden for now), and recoverable auth errors', async ({ page }) => {
   await page.goto('./');
   await expect(page.getByRole('heading', { name: 'Welcome to Stir Crazy', exact: true })).toBeVisible();
-  for (const provider of ['Google', 'Apple']) {
-    const button = page.getByRole('button', { name: `Sign in with ${provider}`, exact: true });
-    await expect(button.locator('img')).toBeVisible();
-    expect(await button.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
-  }
-  await page.getByRole('button', { name: 'Sign in with Apple', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Apple sign-in isn’t available yet');
+  const google = page.getByRole('button', { name: 'Sign in with Google', exact: true });
+  await expect(google.locator('img')).toBeVisible();
+  expect(await google.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+  await expect(page.getByRole('button', { name: 'Sign in with Apple', exact: true })).toHaveCount(0);
   await page.getByLabel('Email', { exact: true }).fill(account.email);
   await page.getByLabel('Password', { exact: true }).fill('wrong-password');
   await page.getByRole('button', { name: 'Log in', exact: true }).click();

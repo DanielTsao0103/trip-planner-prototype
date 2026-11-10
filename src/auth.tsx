@@ -16,6 +16,10 @@ import { BrandLogo } from "./brand-logo";
 import googleLogo from "./assets/auth/google-g.svg";
 import appleButton from "./assets/auth/apple-sign-in.png";
 
+// Sign in with Apple needs a paid Apple Developer account, so the button stays hidden for now.
+// To bring it back: set up Apple in Supabase, then flip this to true.
+const SHOW_APPLE_SIGN_IN = false;
+
 /** Supabase authenticates the account; account trip details are stored in PostgreSQL. */
 export function AuthApp({
   children,
@@ -544,21 +548,23 @@ export function AuthApp({
                       />
                       <span>Sign in with Google</span>
                     </button>
-                    <button
-                      className="brand-signin apple-signin"
-                      type="button"
-                      disabled={busy}
-                      aria-label="Sign in with Apple"
-                      onClick={() => void signInWithProvider("apple")}
-                    >
-                      <img
-                        src={appleButton}
-                        width="200"
-                        height="44"
-                        alt=""
-                        aria-hidden="true"
-                      />
-                    </button>
+                    {SHOW_APPLE_SIGN_IN && (
+                      <button
+                        className="brand-signin apple-signin"
+                        type="button"
+                        disabled={busy}
+                        aria-label="Sign in with Apple"
+                        onClick={() => void signInWithProvider("apple")}
+                      >
+                        <img
+                          src={appleButton}
+                          width="200"
+                          height="44"
+                          alt=""
+                          aria-hidden="true"
+                        />
+                      </button>
+                    )}
                   </div>
 
                   <div className="divider">
