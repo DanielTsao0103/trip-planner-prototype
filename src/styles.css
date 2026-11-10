@@ -938,6 +938,18 @@ legend {
   max-width: 150px;
   height: auto;
 }
+.brand-logo.auth-logo {
+  max-width: 190px;
+  margin: 0 0 22px -3px;
+}
+.auth-visual > .brand-logo.auth-photo-logo {
+  position: absolute;
+  top: 36px;
+  left: 46px;
+  width: 170px;
+  z-index: 1;
+  filter: drop-shadow(0 1px 8px rgb(0 0 0 / 0.5));
+}
 .home-link {
   display: flex;
   align-items: center;
@@ -4277,6 +4289,7 @@ legend {
     padding: 30px;
   }
   .auth-visual > .logo,
+  .auth-visual > .brand-logo.auth-photo-logo,
   .auth-caption {
     left: 35px;
   }
