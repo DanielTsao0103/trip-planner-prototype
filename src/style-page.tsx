@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import { Check, Moon, RotateCcw, Sun } from "lucide-react";
 import { PageHead, Button, Badge } from "./ui";
+import { brandLogoUrl } from "./brand-logo";
 import { THEMES, DEFAULT_STYLE, setStyle, useStyle, useSystemDark, resolvePalette } from "./theme";
 
 /** DESIGN PREVIEW ONLY: the controls below change the sample card, not the real site yet. */
@@ -171,7 +172,7 @@ export function StylePage() {
         <aside className="style-side">
           <div className="style-preview" style={previewVars} aria-label="Style preview">
             <div className="sp-top">
-              <span className="sp-logo">trip planner</span>
+              <img className="sp-logo" src={brandLogoUrl(choice.theme, pal.isDark)} alt="Stir Crazy" />
               <span className="sp-chip">Oct 15 to Oct 18</span>
             </div>
             <div className="sp-body">
