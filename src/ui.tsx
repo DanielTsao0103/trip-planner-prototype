@@ -22,6 +22,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useApp } from "./state";
+import { BrandLogo } from "./brand-logo";
 import { dateText, isActive, itineraryDay, member, timeText, type Event } from "./domain";
 export const icons = {
   home: House,
@@ -453,8 +454,8 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <button className="brand-button" onClick={() => go(4)}>
-          <Logo />
+        <button className="brand-button" onClick={() => go(4)} aria-label="Stir Crazy home">
+          <BrandLogo />
         </button>
         <button
           className={`home-link${route.page === 4 ? " active" : ""}`}

@@ -932,6 +932,12 @@ legend {
 .sidebar > .brand-button {
   margin: 0 0 31px 7px;
 }
+.brand-logo {
+  display: block;
+  width: 100%;
+  max-width: 150px;
+  height: auto;
+}
 .home-link {
   display: flex;
   align-items: center;
@@ -4118,6 +4124,9 @@ legend {
   .sidebar .logo {
     font-size: 21px;
   }
+  .sidebar .brand-logo {
+    max-width: 132px;
+  }
   .topbar {
     padding: 0 26px;
   }
@@ -4298,6 +4307,9 @@ legend {
   }
   .sidebar .logo-icon {
     width: 27px;
+  }
+  .sidebar .brand-logo {
+    max-width: 112px;
   }
   .trip-switch {
     padding: 11px;
@@ -6680,9 +6692,9 @@ legend {
   margin-bottom: 16px;
 }
 .sp-logo {
-  font-family: var(--sp-heading);
-  font-size: 18px;
-  color: var(--sp-primary);
+  display: block;
+  height: 34px;
+  width: auto;
 }
 .sp-chip {
   font-size: 10px;
