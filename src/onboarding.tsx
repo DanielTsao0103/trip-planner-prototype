@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { tripDetailsError } from "./account-trips";
 import { useApp } from "./state";
+import { BrandLogo } from "./brand-logo";
 import { ImportedBookings } from "./imported-bookings";
 import {
   Badge,
@@ -38,7 +39,6 @@ import {
   Empty,
   ErrorBox,
   Field,
-  Logo,
   PageHead,
   Photo,
   PhotoCredit,
@@ -145,7 +145,7 @@ export function Auth() {
           alt={HERO_ALT}
         />
         <div className="auth-visual-shade" />
-        <Logo />
+        <BrandLogo className="brand-logo auth-photo-logo" onPhoto />
         <div className="auth-story">
           <h1>The world is huge, go out and explore it.</h1>
           <p>All your plans, in one place.</p>
@@ -156,7 +156,7 @@ export function Auth() {
       </div>
       <div className="auth-panel" id="main-content" tabIndex={-1}>
         <div className="auth-mobile-logo">
-          <Logo />
+          <BrandLogo className="brand-logo" />
         </div>
         <div className="auth-top">
           <Badge>INTERACTIVE PROTOTYPE</Badge>

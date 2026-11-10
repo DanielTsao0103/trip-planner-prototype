@@ -12,6 +12,7 @@ import {
 } from "./invite-entry";
 import { HERO_IMAGE, HERO_ALT } from "./hero";
 import { Field } from "./ui";
+import { BrandLogo } from "./brand-logo";
 import googleLogo from "./assets/auth/google-g.svg";
 import appleButton from "./assets/auth/apple-sign-in.png";
 
@@ -434,7 +435,7 @@ export function AuthApp({
       </div>
       <section className="auth-panel" aria-label="Your account">
         <div className="auth-form-wrap">
-          <span className="eyebrow">STIR CRAZY</span>
+          <BrandLogo className="brand-logo auth-logo" />
           {joiningError ? (
             <>
               <h2>Trip invitation</h2>

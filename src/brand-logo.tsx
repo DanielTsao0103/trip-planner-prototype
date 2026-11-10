@@ -12,9 +12,10 @@ export function brandLogoUrl(theme: string, dark: boolean): string {
   return found[`./assets/logo/stir-crazy-${id}-${mode}.png`] ?? found["./assets/logo/stir-crazy-blue-light.png"];
 }
 
-/** The sidebar logo. It follows the chosen color and light/dark mode, including "match my device". */
-export function BrandLogo({ className = "brand-logo" }: { className?: string }) {
+/** The Stir Crazy logo (sidebar, login). It follows the chosen color and light/dark mode, including "match my device". */
+export function BrandLogo({ className = "brand-logo", onPhoto = false }: { className?: string; onPhoto?: boolean }) {
   const { theme } = useStyle();
   const { isDark } = usePalette();
-  return <img className={className} src={brandLogoUrl(theme, isDark)} alt="Stir Crazy" width={720} height={335} />;
+  // On a photo the light-on-dark version reads best, whatever the page mode is.
+  return <img className={className} src={brandLogoUrl(theme, onPhoto || isDark)} alt="Stir Crazy" width={720} height={335} />;
 }
