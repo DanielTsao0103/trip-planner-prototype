@@ -111,3 +111,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Budget review continuation (November 11, 2026): Dan requested continuing until the 9.5 panel target is met. Keep independent scores and earlier evidence intact; compare the unrounded panel mean against the target, and distinguish simulated reviewer ratings from human-user evidence. Verify long mobile forms with the complete Save control visible, including after expanding split participants.
 
 - Budget action placement (November 11, 2026): Dan wants Add expense at the top right of the expense log card, rather than the page heading. Keep it within the card on small screens without crowding the tabs.
+
+- Pages CI reliability (November 11, 2026): Ubuntu mirror DNS failures blocked browser dependency installation. The test/build job uses the official Playwright image, pinned by digest; keep its version matched to @playwright/test when updating dependencies. Preserve the full unit/browser/build and live-revision gates.
