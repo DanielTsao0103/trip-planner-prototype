@@ -7105,21 +7105,3 @@ legend {
   .invite-review-actions { flex-direction: column; gap: 2px; }
   .invite-review-actions .btn { width: 100%; }
 }
-
-/* Keep the standalone converter separate from the USD expense ledger. */
-.currency-converter { margin: 24px 0; }
-.currency-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
-.currency-heading h2 { margin: 0 0 6px; font-size: 23px; }
-.currency-heading p, .currency-result p, .currency-note { margin: 6px 0 0; font-size: 13px; line-height: 1.6; }
-.currency-fields { display: grid; grid-template-columns: minmax(120px, .7fr) minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: end; }
-.currency-fields .field { min-width: 0; margin: 0; }
-.currency-swap { min-height: 46px; }
-.currency-result { margin-top: 20px; padding: 18px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
-.currency-result > strong { font-size: clamp(24px, 4vw, 34px); font-variant-numeric: tabular-nums; }
-.currency-note { margin-top: 14px; }
-.currency-note a { color: inherit; text-decoration: underline; }
-@media (max-width: 760px) {
-  .currency-heading { align-items: flex-start; flex-direction: column; }
-  .currency-fields { grid-template-columns: minmax(0, 1fr) auto; }
-  .currency-fields .field:first-child, .currency-fields .field:last-child { grid-column: 1 / -1; }
-}

@@ -7,9 +7,7 @@ async function openBudget(page: Page) {
     .getByRole("button", { name: "Try demo as Maya", exact: true })
     .click();
   await page.goto("./#/12");
-  await expect(
-    page.getByRole("heading", { name: "Currency converter" }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: /Currency converter/ }).click();
 }
 const result = (page: Page) => page.locator(".currency-result");
 
@@ -38,7 +36,7 @@ test("converts, swaps, validates and keeps the USD ledger unchanged", async ({
   await expect(result(page)).toContainText("USD 100.00");
   expect(requests).toEqual(["USD/KRW", "KRW/USD"]);
   await page.getByLabel("Amount to convert", { exact: true }).fill("-4");
-  await expect(page.getByRole("alert")).toContainText("Enter an amount");
+  await expect(page.getByRole("alert")).toContainText("Enter zero or a positive amount");
   await expect(result(page).locator("strong")).toHaveText("—");
   await page.getByLabel("Amount to convert", { exact: true }).fill("");
   await expect(result(page).locator("strong")).toHaveText("—");
@@ -74,6 +72,7 @@ test("refreshes, labels cached fallback, and recovers after an initial failure",
   await expect(result(page)).toContainText("Showing a saved rate");
   await expect(result(page)).toContainText("KRW 150,000");
   await page.reload();
+  await page.getByRole("button", { name: /Currency converter/ }).click();
   await expect(result(page)).toContainText("KRW 150,000");
 });
 

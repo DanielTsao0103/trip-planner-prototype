@@ -3,6 +3,7 @@ import { AuthApp } from "./auth";
 import { Provider } from "./state";
 import { PrototypeApp } from "./prototype";
 import "./styles.css";
+import "./budget.css";
 import { ReleaseNotice } from "./release-notice";
 import { StyleSync } from "./style-sync-mount";
 import { startSiteStyle } from "./theme";

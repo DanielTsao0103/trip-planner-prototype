@@ -105,3 +105,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Reliability review (November 8, 2026): follow `PERSISTENCE_CONTRACT.md` for every persistence change. Use actual Web Lock ownership before adopting another tab's backup, validate all nested recovery data, and report storage failures honestly. Owner trip content/timezones/photo credit belong in one server transaction; do not restore separate credit upserts. Add database round-trip and concurrency checks when extending persisted fields, and distinguish automated mocked CI checks from explicit live-database verification.
 
 - Currency refresh correction (November 10, 2026): Dan wants weekly automatic exchange-rate checks, not hourly. Preserve manual refresh and visible rate dates; focus/reconnect must reuse rates within the seven-day cache period.
+
+- Budget UX correction (November 10, 2026): prioritize balances and the expense ledger; keep currency conversion compact and collapsed at the bottom with a small shortcut, not a dominant card above expenses. Avoid duplicate totals and simulated confirmation popups. Agent persona scores are simulated reviews, never human-user research.

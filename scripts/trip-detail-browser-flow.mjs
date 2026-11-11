@@ -98,7 +98,7 @@ export async function detailJourney(page, base, travelerEmail) {
   await saved(page);
   await button("Reimbursements").click();
   await button("Mark paid").click();
-  await button("Mark completed").click();
+  await page.getByRole("dialog", { name: "Confirm repayment" }).getByRole("button", { name: "Mark paid", exact: true }).click();
   await saved(page);
   // Unsettled expenses can be removed; settled allocations must remain protected.
   await button("Add expense").click();

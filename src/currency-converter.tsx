@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { ArrowLeftRight, RefreshCw } from "lucide-react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ArrowLeftRight, ChevronDown, RefreshCw } from "lucide-react";
 import { Button, Field } from "./ui";
 import {
   cachedRate,
@@ -21,7 +21,59 @@ type RateState = {
   failed: boolean;
 };
 
-export function CurrencyConverter() {
+export function CurrencyConverter({
+  expanded,
+  onExpandedChange,
+  jumpRequest,
+}: {
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+  jumpRequest: number;
+}) {
+  const [visited, setVisited] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  // Measure after expansion commits; scrolling the collapsed height can stop too early.
+  useLayoutEffect(() => {
+    if (!expanded) return;
+    toggleRef.current?.focus({ preventScroll: true });
+    toggleRef.current?.scrollIntoView({ behavior: "instant", block: "start" });
+  }, [expanded, jumpRequest]);
+  useEffect(() => {
+    if (expanded) setVisited(true);
+  }, [expanded]);
+  return (
+    <section
+      className="card currency-converter"
+      aria-labelledby="currency-heading"
+    >
+      <h2 id="currency-heading" className="currency-disclosure-heading">
+        <button
+          ref={toggleRef}
+          type="button"
+          className="currency-disclosure"
+          aria-expanded={expanded}
+          aria-controls="currency-content"
+          onClick={() => {
+            setVisited(true);
+            onExpandedChange(!expanded);
+          }}
+        >
+          <ArrowLeftRight size={20} aria-hidden="true" />
+          <span>
+            Currency converter
+            <small>Estimate a purchase in another currency</small>
+          </span>
+          <ChevronDown size={18} aria-hidden="true" />
+        </button>
+      </h2>
+      <div id="currency-content" hidden={!expanded}>
+        {(visited || expanded) && <CurrencyCalculator />}
+      </div>
+    </section>
+  );
+}
+
+function CurrencyCalculator() {
   const [from, setFrom] = useState<Currency>("USD");
   const [to, setTo] = useState<Currency>("KRW");
   const [amount, setAmount] = useState("100");
@@ -122,14 +174,10 @@ export function CurrencyConverter() {
   ));
 
   return (
-    <section
-      className="card currency-converter"
-      aria-labelledby="currency-heading"
-    >
+    <div className="currency-calculator">
       <div className="currency-heading">
         <div>
-          <h2 id="currency-heading">Currency converter</h2>
-          <p>A quick estimate for spending abroad.</p>
+          <p>Your budget and saved expenses stay in USD.</p>
         </div>
         <Button
           variant="outline small"
@@ -181,9 +229,14 @@ export function CurrencyConverter() {
         </Field>
       </div>
       {invalidAmount && (
-        <p id="currency-amount-error" role="alert">
-          Enter an amount from 0 to 1 trillion, using a decimal point and no
-          commas.
+        <p
+          id="currency-amount-error"
+          className="error currency-error"
+          role="alert"
+        >
+          {Number(amount) < 0
+            ? "Enter zero or a positive amount."
+            : "Enter a number up to 1 trillion, using a decimal point and no commas."}
         </p>
       )}
       <div
@@ -207,16 +260,14 @@ export function CurrencyConverter() {
           <>
             {rate && (
               <p>
-                1 {from} ={" "}
+                {rate.rate < 0.01 ? "1,000" : "1"} {from} ≈{" "}
                 {new Intl.NumberFormat("en-US", {
-                  maximumSignificantDigits: 7,
-                }).format(rate.rate)}{" "}
+                  maximumFractionDigits: 4,
+                }).format(rate.rate * (rate.rate < 0.01 ? 1000 : 1))}{" "}
                 {to} · Rate date: <time dateTime={rate.date}>{rate.date}</time>
               </p>
             )}
-            {rate && (
-              <p>Last checked: {new Date(rate.checkedAt).toLocaleString()}</p>
-            )}
+
             {loading && rate && <p>Checking for updated rates…</p>}
             {current?.failed && (
               <p>
@@ -239,15 +290,22 @@ export function CurrencyConverter() {
           </>
         )}
       </div>
-      <p className="currency-note">
-        Reference rates via{" "}
-        <a href="https://frankfurter.dev/" target="_blank" rel="noreferrer">
-          Frankfurter
-        </a>
-        . Automatically refreshed weekly when you use this page. Rates may pause
-        on weekends and holidays; card and bank fees may differ. Your budget and
-        saved expenses stay in USD.
-      </p>
-    </section>
+      <div className="currency-note">
+        <span>Weekly reference rates · Bank fees may differ.</span>
+        <details className="currency-details">
+          <summary>Rate details</summary>
+          <p>
+            Source:{" "}
+            <a href="https://frankfurter.dev/" target="_blank" rel="noreferrer">
+              Frankfurter
+            </a>
+            . Rates may pause on weekends and holidays.
+          </p>
+          {rate && (
+            <p>Last checked: {new Date(rate.checkedAt).toLocaleString()}</p>
+          )}
+        </details>
+      </div>
+    </div>
   );
 }

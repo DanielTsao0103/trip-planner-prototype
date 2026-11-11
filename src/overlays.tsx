@@ -807,11 +807,11 @@ export function Overlays() {
         </Modal>
       );
     return (
-      <Modal title="All square?">
+      <Modal title="Confirm repayment">
         <p>
           Record that you received{" "}
-          <strong>{money(expense.shares[o.data.debtor])}</strong> for{" "}
-          {expense.purpose}.
+          <strong>{money(expense.shares[o.data.debtor])}</strong> from{" "}
+          <strong>{t.members.find((person) => person.id === o.data.debtor)?.name || "Former traveler"}</strong> for {expense.purpose}.
         </p>
         <p className="fine-print">
           This only updates the reimbursement log. No money is transferred or
@@ -829,7 +829,7 @@ export function Overlays() {
             close();
           }}
         >
-          Mark completed <Check size={16} />
+          Mark paid <Check size={16} />
         </Button>
       </Modal>
     );

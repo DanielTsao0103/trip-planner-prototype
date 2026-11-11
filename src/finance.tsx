@@ -7,6 +7,7 @@ import {
   Camera,
   Check,
   ChevronRight,
+  ChevronDown,
   Mail,
   Plus,
   Receipt,
@@ -17,7 +18,6 @@ import {
 } from "lucide-react";
 import { useApp } from "./state";
 import {
-  Avatar,
   Badge,
   Button,
   Empty,
@@ -28,12 +28,26 @@ import {
 } from "./ui";
 import { CurrencyConverter } from "./currency-converter";
 import { useChartColors } from "./theme";
-import { money, spent, isOwner, member, uid, splitCents, type Expense } from "./domain";
+import {
+  money,
+  spent,
+  isOwner,
+  member,
+  uid,
+  splitCents,
+  type Expense,
+} from "./domain";
 export const CATEGORIES = ["Stay", "Food", "Transport", "Activities", "Other"];
 export function Budget() {
   const { trip: t, s, user, open, updateTrip, toast } = useApp();
   const [tab, setTab] = useState("Expenses"),
     [filter, setFilter] = useState("All");
+  const [showBreakdown, setShowBreakdown] = useState(
+    () => window.innerWidth > 760,
+  );
+  const [converterExpanded, setConverterExpanded] = useState(false);
+  const [converterJump, setConverterJump] = useState(0);
+  const [repaymentView, setRepaymentView] = useState("All repayments");
   const COLORS = useChartColors();
   if (!t) return null;
   const travelerId = member(t, s.userId)!.id;
@@ -71,6 +85,26 @@ export function Budget() {
         d.debtor === travelerId ||
         d.expense.payer === travelerId,
     );
+  const repaymentGroups = new Map<
+    string,
+    { debtor: string; payer: string; items: typeof debts; unpaid: number }
+  >();
+  for (const debt of debts) {
+    if (repaymentView === "Owed to me" && debt.expense.payer !== travelerId)
+      continue;
+    if (repaymentView === "I owe" && debt.debtor !== travelerId) continue;
+    const key = `${debt.debtor}:${debt.expense.payer}`;
+    const group = repaymentGroups.get(key) || {
+      debtor: debt.debtor,
+      payer: debt.expense.payer,
+      items: [],
+      unpaid: 0,
+    };
+    group.items.push(debt);
+    if (!debt.expense.settled.includes(debt.debtor))
+      group.unpaid += debt.amount;
+    repaymentGroups.set(key, group);
+  }
   const visibleExpenses = t.expenses.filter(
     (e) =>
       (filter === "All" || e.category === filter) &&
@@ -111,10 +145,9 @@ export function Budget() {
     open("transaction");
   };
   return (
-    <>
+    <div className="budget-page">
       <PageHead
-        eyebrow="A LITTLE CLARITY GOES A LONG WAY"
-        title="Good times. Clear numbers."
+        title="Budget"
         description={
           individual
             ? "Your share of the trip, in one place."
@@ -131,7 +164,16 @@ export function Budget() {
         <Badge tone="green">
           {individual ? "Individual budgets" : "Combined group budget"}
         </Badge>
-        <Badge>USD</Badge>
+        <button
+          className="text-link currency-shortcut"
+          type="button"
+          onClick={() => {
+            setConverterExpanded(true);
+            setConverterJump((value) => value + 1);
+          }}
+        >
+          USD · Convert
+        </button>
         {(isOwner(t, s.userId) || individual) && (
           <button className="text-link" onClick={() => open("budgetSetup")}>
             {budget === null ? "Set budget" : "Budget settings"}
@@ -171,9 +213,7 @@ export function Budget() {
           className={remaining !== null && remaining < 0 ? "over-budget" : ""}
         >
           <span>
-            {remaining !== null && remaining < 0
-              ? "OVER BUDGET"
-              : "STILL TO ENJOY"}
+            {remaining !== null && remaining < 0 ? "OVER BUDGET" : "REMAINING"}
           </span>
           <strong>
             {remaining === null ? "—" : money(Math.abs(remaining))}
@@ -185,49 +225,14 @@ export function Budget() {
           </small>
         </div>
       </div>
-      <CurrencyConverter />
       <div className="finance-layout">
-        <aside className="card chart-card">
-          <div className="eyebrow">WHERE IT’S GOING</div>
-          <h2>The spending picture.</h2>
-          <div
-            className="donut"
-            role="img"
-            aria-label={`Spending chart. ${CATEGORIES.map((c, i) => `${c}: ${money(amounts[i])}`).join(", ")}. Remaining ${remaining === null ? "not set" : money(remaining)}`}
-            style={{ background: `conic-gradient(${gradient})` }}
-          >
-            <div>
-              <small>{individual ? "YOUR SHARE" : "SPENT SO FAR"}</small>
-              <strong>{money(total)}</strong>
-              <span>of {budget === null ? "unset budget" : money(budget)}</span>
-            </div>
-          </div>
-          <div className="chart-legend">
-            {[...CATEGORIES, "Remaining"].map((c, i) => (
-              <div key={c}>
-                <span
-                  className="legend-color"
-                  style={{ background: COLORS[i] }}
-                />
-                <span>{c}</span>
-                <strong>
-                  {i === 5 && remaining === null ? "—" : money(chartValues[i])}
-                </strong>
-              </div>
-            ))}
-          </div>
-          <p className="fine-print">
-            Reimbursements settle what people owe. They don’t count as new
-            spending.
-          </p>
-        </aside>
         <div className="card ledger-card">
           <div className="tabs">
             <button
               className={tab === "Expenses" ? "active" : ""}
               onClick={() => setTab("Expenses")}
             >
-              Expense log <Badge>{t.expenses.length}</Badge>
+              Expense log <Badge>{visibleExpenses.length}</Badge>
             </button>
             <button
               className={tab === "Reimbursements" ? "active" : ""}
@@ -239,8 +244,14 @@ export function Budget() {
           {tab === "Expenses" ? (
             <>
               <div className="ledger-toolbar">
-                <span className="eyebrow">THE DETAILS</span>
+                <label
+                  className="ledger-filter-label"
+                  htmlFor="expense-category-filter"
+                >
+                  Category
+                </label>
                 <select
+                  id="expense-category-filter"
                   aria-label="Filter expense category"
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
@@ -264,6 +275,29 @@ export function Budget() {
                       <small>
                         {e.source} · {e.date}
                       </small>
+                      {Object.values(e.shares).filter((value) => value > 0)
+                        .length > 1 && (
+                        <details className="expense-split">
+                          <summary>
+                            Split among{" "}
+                            {
+                              Object.values(e.shares).filter(
+                                (value) => value > 0,
+                              ).length
+                            }
+                          </summary>
+                          <ul>
+                            {Object.entries(e.shares)
+                              .filter(([, value]) => value > 0)
+                              .map(([id, value]) => (
+                                <li key={id}>
+                                  <span>{name(id)}</span>
+                                  <strong>{money(value)}</strong>
+                                </li>
+                              ))}
+                          </ul>
+                        </details>
+                      )}
                     </div>
                     <div className="expense-amount">
                       <strong>
@@ -318,38 +352,63 @@ export function Budget() {
             </>
           ) : (
             <>
-              <p className="ledger-help">
-                Clear little IOUs. Only the person owed can mark one paid.
-              </p>
+              <div className="repayment-toolbar">
+                <p className="ledger-help">
+                  Only the person owed can mark a repayment paid.
+                </p>
+                <select
+                  aria-label="Show repayments"
+                  value={repaymentView}
+                  onChange={(event) => setRepaymentView(event.target.value)}
+                >
+                  {["All repayments", "Owed to me", "I owe"].map((view) => (
+                    <option key={view}>{view}</option>
+                  ))}
+                </select>
+              </div>
               <div className="debt-list">
-                {debts.map(({ expense: e, debtor, amount }) => (
-                  <div className="debt-row" key={e.id + debtor}>
-                    <Avatar name={name(debtor)} id={debtor} />
-                    <div>
-                      <strong>
-                        {name(debtor)} owes {name(e.payer)} {money(amount)}
-                      </strong>
-                      <p>{e.purpose}</p>
-                      <Badge tone={e.settled.includes(debtor) ? "green" : ""}>
-                        {e.settled.includes(debtor)
-                          ? "Completed"
-                          : "Awaiting repayment"}
-                      </Badge>
-                    </div>
-                    {e.payer === travelerId && !e.settled.includes(debtor) && (
-                      <Button
-                        variant="outline small"
-                        onClick={() =>
-                          open("settle", { expenseId: e.id, debtor })
-                        }
-                      >
-                        Mark paid
-                      </Button>
-                    )}
-                  </div>
+                {[...repaymentGroups.entries()].map(([key, group]) => (
+                  <section className="repayment-group" key={key}>
+                    <header>
+                      <h3>
+                        {name(group.debtor)}{" "}
+                        {group.unpaid > 0 ? "owes" : "repaid"}{" "}
+                        {name(group.payer)}
+                      </h3>
+                      {group.items.length > 1 && (
+                        <strong>{money(group.unpaid)} unpaid</strong>
+                      )}
+                    </header>
+                    {group.items.map(({ expense: e, debtor, amount }) => (
+                      <div className="debt-row" key={e.id + debtor}>
+                        <div>
+                          <strong>{money(amount)}</strong>
+                          <p>{e.purpose}</p>
+                          <Badge
+                            tone={e.settled.includes(debtor) ? "green" : ""}
+                          >
+                            {e.settled.includes(debtor)
+                              ? "Completed"
+                              : "Awaiting repayment"}
+                          </Badge>
+                        </div>
+                        {e.payer === travelerId &&
+                          !e.settled.includes(debtor) && (
+                            <Button
+                              variant="outline small"
+                              onClick={() =>
+                                open("settle", { expenseId: e.id, debtor })
+                              }
+                            >
+                              Mark paid
+                            </Button>
+                          )}
+                      </div>
+                    ))}
+                  </section>
                 ))}
               </div>
-              {!debts.length && (
+              {!repaymentGroups.size && (
                 <Empty
                   title="All clear between friends."
                   body="When you log a payment for someone else, their reimbursement will appear here."
@@ -357,17 +416,83 @@ export function Budget() {
               )}
             </>
           )}
-          <div className="ledger-tools">
-            <button onClick={gmail}>
-              <Mail size={16} />
-              Match sample Gmail receipt
-            </button>
-            <button onClick={transaction}>
-              <ArrowDownLeft size={16} />
-              Simulate transaction
-            </button>
-          </div>
+          <details className="budget-samples">
+            <summary>Sample tools</summary>
+            <div className="ledger-tools">
+              <button onClick={() => open("expense", { scan: true })}>
+                <Camera size={16} />
+                Try sample receipt
+              </button>
+              <button onClick={gmail}>
+                <Mail size={16} />
+                Match sample Gmail receipt
+              </button>
+              <button onClick={transaction}>
+                <ArrowDownLeft size={16} />
+                Simulate transaction
+              </button>
+            </div>
+          </details>
         </div>
+        <aside className="card chart-card">
+          <h2 className="breakdown-heading">
+            <button
+              type="button"
+              aria-expanded={showBreakdown}
+              aria-controls="spending-breakdown"
+              onClick={() => setShowBreakdown((value) => !value)}
+            >
+              Spending breakdown
+              <ChevronDown size={17} aria-hidden="true" />
+            </button>
+          </h2>
+          <div id="spending-breakdown" hidden={!showBreakdown}>
+            <div
+              className="donut"
+              role="img"
+              aria-label={`Spending chart. ${CATEGORIES.map((c, i) => `${c}: ${money(amounts[i])}`).join(", ")}. Remaining ${remaining === null ? "not set" : money(remaining)}`}
+              style={{ background: `conic-gradient(${gradient})` }}
+            >
+              <div>
+                <small>{individual ? "YOUR SHARE" : "SPENT SO FAR"}</small>
+                <strong>{money(total)}</strong>
+                <span>
+                  of {budget === null ? "unset budget" : money(budget)}
+                </span>
+              </div>
+            </div>
+            <div className="chart-legend">
+              {[
+                ...CATEGORIES,
+                ...(remaining !== null && remaining < 0 ? [] : ["Remaining"]),
+              ].map((c, i) => (
+                <div key={c}>
+                  <span
+                    className="legend-color"
+                    style={{ background: COLORS[i] }}
+                  />
+                  <span>{c}</span>
+                  <strong>
+                    {i === 5
+                      ? remaining === null
+                        ? "—"
+                        : money(Math.abs(remaining))
+                      : money(chartValues[i])}
+                  </strong>
+                </div>
+              ))}
+            </div>
+            {remaining !== null && remaining < 0 && (
+              <p className="breakdown-overage">
+                Over budget <strong>{money(Math.abs(remaining))}</strong>
+              </p>
+            )}
+            <p className="fine-print">
+              Reimbursements settle what people owe. They don’t count as new
+              spending.
+            </p>
+          </div>
+        </aside>
       </div>
       {individual && isOwner(t, s.userId) && (
         <div className="card individual-summary">
@@ -390,26 +515,12 @@ export function Budget() {
           </div>
         </div>
       )}
-      <div className="budget-bottom">
-        <div>
-          <small>{individual ? "YOUR SHARE SPENT" : "TOTAL SPENT"}</small>
-          <strong>{money(total)}</strong>
-        </div>
-        <div>
-          <small>REMAINING</small>
-          <strong>
-            {remaining === null ? "Set a budget" : money(remaining)}
-          </strong>
-        </div>
-        <Button
-          variant="outline"
-          onClick={() => open("expense", { scan: true })}
-        >
-          <Camera size={18} />
-          Scan a receipt
-        </Button>
-      </div>
-    </>
+      <CurrencyConverter
+        expanded={converterExpanded}
+        onExpandedChange={setConverterExpanded}
+        jumpRequest={converterJump}
+      />
+    </div>
   );
 }
 export function BudgetSetup() {
@@ -420,8 +531,8 @@ export function BudgetSetup() {
     [mode, setMode] = useState(t.budgetMode),
     [amount, setAmount] = useState(
       String(
-        ((t.budgetMode === "group" ? t.budget : t.individual[travelerId]) || 0) /
-          100,
+        ((t.budgetMode === "group" ? t.budget : t.individual[travelerId]) ||
+          0) / 100,
       ),
     ),
     [error, setError] = useState("");
@@ -457,8 +568,9 @@ export function BudgetSetup() {
                 setMode(value);
                 setAmount(
                   String(
-                    ((value === "group" ? t.budget : t.individual[travelerId]) ||
-                      0) / 100,
+                    ((value === "group"
+                      ? t.budget
+                      : t.individual[travelerId]) || 0) / 100,
                   ),
                 );
               }}
@@ -538,8 +650,9 @@ export function ExpenseForm() {
     }, 650);
   };
   return (
-    <Modal title={original ? "Edit an expense" : "Keep the little costs clear"}>
+    <Modal title={original ? "Edit an expense" : "Add an expense"}>
       <form
+        className="expense-form"
         onSubmit={(e) => {
           e.preventDefault();
           if (original && original.payer !== travelerId) {
@@ -588,22 +701,13 @@ export function ExpenseForm() {
             if (i >= 0) t.expenses[i] = record;
             else t.expenses.unshift(record);
           });
-          toast("Expense recorded. Your totals are up to date.");
-          if (
-            t.persistence !== "account" &&
-            shared &&
-            people.some((id) => id !== travelerId)
-          )
-            open("message", {
-              title: "Your group is in the loop",
-              body: `Simulated notification: ${people
-                .filter((id) => id !== travelerId)
-                .map((id) => t.members.find((m) => m.id === id)?.name)
-                .join(
-                  ", ",
-                )} can see what they owe for ${purpose}. No message was sent.`,
-            });
-          else close();
+          // Saving a demo split should not open a pretend-message dialog.
+          toast(
+            shared && t.persistence !== "account"
+              ? "Expense recorded. Shares updated; no message sent."
+              : "Expense recorded. Your totals are up to date.",
+          );
+          close();
         }}
       >
         {original && original.payer === travelerId && (
@@ -686,9 +790,7 @@ export function ExpenseForm() {
           />
         </Field>
         <div className="form-columns">
-          <Field
-            label="Amount (USD)"
-          >
+          <Field label="Amount (USD)">
             <input
               required
               type="number"
@@ -761,11 +863,7 @@ export function ExpenseForm() {
           <Button variant="text" onClick={close}>
             Cancel
           </Button>
-          <Button type="submit">
-            {shared && t.persistence !== "account"
-              ? "Save & simulate notification"
-              : "Save expense"}
-          </Button>
+          <Button type="submit">Save expense</Button>
         </div>
       </form>
     </Modal>

@@ -1,0 +1,454 @@
+/* Keep daily budget tasks prominent and optional tools behind disclosures. */
+.budget-page .page-head {
+  margin-bottom: 24px;
+}
+.budget-page .page-head h1 {
+  font-size: 36px;
+}
+.budget-page .budget-toolbar {
+  margin-bottom: 18px;
+}
+.budget-page .budget-toolbar .text-link {
+  font-size: 13px;
+  min-height: 44px;
+}
+.budget-page .currency-shortcut {
+  margin-left: 0;
+}
+.budget-page .budget-stats > div > span {
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+.budget-page .budget-stats small {
+  font-size: 12px;
+}
+.budget-page .finance-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 23px;
+}
+.budget-page .expense-main strong {
+  font-size: 14px;
+}
+.budget-page .expense-main > span,
+.budget-page .expense-main > small {
+  font-size: 12px;
+}
+.budget-page .expense-amount strong {
+  font-size: 15px;
+}
+.budget-page .expense-amount button {
+  font-size: 12px;
+  min-height: 40px;
+  padding: 8px;
+}
+.budget-page .ledger-toolbar select {
+  font-size: 13px;
+  min-height: 44px;
+  width: 140px;
+}
+.budget-page .ledger-card .tabs > button {
+  font-size: 14px;
+  min-height: 48px;
+}
+.budget-page .ledger-card .empty {
+  padding: 20px 16px;
+  margin: 12px 0;
+}
+.budget-page .ledger-card .empty > svg {
+  display: none;
+}
+.budget-page .ledger-card .empty h3 {
+  font-size: 20px;
+  margin: 4px 0 8px;
+}
+.budget-page .ledger-card .empty .btn {
+  margin-top: 14px;
+}
+.expense-split {
+  font-size: 12px;
+  margin-top: 4px;
+}
+.expense-split summary {
+  cursor: pointer;
+  padding: 8px 0;
+  min-height: 36px;
+  color: var(--ink);
+}
+.expense-split ul {
+  list-style: none;
+  padding: 8px 0;
+  margin: 0;
+}
+.expense-split li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+}
+.budget-page .expense-split li strong {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.expense-form .check-row {
+  font-size: 14px;
+  min-height: 44px;
+}
+.expense-form .check-row small,
+.expense-form .note {
+  font-size: 13px;
+}
+.expense-form .check-row strong {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.expense-form .field > span,
+.expense-form legend {
+  font-size: 14px;
+}
+.budget-page .debt-row strong {
+  font-size: 14px;
+}
+.budget-page .debt-row p,
+.budget-page .ledger-help {
+  font-size: 13px;
+}
+.budget-page .debt-row .badge {
+  font-size: 11px;
+}
+.budget-page .debt-row .btn {
+  font-size: 12px;
+  min-height: 44px;
+}
+.repayment-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px 0;
+}
+.repayment-toolbar .ledger-help {
+  margin: 0;
+}
+.repayment-toolbar select {
+  padding: 10px;
+  min-height: 44px;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--paper);
+  font-size: 13px;
+}
+.repayment-group {
+  margin: 20px 0;
+}
+.repayment-group header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.repayment-group h3,
+.repayment-group header > strong {
+  font-family: inherit;
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.6;
+}
+.repayment-group header > strong {
+  text-align: right;
+  white-space: nowrap;
+}
+.budget-page .repayment-group .debt-row {
+  padding: 14px 0;
+}
+.budget-page .chart-card {
+  display: block;
+  padding: 22px;
+}
+.budget-page .breakdown-heading {
+  margin: 0;
+  font-size: 18px;
+}
+.breakdown-heading button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  text-align: left;
+}
+.breakdown-heading button[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+.budget-page #spending-breakdown .fine-print {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.budget-page .chart-legend > div,
+.budget-page .chart-legend strong {
+  font-size: 13px;
+}
+.breakdown-overage {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.budget-samples {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+.budget-samples summary,
+.currency-details summary {
+  width: fit-content;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 10px 0;
+  min-height: 44px;
+}
+.budget-samples .ledger-tools {
+  padding: 0;
+  gap: 8px 18px;
+}
+.budget-samples button {
+  min-height: 44px;
+  font-size: 12px;
+}
+.currency-converter {
+  margin: 24px 0;
+  padding: 0;
+}
+.currency-disclosure-heading {
+  margin: 0;
+}
+.currency-disclosure {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 20px 24px;
+  text-align: left;
+  color: var(--ink);
+  scroll-margin-top: 120px;
+}
+.currency-disclosure > span {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+}
+.currency-disclosure small {
+  font-family: "DM Sans", sans-serif;
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.currency-disclosure[aria-expanded="true"] > svg:last-child {
+  transform: rotate(180deg);
+}
+.currency-calculator {
+  padding: 0 24px 20px;
+}
+.currency-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+.currency-heading p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.currency-fields {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.7fr) minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+.currency-fields .field {
+  min-width: 0;
+  margin: 0;
+}
+.currency-swap {
+  min-height: 46px;
+}
+.currency-result {
+  margin-top: 20px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.currency-result > strong {
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+}
+.currency-result p,
+.currency-note {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.currency-note {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 20px;
+  margin-top: 14px;
+}
+.currency-note a {
+  color: inherit;
+  text-decoration: underline;
+}
+.currency-details p {
+  margin-top: 4px;
+}
+.currency-error {
+  font-size: 13px;
+}
+/* Ink and paper remain a contrasting pair in every theme, including dark mode. */
+.toast {
+  background: var(--ink);
+  color: var(--paper);
+}
+.toast button {
+  color: inherit;
+}
+@media (max-width: 1050px) {
+  .budget-page .finance-layout {
+    grid-template-columns: minmax(0, 1fr) 245px;
+  }
+}
+@media (max-width: 760px) {
+  .budget-page .page-head {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .budget-page .page-head > div:first-child {
+    flex: 1;
+  }
+  .budget-page .page-head p {
+    display: none;
+  }
+  .budget-page .page-head h1 {
+    margin: 0;
+    font-size: 30px;
+  }
+  .budget-page .head-action {
+    margin: 0;
+  }
+  .budget-page .budget-toolbar {
+    margin-top: 8px;
+    gap: 8px 12px;
+  }
+  .budget-page .budget-toolbar .badge {
+    display: none;
+  }
+  .budget-page .budget-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-bottom: 18px;
+  }
+  .budget-page .budget-stats > div,
+  .budget-page .budget-stats > div:first-child {
+    grid-column: auto;
+    background: transparent;
+    border-bottom: 0;
+    padding: 14px 10px;
+    border-right: 1px solid var(--line);
+  }
+  .budget-page .budget-stats > div:last-child {
+    border-right: 0;
+  }
+  .budget-page .budget-stats > div > strong {
+    font-size: clamp(18px, 5vw, 25px);
+    margin: 10px 0 0;
+    letter-spacing: -0.5px;
+    overflow-wrap: anywhere;
+  }
+  .budget-page .budget-stats > div > span {
+    font-size: 12px;
+    letter-spacing: 0;
+  }
+  .budget-page .budget-stats small {
+    display: none;
+  }
+  .budget-page .finance-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+  .budget-page .chart-card {
+    padding: 0 18px;
+  }
+  .repayment-toolbar {
+    flex-wrap: wrap;
+  }
+  .expense-split summary {
+    min-height: 44px;
+  }
+  .currency-disclosure {
+    padding: 18px;
+  }
+  .currency-calculator {
+    padding: 0 18px 18px;
+  }
+  .currency-heading {
+    gap: 12px;
+  }
+  .currency-heading .btn {
+    flex-shrink: 0;
+    min-height: 44px;
+  }
+  .currency-fields {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .currency-fields .field:first-child,
+  .currency-fields .field:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.ledger-filter-label {
+  font-size: 13px;
+  color: var(--ink);
+}
+@media (max-width: 360px) {
+  .budget-page .budget-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .budget-page .budget-stats > div,
+  .budget-page .budget-stats > div:first-child {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .budget-page .budget-stats > div:last-child {
+    border-bottom: 0;
+  }
+  .budget-page .budget-stats > div > strong {
+    margin: 0;
+    font-size: 22px;
+  }
+  .budget-page .budget-stats > div > span {
+    font-size: 11px;
+  }
+}
