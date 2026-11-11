@@ -237,3 +237,5 @@ The Budget page keeps balances and the expense ledger first. Its 37-currency con
 Complete: standalone conversion, currency swapping, current-rate lookup, automatic/manual refresh, validation, and desktop/mobile failure coverage. Not included: foreign-currency expense accounting or bank/card-specific conversion rates.
 
 Budget usability: saved expenses expose split details on demand; repayments are grouped by traveler with unpaid subtotals and relationship filters. The mobile chart and sample tools are optional disclosures, and repayment confirmations identify the traveler. The converter keeps its weekly refresh policy and does not alter recorded USD expenses.
+
+Budget follow-up: the mobile breadcrumb fits one row, expense splits explain rounding when needed, and the shared-expense Save action remains visible in shorter dialogs. Reimbursements open on money owed to you; the relationship filter still exposes all repayments. Seven independent simulated review rounds informed these refinements; agent ratings are not human-user research.

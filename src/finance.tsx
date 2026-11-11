@@ -47,7 +47,7 @@ export function Budget() {
   );
   const [converterExpanded, setConverterExpanded] = useState(false);
   const [converterJump, setConverterJump] = useState(0);
-  const [repaymentView, setRepaymentView] = useState("All repayments");
+  const [repaymentView, setRepaymentView] = useState("Owed to me");
   const COLORS = useChartColors();
   if (!t) return null;
   const travelerId = member(t, s.userId)!.id;
@@ -384,13 +384,9 @@ export function Budget() {
                         <div>
                           <strong>{money(amount)}</strong>
                           <p>{e.purpose}</p>
-                          <Badge
-                            tone={e.settled.includes(debtor) ? "green" : ""}
-                          >
-                            {e.settled.includes(debtor)
-                              ? "Completed"
-                              : "Awaiting repayment"}
-                          </Badge>
+                          {e.settled.includes(debtor) && (
+                            <Badge tone="green">Completed</Badge>
+                          )}
                         </div>
                         {e.payer === travelerId &&
                           !e.settled.includes(debtor) && (
@@ -410,8 +406,13 @@ export function Budget() {
               </div>
               {!repaymentGroups.size && (
                 <Empty
-                  title="All clear between friends."
-                  body="When you log a payment for someone else, their reimbursement will appear here."
+                  title={repaymentView === "Owed to me" ? "Nothing owed to you." : repaymentView === "I owe" ? "Nothing for you to repay." : "All clear between friends."}
+                  body={repaymentView === "I owe"
+                    ? "When someone records a payment for you, your share will appear here."
+                    : "When you log a payment for someone else, their reimbursement will appear here."}
+                  action={repaymentView !== "All repayments" && debts.length > 0 ? (
+                    <Button variant="outline" onClick={() => setRepaymentView("All repayments")}>Show all repayments</Button>
+                  ) : undefined}
                 />
               )}
             </>
@@ -635,6 +636,12 @@ export function ExpenseForm() {
     [scan, setScan] = useState(overlay?.data?.scan ? "ready" : ""),
     [error, setError] = useState(""),
     [source, setSource] = useState(original?.source || "Manual");
+  // Integer cents keep the visible split identical to the saved allocation.
+  const previewCents = moneyError(amount, MONEY_LIMITS.expense)
+    ? 0
+    : Math.round(Number(amount) * 100);
+  const previewShares = splitCents(previewCents, people);
+  const hasRounding = shared && people.length > 1 && previewCents % people.length !== 0;
   const scanReceipt = (fail = false) => {
     setScan("loading");
     setTimeout(() => {
@@ -822,7 +829,11 @@ export function ExpenseForm() {
           />
           <span>
             I paid for other people too
-            <small>Split equally among the people selected below.</small>
+            <small>
+              {hasRounding
+                ? "Shares differ by 1¢ so they add up to the payment."
+                : "Split equally among the people selected below."}
+            </small>
           </span>
         </label>
         {shared && (
@@ -845,14 +856,7 @@ export function ExpenseForm() {
                   />
                   <span>{m.name}</span>
                   <strong>
-                    {money(
-                      splitCents(
-                        moneyError(amount, MONEY_LIMITS.expense)
-                          ? 0
-                          : Math.round(Number(amount) * 100),
-                        people,
-                      )[m.id] || 0,
-                    )}
+                    {money(previewShares[m.id] || 0)}
                   </strong>
                 </label>
               ))}

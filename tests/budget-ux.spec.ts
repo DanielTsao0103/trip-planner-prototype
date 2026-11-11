@@ -97,7 +97,8 @@ test("repayment subtotals exclude completed payments and relationship filters pr
   await budget(page);
   const spent = await page.locator(".budget-stats").innerText();
   await page.getByRole("button", { name: /^Reimbursements/ }).click();
-  await page.getByLabel("Show repayments").selectOption("Owed to me");
+  await expect(page.getByLabel("Show repayments")).toHaveValue("Owed to me");
+  await expect(page.locator(".repayment-group")).toHaveCount(3);
   const group = page
     .locator(".repayment-group")
     .filter({ hasText: /Eli.*owes.*Maya/ });
@@ -112,10 +113,14 @@ test("repayment subtotals exclude completed payments and relationship filters pr
     .getByRole("button", { name: "Mark paid", exact: true })
     .click();
   await expect(group.locator("header")).toContainText("$30.00 unpaid");
+  await expect(group.getByText("Completed", { exact: true })).toHaveCount(1);
+  await expect(group.getByText("Awaiting repayment", { exact: true })).toHaveCount(0);
   await page.getByLabel("Show repayments").selectOption("I owe");
   await expect(
     page.getByRole("button", { name: "Mark paid", exact: true }),
   ).toHaveCount(0);
+  await page.getByLabel("Show repayments").selectOption("All repayments");
+  await expect(page.locator(".repayment-group")).toHaveCount(9);
   expect(await page.locator(".budget-stats").innerText()).toBe(spent);
 });
 
@@ -171,4 +176,53 @@ test("expense badge reflects the selected category without changing budget total
     "Expense log 4",
   );
   expect(await page.locator(".budget-stats").innerText()).toBe(totals);
+});
+
+test("split preview explains extra cents only when the allocation needs rounding", async ({ page }) => {
+  await budget(page);
+  await page.getByRole("button", { name: "Add expense", exact: true }).click();
+  await page.getByLabel("Amount (USD)", { exact: true }).fill("48.50");
+  await page.getByRole("checkbox", { name: /I paid for other people too/ }).check();
+  await expect(page.getByText("Shares differ by 1¢ so they add up to the payment.")).toBeVisible();
+  await expect(page.locator("fieldset strong")).toHaveText(["$12.13", "$12.13", "$12.12", "$12.12"]);
+  await page.getByLabel("Amount (USD)", { exact: true }).fill("48");
+  await expect(page.getByText("Shares differ by 1¢ so they add up to the payment.")).toHaveCount(0);
+  await expect(page.locator("fieldset strong")).toHaveText(["$12.00", "$12.00", "$12.00", "$12.00"]);
+});
+
+test("compact mobile breadcrumbs retain every parent link and fit one row", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await budget(page);
+  const trail = page.getByRole("navigation", { name: "Breadcrumb", exact: true });
+  await expect(trail.getByRole("link", { name: "Your workspace" })).toBeVisible();
+  await expect(trail.getByRole("link", { name: "My trips" })).toBeVisible();
+  const trip = trail.getByRole("link", { name: "Seattle & Bainbridge getaway" });
+  await expect(trip).toBeVisible();
+  const rows = await trail.locator("li").evaluateAll(nodes => nodes.map(node => Math.round(node.getBoundingClientRect().top)));
+  expect(new Set(rows).size).toBe(1);
+  expect(await trail.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  await trip.click();
+  await expect(page).toHaveURL(/#\/8$/);
+});
+
+test("mobile shared-expense actions stay fully visible as the participant list scrolls", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await budget(page);
+  await page.getByRole("button", { name: "Add expense", exact: true }).click();
+  await page.getByLabel("Amount (USD)", { exact: true }).fill("48.50");
+  await page.getByRole("checkbox", { name: /I paid for other people too/ }).check();
+  const save = page.getByRole("button", { name: "Save expense", exact: true });
+  for (const height of [844, 650]) {
+    await page.setViewportSize({ width: 390, height });
+    await expect(save).toBeInViewport({ ratio: 1 });
+    const box = await save.boundingBox();
+    const dialog = await page.getByRole("dialog").boundingBox();
+    expect(box!.y + box!.height).toBeLessThan(dialog!.y + dialog!.height - 4);
+    await page.locator(".modal-body").evaluate(node => { node.scrollTop = node.scrollHeight; });
+    const lastParticipant = page.getByRole("checkbox", { name: /Sam Rivera/ });
+    await expect(lastParticipant).toBeInViewport({ ratio: 1 });
+    const lastBox = await lastParticipant.boundingBox();
+    expect(lastBox!.y + lastBox!.height).toBeLessThan((await save.boundingBox())!.y);
+    await expect(save).toBeInViewport({ ratio: 1 });
+  }
 });

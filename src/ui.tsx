@@ -432,7 +432,12 @@ function Breadcrumbs() {
             {index === crumbs.length - 1 ? (
               <span aria-current="page" title={crumb.label}>{crumb.label}</span>
             ) : (
-              <a href={crumb.href} title={crumb.label}>{crumb.label}</a>
+              <a href={crumb.href} title={crumb.label} aria-label={crumb.label}>
+                {page === 12 && crumb.href === "#/8" ? <>
+                  <span className="breadcrumb-trip-label">{crumb.label}</span>
+                  <span className="breadcrumb-trip-short" aria-hidden="true">Trip</span>
+                </> : crumb.label}
+              </a>
             )}
           </li>
         ))}
@@ -452,7 +457,7 @@ export function Shell({ children }: { children: ReactNode }) {
     { p: 9, label: "Suggestions", Icon: Sparkles },
   ];
   return (
-    <div className="app-shell">
+    <div className={`app-shell${route.page === 12 ? " budget-shell" : ""}`}>
       <aside className="sidebar">
         <button className="brand-button" onClick={() => go(4)} aria-label="Stir Crazy home">
           <BrandLogo />

@@ -1,4 +1,12 @@
 /* Keep daily budget tasks prominent and optional tools behind disclosures. */
+.breadcrumbs a > .breadcrumb-trip-label,
+.breadcrumbs a > .breadcrumb-trip-short {
+  padding: 0;
+  font: inherit;
+}
+.breadcrumbs a > .breadcrumb-trip-short {
+  display: none;
+}
 .budget-page .page-head {
   margin-bottom: 24px;
 }
@@ -93,6 +101,14 @@
 .expense-form .check-row {
   font-size: 14px;
   min-height: 44px;
+}
+.expense-form .form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  background: hsl(calc(var(--hue) + -4) calc(57.1% * var(--sm)) calc(var(--la) + var(--lb) * 97.3%));
 }
 .expense-form .check-row small,
 .expense-form .note {
@@ -333,6 +349,20 @@
   }
 }
 @media (max-width: 760px) {
+  /* Keep every parent link, without repeating the trip name in two rows. */
+  .budget-shell .breadcrumbs ol {
+    flex-wrap: nowrap;
+  }
+  .budget-shell .breadcrumbs li + li {
+    margin-left: 6px;
+    gap: 6px;
+  }
+  .budget-shell .breadcrumb-trip-label {
+    display: none;
+  }
+  .budget-shell .breadcrumbs a > .breadcrumb-trip-short {
+    display: block;
+  }
   .budget-page .page-head {
     display: flex;
     flex-direction: row;
