@@ -59,6 +59,41 @@
   font-size: 14px;
   min-height: 48px;
 }
+.budget-page .ledger-card {
+  container-type: inline-size;
+}
+.ledger-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.budget-page .ledger-header .tabs {
+  border-bottom: 0;
+  min-width: 0;
+}
+.budget-page .ledger-add {
+  flex-shrink: 0;
+  min-height: 44px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+/* Keep the action at the card's top right when both tabs need their own row. */
+@container (max-width: 440px) {
+  .ledger-header {
+    flex-wrap: wrap;
+    gap: 0;
+    padding-top: 14px;
+  }
+  .budget-page .ledger-header .tabs {
+    order: 2;
+    flex-basis: 100%;
+  }
+  .ledger-add {
+    margin-left: auto;
+  }
+}
 .budget-page .ledger-card .empty {
   padding: 20px 16px;
   margin: 12px 0;

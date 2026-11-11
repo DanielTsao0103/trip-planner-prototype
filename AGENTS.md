@@ -109,3 +109,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Budget UX correction (November 10, 2026): prioritize balances and the expense ledger; keep currency conversion compact and collapsed at the bottom with a small shortcut, not a dominant card above expenses. Avoid duplicate totals and simulated confirmation popups. Agent persona scores are simulated reviews, never human-user research.
 
 - Budget review continuation (November 11, 2026): Dan requested continuing until the 9.5 panel target is met. Keep independent scores and earlier evidence intact; compare the unrounded panel mean against the target, and distinguish simulated reviewer ratings from human-user evidence. Verify long mobile forms with the complete Save control visible, including after expanding split participants.
+
+- Budget action placement (November 11, 2026): Dan wants Add expense at the top right of the expense log card, rather than the page heading. Keep it within the card on small screens without crowding the tabs.

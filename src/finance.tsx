@@ -153,12 +153,6 @@ export function Budget() {
             ? "Your share of the trip, in one place."
             : "Your shared trip budget, without the guesswork."
         }
-        action={
-          <Button onClick={() => open("expense")}>
-            <Plus size={17} />
-            Add expense
-          </Button>
-        }
       />
       <div className="budget-toolbar">
         <Badge tone="green">
@@ -227,19 +221,25 @@ export function Budget() {
       </div>
       <div className="finance-layout">
         <div className="card ledger-card">
-          <div className="tabs">
-            <button
-              className={tab === "Expenses" ? "active" : ""}
-              onClick={() => setTab("Expenses")}
-            >
-              Expense log <Badge>{visibleExpenses.length}</Badge>
-            </button>
-            <button
-              className={tab === "Reimbursements" ? "active" : ""}
-              onClick={() => setTab("Reimbursements")}
-            >
-              Reimbursements
-            </button>
+          <div className="ledger-header">
+            <div className="tabs">
+              <button
+                className={tab === "Expenses" ? "active" : ""}
+                onClick={() => setTab("Expenses")}
+              >
+                Expense log <Badge>{visibleExpenses.length}</Badge>
+              </button>
+              <button
+                className={tab === "Reimbursements" ? "active" : ""}
+                onClick={() => setTab("Reimbursements")}
+              >
+                Reimbursements
+              </button>
+            </div>
+            <Button variant="small ledger-add" onClick={() => open("expense")}>
+              <Plus size={17} aria-hidden="true" />
+              Add expense
+            </Button>
           </div>
           {tab === "Expenses" ? (
             <>
