@@ -181,14 +181,14 @@ export function Empty({
   action,
 }: {
   title: string;
-  body: string;
+  body?: string;
   action?: ReactNode;
 }) {
   return (
     <div className="empty">
       <Compass size={34} strokeWidth={1.3} />
       <h3>{title}</h3>
-      <p>{body}</p>
+      {body && <p>{body}</p>}
       {action}
     </div>
   );

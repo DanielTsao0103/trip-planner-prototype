@@ -84,9 +84,7 @@ export function Itinerary() {
         <div className="trip-hero-shade" />
         <div className="trip-hero-content">
           <div className="row">
-            <Badge tone="white">
-              {t.sample ? "THE SAMPLE GETAWAY" : "YOUR NEXT ADVENTURE"}
-            </Badge>
+            {t.sample && <Badge tone="white">Sample trip</Badge>}
             {isOwner(t, s.userId) && (
               <button
                 className="hero-edit"
@@ -150,14 +148,7 @@ export function Itinerary() {
           className="getting-started card"
           aria-label="Plan your first day"
         >
-          <div>
-            <span className="eyebrow">MAKE IT YOURS</span>
-            <h2>A blank page. A good beginning.</h2>
-            <p>
-              Add one thing you’re looking forward to. Your plans, budget, and
-              group preferences can grow from there.
-            </p>
-          </div>
+          <h2>No events yet</h2>
           <div className="getting-started-actions">
             <Button
               onClick={() =>
@@ -240,15 +231,14 @@ export function Itinerary() {
                 </div>
               ) : (
                 <div className="empty-day">
-                  <span>A little room to wander.</span>
-                  <p>Nothing planned yet. Sometimes that’s a good thing.</p>
+                  <p>No events scheduled.</p>
                   {canEdit(t, s.userId, date) && (
                     <button
                       className="text-link"
                       onClick={() => go(7, { date })}
                     >
                       <Plus size={15} />
-                      Add something to this day
+                      Add event to this day
                     </button>
                   )}
                 </div>
@@ -262,15 +252,9 @@ export function Itinerary() {
             <span className="little-icon">
               <Sparkles size={22} />
             </span>
-            <h3>
-              Good things <br />
-              around the corner.
-            </h3>
-            <p>
-              Ideas that fit your plans, your people, and the time in between.
-            </p>
+            <h3>Suggestions</h3>
             <Button variant="outline full" onClick={() => go(9)}>
-              Find some inspiration <ArrowRight size={16} />
+              View suggestions <ArrowRight size={16} />
             </Button>
           </div>
           <div className="card budget-peek">
@@ -281,11 +265,7 @@ export function Itinerary() {
             <strong>
               {budget !== null ? money(budget - totalSpent) : "Not set yet"}
             </strong>
-            <p>
-              {budget !== null
-                ? "left for making memories"
-                : "Set a budget when you’re ready."}
-            </p>
+            {budget !== null && <p>Remaining</p>}
             {budget !== null && (
               <div className="progress">
                 <i
@@ -296,7 +276,7 @@ export function Itinerary() {
               </div>
             )}
             <button className="text-link" onClick={() => go(12)}>
-              See the details <ArrowUpRight size={15} />
+              View budget <ArrowUpRight size={15} />
             </button>
           </div>
           <div className="card group-peek">
@@ -307,8 +287,7 @@ export function Itinerary() {
                   <Avatar key={m.id} name={m.name} index={i} id={m.accountId || m.id} />
                 ))}
             </div>
-            <h3>Everyone gets a say.</h3>
-            <p>Add your preferences so the plan feels good for everyone.</p>
+            <h3>Travel preferences</h3>
             <button className="text-link" onClick={() => go(15)}>
               Your travel preferences <ArrowRight size={15} />
             </button>
@@ -1158,10 +1137,7 @@ export function Dashboard() {
       </div>
       <div className="section-title">
         <div>
-          <span className="eyebrow">ONE STEP AHEAD</span>
-          <h2>
-            {next ? "Here’s where you’re headed." : "A little room to wander."}
-          </h2>
+          <h2>{next ? "Next stop" : "Trip map"}</h2>
         </div>
         <Button
           variant="outline"
@@ -1173,7 +1149,7 @@ export function Dashboard() {
       <TravelMap compact selectedEvent={next?.id} />
       {!todays.length && (
         <Empty
-          title="Your day is wide open."
+          title="No events today"
           body="Find an idea or add a plan to the itinerary."
           action={<Button onClick={() => go(9)}>Find inspiration</Button>}
         />
@@ -1299,8 +1275,7 @@ export function DayDetail() {
           ))}
           {!events.length && (
             <Empty
-              title="An open day, all yours."
-              body="Add a plan or see what’s nearby."
+              title="No events scheduled"
               action={
                 allowed ? (
                   <Button onClick={() => go(7, { date, return: "11" })}>
@@ -1312,13 +1287,7 @@ export function DayDetail() {
           )}
         </div>
         <aside className="card day-summary">
-          <span className="eyebrow">AT A GLANCE</span>
-          <h2>{events.length} little plans.</h2>
-          <p>
-            {events.length
-              ? "Leave yourself a little breathing room between stops."
-              : "Good things can happen without a full schedule."}
-          </p>
+          <h2>{events.length} {events.length === 1 ? "event" : "events"}</h2>
           <button className="text-link" onClick={() => go(9)}>
             Find something nearby <ArrowRight size={15} />
           </button>
