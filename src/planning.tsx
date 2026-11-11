@@ -4,7 +4,7 @@ import { WeeklyCalendar } from "./weekly-calendar";
 /** Implementation status: Account events, todos, and dismissed choices save through updateTrip to Supabase. Confirmation extraction, crowds, costs, and suggestions remain fixtures; uploaded file previews are temporary. See ../IMPLEMENTATION_STATUS.md. */
 import { DatePicker } from "./date-picker";
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { searchDestinationPhotos, trackUnsplashSelection, uploadTripPhoto, type UnsplashPhoto } from "./trip-photos";
 import {
   ArrowRight,
@@ -62,10 +62,17 @@ import { TravelMap } from "./travelmap";
 export function Itinerary() {
   const { trip: t, s, go, open, route } = useApp();
   const view = route.params.get("view") === "calendar" ? "calendar" : "list";
+  const [dayPage, setDayPage] = useState(0);
+  useEffect(() => setDayPage(0), [t?.id, t?.start, t?.end]);
   if (!t) return null;
   const traveler = member(t, s.userId)!;
   const role = traveler.role;
   const allDays = days(t.start, t.end);
+  const pageSize = 5;
+  const pageCount = Math.ceil(allDays.length / pageSize);
+  const currentPage = Math.min(dayPage, Math.max(0, pageCount - 1));
+  const pageStart = currentPage * pageSize;
+  const visibleDays = allDays.slice(pageStart, pageStart + pageSize);
   const personalBudget = t.budgetMode === "individual";
   const budget = personalBudget ? (t.individual[traveler.id] ?? null) : t.budget;
   const totalSpent = spent(t, personalBudget ? traveler.id : undefined);
@@ -178,7 +185,7 @@ export function Itinerary() {
       {view === "calendar" ? <WeeklyCalendar key={t.id} /> : <div className="itinerary-layout">
         <div>
           <div className="day-chips">
-            {allDays.map((date, i) => (
+            {visibleDays.map((date, pageIndex) => (
               <a
                 href={`#day-${date}`}
                 key={date}
@@ -189,12 +196,19 @@ export function Itinerary() {
                     ?.scrollIntoView({ behavior: "smooth", block: "start" });
                 }}
               >
-                Day {i + 1}
+                Day {pageStart + pageIndex + 1}
                 <span>{dateText(date, true)}</span>
               </a>
             ))}
           </div>
-          {allDays.map((date, i) => (
+          <div className="day-page-controls" role="navigation" aria-label="Itinerary day pages">
+            {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage - 1)} disabled={currentPage === 0} aria-label="Previous five days"><ChevronLeft size={16} /></button>}
+            <span aria-live="polite">Days {pageStart + 1}–{Math.min(pageStart + pageSize, allDays.length)} of {allDays.length}</span>
+            {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage + 1)} disabled={currentPage >= pageCount - 1} aria-label="Next five days"><ChevronRight size={16} /></button>}
+          </div>
+          {visibleDays.map((date, pageIndex) => {
+            const i = pageStart + pageIndex;
+            return (
             <section className="day-section" id={`day-${date}`} key={date}>
               <div className="day-title">
                 <span className="day-number">
@@ -240,7 +254,8 @@ export function Itinerary() {
                 </div>
               )}
             </section>
-          ))}
+            );
+          })}
         </div>
         <aside className="itinerary-aside">
           <div className="card inspiration-card">

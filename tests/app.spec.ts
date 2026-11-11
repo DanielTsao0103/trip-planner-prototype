@@ -251,6 +251,42 @@ test('created trips survive reload and logout, deletion preserves the samples', 
   await expect(page.getByRole('button', { name: 'Seattle & Bainbridge getaway', exact: true })).toBeVisible();
 });
 
+test('itinerary pages through five days and shows the current range', async ({ page }) => {
+  await demo(page);
+  await page.goto('./#/8');
+  await expect(page.getByRole('navigation', { name: 'Itinerary day pages' })).toHaveText('Days 1–4 of 4');
+  await expect(page.getByRole('button', { name: 'Next five days' })).toHaveCount(0);
+
+  await page.goto('./#/5');
+  await page.getByRole('button', { name: 'New trip', exact: true }).click();
+  await page.getByLabel('Trip title', { exact: true }).fill('Paging QA');
+  await page.getByLabel('Where are you going?', { exact: true }).fill('Taipei');
+  await page.getByLabel('Start date', { exact: true }).fill('2027-05-01');
+  await page.getByLabel('End date', { exact: true }).fill('2027-05-12');
+  await page.getByRole('button', { name: 'Create trip', exact: true }).click();
+  await page.getByRole('button', { name: 'Paging QA', exact: true }).click();
+
+  const pages = page.getByRole('navigation', { name: 'Itinerary day pages' });
+  const tiles = page.locator('.day-chips a');
+  const sections = page.locator('.day-section');
+  await expect(pages).toContainText('Days 1–5 of 12');
+  await expect(tiles).toHaveCount(5);
+  await expect(sections).toHaveCount(5);
+  await expect(tiles.last()).toContainText('Day 5');
+  await pages.getByRole('button', { name: 'Next five days' }).click();
+  await expect(pages).toContainText('Days 6–10 of 12');
+  await expect(tiles.first()).toContainText('Day 6');
+  await expect(sections).toHaveCount(5);
+  await pages.getByRole('button', { name: 'Next five days' }).click();
+  await expect(pages).toContainText('Days 11–12 of 12');
+  await expect(tiles).toHaveCount(2);
+  await expect(sections).toHaveCount(2);
+  await expect(pages.getByRole('button', { name: 'Next five days' })).toBeDisabled();
+  await pages.getByRole('button', { name: 'Previous five days' }).click();
+  await expect(pages).toContainText('Days 6–10 of 12');
+  await noOverflow(page);
+});
+
 test('prototype start-at-login actually exits demo and remains signed out after reload', async ({ page }) => {
   for (const entry of ['Start at Log in / Create account', '01 Log in / Create account']) {
     await demo(page);

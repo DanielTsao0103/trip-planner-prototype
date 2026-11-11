@@ -1829,19 +1829,20 @@ legend {
   align-items: start;
 }
 .day-chips {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
-  flex-wrap: wrap;
   margin-bottom: 30px;
 }
 .day-chips a {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   gap: 3px;
   background: hsl(calc(var(--wh) + -3.3) calc(100% * var(--wsm)) calc(var(--la) + var(--lb) * 98.2%));
   border: 1px solid hsl(calc(var(--hue) + 0.7) calc(26.8% * var(--sm)) calc(var(--la) + var(--lb) * 86.1%));
   border-radius: calc(6px * var(--rs));
-  padding: 9px 15px;
+  padding: 9px clamp(6px, 1vw, 15px);
   font-size: 10px;
 }
 .day-chips a:first-child {
@@ -1851,6 +1852,30 @@ legend {
 .day-chips a span {
   color: var(--muted);
   font-size: 9px;
+}
+.day-page-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: -18px 0 30px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.day-page-arrow {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.day-page-arrow:disabled {
+  opacity: .4;
+  cursor: default;
 }
 .day-section {
   scroll-margin-top: 25px;
@@ -4949,12 +4974,10 @@ legend {
   .day-chips {
     gap: 7px;
     margin-bottom: 26px;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
   }
   .day-chips a {
     font-size: 10px;
-    padding: 10px 8px;
+    padding: 10px 5px;
     gap: 5px;
   }
   .day-chips a > span {
