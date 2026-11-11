@@ -229,3 +229,9 @@ The illustration includes planned components and predates the latest persistence
 ## Coursework demo
 
 [Original demo video](https://www.loom.com/share/be0601e7285d4cf5876df31a91e2bba6) demonstrates the earlier signup/profile slice. It predates current account-trip persistence and collaboration; its browser-local itinerary behavior is historical. A current demonstration should follow the manual acceptance flow above. The recorded assignment instructions call for a video of two minutes or less and one team Canvas text submission containing the video and public repository/README links.
+
+### Budget currency converter
+
+The Budget page includes a 37-currency converter, including South Korean won (KRW). [Frankfurter](https://frankfurter.dev/) supplies current reference rates without an API key or paid plan. The page checks rates hourly while open and on return, with a manual refresh button, publication date, and clearly labeled saved-rate fallback during outages. These are planning estimates; banks/card issuers may use different rates and fees. Budgets and recorded expenses remain in USD. See `IMPLEMENTATION_STATUS.md` for freshness and failure rules.
+
+Complete: standalone conversion, currency swapping, current-rate lookup, automatic/manual refresh, validation, and desktop/mobile failure coverage. Not included: foreign-currency expense accounting or bank/card-specific conversion rates.

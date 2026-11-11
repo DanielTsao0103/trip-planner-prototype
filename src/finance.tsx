@@ -26,6 +26,7 @@ import {
   Modal,
   PageHead,
 } from "./ui";
+import { CurrencyConverter } from "./currency-converter";
 import { useChartColors } from "./theme";
 import { money, spent, isOwner, member, uid, splitCents, type Expense } from "./domain";
 export const CATEGORIES = ["Stay", "Food", "Transport", "Activities", "Other"];
@@ -184,6 +185,7 @@ export function Budget() {
           </small>
         </div>
       </div>
+      <CurrencyConverter />
       <div className="finance-layout">
         <aside className="card chart-card">
           <div className="eyebrow">WHERE IT’S GOING</div>
