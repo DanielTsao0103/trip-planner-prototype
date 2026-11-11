@@ -38,6 +38,9 @@
 .budget-page .expense-main strong {
   font-size: 14px;
 }
+.budget-page .expense-row {
+  padding: 14px 0;
+}
 .budget-page .expense-main > span,
 .budget-page .expense-main > small {
   font-size: 12px;
@@ -73,25 +76,46 @@
   border-bottom: 0;
   min-width: 0;
 }
+.budget-page .ledger-header .tabs .badge {
+  font-size: 12px;
+}
 .budget-page .ledger-add {
   flex-shrink: 0;
   min-height: 44px;
   font-size: 13px;
   white-space: nowrap;
 }
-/* Keep the action at the card's top right when both tabs need their own row. */
+.ledger-add-short {
+  display: none;
+}
+/* Keep the views and action together without shrinking the touch targets. */
 @container (max-width: 440px) {
   .ledger-header {
-    flex-wrap: wrap;
-    gap: 0;
-    padding-top: 14px;
+    gap: 8px;
   }
   .budget-page .ledger-header .tabs {
-    order: 2;
-    flex-basis: 100%;
+    gap: 8px;
   }
-  .ledger-add {
-    margin-left: auto;
+  .budget-page .ledger-header .tabs > button {
+    font-size: 13px;
+    padding: 18px 0;
+    white-space: nowrap;
+  }
+  .budget-page .ledger-add {
+    gap: 6px;
+    padding: 8px;
+    min-width: 44px;
+  }
+  .ledger-add-label {
+    display: none;
+  }
+  .ledger-add-short {
+    display: inline;
+  }
+}
+@container (max-width: 280px) {
+  .ledger-add > svg {
+    display: none;
   }
 }
 .budget-page .ledger-card .empty {
@@ -137,6 +161,9 @@
   font-size: 14px;
   min-height: 44px;
 }
+.expense-form fieldset .check-row {
+  margin: 4px 0;
+}
 .expense-form .form-actions {
   position: sticky;
   bottom: 0;
@@ -144,6 +171,19 @@
   padding: 12px 0;
   border-top: 1px solid var(--line);
   background: hsl(calc(var(--hue) + -4) calc(57.1% * var(--sm)) calc(var(--la) + var(--lb) * 97.3%));
+}
+.expense-form .form-actions > .btn,
+.budget-setup-form .btn,
+.repayment-confirm {
+  font-size: 14px;
+  min-height: 44px;
+}
+.modal-body > .repayment-copy {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.currency-note .btn {
+  font-size: 13px;
 }
 .expense-form .check-row small,
 .expense-form .note {
@@ -192,25 +232,44 @@
   font-size: 13px;
 }
 .repayment-group {
-  margin: 20px 0;
-}
-.repayment-group header {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 0;
   border-bottom: 1px solid var(--line);
 }
-.repayment-group h3,
-.repayment-group header > strong {
-  font-family: inherit;
+.repayment-group summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 14px 0;
+  cursor: pointer;
+  list-style: none;
+}
+.repayment-group summary::-webkit-details-marker {
+  display: none;
+}
+.repayment-person {
+  flex: 1;
+  min-width: 0;
+}
+.repayment-person strong,
+.repayment-total {
   font-size: 13px;
-  margin: 0;
   line-height: 1.6;
 }
-.repayment-group header > strong {
+.repayment-person small {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.repayment-total {
   text-align: right;
   white-space: nowrap;
+}
+.repayment-group[open] > summary > svg {
+  transform: rotate(180deg);
+}
+.repayment-group[open] > summary {
+  border-bottom: 1px solid var(--line);
 }
 .budget-page .repayment-group .debt-row {
   padding: 14px 0;
@@ -245,6 +304,12 @@
 .budget-page .chart-legend > div,
 .budget-page .chart-legend strong {
   font-size: 13px;
+}
+.budget-page .donut span {
+  font-size: 12px;
+}
+.budget-page .donut small {
+  font-size: 10px;
 }
 .breakdown-overage {
   display: flex;
@@ -355,10 +420,13 @@
 }
 .currency-note {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   flex-wrap: wrap;
   gap: 0 20px;
   margin-top: 14px;
+}
+.currency-note > span {
+  flex: 1 1 180px;
 }
 .currency-note a {
   color: inherit;
@@ -475,7 +543,7 @@
   .currency-heading {
     gap: 12px;
   }
-  .currency-heading .btn {
+  .currency-note .btn {
     flex-shrink: 0;
     min-height: 44px;
   }

@@ -77,7 +77,8 @@ test("repayment confirmation identifies the traveler and amount before recording
   page,
 }) => {
   await budget(page);
-  await page.getByRole("button", { name: /^Reimbursements/ }).click();
+  await page.getByRole("button", { name: /^Repayments/ }).click();
+  await page.locator(".repayment-group").filter({ hasText: /Eli.*owes.*Maya/ }).locator("summary").click();
   const row = page
     .locator(".repayment-group")
     .filter({ hasText: /Eli.*owes.*Maya/ })
@@ -96,13 +97,14 @@ test("repayment subtotals exclude completed payments and relationship filters pr
 }) => {
   await budget(page);
   const spent = await page.locator(".budget-stats").innerText();
-  await page.getByRole("button", { name: /^Reimbursements/ }).click();
+  await page.getByRole("button", { name: /^Repayments/ }).click();
   await expect(page.getByLabel("Show repayments")).toHaveValue("Owed to me");
   await expect(page.locator(".repayment-group")).toHaveCount(3);
   const group = page
     .locator(".repayment-group")
     .filter({ hasText: /Eli.*owes.*Maya/ });
-  await expect(group.locator("header")).toContainText("$430.00 unpaid");
+  await expect(group.locator("summary")).toContainText("$430.00 unpaid");
+  await group.locator("summary").click();
   await group
     .locator(".debt-row")
     .filter({ hasText: "$400.00" })
@@ -112,7 +114,7 @@ test("repayment subtotals exclude completed payments and relationship filters pr
     .getByRole("dialog", { name: "Confirm repayment" })
     .getByRole("button", { name: "Mark paid", exact: true })
     .click();
-  await expect(group.locator("header")).toContainText("$30.00 unpaid");
+  await expect(group.locator("summary")).toContainText("$30.00 unpaid");
   await expect(group.getByText("Completed", { exact: true })).toHaveCount(1);
   await expect(group.getByText("Awaiting repayment", { exact: true })).toHaveCount(0);
   await page.getByLabel("Show repayments").selectOption("I owe");

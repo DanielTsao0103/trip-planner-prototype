@@ -17,15 +17,7 @@ import {
   ScanLine,
 } from "lucide-react";
 import { useApp } from "./state";
-import {
-  Badge,
-  Button,
-  Empty,
-  ErrorBox,
-  Field,
-  Modal,
-  PageHead,
-} from "./ui";
+import { Badge, Button, Empty, ErrorBox, Field, Modal, PageHead } from "./ui";
 import { CurrencyConverter } from "./currency-converter";
 import { useChartColors } from "./theme";
 import {
@@ -45,6 +37,8 @@ export function Budget() {
   const [showBreakdown, setShowBreakdown] = useState(
     () => window.innerWidth > 760,
   );
+  const [showRepaymentBreakdown, setShowRepaymentBreakdown] = useState(false);
+  const breakdownOpen = tab === "Expenses" ? showBreakdown : showRepaymentBreakdown;
   const [converterExpanded, setConverterExpanded] = useState(false);
   const [converterJump, setConverterJump] = useState(0);
   const [repaymentView, setRepaymentView] = useState("Owed to me");
@@ -225,20 +219,29 @@ export function Budget() {
             <div className="tabs">
               <button
                 className={tab === "Expenses" ? "active" : ""}
+                aria-pressed={tab === "Expenses"}
                 onClick={() => setTab("Expenses")}
               >
                 Expense log <Badge>{visibleExpenses.length}</Badge>
               </button>
               <button
                 className={tab === "Reimbursements" ? "active" : ""}
+                aria-pressed={tab === "Reimbursements"}
                 onClick={() => setTab("Reimbursements")}
               >
-                Reimbursements
+                Repayments
               </button>
             </div>
-            <Button variant="small ledger-add" onClick={() => open("expense")}>
+            <Button
+              variant="small ledger-add"
+              aria-label="Add expense"
+              onClick={() => open("expense")}
+            >
               <Plus size={17} aria-hidden="true" />
-              Add expense
+              <span className="ledger-add-label">Add expense</span>
+              <span className="ledger-add-short" aria-hidden="true">
+                Add
+              </span>
             </Button>
           </div>
           {tab === "Expenses" ? (
@@ -368,17 +371,26 @@ export function Budget() {
               </div>
               <div className="debt-list">
                 {[...repaymentGroups.entries()].map(([key, group]) => (
-                  <section className="repayment-group" key={key}>
-                    <header>
-                      <h3>
-                        {name(group.debtor)}{" "}
-                        {group.unpaid > 0 ? "owes" : "repaid"}{" "}
-                        {name(group.payer)}
-                      </h3>
-                      {group.items.length > 1 && (
-                        <strong>{money(group.unpaid)} unpaid</strong>
-                      )}
-                    </header>
+                  <details className="repayment-group" key={key}>
+                    <summary>
+                      <span className="repayment-person">
+                        <strong>
+                          {name(group.debtor)}{" "}
+                          {group.unpaid > 0 ? "owes" : "repaid"}{" "}
+                          {name(group.payer)}
+                        </strong>
+                        <small>
+                          {group.items.length}{" "}
+                          {group.items.length === 1 ? "expense" : "expenses"}
+                        </small>
+                      </span>
+                      <strong className="repayment-total">
+                        {group.unpaid > 0
+                          ? `${money(group.unpaid)} unpaid`
+                          : "Fully repaid"}
+                      </strong>
+                      <ChevronDown size={17} aria-hidden="true" />
+                    </summary>
                     {group.items.map(({ expense: e, debtor, amount }) => (
                       <div className="debt-row" key={e.id + debtor}>
                         <div>
@@ -401,18 +413,33 @@ export function Budget() {
                           )}
                       </div>
                     ))}
-                  </section>
+                  </details>
                 ))}
               </div>
               {!repaymentGroups.size && (
                 <Empty
-                  title={repaymentView === "Owed to me" ? "Nothing owed to you." : repaymentView === "I owe" ? "Nothing for you to repay." : "All clear between friends."}
-                  body={repaymentView === "I owe"
-                    ? "When someone records a payment for you, your share will appear here."
-                    : "When you log a payment for someone else, their reimbursement will appear here."}
-                  action={repaymentView !== "All repayments" && debts.length > 0 ? (
-                    <Button variant="outline" onClick={() => setRepaymentView("All repayments")}>Show all repayments</Button>
-                  ) : undefined}
+                  title={
+                    repaymentView === "Owed to me"
+                      ? "Nothing owed to you."
+                      : repaymentView === "I owe"
+                        ? "Nothing for you to repay."
+                        : "All clear between friends."
+                  }
+                  body={
+                    repaymentView === "I owe"
+                      ? "When someone records a payment for you, your share will appear here."
+                      : "When you log a payment for someone else, their reimbursement will appear here."
+                  }
+                  action={
+                    repaymentView !== "All repayments" && debts.length > 0 ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => setRepaymentView("All repayments")}
+                      >
+                        Show all repayments
+                      </Button>
+                    ) : undefined
+                  }
                 />
               )}
             </>
@@ -439,15 +466,17 @@ export function Budget() {
           <h2 className="breakdown-heading">
             <button
               type="button"
-              aria-expanded={showBreakdown}
+              aria-expanded={breakdownOpen}
               aria-controls="spending-breakdown"
-              onClick={() => setShowBreakdown((value) => !value)}
+              onClick={() => tab === "Expenses"
+                ? setShowBreakdown((value) => !value)
+                : setShowRepaymentBreakdown((value) => !value)}
             >
               Spending breakdown
               <ChevronDown size={17} aria-hidden="true" />
             </button>
           </h2>
-          <div id="spending-breakdown" hidden={!showBreakdown}>
+          <div id="spending-breakdown" hidden={!breakdownOpen}>
             <div
               className="donut"
               role="img"
@@ -489,7 +518,7 @@ export function Budget() {
               </p>
             )}
             <p className="fine-print">
-              Reimbursements settle what people owe. They don’t count as new
+              Repayments settle what people owe. They don’t count as new
               spending.
             </p>
           </div>
@@ -540,6 +569,7 @@ export function BudgetSetup() {
   return (
     <Modal title="A budget that fits">
       <form
+        className="budget-setup-form"
         onSubmit={(e) => {
           e.preventDefault();
           const problem = moneyError(amount, MONEY_LIMITS.budget);
@@ -641,7 +671,8 @@ export function ExpenseForm() {
     ? 0
     : Math.round(Number(amount) * 100);
   const previewShares = splitCents(previewCents, people);
-  const hasRounding = shared && people.length > 1 && previewCents % people.length !== 0;
+  const hasRounding =
+    shared && people.length > 1 && previewCents % people.length !== 0;
   const scanReceipt = (fail = false) => {
     setScan("loading");
     setTimeout(() => {
@@ -820,7 +851,9 @@ export function ExpenseForm() {
             </select>
           </Field>
         </div>
-        <div className="note">Paid by you. Record only your own payment.</div>
+        <div className="note">
+          {shared ? "Enter the total you paid, including others’ shares." : "Enter the amount you paid."}
+        </div>
         <label className="check-row">
           <input
             type="checkbox"
@@ -829,11 +862,11 @@ export function ExpenseForm() {
           />
           <span>
             I paid for other people too
-            <small>
+            {shared && <small>
               {hasRounding
                 ? "Shares differ by 1¢ so they add up to the payment."
                 : "Split equally among the people selected below."}
-            </small>
+            </small>}
           </span>
         </label>
         {shared && (
@@ -855,9 +888,7 @@ export function ExpenseForm() {
                     }
                   />
                   <span>{m.name}</span>
-                  <strong>
-                    {money(previewShares[m.id] || 0)}
-                  </strong>
+                  <strong>{money(previewShares[m.id] || 0)}</strong>
                 </label>
               ))}
           </fieldset>

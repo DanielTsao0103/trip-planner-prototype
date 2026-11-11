@@ -113,3 +113,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Budget action placement (November 11, 2026): Dan wants Add expense at the top right of the expense log card, rather than the page heading. Keep it within the card on small screens without crowding the tabs.
 
 - Pages CI reliability (November 11, 2026): Ubuntu mirror DNS failures blocked browser dependency installation. The test/build job uses the official Playwright image, pinned by digest; keep its version matched to @playwright/test when updating dependencies. Preserve the full unit/browser/build and live-revision gates.
+
+- Budget UX-only review (November 11, 2026): Dan requested a 9.6 quality check focused solely on UX. Evaluate observed clarity, effort, readability, and interaction comfort independently from engineering tests; preserve actual scores and do not claim an unmet target. Keep the Add action at the ledger’s top right, using a compact label on narrow screens with the full accessible name.

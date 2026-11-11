@@ -808,17 +808,17 @@ export function Overlays() {
       );
     return (
       <Modal title="Confirm repayment">
-        <p>
+        <p className="repayment-copy">
           Record that you received{" "}
           <strong>{money(expense.shares[o.data.debtor])}</strong> from{" "}
           <strong>{t.members.find((person) => person.id === o.data.debtor)?.name || "Former traveler"}</strong> for {expense.purpose}.
         </p>
-        <p className="fine-print">
-          This only updates the reimbursement log. No money is transferred or
+        <p className="repayment-copy">
+          This only updates the repayment log. No money is transferred or
           verified.
         </p>
         <Button
-          variant="full"
+          variant="full repayment-confirm"
           onClick={() => {
             updateTrip((t) =>
               t.expenses

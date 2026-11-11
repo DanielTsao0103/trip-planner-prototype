@@ -96,7 +96,8 @@ export async function detailJourney(page, base, travelerEmail) {
   await field("What was it for?").fill("Shared lunch edited");
   await button("Save expense").click();
   await saved(page);
-  await button("Reimbursements").click();
+  await button("Repayments").click();
+  await page.locator(".repayment-group summary").first().click();
   await button("Mark paid").click();
   await page.getByRole("dialog", { name: "Confirm repayment" }).getByRole("button", { name: "Mark paid", exact: true }).click();
   await saved(page);
@@ -147,7 +148,8 @@ export async function detailJourney(page, base, travelerEmail) {
     page.getByRole("button", { name: "Remove Guest Traveler", exact: true }),
   ).toHaveCount(0);
   await goto("12");
-  await button("Reimbursements").click();
+  await button("Repayments").click();
+  await page.locator(".repayment-group summary").first().click();
   await expect(page.getByText("Completed", { exact: true })).toBeVisible();
   return { today };
 }

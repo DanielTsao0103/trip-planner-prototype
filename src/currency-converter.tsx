@@ -179,14 +179,6 @@ function CurrencyCalculator() {
         <div>
           <p>Your budget and saved expenses stay in USD.</p>
         </div>
-        <Button
-          variant="outline small"
-          disabled={same || loading}
-          onClick={() => setRefresh((value) => value + 1)}
-        >
-          <RefreshCw size={15} aria-hidden="true" />
-          Refresh rates
-        </Button>
       </div>
       <div className="currency-fields">
         <Field label="Amount to convert">
@@ -292,6 +284,14 @@ function CurrencyCalculator() {
       </div>
       <div className="currency-note">
         <span>Weekly reference rates · Bank fees may differ.</span>
+        <Button
+          variant="outline small"
+          disabled={same || loading}
+          onClick={() => setRefresh((value) => value + 1)}
+        >
+          <RefreshCw size={15} aria-hidden="true" />
+          Refresh rates
+        </Button>
         <details className="currency-details">
           <summary>Rate details</summary>
           <p>
