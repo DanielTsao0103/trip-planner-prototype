@@ -22,7 +22,7 @@ test("validates rate identity, positivity, dates and maximum age", () => {
     { rate: Infinity },
     { rate: "1344" },
     { date: "2026-02-30" },
-    { date: "2026-11-01" },
+    { date: "2026-10-20" },
     { date: "2027-11-11" },
   ]) {
     assert.throws(() => parseRate({ ...valid, ...patch }, "USD", "KRW", now));

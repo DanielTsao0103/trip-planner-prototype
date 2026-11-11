@@ -1,6 +1,8 @@
 /** Public reference rates only: no trip details, account data, or amounts leave the browser. */
-export const RATE_TTL_MS = 60 * 60 * 1000;
-export const MAX_RATE_AGE_MS = 7 * 24 * RATE_TTL_MS;
+const DAY_MS = 24 * 60 * 60 * 1000;
+export const RATE_TTL_MS = 7 * DAY_MS;
+// Allow a weekly refresh cycle plus a week of clearly labeled outage fallback.
+export const MAX_RATE_AGE_MS = 14 * DAY_MS;
 const CACHE_PREFIX = "stir-crazy-exchange-v1:";
 export const CURRENCIES = {
   USD: "US dollar",
@@ -71,7 +73,7 @@ export function parseRate(
     !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
     !Number.isFinite(timestamp) ||
     new Date(timestamp).toISOString().slice(0, 10) !== date ||
-    timestamp > now + 2 * 24 * RATE_TTL_MS ||
+    timestamp > now + 2 * DAY_MS ||
     now - timestamp > MAX_RATE_AGE_MS
   ) {
     throw new Error("Invalid or outdated exchange rate");

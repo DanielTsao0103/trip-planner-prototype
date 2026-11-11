@@ -232,6 +232,6 @@ The illustration includes planned components and predates the latest persistence
 
 ### Budget currency converter
 
-The Budget page includes a 37-currency converter, including South Korean won (KRW). [Frankfurter](https://frankfurter.dev/) supplies current reference rates without an API key or paid plan. The page checks rates hourly while open and on return, with a manual refresh button, publication date, and clearly labeled saved-rate fallback during outages. These are planning estimates; banks/card issuers may use different rates and fees. Budgets and recorded expenses remain in USD. See `IMPLEMENTATION_STATUS.md` for freshness and failure rules.
+The Budget page includes a 37-currency converter, including South Korean won (KRW). [Frankfurter](https://frankfurter.dev/) supplies current reference rates without an API key or paid plan. The page refreshes rates once a week while open or when you return after the cached rate expires, with a manual refresh button, publication date, and clearly labeled saved-rate fallback during outages. These are planning estimates; banks/card issuers may use different rates and fees. Budgets and recorded expenses remain in USD. See `IMPLEMENTATION_STATUS.md` for freshness and failure rules.
 
 Complete: standalone conversion, currency swapping, current-rate lookup, automatic/manual refresh, validation, and desktop/mobile failure coverage. Not included: foreign-currency expense accounting or bank/card-specific conversion rates.

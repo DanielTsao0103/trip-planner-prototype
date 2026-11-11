@@ -106,24 +106,31 @@ test("discards outdated rates and never shows a response for the wrong pair", as
   await expect(result(page).locator("strong")).toHaveText("—");
 });
 
-test("automatically renews expired rates while the budget stays open", async ({
+test("keeps rates for a week across focus and reconnect, then renews automatically", async ({
   page,
 }) => {
   let count = 0;
   await page.clock.install();
-  await page.route("https://api.frankfurter.dev/**", (route) =>
+  await page.route("https://api.frankfurter.dev/**", async (route) =>
     route.fulfill({
       json: {
         base: "USD",
         quote: "KRW",
-        date,
+        date: await page.evaluate(() => new Date().toISOString().slice(0, 10)),
         rate: ++count === 1 ? 1400 : 1500,
       },
     }),
   );
   await openBudget(page);
   await expect(result(page)).toContainText("KRW 140,000");
-  await page.clock.fastForward(61 * 60 * 1000);
+  await page.clock.fastForward(6 * 24 * 60 * 60 * 1000);
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("focus"));
+    window.dispatchEvent(new Event("online"));
+  });
+  await expect(result(page)).toContainText("KRW 140,000");
+  expect(count).toBe(1);
+  await page.clock.fastForward(24 * 60 * 60 * 1000 + 1000);
   await expect(result(page)).toContainText("KRW 150,000");
   expect(count).toBe(2);
 });

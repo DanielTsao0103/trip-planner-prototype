@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ArrowLeftRight, RefreshCw } from "lucide-react";
 import { Button, Field } from "./ui";
 import {
@@ -7,6 +7,7 @@ import {
   formatCurrency,
   getExchangeRate,
   MAX_RATE_AGE_MS,
+  RATE_TTL_MS,
   parseConversionAmount,
   type Currency,
   type ExchangeRate,
@@ -25,6 +26,7 @@ export function CurrencyConverter() {
   const [to, setTo] = useState<Currency>("KRW");
   const [amount, setAmount] = useState("100");
   const [refresh, setRefresh] = useState(0);
+  const handledRefresh = useRef(0);
   const [state, setState] = useState<RateState | null>(null);
   const same = from === to;
 
@@ -32,9 +34,12 @@ export function CurrencyConverter() {
     if (from === to) return;
     const controller = new AbortController();
     let busy = false;
+    let timer: number | undefined;
     async function load(force = false) {
       if (busy || controller.signal.aborted) return;
       busy = true;
+      window.clearTimeout(timer);
+      let nextCheck = Date.now() + RATE_TTL_MS;
       setState({
         base: from,
         quote: to,
@@ -44,6 +49,7 @@ export function CurrencyConverter() {
       });
       try {
         const rate = await getExchangeRate(from, to, controller.signal, force);
+        nextCheck = rate.checkedAt + RATE_TTL_MS;
         if (!controller.signal.aborted)
           setState({
             base: from,
@@ -63,23 +69,30 @@ export function CurrencyConverter() {
           });
       } finally {
         busy = false;
+        if (!controller.signal.aborted) {
+          timer = window.setTimeout(
+            onFocus,
+            Math.max(1000, nextCheck - Date.now()),
+          );
+        }
       }
     }
-    void load(refresh > 0);
-    const onFocus = () => {
+    function onFocus() {
       if (document.visibilityState === "visible") void load();
-    };
+    }
     const onOnline = () => {
-      void load(true);
+      void load();
     };
-    // Check expiry while open; the one-hour cache avoids polling the provider every minute.
-    const timer = window.setInterval(onFocus, 60_000);
+    // Only an explicit Refresh click bypasses the weekly cache.
+    const force = refresh !== handledRefresh.current;
+    handledRefresh.current = refresh;
+    void load(force);
     window.addEventListener("focus", onFocus);
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onFocus);
     return () => {
       controller.abort();
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onFocus);
@@ -214,10 +227,10 @@ export function CurrencyConverter() {
             )}
             {rate &&
               Date.now() - Date.parse(`${rate.date}T00:00:00Z`) >
-                4 * 24 * 60 * 60 * 1000 && (
+                RATE_TTL_MS && (
                 <p>
-                  This rate is more than four days old. A newer rate is not
-                  available yet.
+                  This rate is more than a week old. Refresh rates for the
+                  latest available estimate.
                 </p>
               )}
             {parsed !== null && converted !== null && !validResult && (
@@ -231,9 +244,9 @@ export function CurrencyConverter() {
         <a href="https://frankfurter.dev/" target="_blank" rel="noreferrer">
           Frankfurter
         </a>
-        . Checked hourly while this page is open. Rates may pause on weekends
-        and holidays; card and bank fees may differ. Your budget and saved
-        expenses stay in USD.
+        . Automatically refreshed weekly when you use this page. Rates may pause
+        on weekends and holidays; card and bank fees may differ. Your budget and
+        saved expenses stay in USD.
       </p>
     </section>
   );
