@@ -16,6 +16,22 @@
 .budget-page .budget-toolbar {
   margin-bottom: 18px;
 }
+@media (min-width: 1101px) {
+  .budget-intro {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 28px;
+    margin-bottom: 24px;
+  }
+  .budget-intro .page-head,
+  .budget-intro .budget-toolbar {
+    margin: 0;
+  }
+  .budget-intro .budget-toolbar {
+    justify-content: flex-end;
+  }
+}
 .budget-page .budget-toolbar .text-link {
   font-size: 13px;
   min-height: 44px;
@@ -39,11 +55,27 @@
   font-size: 14px;
 }
 .budget-page .expense-row {
-  padding: 14px 0;
+  padding: 12px 0;
+  align-items: flex-start;
 }
-.budget-page .expense-main > span,
-.budget-page .expense-main > small {
-  font-size: 12px;
+.budget-page .expense-icon {
+  margin-top: 2px;
+}
+.expense-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.expense-meta time {
+  white-space: nowrap;
+}
+.budget-page .ledger-toolbar {
+  justify-content: flex-start;
+  gap: 12px;
 }
 .budget-page .expense-amount strong {
   font-size: 15px;
@@ -94,7 +126,7 @@
     gap: 8px;
   }
   .budget-page .ledger-header .tabs {
-    gap: 8px;
+    gap: 18px;
   }
   .budget-page .ledger-header .tabs > button {
     font-size: 13px;
@@ -114,6 +146,9 @@
   }
 }
 @container (max-width: 280px) {
+  .budget-page .ledger-header .tabs {
+    gap: 12px;
+  }
   .ledger-add > svg {
     display: none;
   }
@@ -133,7 +168,7 @@
   margin-top: 14px;
 }
 .expense-split {
-  font-size: 12px;
+  font-size: 13px;
   margin-top: 4px;
 }
 .expense-split summary {
@@ -164,13 +199,34 @@
 .expense-form fieldset .check-row {
   margin: 4px 0;
 }
+/* The footer occupies its own row, so it cannot cover focused form fields. */
+.modal:has(.expense-form) .modal-body {
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+.expense-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+}
+.expense-fields {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 16px;
+  padding: 24px 27px 8px;
+}
 .expense-form .form-actions {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  padding: 12px 0;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 12px 27px 20px;
   border-top: 1px solid var(--line);
-  background: hsl(calc(var(--hue) + -4) calc(57.1% * var(--sm)) calc(var(--la) + var(--lb) * 97.3%));
+  background: hsl(
+    calc(var(--hue) + -4) calc(57.1% * var(--sm))
+      calc(var(--la) + var(--lb) * 97.3%)
+  );
 }
 .expense-form .form-actions > .btn,
 .budget-setup-form .btn,
@@ -186,8 +242,13 @@
   font-size: 13px;
 }
 .expense-form .check-row small,
-.expense-form .note {
+.expense-amount-hint {
   font-size: 13px;
+}
+.expense-amount-hint {
+  margin: -4px 0 16px;
+  color: var(--muted);
+  line-height: 1.5;
 }
 .expense-form .check-row strong {
   font-size: 15px;
@@ -218,8 +279,28 @@
   justify-content: space-between;
   margin: 16px 0;
 }
-.repayment-toolbar .ledger-help {
+.repayment-overview {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
   margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.repayment-overview strong {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.repayment-items {
+  max-width: 620px;
+  padding-left: 16px;
+  margin: 12px 0 16px;
+  border-left: 2px solid var(--line);
+}
+.repayment-items .debt-row:last-child {
+  border-bottom: 0;
 }
 .repayment-toolbar select {
   padding: 10px;
@@ -272,9 +353,26 @@
   border-bottom: 1px solid var(--line);
 }
 .budget-page .repayment-group .debt-row {
-  padding: 14px 0;
+  padding: 10px 0;
+}
+.budget-page .finance-layout.repayments-view {
+  grid-template-columns: minmax(0, 1fr);
+}
+.repayments-view .chart-card {
+  padding: 0 22px;
+}
+@media (min-width: 761px) {
+  .repayment-items .debt-row > div {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+  .repayment-items .debt-row p {
+    margin: 0;
+  }
 }
 .budget-page .chart-card {
+  margin-bottom: 0;
   display: block;
   padding: 22px;
 }
@@ -312,6 +410,7 @@
   font-size: 10px;
 }
 .breakdown-overage {
+  margin: 14px 0 0;
   display: flex;
   justify-content: space-between;
   padding-top: 14px;
@@ -339,7 +438,7 @@
   font-size: 12px;
 }
 .currency-converter {
-  margin: 24px 0;
+  margin: 23px 0;
   padding: 0;
 }
 .currency-disclosure-heading {
@@ -415,7 +514,7 @@
 .currency-result p,
 .currency-note {
   margin: 6px 0 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .currency-note {
@@ -446,12 +545,36 @@
 .toast button {
   color: inherit;
 }
-@media (max-width: 1050px) {
+body:has(.budget-page) .toast {
+  font-size: 14px;
+}
+/* A scrim dims the background in both themes; it must not invert to white. */
+body:has(.budget-page) .overlay {
+  background: rgb(13 24 39 / 55%);
+}
+body:has(.budget-page) .modal-head .icon-btn {
+  width: 44px;
+  height: 44px;
+}
+/* Use one column while the sidebar leaves too little room for a readable ledger. */
+@media (min-width: 761px) and (max-width: 1100px) {
   .budget-page .finance-layout {
-    grid-template-columns: minmax(0, 1fr) 245px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .budget-page .chart-card {
+    padding: 0 22px;
   }
 }
 @media (max-width: 760px) {
+  .currency-converter {
+    margin-top: 18px;
+  }
+  .expense-fields {
+    padding: 20px 20px 8px;
+  }
+  .expense-form .form-actions {
+    padding: 12px 20px 20px;
+  }
   /* Keep every parent link, without repeating the trip name in two rows. */
   .budget-shell .breadcrumbs ol {
     flex-wrap: nowrap;
@@ -471,7 +594,7 @@
     flex-direction: row;
     align-items: center;
     gap: 12px;
-    margin-bottom: 14px;
+    margin: 0 0 4px;
   }
   .budget-page .page-head > div:first-child {
     flex: 1;
@@ -487,7 +610,8 @@
     margin: 0;
   }
   .budget-page .budget-toolbar {
-    margin-top: 8px;
+    margin-top: 0;
+    margin-bottom: 12px;
     gap: 8px 12px;
   }
   .budget-page .budget-toolbar .badge {
@@ -583,5 +707,127 @@
   }
   .budget-page .budget-stats > div > span {
     font-size: 11px;
+  }
+}
+
+/* Inline confirmation leaves ledger rows visible and keeps feedback near the action. */
+.budget-feedback {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.budget-feedback > svg {
+  flex-shrink: 0;
+}
+.budget-feedback > span {
+  flex: 1;
+}
+.budget-feedback > button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+/* Shared rows give metadata a complete line; the split and Edit share an action row. */
+.budget-page .expense-row:has(.expense-split) {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  column-gap: 12px;
+  row-gap: 0;
+}
+.expense-row:has(.expense-split) .expense-icon {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  align-self: start;
+}
+.expense-row:has(.expense-split) .expense-main,
+.expense-row:has(.expense-split) .expense-amount {
+  display: contents;
+}
+.expense-row:has(.expense-split) .expense-main > strong {
+  grid-column: 2;
+  grid-row: 1;
+}
+.expense-row:has(.expense-split) .expense-amount > strong {
+  grid-column: 3;
+  grid-row: 1;
+  text-align: right;
+}
+.expense-row:has(.expense-split) .expense-meta {
+  grid-column: 2 / -1;
+  grid-row: 2;
+}
+.expense-row:has(.expense-split) .expense-split {
+  grid-column: 2 / -1;
+  grid-row: 3;
+}
+.expense-row:has(.expense-split) .expense-split summary {
+  max-width: calc(100% - 64px);
+}
+.expense-row:has(.expense-split) .expense-amount > button {
+  grid-column: 3;
+  grid-row: 3;
+  align-self: start;
+  justify-self: end;
+  margin-top: 4px;
+}
+/* Individual views retain their secondary full-expense amount without overlap. */
+.expense-row:has(.expense-amount > small) .expense-meta {
+  grid-column: 2;
+}
+.expense-row:has(.expense-amount > small) .expense-amount > small {
+  grid-column: 3;
+  grid-row: 2;
+  text-align: right;
+}
+.budget-page .expense-meta,
+.budget-page .expense-split,
+.budget-page .expense-amount button,
+.budget-page .chart-legend > div,
+.budget-page .chart-legend strong {
+  font-size: 14px;
+}
+.budget-page .expense-amount button {
+  min-height: 44px;
+}
+.budget-page .budget-toolbar .badge {
+  font-size: 12px;
+}
+.repayments-view .debt-list {
+  max-width: 720px;
+}
+.budget-page > .budget-feedback {
+  margin: -12px 0 16px;
+  border-bottom: 0;
+}
+@media (max-width: 760px) {
+  .budget-page .expense-row:has(.expense-split) {
+    grid-template-columns: 29px minmax(0, 1fr) auto;
+    column-gap: 10px;
+  }
+}
+@media (max-width: 360px) {
+  .budget-page .expense-row:has(.expense-split) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .expense-row:has(.expense-split) .expense-main > strong,
+  .expense-row:has(.expense-split) .expense-meta,
+  .expense-row:has(.expense-split) .expense-split {
+    grid-column-start: 1;
+  }
+  .expense-row:has(.expense-split) .expense-amount > strong,
+  .expense-row:has(.expense-split) .expense-amount > button,
+  .expense-row:has(.expense-amount > small) .expense-amount > small {
+    grid-column: 2;
+  }
+  .expense-row:has(.expense-amount > small) .expense-meta {
+    grid-column: 1;
   }
 }

@@ -50,6 +50,9 @@ type Context = {
   close: () => void;
   overlay: Overlay;
   toast: (message: string) => void;
+  /** Transient UI feedback; Budget presents it inline so it cannot cover expenses. */
+  message: string;
+  dismissMessage: () => void;
   updateTrip: (fn: (t: Trip) => void) => void;
   login: (id: string) => void;
   explore: () => void;
@@ -604,6 +607,8 @@ export function Provider({
     overlay,
     open: (kind, data) => setOverlay({ kind, data }),
     close: () => setOverlay(null),
+    message,
+    dismissMessage: () => setMessage(""),
     toast: (message) => {
       if (!queue.pending.size) setMessage(message);
     },
@@ -747,7 +752,7 @@ export function Provider({
           Changes saved
         </div>
       )}
-      {message && (
+      {message && (route.page !== 12 || !trip || overlay) && (
         <div className="toast" role="status">
           {message}
           <button aria-label="Dismiss message" onClick={() => setMessage("")}>

@@ -3,11 +3,14 @@ import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
 import React, { useState } from "react";
 import {
   ArrowDownLeft,
+  ArrowLeftRight,
+  SlidersHorizontal,
   ArrowUpRight,
   Camera,
   Check,
   ChevronRight,
   ChevronDown,
+  X,
   Mail,
   Plus,
   Receipt,
@@ -30,15 +33,46 @@ import {
   type Expense,
 } from "./domain";
 export const CATEGORIES = ["Stay", "Food", "Transport", "Activities", "Other"];
+
+/** Keep transient feedback beside the relevant Budget section without covering rows. */
+function BudgetFeedback({
+  message,
+  dismiss,
+}: {
+  message: string;
+  dismiss: () => void;
+}) {
+  return (
+    <div className="budget-feedback" role="status">
+      <Info size={18} aria-hidden="true" />
+      <span>{message}</span>
+      <button aria-label="Dismiss message" onClick={dismiss}>
+        <X size={16} aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
 export function Budget() {
-  const { trip: t, s, user, open, updateTrip, toast } = useApp();
+  const {
+    trip: t,
+    s,
+    user,
+    open,
+    updateTrip,
+    toast,
+    message,
+    dismissMessage,
+    overlay,
+  } = useApp();
   const [tab, setTab] = useState("Expenses"),
     [filter, setFilter] = useState("All");
   const [showBreakdown, setShowBreakdown] = useState(
-    () => window.innerWidth > 760,
+    () => window.innerWidth > 1100,
   );
   const [showRepaymentBreakdown, setShowRepaymentBreakdown] = useState(false);
-  const breakdownOpen = tab === "Expenses" ? showBreakdown : showRepaymentBreakdown;
+  const breakdownOpen =
+    tab === "Expenses" ? showBreakdown : showRepaymentBreakdown;
   const [converterExpanded, setConverterExpanded] = useState(false);
   const [converterJump, setConverterJump] = useState(0);
   const [repaymentView, setRepaymentView] = useState("Owed to me");
@@ -140,34 +174,37 @@ export function Budget() {
   };
   return (
     <div className="budget-page">
-      <PageHead
-        title="Budget"
-        description={
-          individual
-            ? "Your share of the trip, in one place."
-            : "Your shared trip budget, without the guesswork."
-        }
-      />
-      <div className="budget-toolbar">
-        <Badge tone="green">
-          {individual ? "Individual budgets" : "Combined group budget"}
-        </Badge>
-        <button
-          className="text-link currency-shortcut"
-          type="button"
-          onClick={() => {
-            setConverterExpanded(true);
-            setConverterJump((value) => value + 1);
-          }}
-        >
-          USD · Convert
-        </button>
-        {(isOwner(t, s.userId) || individual) && (
-          <button className="text-link" onClick={() => open("budgetSetup")}>
-            {budget === null ? "Set budget" : "Budget settings"}
-            <ArrowUpRight size={15} />
+      <div className="budget-intro">
+        <PageHead
+          title="Budget"
+          description={
+            individual
+              ? "Your share of the trip, in one place."
+              : "Your shared trip budget, without the guesswork."
+          }
+        />
+        <div className="budget-toolbar">
+          <Badge tone="green">
+            {individual ? "Individual budgets" : "Combined group budget"}
+          </Badge>
+          <button
+            className="text-link currency-shortcut"
+            type="button"
+            onClick={() => {
+              setConverterExpanded(true);
+              setConverterJump((value) => value + 1);
+            }}
+          >
+            <ArrowLeftRight size={15} aria-hidden="true" />
+            USD · Convert
           </button>
-        )}
+          {(isOwner(t, s.userId) || individual) && (
+            <button className="text-link" onClick={() => open("budgetSetup")}>
+              {budget === null ? "Set budget" : "Budget settings"}
+              <SlidersHorizontal size={15} aria-hidden="true" />
+            </button>
+          )}
+        </div>
       </div>
       {budget === null && (
         <div className="info-banner">
@@ -183,6 +220,9 @@ export function Budget() {
             </Button>
           )}
         </div>
+      )}
+      {message.startsWith("Budget updated.") && !overlay && (
+        <BudgetFeedback message={message} dismiss={dismissMessage} />
       )}
       <div className="budget-stats">
         <div>
@@ -213,7 +253,9 @@ export function Budget() {
           </small>
         </div>
       </div>
-      <div className="finance-layout">
+      <div
+        className={`finance-layout ${tab === "Reimbursements" ? "repayments-view" : ""}`}
+      >
         <div className="card ledger-card">
           <div className="ledger-header">
             <div className="tabs">
@@ -244,6 +286,9 @@ export function Budget() {
               </span>
             </Button>
           </div>
+          {message && !message.startsWith("Budget updated.") && !overlay && (
+            <BudgetFeedback message={message} dismiss={dismissMessage} />
+          )}
           {tab === "Expenses" ? (
             <>
               <div className="ledger-toolbar">
@@ -272,12 +317,20 @@ export function Budget() {
                     </span>
                     <div className="expense-main">
                       <strong>{e.purpose}</strong>
-                      <span>
-                        {e.category} · paid by {name(e.payer).split(" ")[0]}
-                      </span>
-                      <small>
-                        {e.source} · {e.date}
-                      </small>
+                      <div className="expense-meta">
+                        <span>
+                          {e.category} · paid by {name(e.payer).split(" ")[0]}
+                        </span>
+                        <time dateTime={e.date}>
+                          {new Intl.DateTimeFormat("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            timeZone: "UTC",
+                          }).format(new Date(`${e.date}T00:00:00Z`))}
+                        </time>
+                        {e.source !== "Manual" && <span>{e.source}</span>}
+                      </div>
                       {Object.values(e.shares).filter((value) => value > 0)
                         .length > 1 && (
                         <details className="expense-split">
@@ -356,8 +409,22 @@ export function Budget() {
           ) : (
             <>
               <div className="repayment-toolbar">
-                <p className="ledger-help">
-                  Only the person owed can mark a repayment paid.
+                <p className="repayment-overview" aria-live="polite">
+                  <span>
+                    {repaymentView === "Owed to me"
+                      ? "Owed to you"
+                      : repaymentView === "I owe"
+                        ? "You owe"
+                        : "Total unpaid"}
+                  </span>
+                  <strong>
+                    {money(
+                      [...repaymentGroups.values()].reduce(
+                        (sum, group) => sum + group.unpaid,
+                        0,
+                      ),
+                    )}
+                  </strong>
                 </p>
                 <select
                   aria-label="Show repayments"
@@ -375,9 +442,17 @@ export function Budget() {
                     <summary>
                       <span className="repayment-person">
                         <strong>
-                          {name(group.debtor)}{" "}
-                          {group.unpaid > 0 ? "owes" : "repaid"}{" "}
-                          {name(group.payer)}
+                          {group.debtor === travelerId
+                            ? "You"
+                            : name(group.debtor)}{" "}
+                          {group.unpaid > 0
+                            ? group.debtor === travelerId
+                              ? "owe"
+                              : "owes"
+                            : "repaid"}{" "}
+                          {group.payer === travelerId
+                            ? "you"
+                            : name(group.payer)}
                         </strong>
                         <small>
                           {group.items.length}{" "}
@@ -391,28 +466,30 @@ export function Budget() {
                       </strong>
                       <ChevronDown size={17} aria-hidden="true" />
                     </summary>
-                    {group.items.map(({ expense: e, debtor, amount }) => (
-                      <div className="debt-row" key={e.id + debtor}>
-                        <div>
-                          <strong>{money(amount)}</strong>
-                          <p>{e.purpose}</p>
-                          {e.settled.includes(debtor) && (
-                            <Badge tone="green">Completed</Badge>
-                          )}
+                    <div className="repayment-items">
+                      {group.items.map(({ expense: e, debtor, amount }) => (
+                        <div className="debt-row" key={e.id + debtor}>
+                          <div>
+                            <strong>{money(amount)}</strong>
+                            <p>{e.purpose}</p>
+                            {e.settled.includes(debtor) && (
+                              <Badge tone="green">Completed</Badge>
+                            )}
+                          </div>
+                          {e.payer === travelerId &&
+                            !e.settled.includes(debtor) && (
+                              <Button
+                                variant="outline small"
+                                onClick={() =>
+                                  open("settle", { expenseId: e.id, debtor })
+                                }
+                              >
+                                Mark paid
+                              </Button>
+                            )}
                         </div>
-                        {e.payer === travelerId &&
-                          !e.settled.includes(debtor) && (
-                            <Button
-                              variant="outline small"
-                              onClick={() =>
-                                open("settle", { expenseId: e.id, debtor })
-                              }
-                            >
-                              Mark paid
-                            </Button>
-                          )}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </details>
                 ))}
               </div>
@@ -444,23 +521,25 @@ export function Budget() {
               )}
             </>
           )}
-          <details className="budget-samples">
-            <summary>Sample tools</summary>
-            <div className="ledger-tools">
-              <button onClick={() => open("expense", { scan: true })}>
-                <Camera size={16} />
-                Try sample receipt
-              </button>
-              <button onClick={gmail}>
-                <Mail size={16} />
-                Match sample Gmail receipt
-              </button>
-              <button onClick={transaction}>
-                <ArrowDownLeft size={16} />
-                Simulate transaction
-              </button>
-            </div>
-          </details>
+          {tab === "Expenses" && filter === "All" && (
+            <details className="budget-samples">
+              <summary>Sample tools</summary>
+              <div className="ledger-tools">
+                <button onClick={() => open("expense", { scan: true })}>
+                  <Camera size={16} />
+                  Try sample receipt
+                </button>
+                <button onClick={gmail}>
+                  <Mail size={16} />
+                  Match sample Gmail receipt
+                </button>
+                <button onClick={transaction}>
+                  <ArrowDownLeft size={16} />
+                  Simulate transaction
+                </button>
+              </div>
+            </details>
+          )}
         </div>
         <aside className="card chart-card">
           <h2 className="breakdown-heading">
@@ -468,9 +547,11 @@ export function Budget() {
               type="button"
               aria-expanded={breakdownOpen}
               aria-controls="spending-breakdown"
-              onClick={() => tab === "Expenses"
-                ? setShowBreakdown((value) => !value)
-                : setShowRepaymentBreakdown((value) => !value)}
+              onClick={() =>
+                tab === "Expenses"
+                  ? setShowBreakdown((value) => !value)
+                  : setShowRepaymentBreakdown((value) => !value)
+              }
             >
               Spending breakdown
               <ChevronDown size={17} aria-hidden="true" />
@@ -748,152 +829,159 @@ export function ExpenseForm() {
           close();
         }}
       >
-        {original && original.payer === travelerId && (
-          <Button
-            variant="text danger"
-            onClick={() => {
-              if (original.settled.length) {
-                setError(
-                  "Completed repayments must stay in the history. Add an adjustment expense instead.",
-                );
-                return;
-              }
-              if (
-                window.confirm("Delete this expense and its unpaid shares?")
-              ) {
-                updateTrip((trip) => {
-                  trip.expenses = trip.expenses.filter(
-                    (e) => e.id !== original.id,
+        <div className="expense-fields">
+          {original && original.payer === travelerId && (
+            <Button
+              variant="text danger"
+              onClick={() => {
+                if (original.settled.length) {
+                  setError(
+                    "Completed repayments must stay in the history. Add an adjustment expense instead.",
                   );
-                });
-                close();
-              }
-            }}
-          >
-            Delete expense
-          </Button>
-        )}
-        {scan && (
-          <div className="scan-box">
-            <ScanLine size={30} />
-            <h3>
-              {scan === "loading"
-                ? "Reading the sample receipt…"
-                : scan === "review"
-                  ? "A few details, ready to review."
-                  : "Start with a receipt."}
-            </h3>
-            <p>Simulated scanning. Choose an image or try the sample.</p>
-            <input
-              aria-label="Receipt image"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) {
-                  if (!f.type.startsWith("image/") || f.size > 10000000) {
-                    setError("Choose an image under 10 MB.");
-                    return;
-                  }
-                  scanReceipt();
+                  return;
+                }
+                if (
+                  window.confirm("Delete this expense and its unpaid shares?")
+                ) {
+                  updateTrip((trip) => {
+                    trip.expenses = trip.expenses.filter(
+                      (e) => e.id !== original.id,
+                    );
+                  });
+                  close();
                 }
               }}
-            />
-            <Button
-              variant="outline"
-              disabled={scan === "loading"}
-              onClick={() => scanReceipt()}
             >
-              Use sample receipt
+              Delete expense
             </Button>
-            <button
-              className="text-link"
-              type="button"
-              onClick={() => scanReceipt(true)}
-            >
-              Try scan failure
-            </button>
-            {scan === "failed" && (
-              <ErrorBox text="The scan didn’t work. Try another image or type the details below." />
-            )}
-          </div>
-        )}
-        <Field label="What was it for?">
-          <input
-            required
-            maxLength={TEXT_LIMITS.expense}
-            value={purpose}
-            onChange={(e) => setPurpose(e.target.value)}
-            placeholder="Lunch by the waterfront"
-          />
-        </Field>
-        <div className="form-columns">
-          <Field label="Amount (USD)">
+          )}
+          {scan && (
+            <div className="scan-box">
+              <ScanLine size={30} />
+              <h3>
+                {scan === "loading"
+                  ? "Reading the sample receipt…"
+                  : scan === "review"
+                    ? "A few details, ready to review."
+                    : "Start with a receipt."}
+              </h3>
+              <p>Simulated scanning. Choose an image or try the sample.</p>
+              <input
+                aria-label="Receipt image"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) {
+                    if (!f.type.startsWith("image/") || f.size > 10000000) {
+                      setError("Choose an image under 10 MB.");
+                      return;
+                    }
+                    scanReceipt();
+                  }
+                }}
+              />
+              <Button
+                variant="outline"
+                disabled={scan === "loading"}
+                onClick={() => scanReceipt()}
+              >
+                Use sample receipt
+              </Button>
+              <button
+                className="text-link"
+                type="button"
+                onClick={() => scanReceipt(true)}
+              >
+                Try scan failure
+              </button>
+              {scan === "failed" && (
+                <ErrorBox text="The scan didn’t work. Try another image or type the details below." />
+              )}
+            </div>
+          )}
+          <Field label="What was it for?">
             <input
               required
-              type="number"
-              min="0.01"
-              max={MONEY_LIMITS.expense / 100}
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
+              maxLength={TEXT_LIMITS.expense}
+              value={purpose}
+              onChange={(e) => setPurpose(e.target.value)}
+              placeholder="Lunch by the waterfront"
             />
           </Field>
-          <Field label="Category">
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-          </Field>
+          <div className="form-columns">
+            <Field label="Amount (USD)">
+              <input
+                required
+                type="number"
+                min="0.01"
+                aria-describedby="expense-amount-hint"
+                max={MONEY_LIMITS.expense / 100}
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </Field>
+            <Field label="Category">
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <p className="expense-amount-hint" id="expense-amount-hint">
+            {shared
+              ? "Enter the total you paid, including others’ shares."
+              : "Enter the amount you paid."}
+          </p>
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={shared}
+              onChange={(e) => setShared(e.target.checked)}
+            />
+            <span>
+              I paid for other people too
+              {shared && (
+                <small>
+                  {hasRounding
+                    ? "Shares differ by 1¢ so they add up to the payment."
+                    : "Split equally among the people selected below."}
+                </small>
+              )}
+            </span>
+          </label>
+          {shared && (
+            <fieldset>
+              <legend>Who’s included?</legend>
+              {t.members
+                .filter((m) => m.status === "accepted")
+                .map((m) => (
+                  <label className="check-row" key={m.id}>
+                    <input
+                      type="checkbox"
+                      checked={people.includes(m.id)}
+                      onChange={(e) =>
+                        setPeople(
+                          e.target.checked
+                            ? [...people, m.id]
+                            : people.filter((id) => id !== m.id),
+                        )
+                      }
+                    />
+                    <span>{m.name}</span>
+                    <strong>{money(previewShares[m.id] || 0)}</strong>
+                  </label>
+                ))}
+            </fieldset>
+          )}
+          <ErrorBox text={error} />
         </div>
-        <div className="note">
-          {shared ? "Enter the total you paid, including others’ shares." : "Enter the amount you paid."}
-        </div>
-        <label className="check-row">
-          <input
-            type="checkbox"
-            checked={shared}
-            onChange={(e) => setShared(e.target.checked)}
-          />
-          <span>
-            I paid for other people too
-            {shared && <small>
-              {hasRounding
-                ? "Shares differ by 1¢ so they add up to the payment."
-                : "Split equally among the people selected below."}
-            </small>}
-          </span>
-        </label>
-        {shared && (
-          <fieldset>
-            <legend>Who’s included?</legend>
-            {t.members
-              .filter((m) => m.status === "accepted")
-              .map((m) => (
-                <label className="check-row" key={m.id}>
-                  <input
-                    type="checkbox"
-                    checked={people.includes(m.id)}
-                    onChange={(e) =>
-                      setPeople(
-                        e.target.checked
-                          ? [...people, m.id]
-                          : people.filter((id) => id !== m.id),
-                      )
-                    }
-                  />
-                  <span>{m.name}</span>
-                  <strong>{money(previewShares[m.id] || 0)}</strong>
-                </label>
-              ))}
-          </fieldset>
-        )}
-        <ErrorBox text={error} />
         <div className="form-actions">
           <Button variant="text" onClick={close}>
             Cancel

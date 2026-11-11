@@ -68,9 +68,20 @@ test("saving shared expenses returns to the ledger without a simulated message i
     .check();
   await page.getByRole("button", { name: "Save expense", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(
-    page.locator(".expense-row").filter({ hasText: "Shared lunch UX check" }),
-  ).toContainText("$48.50");
+  const addedExpense = page
+    .locator(".expense-row")
+    .filter({ hasText: "Shared lunch UX check" });
+  await expect(addedExpense).toContainText("$48.50");
+  const feedback = page
+    .getByRole("status")
+    .filter({ hasText: "Expense recorded" });
+  await expect(feedback).toBeVisible();
+  const feedbackBox = await feedback.boundingBox();
+  const expenseBox = await addedExpense.boundingBox();
+  expect(feedbackBox!.y + feedbackBox!.height).toBeLessThan(expenseBox!.y);
+  await feedback.getByRole("button", { name: "Dismiss message" }).click();
+  await expect(feedback).toHaveCount(0);
+  await expect(addedExpense).toBeVisible();
 });
 
 test("repayment confirmation identifies the traveler and amount before recording payment", async ({
@@ -78,10 +89,14 @@ test("repayment confirmation identifies the traveler and amount before recording
 }) => {
   await budget(page);
   await page.getByRole("button", { name: /^Repayments/ }).click();
-  await page.locator(".repayment-group").filter({ hasText: /Eli.*owes.*Maya/ }).locator("summary").click();
+  await page
+    .locator(".repayment-group")
+    .filter({ hasText: /Eli.*owes.*you/ })
+    .locator("summary")
+    .click();
   const row = page
     .locator(".repayment-group")
-    .filter({ hasText: /Eli.*owes.*Maya/ })
+    .filter({ hasText: /Eli.*owes.*you/ })
     .locator(".debt-row")
     .filter({ hasText: "$400.00" })
     .first();
@@ -100,9 +115,10 @@ test("repayment subtotals exclude completed payments and relationship filters pr
   await page.getByRole("button", { name: /^Repayments/ }).click();
   await expect(page.getByLabel("Show repayments")).toHaveValue("Owed to me");
   await expect(page.locator(".repayment-group")).toHaveCount(3);
+  await expect(page.locator(".repayment-overview")).toContainText("$1,290.00");
   const group = page
     .locator(".repayment-group")
-    .filter({ hasText: /Eli.*owes.*Maya/ });
+    .filter({ hasText: /Eli.*owes.*you/ });
   await expect(group.locator("summary")).toContainText("$430.00 unpaid");
   await group.locator("summary").click();
   await group
@@ -116,7 +132,9 @@ test("repayment subtotals exclude completed payments and relationship filters pr
     .click();
   await expect(group.locator("summary")).toContainText("$30.00 unpaid");
   await expect(group.getByText("Completed", { exact: true })).toHaveCount(1);
-  await expect(group.getByText("Awaiting repayment", { exact: true })).toHaveCount(0);
+  await expect(
+    group.getByText("Awaiting repayment", { exact: true }),
+  ).toHaveCount(0);
   await page.getByLabel("Show repayments").selectOption("I owe");
   await expect(
     page.getByRole("button", { name: "Mark paid", exact: true }),
@@ -180,51 +198,115 @@ test("expense badge reflects the selected category without changing budget total
   expect(await page.locator(".budget-stats").innerText()).toBe(totals);
 });
 
-test("split preview explains extra cents only when the allocation needs rounding", async ({ page }) => {
+test("split preview explains extra cents only when the allocation needs rounding", async ({
+  page,
+}) => {
   await budget(page);
   await page.getByRole("button", { name: "Add expense", exact: true }).click();
   await page.getByLabel("Amount (USD)", { exact: true }).fill("48.50");
-  await page.getByRole("checkbox", { name: /I paid for other people too/ }).check();
-  await expect(page.getByText("Shares differ by 1¢ so they add up to the payment.")).toBeVisible();
-  await expect(page.locator("fieldset strong")).toHaveText(["$12.13", "$12.13", "$12.12", "$12.12"]);
+  await page
+    .getByRole("checkbox", { name: /I paid for other people too/ })
+    .check();
+  await expect(
+    page.getByText("Shares differ by 1¢ so they add up to the payment."),
+  ).toBeVisible();
+  await expect(page.locator("fieldset strong")).toHaveText([
+    "$12.13",
+    "$12.13",
+    "$12.12",
+    "$12.12",
+  ]);
   await page.getByLabel("Amount (USD)", { exact: true }).fill("48");
-  await expect(page.getByText("Shares differ by 1¢ so they add up to the payment.")).toHaveCount(0);
-  await expect(page.locator("fieldset strong")).toHaveText(["$12.00", "$12.00", "$12.00", "$12.00"]);
+  await expect(
+    page.getByText("Shares differ by 1¢ so they add up to the payment."),
+  ).toHaveCount(0);
+  await expect(page.locator("fieldset strong")).toHaveText([
+    "$12.00",
+    "$12.00",
+    "$12.00",
+    "$12.00",
+  ]);
 });
 
-test("compact mobile breadcrumbs retain every parent link and fit one row", async ({ page }) => {
+test("compact mobile breadcrumbs retain every parent link and fit one row", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 320, height: 844 });
   await budget(page);
-  const trail = page.getByRole("navigation", { name: "Breadcrumb", exact: true });
-  await expect(trail.getByRole("link", { name: "Your workspace" })).toBeVisible();
+  const trail = page.getByRole("navigation", {
+    name: "Breadcrumb",
+    exact: true,
+  });
+  await expect(
+    trail.getByRole("link", { name: "Your workspace" }),
+  ).toBeVisible();
   await expect(trail.getByRole("link", { name: "My trips" })).toBeVisible();
-  const trip = trail.getByRole("link", { name: "Seattle & Bainbridge getaway" });
+  const trip = trail.getByRole("link", {
+    name: "Seattle & Bainbridge getaway",
+  });
   await expect(trip).toBeVisible();
-  const rows = await trail.locator("li").evaluateAll(nodes => nodes.map(node => Math.round(node.getBoundingClientRect().top)));
+  const rows = await trail
+    .locator("li")
+    .evaluateAll((nodes) =>
+      nodes.map((node) => Math.round(node.getBoundingClientRect().top)),
+    );
   expect(new Set(rows).size).toBe(1);
-  expect(await trail.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  expect(
+    await trail.evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
+  ).toBe(true);
   await trip.click();
   await expect(page).toHaveURL(/#\/8$/);
 });
 
-test("mobile shared-expense actions stay fully visible as the participant list scrolls", async ({ page }) => {
+test("mobile shared-expense actions stay fully visible as the participant list scrolls", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await budget(page);
   await page.getByRole("button", { name: "Add expense", exact: true }).click();
   await page.getByLabel("Amount (USD)", { exact: true }).fill("48.50");
-  await page.getByRole("checkbox", { name: /I paid for other people too/ }).check();
+  await page
+    .getByRole("checkbox", { name: /I paid for other people too/ })
+    .check();
   const save = page.getByRole("button", { name: "Save expense", exact: true });
-  for (const height of [844, 650]) {
+  for (const height of [844, 650, 500]) {
     await page.setViewportSize({ width: 390, height });
     await expect(save).toBeInViewport({ ratio: 1 });
     const box = await save.boundingBox();
     const dialog = await page.getByRole("dialog").boundingBox();
     expect(box!.y + box!.height).toBeLessThan(dialog!.y + dialog!.height - 4);
-    await page.locator(".modal-body").evaluate(node => { node.scrollTop = node.scrollHeight; });
+    await page.locator(".expense-fields").evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+    });
     const lastParticipant = page.getByRole("checkbox", { name: /Sam Rivera/ });
     await expect(lastParticipant).toBeInViewport({ ratio: 1 });
     const lastBox = await lastParticipant.boundingBox();
-    expect(lastBox!.y + lastBox!.height).toBeLessThan((await save.boundingBox())!.y);
+    expect(lastBox!.y + lastBox!.height).toBeLessThan(
+      (await save.boundingBox())!.y,
+    );
     await expect(save).toBeInViewport({ ratio: 1 });
+    // Focusing a choice must scroll it above the footer, even in a short viewport.
+    await lastParticipant.focus();
+    const focused = await lastParticipant.boundingBox();
+    const fields = await page.locator(".expense-fields").boundingBox();
+    expect(focused!.y).toBeGreaterThanOrEqual(fields!.y);
+    expect(focused!.y + focused!.height).toBeLessThanOrEqual(
+      fields!.y + fields!.height,
+    );
   }
 });
+
+for (const width of [768, 1024]) {
+  test(`tablet ledger at ${width}px keeps the breakdown below it`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await budget(page);
+    const ledger = await page.locator(".ledger-card").boundingBox();
+    const chart = await page.locator(".chart-card").boundingBox();
+    expect(chart!.y).toBeGreaterThanOrEqual(ledger!.y + ledger!.height);
+    await expect(
+      page.getByRole("button", { name: "Spending breakdown" }),
+    ).toHaveAttribute("aria-expanded", "false");
+  });
+}
