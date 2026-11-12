@@ -66,6 +66,7 @@ export const PAGES: Record<number, string> = {
   17: "Map",
   18: "Style",
   19: "Account",
+  20: "Admin",
 };
 export const SERVICES = ["Instagram", "Facebook", "TikTok", "Gmail"];
 export const PERMISSIONS = (service: string) =>

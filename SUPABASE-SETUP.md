@@ -102,3 +102,7 @@ Limits: Mailtrap's free plan is shared with sending (about 4,000 per month, 150 
 The hosted project has `20261106234248_group_event_permissions.sql`. Owners grant Editor, Day Editor, or Viewer access in Group. Shared accounts write through `save_shared_trip_changes`; the database checks the signed-in account, current role, changed records, and both dates of a move. Direct event and membership writes remain restricted.
 
 To repeat the role and bypass checks with disposable accounts, run `node scripts/test-trip-invites.mjs` from this checkout. To include a desktop owner and a mobile traveler on the published site, set `GROUP_BROWSER_URL=https://danieltsao0103.github.io/trip-planner-prototype/` when running that command. It uses the ignored server credentials to create and remove its own test accounts and generates an invitation link without sending an email.
+
+## Admin access list (November 12, 2026)
+
+`20261112150000_admin_access_list.sql` creates `public.admin_email` (RLS on), `private.is_admin()`, `public.is_admin()` and a trigger that keeps at least one admin. Run it once in the SQL editor of the team project. It seeds the four starting admin emails. An account counts as admin only when it signed in with Google and the Google-verified email is on the list, because email/password signups are not verified in this prototype. If someone must use email/password instead, turn email confirmation on first.

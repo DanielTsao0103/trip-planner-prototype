@@ -1,0 +1,21 @@
+/* Admin access list. Uses the shared account page layout and theme tokens. */
+:root .admin-list { list-style: none; margin: 0 0 8px; padding: 0; display: grid; }
+:root .admin-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 56px; padding: 8px 0; border-top: 1px solid var(--line);
+}
+:root .admin-row:last-child { border-bottom: 1px solid var(--line); }
+:root .admin-row-info { display: grid; gap: 2px; min-width: 0; }
+:root .admin-email { overflow-wrap: anywhere; font-weight: 500; }
+:root .admin-row-info small { color: var(--muted); font-size: var(--ui-text-support); }
+:root .admin-row-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+:root .admin-row > :is(.btn, .badge) { flex-shrink: 0; }
+:root .admin-add-form { max-width: none; }
+/* An empty status line must not add a gap between the field and the button. */
+:root .admin-add-form .account-status:empty { display: none; }
+:root .admin-load-error { display: grid; gap: 12px; justify-items: start; }
+@media (max-width: 480px) {
+  :root .admin-row { flex-wrap: wrap; }
+  :root .admin-row-actions { justify-content: flex-start; }
+}
+:root .admin-page .account-section > .account-note { margin: 0 0 12px; }

@@ -530,6 +530,9 @@ function Breadcrumbs() {
 
   if (page === 19) {
     add("Account", 19);
+  } else if (page === 20) {
+    add("Account", 19);
+    add("Admin", 20);
   } else if (page === 2 || page === 3) {
     add("Connected accounts", 2);
     if (page === 3) add(route.params.get("service") || "Connect provider", 3);

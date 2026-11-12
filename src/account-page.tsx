@@ -1,17 +1,20 @@
 import { useState, type FormEvent } from "react";
-import { ArrowRight, Eye, EyeOff, LogOut, Palette, Users } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, LogOut, Palette, ShieldCheck, Users } from "lucide-react";
 import { useApp } from "./state";
 import { Avatar, Button, ErrorBox, Field, PageHead } from "./ui";
 import { ProfilePictureEditor } from "./profile-picture-editor";
 import { PASSWORD_MAX, nameError, passwordChangeError } from "./account";
 import { changeAccountPassword, saveAccountName } from "./account-actions";
 import { TEXT_LIMITS } from "./limits";
+import { useIsAdmin } from "./admin-access";
 import "./account-style-refinement.css";
 
 /** Account hub, opened from the profile picture. Real accounts store everything in Supabase. */
 export function AccountPage() {
   const { user, accountInfo, go, tripGo, open, signOut } = useApp();
   const { cloud, email, method } = accountInfo;
+  // Only approved admins see the link; the Admin page and database check access again.
+  const isAdmin = useIsAdmin(cloud, user?.id) === true;
   return (
     <div className="account-page">
       <PageHead title="Account" description="Your photo, name, and sign-in details." />
@@ -75,6 +78,12 @@ export function AccountPage() {
             Style
             <Palette size={16} />
           </button>
+          {isAdmin && (
+            <button onClick={() => go(20)}>
+              Admin
+              <ShieldCheck size={16} />
+            </button>
+          )}
           <button onClick={() => open("demo")}>
             Prototype controls
             <Users size={16} />
