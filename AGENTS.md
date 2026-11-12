@@ -261,3 +261,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Replacing a shared control also requires updating existing journey assertions: location-save tests must expect the inline Popular Times disclosure and lazy loading, rather than the removed external Maps link.
 
 - Popular Times layout QA: test app themes that oppose the device theme, not only matching light/dark modes. Override the Google component's default color scheme to inherit the app's scheme and give the frame canvas an explicit matching background. Native time inputs must stack when AM/PM and the picker icon cannot fit side by side.
+
+- Popular Times color direction: graph bars should follow the chosen website accent in every theme and appearance, with readable live labels. Google's weekday selector has a provider-owned neutral background; verify light/dark adaptation and themed text, and do not claim its fill adopts the website hue or patch its closed shadow DOM.

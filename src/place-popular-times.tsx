@@ -37,7 +37,7 @@ function PopularTimesChart({ place, googlePlaceId, destinations }: {
 
   const sendTheme = () => {
     const style = getComputedStyle(document.documentElement);
-    const values = Object.fromEntries(["--paper", "--ink", "--muted", "--green", "--line"].map(name => [name, style.getPropertyValue(name)]));
+    const values = Object.fromEntries(["--paper", "--ink", "--muted", "--green", "--action-ink", "--line"].map(name => [name, style.getPropertyValue(name)]));
     frame.current?.contentWindow?.postMessage({ type: "trip-popular-times:theme", values, colorScheme: style.colorScheme }, location.origin);
   };
 

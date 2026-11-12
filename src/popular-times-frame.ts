@@ -74,7 +74,7 @@ window.addEventListener("message", event => {
   if (event.origin !== location.origin || event.source !== window.parent) return;
   const data = event.data;
   if (data?.type === "trip-popular-times:theme" && typeof data.values === "object" && data.values) {
-    for (const name of ["--paper", "--ink", "--muted", "--green", "--line"]) {
+    for (const name of ["--paper", "--ink", "--muted", "--green", "--action-ink", "--line"]) {
       if (typeof data.values[name] === "string") document.documentElement.style.setProperty(name, data.values[name]);
     }
     document.documentElement.style.colorScheme = data.colorScheme === "dark" ? "dark" : "light";

@@ -34,10 +34,12 @@
   --gmp-mat-color-surface: var(--paper);
   --gmp-mat-color-on-surface: var(--ink);
   --gmp-mat-color-on-surface-variant: var(--muted);
-  --gmp-mat-color-primary: var(--green);
+  --gmp-mat-color-primary: var(--action-ink);
+  --gmp-mat-color-secondary-container: var(--line);
+  --gmp-mat-color-on-secondary-container: var(--action-ink);
   --gmp-mat-color-outline-decorative: var(--line);
   --gmp-mat-font-family: "DM Sans", sans-serif;
-  --gmp-popular-times-bar-color: var(--muted);
-  --gmp-popular-times-bar-current-hour-color: var(--green);
-  --gmp-popular-times-bar-current-hour-live-color: var(--green);
+  --gmp-popular-times-bar-color: color-mix(in srgb, var(--action-ink) 85%, var(--paper));
+  --gmp-popular-times-bar-current-hour-color: var(--action-ink);
+  --gmp-popular-times-bar-current-hour-live-color: var(--action-ink);
 }
