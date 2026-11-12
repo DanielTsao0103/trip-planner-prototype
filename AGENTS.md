@@ -245,3 +245,7 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Audited repayment corrections append status/reason/actor records; server timestamps are authoritative. Keep ever-paid markers and original expense fields, including source provenance, locked. Legacy records must not receive invented dates.
 
 - Animation frames do not prove React committed a regrouped list. Reveal pending targets after their DOM commit and preserve deliberate focus changes during deferred route restoration.
+
+- The expanded 528-case browser matrix needs a ten-minute CI suite budget on two hosted workers; retain the six-minute local budget and every test. A timeout after hundreds of passes is not evidence of a completed release gate.
+
+- After a confirmed deletion closes a modal and removes its opener, restore focus after modal cleanup has removed the background inert state; a frame scheduled from the async handler can run too early.

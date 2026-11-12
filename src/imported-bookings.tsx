@@ -40,6 +40,15 @@ export function ImportedBookings() {
   const [notice, setNotice] = useState("");
   const [confirmRemoval, setConfirmRemoval] = useState<ForwardedBooking | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  const restoreHeading = useRef(false);
+
+  useEffect(() => {
+    if (confirmRemoval || !restoreHeading.current) return;
+    restoreHeading.current = false;
+    // Modal cleanup must remove its background inert state before focus can
+    // reach this replacement for the deleted opener. A frame can run too early.
+    heading.current?.focus();
+  }, [confirmRemoval]);
 
   useEffect(() => {
     let live = true;
@@ -62,8 +71,8 @@ export function ImportedBookings() {
       await removeForwardedBooking(id);
       setItems((current) => current && current.filter((b) => b.bookingId !== id));
       setNotice("Booking removed from this list.");
+      restoreHeading.current = true;
       setConfirmRemoval(null);
-      requestAnimationFrame(() => heading.current?.focus());
     } catch {
       setError("We could not remove that booking. Try again.");
     } finally {
