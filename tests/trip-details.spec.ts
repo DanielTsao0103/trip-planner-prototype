@@ -212,6 +212,7 @@ test("all detail screens persist changes and preserve financial history", async 
   await page.locator(".delete-event-panel").getByRole("button", { name: "Delete event", exact: true }).click();
   await saved(page);
   expect(api.rows[0].content.events).toEqual([]);
+  await page.goto("./#/8?view=list");
   await expect(
     page.locator(".budget-peek").getByRole("heading", { name: /^(Your|Trip) budget$/ }),
   ).toBeVisible();
