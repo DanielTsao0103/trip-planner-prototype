@@ -11,6 +11,8 @@ test.beforeEach(async ({ page }) => {
     const url = new URL(route.request().url());
     if (url.pathname === '/rest/v1/forwarded_booking') return route.fulfill({ json: [] });
     if (url.pathname === '/rest/v1/user_style') return route.fulfill({ json: [] });
+    // These account journeys use a regular traveler; admin authorization has its own suite.
+    if (url.pathname === '/rest/v1/rpc/is_admin') return route.fulfill({ json: false });
     if (url.pathname === '/rest/v1/rpc/trip_companion_pictures') return route.fulfill({ json: [] });
     if (url.pathname === '/rest/v1/rpc/set_google_picture') return route.fulfill({ status: 204 });
     if (url.pathname === '/rest/v1/user' && route.request().method() === 'GET') return route.fulfill({ json: [] });
