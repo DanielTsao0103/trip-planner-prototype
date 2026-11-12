@@ -1,8 +1,9 @@
 import type { MeetingPlace, SearchFocus } from './event-location-search';
 import { validLocationPoint, type LocationContext } from './event-location-context';
+import { loadIndex, normalize } from './destination-search';
 import { searchRequest } from './search-request';
 
-export type DemoLocationSession = { focus?: { destination: string; value: SearchFocus } };
+export type DemoLocationSession = { focus?: { destination: string; value: SearchFocus }; region?: { destination: string; value: string } };
 type Prediction = { placeId?: string; text?: { text?: string }; structuredFormat?: {
   mainText?: { text?: string }; secondaryText?: { text?: string };
 } };
@@ -18,6 +19,16 @@ async function request<T>(method: string, body: object, fields: string, signal: 
   });
   if (!response.ok) throw new Error('Location suggestions are unavailable.');
   return response.json() as Promise<T>;
+}
+
+/** Country hints come from the bundled index, so an exhausted lookup quota cannot erase them. */
+export async function prepareDemoLocationRegion(context: LocationContext, signal: AbortSignal, session: DemoLocationSession): Promise<boolean> {
+  if(!context.query || session.region?.destination===context.key)return false;
+  const index=await loadIndex();signal.throwIfAborted();
+  const tail=normalize(context.query.split(/[,，]/u).at(-1) || '');
+  const country=index.find(place=>place.kind==='Country' && normalize(place.name)===tail);
+  if(country)session.region={destination:context.key,value:country.country==='GB'?'uk':country.country.toLowerCase()};
+  return !!country;
 }
 
 /** Known event coordinates are available synchronously, including the very first keystroke. */
@@ -60,6 +71,7 @@ export async function searchDemoLocations(query: string, context: LocationContex
     const focus = contextFocus(context,session);
     const response = await request<{ suggestions?: { placePrediction?: Prediction }[] }>('autocomplete', {
       input: query, languageCode: 'en',
+      ...(session.region?.destination===context.key?{regionCode:session.region.value}:{}),
       ...(focus ? { locationBias: focus.viewport ? { rectangle: focus.viewport } : { circle: { center: { latitude: focus.latitude, longitude: focus.longitude }, radius: context.kind==='event'?20000:50000 } } } : {}),
     }, 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat', child);
     child.throwIfAborted();
@@ -71,6 +83,7 @@ export async function searchDemoLocations(query: string, context: LocationContex
         name: p.structuredFormat?.mainText?.text || p.text.text,
         address: p.structuredFormat?.secondaryText?.text || '', point: null }];
     }).slice(0, 6);
-    return { places, biased: !!focus, limited: false, approximate: false };
+    const regionOnly=!focus && session.region?.destination===context.key;
+    return { places, biased: !!focus || regionOnly, regionOnly, limited: false, approximate: false };
   }, signal, 3500);
 }

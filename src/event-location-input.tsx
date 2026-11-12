@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useId, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { locationQuery, locationSearchKey, type MeetingPlace } from './event-location-search';
 import { findLocationSuggestions, type LocationSuggestions } from './location-suggestions';
-import { contextFocus, prepareDemoLocationFocus, type DemoLocationSession } from './demo-location-search';
+import { contextFocus, prepareDemoLocationFocus, prepareDemoLocationRegion, type DemoLocationSession } from './demo-location-search';
 
 import { destinationContext, inferLocationContext, type LocationItinerary } from './event-location-context';
 
@@ -13,6 +13,8 @@ export function EventLocationInput({value,onChange,destinations=[],itinerary}: {
   const [results,setResults]=useState<MeetingPlace[]>([]);
   const [status,setStatus]=useState<'loading'|'ready'|'error'>('ready');
   const activeSelection=useRef(active);activeSelection.current=active;
+  const visibleResults=useRef(results);visibleResults.current=results;
+  const lastSearch=useRef('');
   const session=useRef<DemoLocationSession>({});
   const pointerStart=useRef<{id:number;x:number;y:number}|null>(null);
   const [attempt,setAttempt]=useState(0),[source,setSource]=useState<'photon'|'google'>('photon'),[limited,setLimited]=useState(false);
@@ -23,32 +25,38 @@ export function EventLocationInput({value,onChange,destinations=[],itinerary}: {
   const context=useMemo(()=>candidate,[candidate.key,candidate.label,candidate.reason]);
   const destination=context.label;
   const [contextVersion,setContextVersion]=useState(0);
+  const [regionOnly,setRegionOnly]=useState(false);
   const [biased,setBiased]=useState(false),[approximate,setApproximate]=useState(false);
   const query=locationQuery(value);
   useEffect(()=>{
     if(!context.query)return;
     const controller=new AbortController();
     // Warm the anchor on form open, so typing never waits for it.
-    void prepareDemoLocationFocus(context,controller.signal,session.current).then(()=>{if(!controller.signal.aborted && activeSelection.current<0)setContextVersion(v=>v+1);}).catch(()=>{});
+    const refresh=()=>{if(!controller.signal.aborted && activeSelection.current<0)setContextVersion(v=>v+1);};
+    void prepareDemoLocationFocus(context,controller.signal,session.current).then(refresh).catch(()=>{});
+    void prepareDemoLocationRegion(context,controller.signal,session.current).then(changed=>{if(changed)refresh();}).catch(()=>{});
     return()=>controller.abort();
   },[context]);
   useEffect(()=>{
-    setResults([]);setActive(-1);
+    const identity=JSON.stringify([query,open,context.key,attempt]);
+    const sameSearch=lastSearch.current===identity;lastSearch.current=identity;
+    // A background refinement must keep the current list selectable.
+    if(!sameSearch){setResults([]);setActive(-1);}
     if(!open || query.length<2){setStatus('ready');return;}
     let cancelled=false;
     const controller=new AbortController();
-    setStatus('loading');
+    if(!sameSearch || !visibleResults.current.length)setStatus('loading');
     const timer=setTimeout(async()=>{
       try {
         const key=locationSearchKey(query,JSON.stringify([context.key,contextFocus(context,session.current)])), saved=cache.get(key);
         const matches=saved && saved.expires>Date.now() ? saved.result : await findLocationSuggestions(query,context,controller.signal,session.current);
-        if(cancelled)return;
+        if(cancelled || (sameSearch && activeSelection.current>=0))return;
         // Cache only bounded OpenStreetMap results, never Google predictions or errors.
         if(matches.source==='photon' && matches.places.length) {
           if(cache.size>=50)cache.delete(cache.keys().next().value!);
           cache.set(key,{result:matches,expires:Date.now()+300000});
         }
-        setResults(matches.places);setBiased(matches.biased);setApproximate(matches.approximate);
+        setResults(matches.places);setBiased(matches.biased);setRegionOnly(matches.regionOnly??false);setApproximate(matches.approximate);
         setSource(matches.source);setLimited(matches.limited);setStatus('ready');
       }catch{if(!cancelled)setStatus('error');}
     },150);
@@ -97,7 +105,7 @@ export function EventLocationInput({value,onChange,destinations=[],itinerary}: {
         else if(e.key==='Escape' && expanded){e.preventDefault();setOpen(false);}
       }}/>
     {expanded && <div ref={menu} className="field-popup event-location-menu">
-      <div className="event-location-caption">{status==='loading'?'Searching worldwide…':status==='error'?'Search unavailable':results.length?(destination && biased?`Near ${destination}${approximate?' (approximate area)':''}`:'Suggested locations'):'No locations found'}</div>
+      <div className="event-location-caption">{status==='loading'?'Searching worldwide…':status==='error'?'Search unavailable':results.length?(regionOnly?'Prioritizing trip country':destination && biased?`Near ${destination}${approximate?' (approximate area)':''}`:'Suggested locations'):'No locations found'}</div>
       <div ref={list} id={`${id}-list`} role="listbox" aria-label="Location suggestions">
         {results.map((place,i)=><div key={place.id} role="option" id={`${id}-${i}`} aria-selected={i===active}
           className={`event-location-option ${i===active?'active':''}`} onPointerDown={e=>{

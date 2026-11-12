@@ -3,7 +3,7 @@ import { locationQuery, resolveSearchFocus, searchMeetingPlaces, type MeetingPla
 import { searchRequest } from './search-request';
 import { contextFocus, searchDemoLocations, type DemoLocationSession } from './demo-location-search';
 
-export type LocationSuggestions = { places: MeetingPlace[]; source: 'photon' | 'google'; biased: boolean; approximate: boolean; limited: boolean };
+export type LocationSuggestions = { places: MeetingPlace[]; source: 'photon' | 'google'; biased: boolean; approximate: boolean; limited: boolean; regionOnly?: boolean };
 let photonUnavailableUntil = 0;
 
 /** A failed optional destination bias must never prevent the actual place query. */

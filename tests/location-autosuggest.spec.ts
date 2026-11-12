@@ -177,3 +177,20 @@ test('a country destination biases its full region without restricting matches',
  await page.getByRole('combobox',{name:'Where',exact:true}).fill('coffee');
  await expect.poll(()=>state.biases.at(-1)).toEqual({rectangle:viewport});
 });
+
+
+test('country context survives exhausted demo area-lookup quota without restricting search',async({page})=>{
+ const calls:any[]=[];
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({status:429,json:{error:{code:429}}}));
+ await page.route('https://places.googleapis.com/v1/places:autocomplete',route=>{calls.push(route.request().postDataJSON());return route.fulfill({json:{suggestions:[{placePrediction:{placeId:'coffee',text:{text:'Coffee, Taipei, Taiwan'}}}]}});});
+ await page.goto('./#/7');await page.evaluate(()=>{
+  const key='trip-planner-demo-v1:demo-maya',store=JSON.parse(localStorage.getItem(key)!);
+  const trip=store.trips.find((t:any)=>t.id===store.tripId);trip.destinations=['Taiwan'];trip.events=[];
+  localStorage.setItem(key,JSON.stringify(store));
+ });await page.reload();
+ await page.getByRole('combobox',{name:'Where',exact:true}).fill('coffee');
+ await expect.poll(()=>calls.at(-1)?.regionCode).toBe('tw');
+ expect(calls.at(-1).includedRegionCodes).toBeUndefined();expect(calls.at(-1).locationRestriction).toBeUndefined();
+ await page.getByRole('combobox',{name:'Prioritize locations near'}).selectOption('');
+ await expect.poll(()=>calls.at(-1)?.regionCode).toBeUndefined();
+});
