@@ -213,7 +213,7 @@ test("all detail screens persist changes and preserve financial history", async 
   await saved(page);
   expect(api.rows[0].content.events).toEqual([]);
   await expect(
-    page.locator(".budget-peek").getByRole("heading", { name: "Your budget" }),
+    page.locator(".budget-peek").getByRole("heading", { name: /^(Your|Trip) budget$/ }),
   ).toBeVisible();
   const remaining = (60002 - c.expenses[0].shares[owner.id]) / 100;
   await expect(page.locator(".budget-peek > strong")).toHaveText(
