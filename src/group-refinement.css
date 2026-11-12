@@ -118,12 +118,16 @@
 
 /* Size columns from usable content width, including space taken by the sidebar. */
 :root .page-13 .preference-grid {
-  align-items: start;
+  align-items: stretch;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
 }
+:root .page-13 .preference-tile { min-height: 320px; }
 :root .preference-tile { scroll-margin-top: 112px; }
 :root .preference-tile:focus-visible { outline: 3px solid var(--ink); outline-offset: 4px; }
 .preference-jump { display: none; }
+@media (max-width: 520px) {
+  :root .interest-tile-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 128px), 1fr)); }
+}
 @media (max-width: 1000px) {
   .preference-jump { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 16px; font-size: 14px; color: var(--ink); }
   .preference-jump select { min-height: 44px; width: 100%; padding: 10px 12px; border: 1px solid var(--control-border); border-radius: var(--ui-radius-control); background: var(--paper); color: var(--ink); font: inherit; }
@@ -132,63 +136,38 @@
 /* Explicit counts share one reading convention across the illustrated charts. */
 .group-chart-legend { margin: 0 0 16px; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .preference-voter-count { display: inline-grid; place-items: center; flex: 0 0 auto; min-width: 24px; min-height: 24px; padding: 0 6px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: var(--paper); font-size: 13px; line-height: 1.4; font-weight: 600; font-variant-numeric: tabular-nums; }
-:root .interest-brochure {
+:root .interest-tile-button {
   color: var(--ink);
   cursor: pointer;
 }
-:root .interest-brochure-cover {
+:root .interest-tile-cover {
   background: linear-gradient(
     150deg,
-    color-mix(in srgb, var(--paper) 94%, var(--brochure-accent) 6%),
-    color-mix(in srgb, var(--page) 88%, var(--brochure-accent) 12%)
+    color-mix(in srgb, var(--paper) 94%, var(--interest-accent) 6%),
+    color-mix(in srgb, var(--page) 88%, var(--interest-accent) 12%)
   );
   box-shadow: 0 6px 14px color-mix(in srgb, var(--ink) 18%, transparent);
 }
-:root .interest-brochure-icon {
-  background: color-mix(in srgb, var(--paper) 82%, var(--brochure-accent) 18%);
+:root .interest-tile-icon {
+  background: color-mix(in srgb, var(--paper) 82%, var(--interest-accent) 18%);
 }
-:root .interest-brochure-cover > .preference-voter-count {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+:root .interest-tile-cover > .preference-voter-count {
   min-width: 25px;
   min-height: 25px;
   padding: 0 5px;
-  border-color: color-mix(in srgb, var(--brochure-accent) 74%, var(--line));
-  background: color-mix(in srgb, var(--paper) 76%, var(--brochure-accent) 24%);
+  border-color: color-mix(in srgb, var(--interest-accent) 74%, var(--line));
+  background: color-mix(in srgb, var(--paper) 76%, var(--interest-accent) 24%);
   color: var(--ink);
   font-size: 12px;
 }
-:root .interest-brochure-title {
-  position: absolute;
-  top: 46px;
-  right: 8px;
-  left: 8px;
-  display: -webkit-box;
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.2;
-  text-align: left;
-  overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-:root .interest-brochure-lines {
-  bottom: 11px;
-  left: 9px;
-  gap: 5px;
-}
-:root .interest-brochure-lines i { height: 2px; }
-:root .interest-brochure:hover .interest-brochure-cover,
-:root .interest-brochure:focus-visible .interest-brochure-cover {
+:root .interest-tile-button:hover .interest-tile-cover,
+:root .interest-tile-button:focus-visible .interest-tile-cover {
   box-shadow: 0 9px 16px color-mix(in srgb, var(--ink) 25%, transparent);
 }
-:root .interest-brochure-tooltip {
+:root .interest-tile-tooltip {
   color: var(--ink);
   background: var(--paper);
-  border: 1px solid var(--brochure-accent);
+  border: 1px solid var(--interest-accent);
   box-shadow: 0 8px 22px color-mix(in srgb, var(--ink) 24%, transparent);
   font-size: 13px;
   line-height: 1.45;
@@ -196,8 +175,7 @@
   max-height: min(220px, 36vh);
   overflow-y: auto;
 }
-:root .interest-brochure-tooltip strong { color: var(--ink); }
-:root .interest-brochure-tooltip .chart-tooltip-hint { color: var(--muted); }
+:root .interest-tile-tooltip strong { color: var(--ink); }
 :root .collaborator-actions .member-permissions-button { width: auto; padding-inline: 10px; gap: 6px; font-size: 13px; }
 /* Keep all dietary illustrations, while bounding their largest phone size. */
 @media (max-width: 700px) {

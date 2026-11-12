@@ -94,24 +94,24 @@ test("20-person preference coverage stays readable on desktop and mobile", async
     "Flexible timing works best", "Celebration dinner for the group"]) {
     await expect(page.getByText(label, { exact: true }).filter({ visible: true }).first()).toBeVisible();
   }
-  // Each brochure prints its category and vote total on its themed cover.
+  // Each interest tile prints its category and vote total inside the card.
   for (const label of [...interestChoices, "Pike Place Market", "Seattle Public Library",
     "Bainbridge ferry terminal", "Volunteer Park", "Local ceramics market"]) {
-    const title = page.locator('.interest-brochure-title').filter({ hasText: label });
+    const title = page.locator('.interest-tile-title').filter({ hasText: label });
     await expect(title).toBeVisible();
     await expect(title.locator('xpath=..').locator('.preference-voter-count')).toBeVisible();
     await expect(page.getByRole('button', { name: new RegExp(label) })).toBeVisible();
   }
   const artBrochure = page.getByRole('button', { name: /^Art,/ });
   await artBrochure.hover();
-  await expect(page.locator('#interest-brochure-tooltip-art')).toContainText('Voted by');
-  await expect(page.locator('#interest-brochure-tooltip-art')).toContainText('Maya Chen');
+  await expect(page.locator('#interest-tile-tooltip-art')).toContainText('Voted by');
+  await expect(page.locator('#interest-tile-tooltip-art')).toContainText('Maya Chen');
   if (test.info().project.name === 'desktop') {
     await artBrochure.focus();
     const modernBrochure = page.getByRole('button', { name: /^Modern architecture,/ });
     await modernBrochure.hover();
-    await expect(page.locator('#interest-brochure-tooltip-modern-architecture')).toContainText('Voted by Maya Chen');
-    await expect(page.locator('#interest-brochure-tooltip-art')).not.toHaveClass(/chart-tooltip-active/);
+    await expect(page.locator('#interest-tile-tooltip-modern-architecture')).toContainText('Voted by Maya Chen');
+    await expect(page.locator('#interest-tile-tooltip-art')).not.toHaveClass(/chart-tooltip-active/);
   } else if (test.info().project.name === 'mobile') {
     await artBrochure.click();
     const voters = page.getByRole('dialog', { name: 'Art', exact: true });

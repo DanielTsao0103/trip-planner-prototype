@@ -273,11 +273,11 @@
   line-height: 1.5;
 }
 :root .available-slot { font-size: var(--ui-text-support) !important; }
-:root :is(.dietary-bubble-tooltip, .dining-preference-tooltip, .spending-marker-tooltip, .mobility-preference-tooltip, .interest-brochure-tooltip) {
+:root :is(.dietary-bubble-tooltip, .dining-preference-tooltip, .spending-marker-tooltip, .mobility-preference-tooltip, .interest-tile-tooltip) {
   font-size: var(--ui-text-caption);
   line-height: 1.5;
 }
-:root :is(.dietary-bubble-tooltip, .dining-preference-tooltip, .spending-marker-tooltip, .mobility-preference-tooltip, .interest-brochure-tooltip) strong {
+:root :is(.dietary-bubble-tooltip, .dining-preference-tooltip, .spending-marker-tooltip, .mobility-preference-tooltip, .interest-tile-tooltip) strong {
   font-size: var(--ui-text-support);
 }
 :root .tabs > button,
@@ -444,9 +444,9 @@ body:has([role="dialog"]) .toast { display: none; }
 }
 
 :root .expense-amount small { font-size: 13px; }
-:root .interest-brochure-fan { gap: 18px 14px; padding: 20px 8px 12px; align-items: start; }
-:root .interest-brochure-wrap { margin-left: 0; flex-basis: var(--brochure-width); width: var(--brochure-width); height: var(--brochure-height); text-align: center; }
-:root .interest-brochure { margin: 0 auto; }
+:root .interest-tile-grid { gap: 12px; padding: 8px 0 4px; align-items: stretch; }
+:root .interest-tile-wrap { width: auto; height: auto; min-width: 0; }
+:root .interest-tile-button { margin: 0; }
 :root [role="tooltip"].chart-tooltip-floating { position: fixed; bottom: auto; transform: none; z-index: 150; max-height: 50vh; overflow: auto; }
 :root [role="tooltip"].chart-tooltip-dismissed { opacity: 0 !important; }
 :root .upload-panel input[type="file"] { width: min(100%, 360px); font-size: 14px; padding: 8px; color: var(--ink); }

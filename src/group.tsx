@@ -146,7 +146,7 @@ const mobilityRadiusPalette = ["#6cab8a", "#55abc0", "#d57272", "#b08bc1"];
 
 type MobilityRadius = { distance: number; count: number; color: string; names: string[] };
 
-const brochureAccents: Record<string, string> = {
+const interestAccents: Record<string, string> = {
   "Modern architecture": "#79aabd",
   History: "#d0a25f",
   Culture: "#8faac4",
@@ -157,39 +157,32 @@ const brochureAccents: Record<string, string> = {
   "Rest & downtime": "#879ac4",
 };
 
-function InterestBrochureFan({ items }: { items: [string, string[]][] }) {
+function InterestTileGrid({ items }: { items: [string, string[]][] }) {
   const { open } = useApp();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const angles = [-8, 5, -4, 7, -6, 4, -7, 6, -3];
 
   return (
     <div
-      className="interest-brochure-fan"
+      className="interest-tile-grid"
       role="group"
       aria-label="Group interests and places"
       onMouseLeave={() => setActiveIndex(null)}
     >
       {items.map(([label, names], index) => {
         const Icon = interestOptionIcons[label] || MapPin;
-        const voteLevel = Math.min(names.length - 1, 4);
-        const width = 100 + voteLevel * 7;
-        const height = 124 + voteLevel * 5;
-        const tooltipId = `interest-brochure-tooltip-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+        const tooltipId = `interest-tile-tooltip-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
         return (
           <div
-            className={`interest-brochure-wrap${activeIndex === index ? " is-active" : ""}`}
+            className={`interest-tile-wrap${activeIndex === index ? " is-active" : ""}`}
             key={label}
             style={{
-              "--brochure-width": `${width}px`,
-              "--brochure-height": `${height}px`,
-              "--brochure-angle": `${angles[index % angles.length]}deg`,
-              "--brochure-accent": brochureAccents[label] || "#90a8bd",
+              "--interest-accent": interestAccents[label] || "#90a8bd",
             } as React.CSSProperties}
             onMouseEnter={() => setActiveIndex(index)}
           >
             <button
               type="button"
-              className="interest-brochure"
+              className="interest-tile-button"
               aria-label={`${label}, ${names.length} ${names.length === 1 ? "vote" : "votes"}. Voted by ${names.join(", ")}`}
               aria-describedby={tooltipId}
               onClick={() => {
@@ -200,14 +193,13 @@ function InterestBrochureFan({ items }: { items: [string, string[]][] }) {
               onFocus={() => setActiveIndex(index)}
               onBlur={() => setActiveIndex(null)}
             >
-              <span className="interest-brochure-cover" aria-hidden="true">
-                <span className="interest-brochure-icon"><Icon size={17} strokeWidth={1.7} /></span>
+              <span className="interest-tile-cover" aria-hidden="true">
+                <span className="interest-tile-icon"><Icon size={18} strokeWidth={1.7} /></span>
                 <PreferenceVoterCount count={names.length} />
-                <span className="interest-brochure-title">{label}</span>
-                <span className="interest-brochure-lines"><i /><i /><i /></span>
+                <span className="interest-tile-title">{label}</span>
               </span>
             </button>
-            <span className="interest-brochure-tooltip" id={tooltipId} role="tooltip">
+            <span className="interest-tile-tooltip" id={tooltipId} role="tooltip">
               <strong>{label} · {names.length} {names.length === 1 ? "vote" : "votes"}</strong>
               <span>Voted by {names.join(", ")}</span>
             </span>
@@ -234,9 +226,9 @@ export function Group() {
     };
     const position = (event: Event) => {
       const target = event.target instanceof Element ? event.target.closest("button") : null;
-      const movingBetweenBrochures = target?.matches(".interest-brochure") && trigger?.matches(".interest-brochure");
-      if (event.type === "pointerover" && trigger?.contains(document.activeElement) && !movingBetweenBrochures) return;
-      const tooltip = target?.querySelector<HTMLElement>('[role="tooltip"]') || target?.parentElement?.querySelector<HTMLElement>('.interest-brochure-tooltip');
+      const movingBetweenInterestTiles = target?.matches(".interest-tile-button") && trigger?.matches(".interest-tile-button");
+      if (event.type === "pointerover" && trigger?.contains(document.activeElement) && !movingBetweenInterestTiles) return;
+      const tooltip = target?.querySelector<HTMLElement>('[role="tooltip"]') || target?.parentElement?.querySelector<HTMLElement>('.interest-tile-tooltip');
       if (!tooltip || !target || document.querySelector('[role="dialog"]')) { dismiss(); return; }
       dismiss();
       active = tooltip;
@@ -710,7 +702,7 @@ export function Group() {
                 </div>
               ) : title === "Interests and destinations" ? (
                 answers.length ? (
-                  <InterestBrochureFan items={answers} />
+                  <InterestTileGrid items={answers} />
                 ) : (
                   <p className="muted preference-empty">Nothing shared yet.</p>
                 )
