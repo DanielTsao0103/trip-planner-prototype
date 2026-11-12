@@ -254,7 +254,7 @@ test('short phone survey exposes first-step fields and scrolls subsequent steps 
 });
 
 
-test('Group offers a focused Travelers jump and compact empty categories on phones', async ({ page }) => {
+test('Group offers a focused Travelers jump and equal-height empty categories on phones', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 600 });
   await demo(page);
   await page.goto('./#/13');
@@ -273,7 +273,8 @@ test('Group offers a focused Travelers jump and compact empty categories on phon
   await page.reload();
   await expect(page.locator('.preference-tile-empty')).toHaveCount(6);
   const heights = await page.locator('.preference-tile-empty').evaluateAll(cards => cards.map(card => card.getBoundingClientRect().height));
-  expect(Math.max(...heights)).toBeLessThan(145);
+  expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(1);
+  expect(Math.min(...heights)).toBeGreaterThanOrEqual(320);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
   await page.screenshot({ path: test.info().outputPath('group-empty-phone.png'), fullPage: true });
 });

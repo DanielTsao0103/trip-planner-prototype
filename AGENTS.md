@@ -275,3 +275,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Demo quota QA: Text Search can exhaust its own allowance while Autocomplete still works. Derive soft country hints from the bundled destination index so a country-only trip keeps its context without a paid lookup; clear both geographic and country hints for Worldwide. Keep area lookup and autocomplete availability distinct.
 
 - Recovery test isolation: block real Maps geocoding as well as autocomplete in UI recovery fixtures. Late provider enrichment can legitimately queue another save and replace the notice while a test is auditing expanded controls; it is not deterministic recovery test input.
+
+- Group preference cards must share equal heights across desktop and mobile, including empty cards, as explicitly requested on November 12, 2026. Let the Interests and Destinations tiles reflow and size within their shared card height.

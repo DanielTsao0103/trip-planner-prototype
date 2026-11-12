@@ -1,7 +1,7 @@
 /** Implementation status: Account survey answers and guest traveler roles/days are database-backed. Owners can assign editing roles to accepted accounts. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, textError } from "./limits.ts";
 import "./group-refinement.css";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
@@ -213,9 +213,23 @@ function InterestTileGrid({ items }: { items: [string, string[]][] }) {
 export function Group() {
   const { trip: t, s, go, open, updateTrip, toast } = useApp();
   const travelersHeading = useRef<HTMLHeadingElement>(null);
+  const preferenceGrid = useRef<HTMLDivElement>(null);
   const [travelerQuery, setTravelerQuery] = useState("");
   const [removal, setRemoval] = useState<{ tripId: string; memberId: string } | null>(null);
   const [sharedNote, setSharedNote] = useState<{ note: string; names: string[] } | null>(null);
+  useLayoutEffect(() => {
+    const grid = preferenceGrid.current;
+    if (!grid) return;
+    const measure = () => {
+      grid.style.removeProperty("--group-preference-tile-height");
+      const cards = Array.from(grid.querySelectorAll<HTMLElement>(".preference-tile"));
+      const height = Math.max(320, ...cards.map((card) => card.getBoundingClientRect().height));
+      grid.style.setProperty("--group-preference-tile-height", `${Math.ceil(height)}px`);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  });
   useEffect(() => {
     let active: HTMLElement | null = null;
     let trigger: Element | null = null;
@@ -348,7 +362,7 @@ export function Group() {
         }}><option value="" disabled>Choose a category</option>{tiles.map(({title}, index) => <option key={title} value={index}>{title}</option>)}</select>
       </label>}
       {responses.length > 0 && <p className="group-chart-legend">Traveler counts · Select an item for names.</p>}
-      <div className="preference-grid">
+      <div className="preference-grid" ref={preferenceGrid}>
         {tiles.map(({ title, Icon, keys }, tileIndex) => {
           const counts: Record<string, string[]> = {};
           const noRestrictionNames: string[] = [];

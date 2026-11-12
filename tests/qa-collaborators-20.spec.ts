@@ -85,6 +85,22 @@ test("20-person preference coverage stays readable on desktop and mobile", async
   }, store);
   await page.goto("./#/13");
 
+  const preferenceCardHeights = await page.locator(".preference-tile").evaluateAll(cards => cards.map(card => card.getBoundingClientRect().height));
+  expect(preferenceCardHeights).toHaveLength(6);
+  expect(Math.max(...preferenceCardHeights) - Math.min(...preferenceCardHeights)).toBeLessThanOrEqual(1);
+  const interestTileHeights = await page.locator(".interest-tile-button").evaluateAll(cards => cards.map(card => card.getBoundingClientRect().height));
+  expect(interestTileHeights.length).toBeGreaterThan(8);
+  expect(Math.max(...interestTileHeights) - Math.min(...interestTileHeights)).toBeLessThanOrEqual(1);
+  const clippedInterestLabels = await page.locator(".interest-tile-button").evaluateAll(cards => cards.flatMap(card => {
+    const cover = card.querySelector(".interest-tile-cover")!.getBoundingClientRect();
+    const titleElement = card.querySelector<HTMLElement>(".interest-tile-title")!;
+    const title = titleElement.getBoundingClientRect();
+    return title.bottom > cover.bottom + 1 || titleElement.scrollHeight > titleElement.clientHeight + 1
+      ? [`${titleElement.textContent}: cover ${cover.height}, title ${title.height}/${titleElement.scrollHeight}`]
+      : [];
+  }));
+  expect(clippedInterestLabels).toEqual([]);
+
   await expect(page.getByText("20 of 20 travelers responded", { exact: true })).toBeVisible();
   await expect(page.getByText("20 of 20 travelers have shared preferences.", { exact: true })).toBeVisible();
   await expect(page.locator(".dietary-no-restrictions")).toContainText("No restrictions");
