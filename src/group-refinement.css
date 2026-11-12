@@ -122,6 +122,10 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
 }
 :root .page-13 .preference-tile { min-height: 320px; }
+/* Empty phone categories retain their compact summary layout. */
+@media (max-width: 700px) {
+  :root .page-13 .preference-tile-empty { min-height: 0; }
+}
 :root .preference-tile { scroll-margin-top: 112px; }
 :root .preference-tile:focus-visible { outline: 3px solid var(--ink); outline-offset: 4px; }
 .preference-jump { display: none; }
