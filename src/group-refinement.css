@@ -132,7 +132,72 @@
 /* Explicit counts share one reading convention across the illustrated charts. */
 .group-chart-legend { margin: 0 0 16px; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .preference-voter-count { display: inline-grid; place-items: center; flex: 0 0 auto; min-width: 24px; min-height: 24px; padding: 0 6px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: var(--paper); font-size: 13px; line-height: 1.4; font-weight: 600; font-variant-numeric: tabular-nums; }
-.interest-brochure-label .preference-voter-count { margin-left: 4px; }
+:root .interest-brochure {
+  color: var(--ink);
+  cursor: pointer;
+}
+:root .interest-brochure-cover {
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--paper) 94%, var(--brochure-accent) 6%),
+    color-mix(in srgb, var(--page) 88%, var(--brochure-accent) 12%)
+  );
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+:root .interest-brochure-icon {
+  background: color-mix(in srgb, var(--paper) 82%, var(--brochure-accent) 18%);
+}
+:root .interest-brochure-cover > .preference-voter-count {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 25px;
+  min-height: 25px;
+  padding: 0 5px;
+  border-color: color-mix(in srgb, var(--brochure-accent) 74%, var(--line));
+  background: color-mix(in srgb, var(--paper) 76%, var(--brochure-accent) 24%);
+  color: var(--ink);
+  font-size: 12px;
+}
+:root .interest-brochure-title {
+  position: absolute;
+  top: 46px;
+  right: 8px;
+  left: 8px;
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+:root .interest-brochure-lines {
+  bottom: 11px;
+  left: 9px;
+  gap: 5px;
+}
+:root .interest-brochure-lines i { height: 2px; }
+:root .interest-brochure:hover .interest-brochure-cover,
+:root .interest-brochure:focus-visible .interest-brochure-cover {
+  box-shadow: 0 9px 16px color-mix(in srgb, var(--ink) 25%, transparent);
+}
+:root .interest-brochure-tooltip {
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--brochure-accent);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--ink) 24%, transparent);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  max-height: min(220px, 36vh);
+  overflow-y: auto;
+}
+:root .interest-brochure-tooltip strong { color: var(--ink); }
+:root .interest-brochure-tooltip .chart-tooltip-hint { color: var(--muted); }
 :root .collaborator-actions .member-permissions-button { width: auto; padding-inline: 10px; gap: 6px; font-size: 13px; }
 /* Keep all dietary illustrations, while bounding their largest phone size. */
 @media (max-width: 700px) {

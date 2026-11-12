@@ -444,10 +444,9 @@ body:has([role="dialog"]) .toast { display: none; }
 }
 
 :root .expense-amount small { font-size: 13px; }
-:root .interest-brochure-fan { gap: 16px; padding: 20px 8px 8px; align-items: start; }
-:root .interest-brochure-wrap { margin-left: 0; flex-basis: 110px; width: 110px; height: auto; text-align: center; }
+:root .interest-brochure-fan { gap: 18px 14px; padding: 20px 8px 12px; align-items: start; }
+:root .interest-brochure-wrap { margin-left: 0; flex-basis: var(--brochure-width); width: var(--brochure-width); height: var(--brochure-height); text-align: center; }
 :root .interest-brochure { margin: 0 auto; }
-.interest-brochure-label { display: block; margin-top: 12px; font-size: 13px; line-height: 1.4; color: var(--ink); overflow-wrap: anywhere; }
 :root [role="tooltip"].chart-tooltip-floating { position: fixed; bottom: auto; transform: none; z-index: 150; max-height: 50vh; overflow: auto; }
 :root [role="tooltip"].chart-tooltip-dismissed { opacity: 0 !important; }
 :root .upload-panel input[type="file"] { width: min(100%, 360px); font-size: 14px; padding: 8px; color: var(--ink); }

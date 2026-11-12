@@ -172,8 +172,8 @@ function InterestBrochureFan({ items }: { items: [string, string[]][] }) {
       {items.map(([label, names], index) => {
         const Icon = interestOptionIcons[label] || MapPin;
         const voteLevel = Math.min(names.length - 1, 4);
-        const width = 84 + voteLevel * 6;
-        const height = 94 + voteLevel * 6;
+        const width = 100 + voteLevel * 7;
+        const height = 124 + voteLevel * 5;
         const tooltipId = `interest-brochure-tooltip-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
         return (
           <div
@@ -190,23 +190,26 @@ function InterestBrochureFan({ items }: { items: [string, string[]][] }) {
             <button
               type="button"
               className="interest-brochure"
-              aria-label={`${label}: ${names.join(", ")}`}
+              aria-label={`${label}, ${names.length} ${names.length === 1 ? "vote" : "votes"}. Voted by ${names.join(", ")}`}
               aria-describedby={tooltipId}
-              aria-haspopup="dialog"
-              onClick={() => open("message", {title: label, body: names.join("\n")})}
+              onClick={() => {
+                if (window.matchMedia("(hover: none), (pointer: coarse)").matches) {
+                  open("message", { title: label, body: names.join("\n") });
+                }
+              }}
               onFocus={() => setActiveIndex(index)}
               onBlur={() => setActiveIndex(null)}
             >
               <span className="interest-brochure-cover" aria-hidden="true">
                 <span className="interest-brochure-icon"><Icon size={17} strokeWidth={1.7} /></span>
+                <PreferenceVoterCount count={names.length} />
+                <span className="interest-brochure-title">{label}</span>
                 <span className="interest-brochure-lines"><i /><i /><i /></span>
               </span>
             </button>
-            <span className="interest-brochure-label">{label} <PreferenceVoterCount count={names.length} /></span>
             <span className="interest-brochure-tooltip" id={tooltipId} role="tooltip">
-              <strong>{label}</strong>
-              <span>{travelerPreview(names)}</span>
-                                  <small className="chart-tooltip-hint">Select to view full names</small>
+              <strong>{label} · {names.length} {names.length === 1 ? "vote" : "votes"}</strong>
+              <span>Voted by {names.join(", ")}</span>
             </span>
           </div>
         );
@@ -230,8 +233,9 @@ export function Group() {
       trigger = null;
     };
     const position = (event: Event) => {
-      if (event.type === "pointerover" && trigger?.contains(document.activeElement)) return;
       const target = event.target instanceof Element ? event.target.closest("button") : null;
+      const movingBetweenBrochures = target?.matches(".interest-brochure") && trigger?.matches(".interest-brochure");
+      if (event.type === "pointerover" && trigger?.contains(document.activeElement) && !movingBetweenBrochures) return;
       const tooltip = target?.querySelector<HTMLElement>('[role="tooltip"]') || target?.parentElement?.querySelector<HTMLElement>('.interest-brochure-tooltip');
       if (!tooltip || !target || document.querySelector('[role="dialog"]')) { dismiss(); return; }
       dismiss();
