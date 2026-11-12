@@ -14,6 +14,8 @@ test.beforeEach(async ({ page }) => {
     // These account journeys use a regular traveler; admin authorization has its own suite.
     if (url.pathname === '/rest/v1/rpc/is_admin') return route.fulfill({ json: false });
     if (url.pathname === '/rest/v1/rpc/trip_companion_pictures') return route.fulfill({ json: [] });
+    // Signed-in accounts ask once whether to show the Admin link; these QA accounts are not admins.
+    if (url.pathname === '/rest/v1/rpc/is_admin') return route.fulfill({ json: false });
     if (url.pathname === '/rest/v1/rpc/set_google_picture') return route.fulfill({ status: 204 });
     if (url.pathname === '/rest/v1/user' && route.request().method() === 'GET') return route.fulfill({ json: [] });
     if (url.pathname === '/rest/v1/rpc/load_trip_bundles' || (url.pathname === '/rest/v1/trip' && route.request().method() === 'GET')) return route.fulfill({ json: [] });
