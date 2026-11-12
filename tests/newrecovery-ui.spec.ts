@@ -7,7 +7,10 @@ const draft = { id: "33333333-3333-4333-8333-333333333333", title: "Recovery wee
 
 /** All account traffic is mocked: this suite never writes to a real account. */
 async function setup(page: Page) {
+  // Recovery assertions must not race a real geocoder enriching the saved event.
   await page.route("https://places.googleapis.com/**", route => route.abort());
+  await page.route("https://maps.googleapis.com/**", route => route.abort());
+  await page.route("https://photon.komoot.io/**", route => route.abort());
   let saveFails = true;
   let savedDraft = structuredClone(draft);
   await page.route("https://*.supabase.co/**", async route => {

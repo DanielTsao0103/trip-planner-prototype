@@ -273,3 +273,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Context-control release QA: adding Near to single-destination trips changes the keyboard tab sequence; update and preserve the recovery-banner visibility assertions. Autocomplete popups must sit below fixed save actions so an open or failed suggestion list cannot intercept Save on short mobile screens.
 
 - Demo quota QA: Text Search can exhaust its own allowance while Autocomplete still works. Derive soft country hints from the bundled destination index so a country-only trip keeps its context without a paid lookup; clear both geographic and country hints for Worldwide. Keep area lookup and autocomplete availability distinct.
+
+- Recovery test isolation: block real Maps geocoding as well as autocomplete in UI recovery fixtures. Late provider enrichment can legitimately queue another save and replace the notice while a test is auditing expanded controls; it is not deterministic recovery test input.
