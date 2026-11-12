@@ -28,6 +28,7 @@ export async function detailJourney(page, base, travelerEmail) {
   await expect(page.getByText(`Taipei — ${taipeiLabel}`, { exact: true })).toBeVisible();
   await button("Create trip").click();
   await button("Full detail browser QA").click();
+  await button("List").click();
   await saved(page);
   await goto("13");
   await button("Invite someone").click();
