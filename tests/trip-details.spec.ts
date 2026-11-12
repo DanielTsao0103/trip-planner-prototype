@@ -510,6 +510,8 @@ test('event location autocomplete selects a worldwide landmark, saves, reloads, 
  const event=api.rows[0].content.events[0];
  expect(event.point).toEqual({lat:48.85837,lng:2.29448});
  await page.goto(`./#/7?event=${event.id}`);await page.reload();await expect(page.getByLabel('Where',{exact:true})).toHaveValue(label);
+ // Both providers must fail for the manual-entry outage scenario.
+ await page.evaluate(() => Object.assign(window, {google:{maps:{importLibrary:async()=>{throw new Error('Provider unavailable');}}}}));
  await page.unroute('https://photon.komoot.io/api/**');await page.route('https://photon.komoot.io/api/**',route=>route.abort('failed'));
  await page.getByLabel('Where',{exact:true}).fill('Our hotel lobby');await expect(page.getByText('Search unavailable',{exact:true})).toBeVisible();
  await page.evaluate(() => {

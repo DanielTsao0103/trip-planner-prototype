@@ -249,3 +249,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - The expanded 528-case browser matrix needs a ten-minute CI suite budget on two hosted workers; retain the six-minute local budget and every test. A timeout after hundreds of passes is not evidence of a completed release gate.
 
 - After a confirmed deletion closes a modal and removes its opener, restore focus after modal cleanup has removed the background inert state; a frame scheduled from the async handler can run too early.
+
+- Location search reliability (November 12, 2026): independently bound optional geographic bias and each search provider. Test real provider availability as well as fixtures; disabled Places API is not working business autocomplete. Preserve selected place IDs, reject geocoder city substitutions for business names, keep local destination options during outages, and cancel stale requests and dismissed popups.

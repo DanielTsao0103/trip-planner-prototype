@@ -1,5 +1,6 @@
 export type Destination = {
   name: string; detail: string; kind: "City" | "Region" | "Country" | "Place";
+  finishSelection?: () => void;
   label: string; aliases: string; population: number; region: string; country: string;
 };
 export type WorldData = {

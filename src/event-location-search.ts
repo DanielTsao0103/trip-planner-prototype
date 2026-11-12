@@ -1,5 +1,5 @@
 import type { MapPoint } from "./domain.ts";
-export type MeetingPlace = { id: string; name: string; address: string; label: string; point: MapPoint | null };
+export type MeetingPlace = { id: string; name: string; address: string; label: string; point: MapPoint | null; googlePlaceId?: string; finishSelection?: () => void };
 export type SearchFocus = { latitude: number; longitude: number; zoom: number; approximate: boolean };
 type Feature = {properties?: Record<string, unknown>; geometry?: {coordinates?: unknown}};
 const normalized = (value: string) => value.normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,'');

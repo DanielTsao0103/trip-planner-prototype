@@ -435,6 +435,7 @@ export function EventForm() {
       original?.place || route.params.get("place") || "",
     ),
     [point, setPoint] = useState(original?.point ?? null),
+    [selectedGooglePlaceId, setSelectedGooglePlaceId] = useState(original?.googlePlaceId ?? null),
     [date, setDate] = useState(original?.date || dateParam),
     [start, setStart] = useState(
       original?.start || route.params.get("start") || initialSlot?.start || "",
@@ -569,6 +570,7 @@ export function EventForm() {
       }
       setName("A visit to the gallery");
       setPoint(null);
+      setSelectedGooglePlaceId(null);
       setPlace(
         t.sample
           ? "Cedar Gallery · downtown"
@@ -590,7 +592,7 @@ export function EventForm() {
     else if (returnTo === "11") go(11, { date: day, ...(eventId ? { event: eventId } : {}) });
     else go(8, { date: day, ...(eventId ? {event: eventId} : {}), view: route.params.get("view") === "calendar" ? "calendar" : "list" });
   };
-  const draft = JSON.stringify([name, place, point, date, start, end, cost, attendees, notes, uploadedEventPhoto, selectedEventPhoto?.url]);
+  const draft = JSON.stringify([name, place, point, selectedGooglePlaceId, date, start, end, cost, attendees, notes, uploadedEventPhoto, selectedEventPhoto?.url]);
   const initialDraft = useRef(draft);
   const timeError = /^(?:End time|This overlaps|Choose a day within)/.test(error);
   const timeErrorTarget = useRef<HTMLDivElement>(null);
@@ -625,7 +627,7 @@ export function EventForm() {
       id: original?.id || uid(),
       name: name.trim(),
       place: place.trim(),
-      googlePlaceId: original?.place === place.trim() && !point ? original.googlePlaceId : null,
+      googlePlaceId: point ? null : selectedGooglePlaceId,
       point,
       date,
       start,
@@ -689,7 +691,7 @@ export function EventForm() {
                   placeholder="A morning at the museum"
                 />
               </Field>
-              <EventLocationInput value={place} onChange={(label, position) => { setPlace(label); setPoint(position ?? null); }} destinations={t.destinations} />
+              <EventLocationInput value={place} onChange={(label, position, placeId) => { setPlace(label); setPoint(position ?? null); setSelectedGooglePlaceId(placeId ?? null); }} destinations={t.destinations} />
 
   </>;
   const role = member(t, s.userId)?.role;

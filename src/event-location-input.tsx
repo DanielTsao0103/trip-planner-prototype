@@ -1,13 +1,17 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
-import { locationQuery, locationSearchKey, resolveSearchFocus, searchMeetingPlaces, type MeetingPlace } from './event-location-search';
+import { locationQuery, locationSearchKey, type MeetingPlace } from './event-location-search';
+import { findLocationSuggestions, type LocationSuggestions } from './location-suggestions';
+import type { GoogleSearchSession } from './google-location-search';
 
-const cache = new Map<string, {places:MeetingPlace[];biased:boolean;approximate:boolean}>();
-export function EventLocationInput({value,onChange,destinations=[]}: {value:string;onChange:(value:string,point?:MeetingPlace["point"])=>void;destinations?:string[]}) {
+const cache = new Map<string, {result:LocationSuggestions; expires:number}>();
+export function EventLocationInput({value,onChange,destinations=[]}: {value:string;onChange:(value:string,point?:MeetingPlace["point"],googlePlaceId?:string)=>void;destinations?:string[]}) {
   const id=useId(), list=useRef<HTMLDivElement>(null), menu=useRef<HTMLDivElement>(null);
   const [open,setOpen]=useState(false), [active,setActive]=useState(-1);
   const [results,setResults]=useState<MeetingPlace[]>([]);
   const [status,setStatus]=useState<'loading'|'ready'|'error'>('ready');
+  const session=useRef<GoogleSearchSession>({});
+  const [attempt,setAttempt]=useState(0),[source,setSource]=useState<'photon'|'google'>('photon'),[limited,setLimited]=useState(false);
   const [near,setNear]=useState<string|null>(null);
   const stops=[...new Set(destinations.filter(Boolean))];
   const destination=near===''?'':near && stops.includes(near)?near:stops[0]||'';
@@ -20,28 +24,24 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
     const controller=new AbortController();
     setStatus('loading');
     const timer=setTimeout(async()=>{
-      let timeout: ReturnType<typeof setTimeout> | undefined;
       try {
-        const key=locationSearchKey(query,destination);
-        let matches=cache.get(key);
-        if(!matches){
-          timeout=setTimeout(()=>controller.abort(),12000);
-          let focus=null;
-          try{focus=await resolveSearchFocus(destination,controller.signal);}catch{if(controller.signal.aborted)throw new Error('Search cancelled');}
-          const places=await searchMeetingPlaces(query,controller.signal,focus);
-          matches={places,biased:!!focus,approximate:focus?.approximate||false};
-          if(cancelled)return;
+        const key=locationSearchKey(query,destination), saved=cache.get(key);
+        const matches=saved && saved.expires>Date.now() ? saved.result : await findLocationSuggestions(query,destination,controller.signal,session.current);
+        if(cancelled)return;
+        // Cache only bounded OpenStreetMap results, never Google predictions or errors.
+        if(matches.source==='photon') {
           if(cache.size>=50)cache.delete(cache.keys().next().value!);
-          cache.set(key,matches);
+          cache.set(key,{result:matches,expires:Date.now()+300000});
         }
-        if(!cancelled){setResults(matches.places);setBiased(matches.biased);setApproximate(matches.approximate);setStatus('ready');}
+        setResults(matches.places);setBiased(matches.biased);setApproximate(matches.approximate);
+        setSource(matches.source);setLimited(matches.limited);setStatus('ready');
       }catch{if(!cancelled)setStatus('error');}
-      finally{if(timeout)clearTimeout(timeout);}
     },350);
     return()=>{cancelled=true;clearTimeout(timer);controller.abort();};
-  },[query,open,destination]);
+  },[query,open,destination,attempt]);
+  useEffect(()=>{if(!open)session.current.token=undefined;},[open]);
   useEffect(()=>{if(active>=0)list.current?.children[active]?.scrollIntoView({block:'nearest'});},[active]);
-  function select(index:number){const result=results[index];if(result){onChange(result.label,result.point);setOpen(false);setActive(-1);}}
+  function select(index:number){const result=results[index];if(result){onChange(result.label,result.point,result.googlePlaceId);result.finishSelection?.();setOpen(false);setActive(-1);}}
   const expanded=open && query.length>=2;
   useEffect(() => {
     if (!expanded) return;
@@ -77,21 +77,23 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
           e.preventDefault();setOpen(true);
           setActive(i=>!results.length?-1:i<0?(e.key==='ArrowDown'?0:results.length-1):(i+(e.key==='ArrowDown'?1:-1)+results.length)%results.length);
         }else if(e.key==='Enter' && expanded){e.preventDefault();if(active>=0)select(active);else setOpen(false);}
+        else if(e.key==='Tab'){setOpen(false);}
         else if(e.key==='Escape' && expanded){e.preventDefault();setOpen(false);}
       }}/>
     {expanded && <div ref={menu} className="field-popup event-location-menu">
-      <div className="event-location-caption">{status==='loading'?'Searching worldwide…':status==='error'?'Search unavailable':results.length?(destination && biased?`Near ${destination}${approximate?' (approximate area)':''}`:'Suggested locations'):'No locations found'}</div>
+      <div className="event-location-caption">{status==='loading'?'Searching worldwide…':status==='error'?'Search unavailable':results.length?(destination && biased?`Prioritizing ${destination}${approximate?' (approximate area)':''}`:'Suggested locations'):'No locations found'}</div>
       <div ref={list} id={`${id}-list`} role="listbox" aria-label="Location suggestions">
         {results.map((place,i)=><div key={place.id} role="option" id={`${id}-${i}`} aria-selected={i===active}
-          className={`event-location-option ${i===active?'active':''}`} onMouseDown={e=>e.preventDefault()}
+          className={`event-location-option ${i===active?'active':''}`} onPointerDown={e=>e.preventDefault()} onMouseDown={e=>e.preventDefault()}
           onMouseEnter={()=>setActive(i)} onClick={()=>select(i)}>
           <MapPin size={17} aria-hidden="true"/><span><strong>{place.name}</strong>{place.address && <small>{place.address}</small>}</span>
         </div>)}
       </div>
       <div className="event-location-footer" role="status" aria-live="polite">
-        {status==='loading'?'Finding places…':status==='error'?'You can still type a location and save it.':results.length?(destination && !biased?'Destination lookup unavailable; showing worldwide matches.':'↑ ↓ to navigate · Enter to select'):'Try another spelling, or enter the location manually.'}
+        {status==='loading'?'Finding places…':status==='error'?'You can still type a location and save it.':results.length?(limited?'Address matches · ↑ ↓ to navigate · Enter to select':destination && !biased?'Showing worldwide matches.':'↑ ↓ to navigate · Enter to select'):limited?'Try a full address or landmark name, or keep the location you typed.':'Try another spelling, or enter the location manually.'}
       </div>
-      <div className="event-location-source">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a> · Photon</div>
+      {status==='error' && <button type="button" className="btn btn-outline" onClick={()=>setAttempt(value=>value+1)}>Retry location search</button>}
+      {source==='google' && status==='ready' ? <div className="event-location-source google-search-attribution" translate="no">Google Maps</div> : <div className="event-location-source">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a> · Photon</div>}
     </div>}
   </div></div>;
 }
