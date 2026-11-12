@@ -259,7 +259,11 @@ export function Itinerary() {
             </section>
             );
           })}
-          <p className="day-page-bottom">{dayRange}</p>
+          <div className="day-page-controls day-page-controls-bottom" aria-label="Day list pages">
+            {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage - 1)} disabled={currentPage === 0} aria-label="Previous days"><ChevronLeft size={16} /></button>}
+            <span aria-live="polite">{dayRange}</span>
+            {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage + 1)} disabled={currentPage >= pageCount - 1} aria-label="Next days"><ChevronRight size={16} /></button>}
+          </div>
         </div>
         <aside className="itinerary-aside">
           <div className="card inspiration-card">

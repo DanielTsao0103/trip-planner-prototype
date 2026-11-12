@@ -1879,11 +1879,8 @@ legend {
   font: inherit;
   cursor: pointer;
 }
-.day-page-bottom {
-  padding: 2px 0 20px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 12px;
+.day-page-controls-bottom {
+  margin: 14px 0 0;
 }
 .day-page-arrow {
   display: grid;
