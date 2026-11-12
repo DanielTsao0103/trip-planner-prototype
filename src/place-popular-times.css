@@ -1,0 +1,41 @@
+.place-popular-times summary {
+  display: list-item;
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.place-popular-times .popular-times-status {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.popular-times-status:empty { display: none; }
+.popular-times-widget { min-width: 0; }
+.popular-times-frame {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  border: 0;
+  color-scheme: normal;
+}
+
+.popular-times-widget gmp-place-details {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  margin: 8px 0;
+  --gmp-mat-color-surface: var(--paper);
+  --gmp-mat-color-on-surface: var(--ink);
+  --gmp-mat-color-on-surface-variant: var(--muted);
+  --gmp-mat-color-primary: var(--green);
+  --gmp-mat-color-outline-decorative: var(--line);
+  --gmp-mat-font-family: "DM Sans", sans-serif;
+  --gmp-popular-times-bar-color: var(--muted);
+  --gmp-popular-times-bar-current-hour-color: var(--green);
+  --gmp-popular-times-bar-current-hour-live-color: var(--green);
+}

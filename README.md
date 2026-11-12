@@ -43,7 +43,7 @@ Invitations require configured email delivery. Existing-account invitations are 
 - Google Maps resolves typed itinerary locations and unpinned existing events. Saved manual positions take priority. Named areas can show a center pin; unresolved locations are edited in the itinerary.
 - Account screens refresh shared trip data every five seconds while visible and on focus/reconnect, while preserving pending local edits. This uses foreground polling, not a Supabase Realtime subscription. Device location and map viewport stay local.
 - Trip covers and itinerary pictures support Unsplash selection and custom uploads. Cover search offers up to five landscape matches; JPEG, PNG and WebP uploads accept files up to 5 MB. Unsplash credit and selection tracking are retained. Uploaded trip and profile images use public Storage buckets, so anyone with an image URL can view it.
-- The event editor's popular-times link opens a Google Maps search; it does not fetch crowd data into the app.
+- The event editor embeds Google's Popular Times chart when its disclosure is opened. It shows a clear no-data or retry state when Google cannot supply the chart. The class prototype uses a separate no-billing Google Maps Demo Key; it pauses at its daily limits rather than charging.
 
 ## Architecture
 
@@ -127,6 +127,7 @@ Fill in `.env.local` using the existing team's service configuration:
 | `VITE_SUPABASE_URL` | Existing Supabase project URL. |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Browser-safe `sb_publishable_` key for Auth and account data. |
 | `VITE_GOOGLE_MAPS_API_KEY` | Website-restricted Google Maps browser key. |
+| `VITE_GOOGLE_MAPS_DEMO_API_KEY` | Separate no-billing demo key for embedded Popular Times in this class prototype. |
 | `VITE_GOOGLE_MAP_ID` | Optional custom Google map style. |
 | `VITE_BOOKINGS_INBOX_ADDRESS` | Optional forwarding address displayed on Home; leave blank to hide it. |
 
@@ -141,6 +142,9 @@ Development and preview default to `127.0.0.1:5190`, the local origin documented
 
 Location fields use the bundled destination index and Photon, with Google Places autocomplete and a conservative Google geocoder fallback through the existing Maps key. Enable **Places API (New)** in the key's owning Google Cloud project for full business-name autocomplete; Maps JavaScript/geocoding alone is insufficient. Keep website/API restrictions configured for the deployed site and approved local origin. If Places is disabled and Photon is unavailable, full addresses and supported landmarks can still match, but partial business names may not. Suggestions retain manual entry and retry controls; no device location permission is required.
 
+Popular Times uses Google's standard `PlaceDetailsElement`, with its chart and attribution intact. Set `VITE_GOOGLE_MAPS_DEMO_API_KEY` locally and as a GitHub Actions repository variable. The chart runs in a separate same-origin frame, so it cannot reuse the main map's key; it has no paid-key fallback. It loads only on expansion, reuses the result while editing the time, and clears the old chart when the location changes. Places text search resolves unsaved locations with the same demo key, without legacy Geocoding calls. The display shows typical weekly patterns in the venue's local time, not a forecast for the trip date.
+
+Dan selected the [Maps Demo Key](https://developers.google.com/maps/demo-key) for this educational prototype: no payment information or billing account was added, and Google pauses usage when its daily allowance is exhausted. This key is for evaluation/testing only and must not be used for a production service. Do not activate a paid account, prepay, or add a paid fallback. Team 3's demo project is `gmp-demo-project-638434986`. The earlier $300 trial signup was left unfinished. Real Seattle Art Museum Popular Times data was verified in the local event form on desktop and mobile on November 12, 2026; SDK fixtures separately cover empty/error/retry/timeout and location-change behavior.
 
 Never put service-role/secret keys, management tokens, SMTP credentials or database passwords in `VITE_` variables. Real environment files are ignored. Private QA/admin scripts use separate ignored files; see [Supabase setup](SUPABASE-SETUP.md), whose dated sections also preserve historical setup steps.
 

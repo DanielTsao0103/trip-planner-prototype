@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => {
     // unapproved port when another preview is already running.
     server: { host: "127.0.0.1", port: 5190, strictPort: true },
     preview: { host: "127.0.0.1", port: 5190, strictPort: true },
-    build: { outDir: "dist" },
+    build: {
+      outDir: "dist",
+      rollupOptions: { input: { main: "index.html", popularTimes: "popular-times.html" } },
+    },
   };
 });

@@ -1,6 +1,7 @@
 import { readPhotoDataUrl, validatePhoto } from "./image-validation";
 import { resolveSavedLocation } from "./google-maps";
 import { EventLocationInput } from "./event-location-input";
+import { PlacePopularTimes } from "./place-popular-times";
 import { WeeklyCalendar } from "./weekly-calendar";
 /** Implementation status: Account events, todos, and dismissed choices save through updateTrip to Supabase. Confirmation extraction, crowds, costs, and suggestions remain fixtures; uploaded file previews are temporary. See ../IMPLEMENTATION_STATUS.md. */
 import { DatePicker } from "./date-picker";
@@ -855,18 +856,12 @@ export function EventForm() {
               </p>
               {suggested && <details className="suggested-event-details"><summary>Edit name or location</summary>{eventIdentityFields}</details>}
               {place.trim() && (
-                <div className="place-popular-times">
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.trim())}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Check popular times on Google Maps
-                    <ArrowUpRight size={16} aria-hidden="true" />
-                    <span className="sr-only"> (opens in a new tab)</span>
-                  </a>
-                  <small>Popular times are available for some places.</small>
-                </div>
+                <PlacePopularTimes
+                  key={place}
+                  place={place.trim()}
+                  googlePlaceId={selectedGooglePlaceId}
+                  destinations={t.destinations}
+                />
               )}
               <Field
                 label="Estimated cost (USD)"
