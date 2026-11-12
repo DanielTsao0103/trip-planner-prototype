@@ -73,6 +73,23 @@ test('a hung destination bias does not prevent place suggestions or touch select
   await expect(input).toBeFocused();await expect(input).toHaveAttribute('aria-expanded','false');
 });
 
+test('typed suggestions arrive within two seconds even when the optional trip lookup stalls',async({page})=>{
+  await demoFixture(page);
+  await page.route('https://places.googleapis.com/v1/places:autocomplete',async route=>{
+    // Allow realistic provider latency; the stalled bias must not add another wait.
+    await new Promise(resolve=>setTimeout(resolve,600));await route.fallback();
+  });
+  await page.route('https://places.googleapis.com/v1/places:searchText',async route=>{
+    await new Promise(resolve=>setTimeout(resolve,2500));
+    await route.fulfill({json:{places:[]}}).catch(()=>{});
+  });
+  await page.goto('./#/7');
+  const input=page.getByRole('combobox',{name:'Where',exact:true});
+  const started=Date.now();await input.fill('national palace museu');
+  await expect(page.getByRole('option',{name:/National Palace Museum.*Taipei/})).toBeVisible({timeout:1500});
+  expect(Date.now()-started).toBeLessThan(2000);
+});
+
 test('demo predictions discard stale queries and save their exact place ID',async({page})=>{
   const state=await demoFixture(page);await page.route('https://photon.komoot.io/**',route=>route.abort());
   await page.goto('./#/7');const input=page.getByRole('combobox',{name:'Where',exact:true});

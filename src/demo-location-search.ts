@@ -19,23 +19,23 @@ async function request<T>(method: string, body: object, fields: string, signal: 
   return response.json() as Promise<T>;
 }
 
-/** Predict incomplete names and addresses. A trip destination biases, never restricts, results. */
+/** Warm the optional trip bias independently so it never delays typed predictions. */
+export async function prepareDemoLocationFocus(destination: string, signal: AbortSignal, session: DemoLocationSession): Promise<void> {
+  if (!destination || session.focus?.destination === destination) return;
+  const response = await searchRequest(child => request<{ places?: { location?: { latitude: number; longitude: number } }[] }>(
+    'searchText', { textQuery: destination, languageCode: 'en', maxResultCount: 1 }, 'places.location', child,
+  ), signal, 900);
+  signal.throwIfAborted();
+  const center = response.places?.[0]?.location;
+  if (center && Number.isFinite(center.latitude) && Number.isFinite(center.longitude)) {
+    session.focus = { destination, value: { ...center, zoom: 12, approximate: false } };
+  }
+}
+
+/** Predict immediately; use an already available bias without waiting for another request. */
 export async function searchDemoLocations(query: string, destination: string, signal: AbortSignal, session: DemoLocationSession) {
   return searchRequest(async child => {
-    let focus = session.focus?.destination === destination ? session.focus.value : undefined;
-    if (!focus && destination) {
-      try {
-        const response = await searchRequest(biasSignal => request<{ places?: { location?: { latitude: number; longitude: number } }[] }>(
-          'searchText', { textQuery: destination, languageCode: 'en', maxResultCount: 1 }, 'places.location', biasSignal,
-        ), child, 900);
-        child.throwIfAborted();
-        const center = response.places?.[0]?.location;
-        if (center && Number.isFinite(center.latitude) && Number.isFinite(center.longitude)) {
-          focus = { ...center, zoom: 12, approximate: false };
-          session.focus = { destination, value: focus };
-        }
-      } catch { child.throwIfAborted(); }
-    }
+    const focus = session.focus?.destination === destination ? session.focus.value : undefined;
     const response = await request<{ suggestions?: { placePrediction?: Prediction }[] }>('autocomplete', {
       input: query, languageCode: 'en',
       ...(focus ? { locationBias: { circle: { center: { latitude: focus.latitude, longitude: focus.longitude }, radius: 50000 } } } : {}),

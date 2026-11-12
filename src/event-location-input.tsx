@@ -2,7 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { locationQuery, locationSearchKey, type MeetingPlace } from './event-location-search';
 import { findLocationSuggestions, type LocationSuggestions } from './location-suggestions';
-import type { DemoLocationSession } from './demo-location-search';
+import { prepareDemoLocationFocus, type DemoLocationSession } from './demo-location-search';
 
 const cache = new Map<string, {result:LocationSuggestions; expires:number}>();
 export function EventLocationInput({value,onChange,destinations=[]}: {value:string;onChange:(value:string,point?:MeetingPlace["point"],googlePlaceId?:string)=>void;destinations?:string[]}) {
@@ -18,6 +18,13 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
   const destination=near===''?'':near && stops.includes(near)?near:stops[0]||'';
   const [biased,setBiased]=useState(false),[approximate,setApproximate]=useState(false);
   const query=locationQuery(value);
+  useEffect(()=>{
+    if(!open || !destination)return;
+    const controller=new AbortController();
+    // Resolve the trip area while the user types, without blocking suggestions.
+    void prepareDemoLocationFocus(destination,controller.signal,session.current).catch(()=>{});
+    return()=>controller.abort();
+  },[open,destination]);
   useEffect(()=>{
     setResults([]);setActive(-1);
     if(!open || query.length<2){setStatus('ready');return;}
@@ -37,7 +44,7 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
         setResults(matches.places);setBiased(matches.biased);setApproximate(matches.approximate);
         setSource(matches.source);setLimited(matches.limited);setStatus('ready');
       }catch{if(!cancelled)setStatus('error');}
-    },250);
+    },150);
     return()=>{cancelled=true;clearTimeout(timer);controller.abort();};
   },[query,open,destination,attempt]);
   useEffect(()=>{if(active>=0)list.current?.children[active]?.scrollIntoView({block:'nearest'});},[active]);
