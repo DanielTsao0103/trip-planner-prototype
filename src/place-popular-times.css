@@ -24,6 +24,8 @@
 }
 
 .popular-times-widget gmp-place-details {
+  /* Google's default follows the device; the planner can use a different theme. */
+  color-scheme: inherit;
   box-sizing: border-box;
   display: block;
   width: 100%;

@@ -1347,6 +1347,10 @@ body:has([role="dialog"]) .toast { display: none; }
   :root .is-suggested .suggested-event-summary h2 { font-size: 20px; margin-bottom: 4px; }
   :root .is-suggested .form-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 }
+/* Native time inputs need room for AM/PM and their picker icon. */
+:root .event-editor-form .event-time-fields {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+}
 :root .repayment-decision { display: flex; gap: 12px; margin-top: 24px; }
 :root .repayment-decision > .btn { flex: 1; margin: 0; }
 :root .page-5 > .success-banner { flex-wrap: wrap; }

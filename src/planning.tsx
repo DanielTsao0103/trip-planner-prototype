@@ -831,7 +831,7 @@ export function EventForm() {
                   ))}
                 </select>
               </Field>
-              <div className="form-columns">
+              <div className="form-columns event-time-fields">
                 <Field label="Start time">
                   <input
                     required
