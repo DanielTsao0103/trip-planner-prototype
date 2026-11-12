@@ -279,3 +279,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Group preference cards must share equal heights across desktop and mobile, including empty cards, as explicitly requested on November 12, 2026. Let the Interests and Destinations tiles reflow and size within their shared card height.
 
 - Popular Times interaction correction (November 12, 2026): preserve the open disclosure when Where changes, immediately remove stale charts, debounce free typing, and refresh selected place IDs without reopening. Enter in event fields must never implicitly submit; keep explicit button keyboard activation and textarea newlines. Use Google's completed-load rendered flag to distinguish no information from genuine provider errors, and keep unresolved place searches separate.
+
+- Popular Times speed correction (November 12, 2026): Dan requires refresh to begin within 100 ms of changing Where. Remove the former 350 ms typing debounce; replace the frame in the same render, clear stale charts, and distinguish immediate request initiation from Google response latency.

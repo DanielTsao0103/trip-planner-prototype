@@ -101,22 +101,19 @@ export function PlacePopularTimes(props: {
   destinations: string[];
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [settled, setSettled] = useState<string | null>(null);
+  const [requested, setRequested] = useState<string | null>(null);
   const identity = JSON.stringify([props.place.trim(), props.googlePlaceId || null, props.destinations]);
   const hasPlace = !!props.place.trim();
   useEffect(() => {
-    if (!expanded || !hasPlace || settled === identity) return;
-    // Selected predictions are exact; free typing gets a short pause to avoid a request per key.
-    const timer = window.setTimeout(() => setSettled(identity), props.googlePlaceId ? 0 : 350);
-    return () => clearTimeout(timer);
-  }, [expanded, hasPlace, identity, settled, props.googlePlaceId]);
+    if (expanded && hasPlace) setRequested(identity);
+  }, [expanded, hasPlace, identity]);
   // The component itself remains mounted so clearing and replacing text retains expansion.
   if (!hasPlace) return null;
   return <details className="place-popular-times" open={expanded} onToggle={event => {
     setExpanded(event.currentTarget.open);
   }}>
     <summary>Popular times</summary>
-    {settled === identity ? <PopularTimesChart key={identity} {...props} />
-      : expanded && <div role="status" aria-live="polite" className="popular-times-status">Updating popular times for this location…</div>}
+    {/* Start the replacement frame in this render, without a typing timer or effect delay. */}
+    {(expanded || requested === identity) && <PopularTimesChart key={identity} {...props} />}
   </details>;
 }

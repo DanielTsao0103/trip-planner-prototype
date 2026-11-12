@@ -116,6 +116,23 @@ test("changing the location drops the old chart and ignores its late completion"
   expect(await requests(page)).toHaveLength(2);
 });
 
+test("each location edit starts its replacement request without waiting for a typing timer", async ({ page }) => {
+  await setup(page, "pending");
+  await page.locator(".place-popular-times summary").click();
+  await expect.poll(() => requests(page)).toHaveLength(1);
+  // A paused clock catches even a small debounce: refresh must work without advancing time.
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
+  const input = page.getByRole("combobox", { name: "Where", exact: true });
+  for (const place of ["Space Need, Seattle", "Space Needle, Seattle", "Seattle Public Library, Seattle"]) {
+    await input.fill(place);
+    await expect.poll(async () => (await requests(page)).at(-1)).toBe(place);
+    await expect(page.locator(".place-popular-times")).toHaveAttribute("open", "");
+    await expect(page.locator("iframe[title='Google popular times']")).toHaveCount(1);
+  }
+  expect(await requests(page)).toHaveLength(4);
+});
+
 test("a stalled request times out and late responses cannot replace its error", async ({ page }) => {
   await setup(page, "pending");
   await page.clock.install();
