@@ -692,7 +692,7 @@ export function EventForm() {
                   placeholder="A morning at the museum"
                 />
               </Field>
-              <EventLocationInput value={place} onChange={(label, position, placeId) => { setPlace(label); setPoint(position ?? null); setSelectedGooglePlaceId(placeId ?? null); }} destinations={t.destinations} />
+              <EventLocationInput value={place} onChange={(label, position, placeId) => { setPlace(label); setPoint(position ?? null); setSelectedGooglePlaceId(placeId ?? null); }} destinations={t.destinations} itinerary={{events:t.events,date,start,editingId:original?.id}} />
 
   </>;
   const role = member(t, s.userId)?.role;

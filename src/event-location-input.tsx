@@ -1,30 +1,37 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useId, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { locationQuery, locationSearchKey, type MeetingPlace } from './event-location-search';
 import { findLocationSuggestions, type LocationSuggestions } from './location-suggestions';
-import { prepareDemoLocationFocus, type DemoLocationSession } from './demo-location-search';
+import { contextFocus, prepareDemoLocationFocus, type DemoLocationSession } from './demo-location-search';
+
+import { destinationContext, inferLocationContext, type LocationItinerary } from './event-location-context';
 
 const cache = new Map<string, {result:LocationSuggestions; expires:number}>();
-export function EventLocationInput({value,onChange,destinations=[]}: {value:string;onChange:(value:string,point?:MeetingPlace["point"],googlePlaceId?:string)=>void;destinations?:string[]}) {
+export function EventLocationInput({value,onChange,destinations=[],itinerary}: {value:string;onChange:(value:string,point?:MeetingPlace["point"],googlePlaceId?:string)=>void;destinations?:string[];itinerary?:LocationItinerary}) {
   const id=useId(), list=useRef<HTMLDivElement>(null), menu=useRef<HTMLDivElement>(null);
   const [open,setOpen]=useState(false), [active,setActive]=useState(-1);
   const [results,setResults]=useState<MeetingPlace[]>([]);
   const [status,setStatus]=useState<'loading'|'ready'|'error'>('ready');
+  const activeSelection=useRef(active);activeSelection.current=active;
   const session=useRef<DemoLocationSession>({});
   const pointerStart=useRef<{id:number;x:number;y:number}|null>(null);
   const [attempt,setAttempt]=useState(0),[source,setSource]=useState<'photon'|'google'>('photon'),[limited,setLimited]=useState(false);
   const [near,setNear]=useState<string|null>(null);
   const stops=[...new Set(destinations.filter(Boolean))];
-  const destination=near===''?'':near && stops.includes(near)?near:stops[0]||'';
+  const inferred=inferLocationContext(stops,itinerary);
+  const candidate=near===null?inferred:destinationContext(stops.includes(near)?near:'');
+  const context=useMemo(()=>candidate,[candidate.key,candidate.label,candidate.reason]);
+  const destination=context.label;
+  const [contextVersion,setContextVersion]=useState(0);
   const [biased,setBiased]=useState(false),[approximate,setApproximate]=useState(false);
   const query=locationQuery(value);
   useEffect(()=>{
-    if(!open || !destination)return;
+    if(!context.query)return;
     const controller=new AbortController();
-    // Resolve the trip area while the user types, without blocking suggestions.
-    void prepareDemoLocationFocus(destination,controller.signal,session.current).catch(()=>{});
+    // Warm the anchor on form open, so typing never waits for it.
+    void prepareDemoLocationFocus(context,controller.signal,session.current).then(()=>{if(!controller.signal.aborted && activeSelection.current<0)setContextVersion(v=>v+1);}).catch(()=>{});
     return()=>controller.abort();
-  },[open,destination]);
+  },[context]);
   useEffect(()=>{
     setResults([]);setActive(-1);
     if(!open || query.length<2){setStatus('ready');return;}
@@ -33,8 +40,8 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
     setStatus('loading');
     const timer=setTimeout(async()=>{
       try {
-        const key=locationSearchKey(query,destination), saved=cache.get(key);
-        const matches=saved && saved.expires>Date.now() ? saved.result : await findLocationSuggestions(query,destination,controller.signal,session.current);
+        const key=locationSearchKey(query,JSON.stringify([context.key,contextFocus(context,session.current)])), saved=cache.get(key);
+        const matches=saved && saved.expires>Date.now() ? saved.result : await findLocationSuggestions(query,context,controller.signal,session.current);
         if(cancelled)return;
         // Cache only bounded OpenStreetMap results, never Google predictions or errors.
         if(matches.source==='photon' && matches.places.length) {
@@ -46,7 +53,7 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
       }catch{if(!cancelled)setStatus('error');}
     },150);
     return()=>{cancelled=true;clearTimeout(timer);controller.abort();};
-  },[query,open,destination,attempt]);
+  },[query,open,context,contextVersion,attempt]);
   useEffect(()=>{if(active>=0)list.current?.children[active]?.scrollIntoView({block:'nearest'});},[active]);
   function select(index:number){const result=results[index];if(result){onChange(result.label,result.point,result.googlePlaceId);result.finishSelection?.();setOpen(false);setActive(-1);}}
   const expanded=open && query.length>=2;
@@ -64,14 +71,16 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
   return <div className="field event-location-field">
     <div className="event-location-heading">
     <label htmlFor={`${id}-input`}>Where</label>
-    {stops.length > 1 && <div className="event-location-bias">
+    <div className="event-location-bias">
       <label htmlFor={`${id}-near`}>Near</label>
-      <select id={`${id}-near`} aria-label="Prioritize locations near" value={destination} onChange={e=>{setNear(e.target.value);setActive(-1);setResults([]);setOpen(true);}}>
+      <select id={`${id}-near`} aria-label="Prioritize locations near" value={near===null?'__auto':near} onChange={e=>{setNear(e.target.value==='__auto'?null:e.target.value);setActive(-1);setResults([]);setOpen(true);}}>
+        <option value="__auto">Automatic</option>
         {stops.map(stop=><option key={stop} value={stop}>{stop}</option>)}
         <option value="">Worldwide (no preference)</option>
       </select>
-    </div>}
     </div>
+    </div>
+    {near===null && destination && <small className="event-location-context">Near {destination} · {context.reason.toLowerCase()}</small>}
     <div className="field-popup-anchor" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setOpen(false);}}>
     <input id={`${id}-input`} required value={value} role="combobox" aria-label="Where"
       aria-autocomplete="list" aria-expanded={expanded} aria-controls={`${id}-list`}
@@ -88,7 +97,7 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
         else if(e.key==='Escape' && expanded){e.preventDefault();setOpen(false);}
       }}/>
     {expanded && <div ref={menu} className="field-popup event-location-menu">
-      <div className="event-location-caption">{status==='loading'?'Searching worldwide…':status==='error'?'Search unavailable':results.length?(destination && biased?`Prioritizing ${destination}${approximate?' (approximate area)':''}`:'Suggested locations'):'No locations found'}</div>
+      <div className="event-location-caption">{status==='loading'?'Searching worldwide…':status==='error'?'Search unavailable':results.length?(destination && biased?`Near ${destination}${approximate?' (approximate area)':''}`:'Suggested locations'):'No locations found'}</div>
       <div ref={list} id={`${id}-list`} role="listbox" aria-label="Location suggestions">
         {results.map((place,i)=><div key={place.id} role="option" id={`${id}-${i}`} aria-selected={i===active}
           className={`event-location-option ${i===active?'active':''}`} onPointerDown={e=>{

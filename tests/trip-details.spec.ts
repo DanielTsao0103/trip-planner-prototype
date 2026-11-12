@@ -837,3 +837,40 @@ test("account pin feedback waits for a complete save response and recovers", asy
   await page.reload();
   await expect(page.getByText("Trip changes saved", { exact: true })).toHaveCount(0);
 });
+
+
+test('event autocomplete follows itinerary cities, date changes, and explicit overrides',async({page})=>{
+ await page.addInitScript(()=>sessionStorage.setItem('trip-planner-demo-session','active'));
+ const calls:any[]=[];
+ await page.route('https://places.googleapis.com/v1/places/tokyo-anchor',route=>route.fulfill({json:{location:{latitude:35.68,longitude:139.76}}}));
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[{location:{latitude:25.04,longitude:121.56}}]}}));
+ await page.route('https://places.googleapis.com/v1/places:autocomplete',route=>{
+  const body=route.request().postDataJSON();calls.push(body);
+  const city=body.locationBias?.circle?.center.latitude>30?'Tokyo':'Taipei';
+  return route.fulfill({json:{suggestions:[{placePrediction:{placeId:city,text:{text:`Coffee, ${city}`},structuredFormat:{mainText:{text:'Coffee'},secondaryText:{text:city}}}}]}});
+ });
+ await page.goto('./#/5');
+ await page.evaluate(()=>{
+  const key='trip-planner-demo-v1:demo-maya',store=JSON.parse(localStorage.getItem(key)!);
+  const trip=store.trips.find((t:any)=>t.id===store.tripId),base=trip.events[0];
+  trip.destinations=['Taipei, Taiwan','Tokyo, Japan'];trip.start='2027-05-01';trip.end='2027-05-05';
+  trip.events=[{...base,id:'taipei',name:'Taipei museum',date:'2027-05-01',start:'09:00',end:'10:00',place:'Museum, Taipei, Taiwan',point:{lat:25.04,lng:121.56},googlePlaceId:null},
+   {...base,id:'tokyo',name:'Tokyo museum',date:'2027-05-02',start:'09:00',end:'10:00',place:'Museum, Tokyo, Japan',point:null,googlePlaceId:'tokyo-anchor'}];
+  localStorage.setItem(key,JSON.stringify(store));
+ });
+ await page.goto('./#/7?date=2027-05-01&start=14:00&end=15:00');await page.reload();
+ const input=page.getByRole('combobox',{name:'Where',exact:true}),near=page.getByRole('combobox',{name:'Prioritize locations near'});
+ await input.fill('coffee');await expect(page.getByRole('option',{name:'Coffee Taipei'})).toBeVisible();
+ expect(calls.at(-1).locationBias.circle).toEqual({center:{latitude:25.04,longitude:121.56},radius:20000});
+ await expect(page.locator('.event-location-context')).toContainText('Taipei museum');
+ await page.getByLabel('Day',{exact:true}).selectOption('2027-05-02');await input.focus();
+ await expect(page.getByRole('option',{name:'Coffee Tokyo'})).toBeVisible();
+ await expect(page.locator('.event-location-context')).toContainText('Tokyo museum');
+ await near.selectOption('Taipei, Taiwan');await expect(page.getByRole('option',{name:'Coffee Taipei'})).toBeVisible();
+ await near.selectOption('');await expect.poll(()=>calls.at(-1).locationBias).toBeUndefined();
+ await near.selectOption('__auto');await expect(page.getByRole('option',{name:'Coffee Tokyo'})).toBeVisible();
+ await input.fill('coffee Paris');await expect.poll(()=>calls.at(-1).input).toBe('coffee Paris');
+ expect(calls.at(-1).locationRestriction).toBeUndefined();expect(calls.at(-1).includedRegionCodes).toBeUndefined();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+ await page.screenshot({path:test.info().outputPath('itinerary-location-context.png'),fullPage:true});
+});

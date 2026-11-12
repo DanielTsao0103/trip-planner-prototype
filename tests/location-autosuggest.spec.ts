@@ -162,3 +162,18 @@ test('destinations retain offline country options and use fallback when the bund
   await input.fill('Hidden Village');await expect(page.getByRole('option').filter({hasText:/hidden village Museum/i})).toBeVisible();
   await input.press('ArrowDown');await input.press('Enter');await expect(page.locator('.chips .chip').filter({hasText:/hidden village Museum/i})).toBeVisible();
 });
+
+
+test('a country destination biases its full region without restricting matches',async({page})=>{
+ const state=await demoFixture(page);
+ const viewport={low:{latitude:21.8,longitude:119.3},high:{latitude:25.4,longitude:122.1}};
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[{location:{latitude:23.7,longitude:121},viewport}]}}));
+ await page.goto('./#/7');
+ await page.evaluate(()=>{
+  const key='trip-planner-demo-v1:demo-maya',store=JSON.parse(localStorage.getItem(key)!);
+  const trip=store.trips.find((t:any)=>t.id===store.tripId);trip.destinations=['Taiwan'];trip.events=[];
+  localStorage.setItem(key,JSON.stringify(store));
+ });await page.reload();
+ await page.getByRole('combobox',{name:'Where',exact:true}).fill('coffee');
+ await expect.poll(()=>state.biases.at(-1)).toEqual({rectangle:viewport});
+});

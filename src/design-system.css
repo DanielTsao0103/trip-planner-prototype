@@ -1368,3 +1368,5 @@ body:has([role="dialog"]) .toast { display: none; }
   :root .expense-form textarea { height: 44px; min-height: 44px; }
   :root .expense-form .expense-field-error { padding: 4px 8px; }
 }
+
+:root .event-location-context { display:block; margin:6px 0 8px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }

@@ -1,4 +1,5 @@
 import type { MeetingPlace, SearchFocus } from './event-location-search';
+import { validLocationPoint, type LocationContext } from './event-location-context';
 import { searchRequest } from './search-request';
 
 export type DemoLocationSession = { focus?: { destination: string; value: SearchFocus } };
@@ -19,26 +20,47 @@ async function request<T>(method: string, body: object, fields: string, signal: 
   return response.json() as Promise<T>;
 }
 
-/** Warm the optional trip bias independently so it never delays typed predictions. */
-export async function prepareDemoLocationFocus(destination: string, signal: AbortSignal, session: DemoLocationSession): Promise<void> {
-  if (!destination || session.focus?.destination === destination) return;
-  const response = await searchRequest(child => request<{ places?: { location?: { latitude: number; longitude: number } }[] }>(
-    'searchText', { textQuery: destination, languageCode: 'en', maxResultCount: 1 }, 'places.location', child,
-  ), signal, 900);
+/** Known event coordinates are available synchronously, including the very first keystroke. */
+export function contextFocus(context: LocationContext, session: DemoLocationSession): SearchFocus | undefined {
+  if (validLocationPoint(context.point)) return { latitude: context.point.lat, longitude: context.point.lng, zoom: 12, approximate: false };
+  return session.focus?.destination === context.key ? session.focus.value : undefined;
+}
+
+/** Resolve one anchor when the form/context changes, never once per keystroke. */
+export async function prepareDemoLocationFocus(context: LocationContext, signal: AbortSignal, session: DemoLocationSession): Promise<void> {
+  if (contextFocus(context,session) || !context.query) return;
+  type Place = { location?: { latitude: number; longitude: number }; viewport?: SearchFocus['viewport'] };
+  const place = await searchRequest(async child => {
+    if(context.googlePlaceId) {
+      if(!demoKey)throw new Error('Location context unavailable');
+      const response=await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(context.googlePlaceId)}`,{
+        signal:child, headers:{'X-Goog-Api-Key':demoKey,'X-Goog-FieldMask':'location'},
+      });
+      if(!response.ok)throw new Error('Location context unavailable');
+      return await response.json() as Place;
+    }
+    const response=await request<{places?:Place[]}>('searchText',
+      {textQuery:context.query,languageCode:'en',maxResultCount:1},'places.location,places.viewport',child);
+    return response.places?.[0];
+  },signal,1200);
   signal.throwIfAborted();
-  const center = response.places?.[0]?.location;
-  if (center && Number.isFinite(center.latitude) && Number.isFinite(center.longitude)) {
-    session.focus = { destination, value: { ...center, zoom: 12, approximate: false } };
+  const center=place?.location;
+  if(center && validLocationPoint({lat:center.latitude,lng:center.longitude})) {
+    const viewport=place?.viewport;
+    const validViewport=viewport && validLocationPoint({lat:viewport.low?.latitude,lng:viewport.low?.longitude})
+      && validLocationPoint({lat:viewport.high?.latitude,lng:viewport.high?.longitude}) && viewport.low.latitude<=viewport.high.latitude;
+    session.focus={destination:context.key,value:{...center,zoom:12,approximate:false,
+      ...(context.kind==='destination' && validViewport?{viewport}:{} )}};
   }
 }
 
 /** Predict immediately; use an already available bias without waiting for another request. */
-export async function searchDemoLocations(query: string, destination: string, signal: AbortSignal, session: DemoLocationSession) {
+export async function searchDemoLocations(query: string, context: LocationContext, signal: AbortSignal, session: DemoLocationSession) {
   return searchRequest(async child => {
-    const focus = session.focus?.destination === destination ? session.focus.value : undefined;
+    const focus = contextFocus(context,session);
     const response = await request<{ suggestions?: { placePrediction?: Prediction }[] }>('autocomplete', {
       input: query, languageCode: 'en',
-      ...(focus ? { locationBias: { circle: { center: { latitude: focus.latitude, longitude: focus.longitude }, radius: 50000 } } } : {}),
+      ...(focus ? { locationBias: focus.viewport ? { rectangle: focus.viewport } : { circle: { center: { latitude: focus.latitude, longitude: focus.longitude }, radius: context.kind==='event'?20000:50000 } } } : {}),
     }, 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat', child);
     child.throwIfAborted();
     const seen = new Set<string>();
