@@ -100,7 +100,7 @@ export function EventLocationInput({value,onChange,destinations=[],itinerary}: {
         if(e.key==='ArrowDown'||e.key==='ArrowUp'){
           e.preventDefault();setOpen(true);
           setActive(i=>!results.length?-1:i<0?(e.key==='ArrowDown'?0:results.length-1):(i+(e.key==='ArrowDown'?1:-1)+results.length)%results.length);
-        }else if(e.key==='Enter' && expanded){e.preventDefault();if(active>=0)select(active);else setOpen(false);}
+        }else if(e.key==='Enter'){e.preventDefault();if(expanded && active>=0)select(active);}
         else if(e.key==='Tab'){setOpen(false);}
         else if(e.key==='Escape' && expanded){e.preventDefault();setOpen(false);}
       }}/>

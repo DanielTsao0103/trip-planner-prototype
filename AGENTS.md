@@ -277,3 +277,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Recovery test isolation: block real Maps geocoding as well as autocomplete in UI recovery fixtures. Late provider enrichment can legitimately queue another save and replace the notice while a test is auditing expanded controls; it is not deterministic recovery test input.
 
 - Group preference cards must share equal heights across desktop and mobile, including empty cards, as explicitly requested on November 12, 2026. Let the Interests and Destinations tiles reflow and size within their shared card height.
+
+- Popular Times interaction correction (November 12, 2026): preserve the open disclosure when Where changes, immediately remove stale charts, debounce free typing, and refresh selected place IDs without reopening. Enter in event fields must never implicitly submit; keep explicit button keyboard activation and textarea newlines. Use Google's completed-load rendered flag to distinguish no information from genuine provider errors, and keep unresolved place searches separate.

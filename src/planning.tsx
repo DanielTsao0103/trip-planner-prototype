@@ -714,7 +714,12 @@ export function EventForm() {
             if (parent instanceof HTMLDetailsElement) parent.open = true;
             parent = parent.parentElement;
           }
-        }} onFocusCapture={revealFocusedFormField}>
+        }} onFocusCapture={revealFocusedFormField} onKeyDown={event => {
+          // Enter selects autocomplete options, but only the explicit Save button submits.
+          const target = event.target;
+          if (event.key === "Enter" && !event.nativeEvent.isComposing && target instanceof HTMLInputElement
+            && !["submit", "button", "checkbox", "radio", "file"].includes(target.type)) event.preventDefault();
+        }}>
           {stale && original && (
             <div role="alert" className="info-banner">
               <span>This event changed while you were editing. Review the latest details before saving or deleting it.</span>
@@ -855,14 +860,11 @@ export function EventForm() {
                 day.
               </p>
               {suggested && <details className="suggested-event-details"><summary>Edit name or location</summary>{eventIdentityFields}</details>}
-              {place.trim() && (
-                <PlacePopularTimes
-                  key={place}
+              <PlacePopularTimes
                   place={place.trim()}
                   googlePlaceId={selectedGooglePlaceId}
                   destinations={t.destinations}
                 />
-              )}
               <Field
                 label="Estimated cost (USD)"
                 hint="Log actual payments in Budget."

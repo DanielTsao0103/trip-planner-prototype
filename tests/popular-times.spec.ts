@@ -76,7 +76,7 @@ test("chart loads on expansion, stays inline, and reuses the request through for
 test("a place without data has an honest empty state and remains savable", async ({ page }) => {
   await setup(page, "empty");
   await page.locator(".place-popular-times summary").click();
-  await expect(page.getByText("Popular times aren’t available for this location.")).toBeVisible();
+  await expect(page.getByText("Google Maps has no popular times information for this location.")).toBeVisible();
   await expect(page.locator("iframe[title=\"Google popular times\"]")).toHaveCount(0);
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(page).toHaveURL(/#\/8\?date=2026-10-16&event=museum/);
@@ -86,7 +86,7 @@ test("provider denial shows Retry, which can recover without losing the draft", 
   await setup(page, "error");
   await page.getByLabel("Notes (optional)").fill("Keep this plan.");
   await page.locator(".place-popular-times summary").click();
-  await expect(page.getByText("Popular times couldn’t load right now. You can still save your event.")).toBeVisible();
+  await expect(page.getByText("Google Maps couldn’t provide popular times right now. You can still save your event.")).toBeVisible();
   await expect.poll(async () => page.evaluate(() => {
     const retry = document.querySelector(".place-popular-times button")!;
     const actions = document.querySelector("[data-fixed-actions]")!;
@@ -106,14 +106,12 @@ test("changing the location drops the old chart and ignores its late completion"
   await expect.poll(() => requests(page)).toHaveLength(1);
   await page.getByRole("combobox", { name: "Where", exact: true }).fill("Space Needle, Seattle");
   await page.getByLabel("Start time", { exact: true }).focus();
-  await expect(page.locator(".place-popular-times")).not.toHaveAttribute("open", "");
+  await expect(page.locator(".place-popular-times")).toHaveAttribute("open", "");
   await page.evaluate(() => {
     const state = (window as unknown as { popularTimesTest: { outcome: string; pending: (() => void)[] } }).popularTimesTest;
     state.outcome = "ready";
     state.pending.forEach(complete => complete());
   });
-  await expect(page.locator("iframe[title=\"Google popular times\"]")).toHaveCount(0);
-  await page.locator(".place-popular-times summary").click();
   await expect(page.frameLocator("iframe[title=\"Google popular times\"]").locator("gmp-place-details")).toContainText("Space Needle, Seattle");
   expect(await requests(page)).toHaveLength(2);
 });
@@ -152,4 +150,49 @@ test("the disclosure and recovery fit narrow, tablet, desktop and dark layouts",
       await page.screenshot({ path: testInfo.outputPath(`popular-times-${colorScheme}-${width}.png`) });
     }
   }
+});
+
+test("open popular times follows selected places and clearing the field without reopening", async ({ page }) => {
+  await setup(page);
+  await page.locator('.place-popular-times summary').click();
+  await expect.poll(()=>requests(page)).toHaveLength(1);
+  await page.route('https://places.googleapis.com/v1/places:autocomplete',route=>route.fulfill({json:{suggestions:[{placePrediction:{
+    placeId:'space-needle',text:{text:'Space Needle, Seattle'},structuredFormat:{mainText:{text:'Space Needle'},secondaryText:{text:'Seattle'}},
+  }}]}}));
+  const input=page.getByRole('combobox',{name:'Where',exact:true});
+  await input.fill('Space Need');await expect(page.getByRole('option',{name:'Space Needle Seattle'})).toBeVisible();
+  await input.press('ArrowDown');await input.press('Enter');
+  await expect(page).toHaveURL(/#\/7/);
+  await expect(page.locator('.place-popular-times')).toHaveAttribute('open','');
+  const chart=page.frameLocator('iframe[title="Google popular times"]').locator('gmp-place-details');
+  await expect(chart).toContainText('Google chart fixture: space-needle');
+  await input.press('Enter');await expect(page).toHaveURL(/#\/7/);
+  await input.fill('');await expect(page.locator('iframe[title="Google popular times"]')).toHaveCount(0);
+  await input.fill('Seattle Public Library, Seattle');await input.press('Escape');
+  await expect(page.locator('.place-popular-times')).toHaveAttribute('open','');
+  await expect(chart).toContainText('Google chart fixture: Seattle Public Library, Seattle');
+  await expect(chart).not.toContainText('space-needle');
+});
+
+test("Enter in event inputs never submits, while buttons and multiline notes remain keyboard accessible", async ({ page }) => {
+  await setup(page);
+  for(const name of ['Event name','Where','Start time','Estimated cost (USD)']) {
+    const field=page.getByLabel(name,{exact:true});await field.focus();await field.press('Enter');
+    await expect(page).toHaveURL(/#\/7/);
+  }
+  const notes=page.getByLabel('Notes (optional)');await notes.fill('First line');await notes.press('End');await notes.press('Enter');
+  await expect(notes).toHaveValue('First line\n');await expect(page).toHaveURL(/#\/7/);
+  const summary=page.locator('.place-popular-times summary');await summary.focus();await summary.press('Enter');
+  await expect(page.locator('.place-popular-times')).toHaveAttribute('open','');
+  const save=page.getByRole('button',{name:'Save changes',exact:true});await save.focus();await save.press('Enter');
+  await expect(page).toHaveURL(/#\/8\?/);
+});
+
+test("an unresolved place asks for a selection instead of claiming Google has no data", async ({ page }) => {
+  await setup(page);
+  await page.getByRole('combobox',{name:'Where',exact:true}).fill('Ambiguous cafe');
+  await page.getByRole('combobox',{name:'Where',exact:true}).press('Escape');
+  await page.locator('.place-popular-times summary').click();
+  await expect(page.getByText('Select a suggested location to check its popular times.')).toBeVisible();
+  await expect(page.getByRole('button',{name:'Retry popular times'})).toHaveCount(0);
 });

@@ -25,7 +25,7 @@ export default defineConfig({
     {
       name: "webkit-persistence",
       // Safari's engine exercises the real browser-storage/lock implementation.
-      testMatch: /(?:account-trips|recovery-isolation|trip-details)\.spec\.ts/,
+      testMatch: /(?:account-trips|recovery-isolation|trip-details|popular-times)\.spec\.ts/,
       use: { ...devices["iPhone 13"] },
     },
   ],

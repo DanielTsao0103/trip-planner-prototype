@@ -53,7 +53,7 @@ async function render(request: ChartRequest): Promise<void> {
     const places = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
     if (!customElements.get("gmp-place-popular-times")) throw new Error("Chart unavailable.");
     const id = await findPlaceId(places, request);
-    if (!id) { send("trip-popular-times:status", { status: "empty" }); return; }
+    if (!id) { send("trip-popular-times:status", { status: "unresolved" }); return; }
     const details = new places.PlaceDetailsElement();
     const place = new places.PlaceDetailsPlaceRequestElement();
     place.place = id;
@@ -63,7 +63,9 @@ async function render(request: ChartRequest): Promise<void> {
     details.addEventListener("gmp-load", () => {
       send("trip-popular-times:status", { status: popular.rendered ? "ready" : "empty" });
     }, { once: true });
-    details.addEventListener("gmp-error", () => send("trip-popular-times:status", { status: "error" }), { once: true });
+    const failed = () => send("trip-popular-times:status", { status: "error" });
+    details.addEventListener("gmp-error", failed, { once: true });
+    details.addEventListener("gmp-requesterror", failed, { once: true });
     root.append(details);
   } catch {
     send("trip-popular-times:status", { status: "error" });

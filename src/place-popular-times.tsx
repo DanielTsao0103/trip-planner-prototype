@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "./ui";
 import "./place-popular-times.css";
 
-type Status = "loading" | "ready" | "empty" | "error";
+type Status = "loading" | "ready" | "empty" | "unresolved" | "error";
 
 /** Keep Google's chart and attribution intact; do not copy or store busyness data. */
 function PopularTimesChart({ place, googlePlaceId, destinations }: {
@@ -55,7 +55,7 @@ function PopularTimesChart({ place, googlePlaceId, destinations }: {
     const receive = (event: MessageEvent) => {
       if (event.origin !== location.origin || event.source !== frame.current?.contentWindow) return;
       const data = event.data;
-      if (data?.type === "trip-popular-times:status" && ["ready", "empty", "error"].includes(data.status)) finish(data.status);
+      if (data?.type === "trip-popular-times:status" && ["ready", "empty", "unresolved", "error"].includes(data.status)) finish(data.status);
       if (data?.type === "trip-popular-times:resize" && Number.isFinite(data.height) && data.height > 0)
         setHeight(Math.max(64, Math.min(1200, data.height)));
     };
@@ -73,8 +73,9 @@ function PopularTimesChart({ place, googlePlaceId, destinations }: {
   return <div ref={content}>
     <div role="status" aria-live="polite" className="popular-times-status">
       {status === "loading" && "Loading popular times…"}
-      {status === "empty" && "Popular times aren’t available for this location."}
-      {status === "error" && "Popular times couldn’t load right now. You can still save your event."}
+      {status === "empty" && "Google Maps has no popular times information for this location."}
+      {status === "unresolved" && "Select a suggested location to check its popular times."}
+      {status === "error" && "Google Maps couldn’t provide popular times right now. You can still save your event."}
     </div>
     {(status === "loading" || status === "ready") && <iframe
       key={attempt}
@@ -93,17 +94,29 @@ function PopularTimesChart({ place, googlePlaceId, destinations }: {
   </div>;
 }
 
-/** Mount on first expansion so typing and unrelated form edits don't incur queries. */
+/** Keep the disclosure open across place edits, but never show the previous place's chart. */
 export function PlacePopularTimes(props: {
   place: string;
   googlePlaceId?: string | null;
   destinations: string[];
 }) {
-  const [requested, setRequested] = useState(false);
-  return <details className="place-popular-times" onToggle={event => {
-    if (event.currentTarget.open) setRequested(true);
+  const [expanded, setExpanded] = useState(false);
+  const [settled, setSettled] = useState<string | null>(null);
+  const identity = JSON.stringify([props.place.trim(), props.googlePlaceId || null, props.destinations]);
+  const hasPlace = !!props.place.trim();
+  useEffect(() => {
+    if (!expanded || !hasPlace || settled === identity) return;
+    // Selected predictions are exact; free typing gets a short pause to avoid a request per key.
+    const timer = window.setTimeout(() => setSettled(identity), props.googlePlaceId ? 0 : 350);
+    return () => clearTimeout(timer);
+  }, [expanded, hasPlace, identity, settled, props.googlePlaceId]);
+  // The component itself remains mounted so clearing and replacing text retains expansion.
+  if (!hasPlace) return null;
+  return <details className="place-popular-times" open={expanded} onToggle={event => {
+    setExpanded(event.currentTarget.open);
   }}>
     <summary>Popular times</summary>
-    {requested && <PopularTimesChart {...props} />}
+    {settled === identity ? <PopularTimesChart key={identity} {...props} />
+      : expanded && <div role="status" aria-live="polite" className="popular-times-status">Updating popular times for this location…</div>}
   </details>;
 }
