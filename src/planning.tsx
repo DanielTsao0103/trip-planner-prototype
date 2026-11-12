@@ -61,18 +61,35 @@ import {
 import { TravelMap } from "./travelmap";
 export function Itinerary() {
   const { trip: t, s, go, open, route } = useApp();
-  const view = route.params.get("view") === "calendar" ? "calendar" : "list";
+  const view = route.params.get("view") === "list" ? "list" : "calendar";
   const [dayPage, setDayPage] = useState(0);
+  const [daysPerPage, setDaysPerPage] = useState(7);
   useEffect(() => setDayPage(0), [t?.id, t?.start, t?.end]);
   if (!t) return null;
   const traveler = member(t, s.userId)!;
   const role = traveler.role;
   const allDays = days(t.start, t.end);
-  const pageSize = 5;
-  const pageCount = Math.ceil(allDays.length / pageSize);
+  const pageCount = Math.ceil(allDays.length / daysPerPage);
   const currentPage = Math.min(dayPage, Math.max(0, pageCount - 1));
-  const pageStart = currentPage * pageSize;
-  const visibleDays = allDays.slice(pageStart, pageStart + pageSize);
+  const pageStart = currentPage * daysPerPage;
+  const pageEnd = Math.min(pageStart + daysPerPage, allDays.length);
+  const visibleDays = allDays.slice(pageStart, pageEnd);
+  const dayRange = `Days ${allDays.length ? pageStart + 1 : 0}–${pageEnd} of ${allDays.length}`;
+  const renderDayPager = () => (
+    <div className="day-page-controls">
+      <label className="day-page-size">
+        Show
+        <select aria-label="Days to show" value={daysPerPage} onChange={event => { setDaysPerPage(Number(event.target.value)); setDayPage(0); }}>
+          <option value={7}>7 days</option>
+          <option value={10}>10 days</option>
+          <option value={20}>20 days</option>
+        </select>
+      </label>
+      {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage - 1)} disabled={currentPage === 0} aria-label="Previous days"><ChevronLeft size={16} /></button>}
+      <span aria-live="polite">{dayRange}</span>
+      {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage + 1)} disabled={currentPage >= pageCount - 1} aria-label="Next days"><ChevronRight size={16} /></button>}
+    </div>
+  );
   const personalBudget = t.budgetMode === "individual";
   const budget = personalBudget ? (t.individual[traveler.id] ?? null) : t.budget;
   const totalSpent = spent(t, personalBudget ? traveler.id : undefined);
@@ -138,8 +155,8 @@ export function Itinerary() {
         </Button>
       </div>
       <div className="itinerary-view-switch" role="group" aria-label="Itinerary view">
-        <button type="button" aria-pressed={view === "list"} onClick={() => go(8, { view: "list" })}>List</button>
         <button type="button" aria-pressed={view === "calendar"} onClick={() => go(8, { view: "calendar" })}>Calendar</button>
+        <button type="button" aria-pressed={view === "list"} onClick={() => go(8, { view: "list" })}>List</button>
       </div>
       {role === "Viewer" && <ReadOnly />}
       {role === "Day Editor" && <ReadOnly day />}
@@ -192,11 +209,7 @@ export function Itinerary() {
               </a>
             ))}
           </div>
-          <div className="day-page-controls" role="navigation" aria-label="Itinerary day pages">
-            {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage - 1)} disabled={currentPage === 0} aria-label="Previous five days"><ChevronLeft size={16} /></button>}
-            <span aria-live="polite">Days {pageStart + 1}–{Math.min(pageStart + pageSize, allDays.length)} of {allDays.length}</span>
-            {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage + 1)} disabled={currentPage >= pageCount - 1} aria-label="Next five days"><ChevronRight size={16} /></button>}
-          </div>
+          {renderDayPager()}
           {visibleDays.map((date, pageIndex) => {
             const i = pageStart + pageIndex;
             return (
@@ -246,6 +259,7 @@ export function Itinerary() {
             </section>
             );
           })}
+          <p className="day-page-bottom">{dayRange}</p>
         </div>
         <aside className="itinerary-aside">
           <div className="card inspiration-card">
