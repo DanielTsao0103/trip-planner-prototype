@@ -256,7 +256,8 @@ test('itinerary pages through five days and shows the current range', async ({ p
   await page.goto('./#/8');
   await expect(page.getByRole('button', { name: 'Calendar', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'List', exact: true }).click();
-  await expect(page.getByText('Days 1–4 of 4')).toBeVisible();
+  await expect(page.locator('.day-page-controls')).toContainText('Days 1–4 of 4');
+  await expect(page.locator('.day-page-bottom')).toHaveText('Days 1–4 of 4');
   await expect(page.getByRole('button', { name: 'Next days' })).toHaveCount(0);
 
   await page.goto('./#/5');

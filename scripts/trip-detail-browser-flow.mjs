@@ -50,6 +50,7 @@ export async function detailJourney(page, base, travelerEmail) {
   await button("Add to itinerary").click();
   await saved(page);
   // Edit via the actual itinerary card, then verify the form reloads saved values.
+  await goto("8?view=list");
   await page
     .getByRole("button", { name: /Museum visit/ })
     .first()
