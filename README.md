@@ -39,7 +39,7 @@ Invitations require configured email delivery. Existing-account invitations are 
 ### Itinerary, maps and photos
 
 - Calendar moves use the event's top edge and round to the nearest minute. The Move dialog supports keyboard and touch use. Trip dates, overlaps and edit permissions are checked before saving.
-- Photon/OpenStreetMap supplies destination and event-location suggestions. Searches can favor a selected trip stop or use worldwide results; manual entry remains available. Open-Meteo helps resolve destination time zones from coordinates.
+- Event locations use Google Places Autocomplete (New) with the no-payment demo key, with Photon/OpenStreetMap as a fallback. Destination search uses the bundled index and Photon with the existing Google fallback. Searches can favor a selected trip stop or use worldwide results; manual entry remains available. Open-Meteo helps resolve destination time zones from coordinates.
 - Google Maps resolves typed itinerary locations and unpinned existing events. Saved manual positions take priority. Named areas can show a center pin; unresolved locations are edited in the itinerary.
 - Account screens refresh shared trip data every five seconds while visible and on focus/reconnect, while preserving pending local edits. This uses foreground polling, not a Supabase Realtime subscription. Device location and map viewport stay local.
 - Trip covers and itinerary pictures support Unsplash selection and custom uploads. Cover search offers up to five landscape matches; JPEG, PNG and WebP uploads accept files up to 5 MB. Unsplash credit and selection tracking are retained. Uploaded trip and profile images use public Storage buckets, so anyone with an image URL can view it.
@@ -127,7 +127,7 @@ Fill in `.env.local` using the existing team's service configuration:
 | `VITE_SUPABASE_URL` | Existing Supabase project URL. |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Browser-safe `sb_publishable_` key for Auth and account data. |
 | `VITE_GOOGLE_MAPS_API_KEY` | Website-restricted Google Maps browser key. |
-| `VITE_GOOGLE_MAPS_DEMO_API_KEY` | Separate no-billing demo key for embedded Popular Times in this class prototype. |
+| `VITE_GOOGLE_MAPS_DEMO_API_KEY` | Separate no-billing demo key for event autocomplete and embedded Popular Times in this class prototype. |
 | `VITE_GOOGLE_MAP_ID` | Optional custom Google map style. |
 | `VITE_BOOKINGS_INBOX_ADDRESS` | Optional forwarding address displayed on Home; leave blank to hide it. |
 
@@ -140,7 +140,7 @@ Open [the local app](http://127.0.0.1:5190/). Restart Vite after environment cha
 
 Development and preview default to `127.0.0.1:5190`, the local origin documented in [Ivy's original Maps setup](https://github.com/DanielTsao0103/trip-planner-prototype/pull/1). The configured browser key accepts that origin; a different hostname or port can produce `RefererNotAllowedMapError`. If port 5190 is occupied, stop the existing preview or reuse it. Vite intentionally stops instead of silently selecting another port. Isolated mocked browser tests may use other ports, but verify real Google Maps on 5190. Keep the key's website and API restrictions in place.
 
-Location fields use the bundled destination index and Photon, with Google Places autocomplete and a conservative Google geocoder fallback through the existing Maps key. Enable **Places API (New)** in the key's owning Google Cloud project for full business-name autocomplete; Maps JavaScript/geocoding alone is insufficient. Keep website/API restrictions configured for the deployed site and approved local origin. If Places is disabled and Photon is unavailable, full addresses and supported landmarks can still match, but partial business names may not. Suggestions retain manual entry and retry controls; no device location permission is required.
+The event Where field requests Places Autocomplete (New) predictions after a 250 ms typing pause using only the no-payment demo key. An optional trip-stop bias is bounded independently and never restricts worldwide matches. Selecting a prediction saves its display address and Google place ID; editing the text clears the old identity. Photon is the fallback if predictions are empty or unavailable; the event search never falls back to the regular Maps key. Destination fields retain their bundled index, Photon, and existing Maps-key fallback. Suggestions retain manual entry and retry controls; no device location permission is required. Keep website/API restrictions configured for the deployed site and approved local origin.
 
 Popular Times uses Google's standard `PlaceDetailsElement`, with its chart and attribution intact. Set `VITE_GOOGLE_MAPS_DEMO_API_KEY` locally and as a GitHub Actions repository variable. The chart runs in a separate same-origin frame, so it cannot reuse the main map's key; it has no paid-key fallback. It loads only on expansion, reuses the result while editing the time, and clears the old chart when the location changes. Places text search resolves unsaved locations with the same demo key, without legacy Geocoding calls. The display shows typical weekly patterns in the venue's local time, not a forecast for the trip date.
 

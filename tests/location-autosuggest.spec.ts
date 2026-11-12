@@ -31,10 +31,32 @@ async function googleFixture(page:Page, mode:'places'|'geocoder'|'failed'='place
 test.beforeEach(async({page})=>{
   await page.addInitScript(()=>sessionStorage.setItem('trip-planner-demo-session','active'));
   await page.route('https://maps.googleapis.com/**',route=>route.abort());
+  await page.route('https://places.googleapis.com/**',route=>route.abort());
   await page.route('https://*.supabase.co/functions/v1/unsplash-search**',route=>route.fulfill({json:{results:[]}}));
   await page.route('https://geocoding-api.open-meteo.com/**',route=>route.fulfill({json:{results:[{name:'Paris',timezone:'Europe/Paris'}]}}));
   await page.route('https://api.open-meteo.com/**',route=>route.fulfill({json:{timezone:'Europe/Paris'}}));
 });
+
+/** The event field uses the separate no-payment REST API, not the map SDK. */
+async function demoFixture(page:Page, mode:'places'|'addresses'|'failed'='places') {
+  const state={mode,calls:[] as string[],biases:[] as unknown[]};
+  await page.route('https://places.googleapis.com/v1/places:*',async route=>{
+    const body=route.request().postDataJSON();
+    if(state.mode==='failed')return route.fulfill({status:503,json:{error:{message:'Unavailable'}}});
+    if(route.request().url().endsWith(':searchText'))return route.fulfill({json:{places:[{location:{latitude:47.6,longitude:-122.3}}]}});
+    const input=body.input;state.calls.push(input);state.biases.push(body.locationBias);
+    if(input==='Alfa')await new Promise(resolve=>setTimeout(resolve,1200));
+    const palace=input.toLowerCase().startsWith('national palace');
+    const name=palace?'National Palace Museum':input+' Museum';
+    const address=palace?'Zhi Shan Road, Shilin District, Taipei, Taiwan':'Seattle, USA';
+    const suggestions=state.mode==='addresses' && input!=='400 Broad Street'?[]:[{placePrediction:{
+      placeId:palace?'national-palace':'place-'+input,text:{text:name+', '+address},
+      structuredFormat:{mainText:{text:name},secondaryText:{text:address}},
+    }}];
+    return route.fulfill({json:{suggestions}}).catch(()=>{});
+  });
+  return state;
+}
 
 test('a hung destination bias does not prevent place suggestions or touch selection',async({page,isMobile})=>{
   await page.route('https://photon.komoot.io/**',async route=>{
@@ -51,15 +73,15 @@ test('a hung destination bias does not prevent place suggestions or touch select
   await expect(input).toBeFocused();await expect(input).toHaveAttribute('aria-expanded','false');
 });
 
-test('fallback predictions discard stale queries and save their exact place ID',async({page})=>{
-  await googleFixture(page);await page.route('https://photon.komoot.io/**',route=>route.abort());
+test('demo predictions discard stale queries and save their exact place ID',async({page})=>{
+  const state=await demoFixture(page);await page.route('https://photon.komoot.io/**',route=>route.abort());
   await page.goto('./#/7');const input=page.getByRole('combobox',{name:'Where',exact:true});
-  await input.fill('Alfa');await expect.poll(()=>page.evaluate(()=>(window as any).__locationQA.calls)).toContain('Alfa');
+  await input.fill('Alfa');await expect.poll(()=>state.calls).toContain('Alfa');
   await input.fill('Beta');await expect(page.getByRole('option',{name:'Beta Museum Seattle, USA'})).toBeVisible();
   await page.waitForTimeout(1300);await expect(page.getByRole('option',{name:/Alfa/})).toHaveCount(0);
   await input.press('ArrowDown');await input.press('Enter');
   await expect(input).toHaveValue('Beta Museum, Seattle, USA');
-  await expect.poll(()=>page.evaluate(()=>(window as any).__locationQA.details)).toBe(1);
+  expect(state.biases.at(-1)).toEqual({circle:{center:{latitude:47.6,longitude:-122.3},radius:50000}});
   await page.getByLabel('Event name',{exact:true}).fill('Autocomplete saved location');
   await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('trip-planner-demo-v1:demo-maya')!).trips.flatMap((trip:any)=>trip.events).find((event:any)=>event.name==='Autocomplete saved location'));
@@ -70,24 +92,37 @@ test('fallback predictions discard stale queries and save their exact place ID',
   expect(edited.googlePlaceId).toBeNull();expect(edited.place).toBe('Hotel lobby');
 });
 
-test('disabled Places still supports full addresses and refuses a business-to-city substitution',async({page})=>{
-  await googleFixture(page,'geocoder');await page.route('https://photon.komoot.io/**',route=>route.abort());
+test('empty predictions retain manual entry and never activate the map SDK',async({page})=>{
+  await demoFixture(page,'addresses');await page.route('https://photon.komoot.io/**',route=>route.abort());
+  let legacyCalls=0;await page.route('https://maps.googleapis.com/**',route=>{legacyCalls++;return route.abort();});
   await page.goto('./#/7');const input=page.getByRole('combobox',{name:'Where',exact:true});
-  await input.fill('Starbucks Seattle');await expect(page.getByText('Try a full address or landmark name, or keep the location you typed.',{exact:true})).toBeVisible();
+  await input.fill('Starbucks Seattle');await expect(page.getByText('Try another spelling, or enter the location manually.',{exact:true})).toBeVisible();
   await expect(page.getByRole('listbox',{name:'Location suggestions'}).getByRole('option')).toHaveCount(0);
-  await input.fill('400 Broad Street');await page.getByRole('option',{name:'400 Broad St, Seattle, WA'}).click();
-  await expect(input).toHaveValue('400 Broad St, Seattle, WA');
+  await input.fill('400 Broad Street');await page.getByRole('option',{name:'400 Broad Street Museum Seattle, USA'}).click();
+  await expect(input).toHaveValue('400 Broad Street Museum, Seattle, USA');
+  expect(legacyCalls).toBe(0);
 });
 
 test('a failed search retries unchanged text and Escape or Tab dismisses late suggestions',async({page})=>{
-  await googleFixture(page,'failed');await page.route('https://photon.komoot.io/**',route=>route.abort());
+  const state=await demoFixture(page,'failed');await page.route('https://photon.komoot.io/**',route=>route.abort());
   await page.goto('./#/7');const input=page.getByRole('combobox',{name:'Where',exact:true});await input.fill('400 Broad Street');
   await expect(page.getByRole('button',{name:'Retry location search'})).toBeVisible();
-  await page.evaluate(()=>{(window as any).__locationQA.mode='geocoder';});
-  await page.getByRole('button',{name:'Retry location search'}).click();await expect(page.getByRole('option',{name:'400 Broad St, Seattle, WA'})).toBeVisible();
+  state.mode='addresses';
+  await page.getByRole('button',{name:'Retry location search'}).click();await expect(page.getByRole('option',{name:'400 Broad Street Museum Seattle, USA'})).toBeVisible();
   await input.focus();await input.press('Escape');await expect(input).toHaveAttribute('aria-expanded','false');
   await input.fill('Alfa');await input.press('Tab');await expect(input).toHaveAttribute('aria-expanded','false');
   await page.waitForTimeout(600);await expect(page.getByRole('listbox',{name:'Location suggestions'})).toHaveCount(0);
+});
+
+test('suggests National Palace Museum before the traveler finishes typing',async({page,isMobile})=>{
+  await demoFixture(page);
+  await page.goto('./#/7');const input=page.getByRole('combobox',{name:'Where',exact:true});
+  await input.pressSequentially('national palace museu',{delay:25});
+  const option=page.getByRole('option',{name:/National Palace Museum.*Taipei/});
+  await expect(option).toBeVisible();
+  if(isMobile)await option.tap();else await option.click();
+  await expect(input).toHaveValue('National Palace Museum, Zhi Shan Road, Shilin District, Taipei, Taiwan');
+  await expect(input).toHaveAttribute('aria-expanded','false');
 });
 
 test('destination keyboard choice survives late live enrichment and works in create and edit',async({page})=>{

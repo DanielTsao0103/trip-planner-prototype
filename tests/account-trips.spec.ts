@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+test.beforeEach(async ({page}) => { await page.route('https://places.googleapis.com/**', route => route.abort()); });
+
 const owner = {
   id: "11111111-1111-4111-8111-111111111111",
   aud: "authenticated",

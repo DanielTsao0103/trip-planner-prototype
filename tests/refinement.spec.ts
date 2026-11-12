@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 // These regressions exercise user-visible failures found in independent local reviews.
 test.beforeEach(async ({ page }) => {
+  await page.route('https://places.googleapis.com/**', route => route.abort());
   await page.addInitScript(() => sessionStorage.setItem('trip-planner-demo-session', 'active'));
   await page.route('https://maps.googleapis.com/maps/api/js?**', route => route.abort());
 });

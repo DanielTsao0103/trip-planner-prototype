@@ -6,6 +6,7 @@ const session = () => ({ access_token: 'test-access-token', token_type: 'bearer'
 
 // Exercise the real SDK/UI boundary without writing users or trips to the real project.
 test.beforeEach(async ({ page }) => {
+  await page.route('https://places.googleapis.com/**', route => route.abort());
   await page.route('https://*.supabase.co/**', async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/rest/v1/forwarded_booking') return route.fulfill({ json: [] });

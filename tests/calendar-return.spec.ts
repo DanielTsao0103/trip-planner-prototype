@@ -6,6 +6,7 @@ const laterEvent = 'calendar-return-later';
 
 /** Exercise only browser-local demo data; external SDKs never reach an account. */
 test.beforeEach(async ({ page }, testInfo) => {
+  await page.route('https://places.googleapis.com/**', route => route.abort());
   await page.setViewportSize({ width: testInfo.project.name === 'mobile' ? 390 : 1440, height: testInfo.project.name === 'mobile' ? 600 : 900 });
   await page.route('https://*.supabase.co/**', route => route.abort());
   await page.route('https://maps.googleapis.com/**', route => route.abort());

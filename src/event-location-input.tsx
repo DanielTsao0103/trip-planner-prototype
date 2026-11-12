@@ -2,7 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { locationQuery, locationSearchKey, type MeetingPlace } from './event-location-search';
 import { findLocationSuggestions, type LocationSuggestions } from './location-suggestions';
-import type { GoogleSearchSession } from './google-location-search';
+import type { DemoLocationSession } from './demo-location-search';
 
 const cache = new Map<string, {result:LocationSuggestions; expires:number}>();
 export function EventLocationInput({value,onChange,destinations=[]}: {value:string;onChange:(value:string,point?:MeetingPlace["point"],googlePlaceId?:string)=>void;destinations?:string[]}) {
@@ -10,7 +10,8 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
   const [open,setOpen]=useState(false), [active,setActive]=useState(-1);
   const [results,setResults]=useState<MeetingPlace[]>([]);
   const [status,setStatus]=useState<'loading'|'ready'|'error'>('ready');
-  const session=useRef<GoogleSearchSession>({});
+  const session=useRef<DemoLocationSession>({});
+  const pointerStart=useRef<{id:number;x:number;y:number}|null>(null);
   const [attempt,setAttempt]=useState(0),[source,setSource]=useState<'photon'|'google'>('photon'),[limited,setLimited]=useState(false);
   const [near,setNear]=useState<string|null>(null);
   const stops=[...new Set(destinations.filter(Boolean))];
@@ -29,17 +30,16 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
         const matches=saved && saved.expires>Date.now() ? saved.result : await findLocationSuggestions(query,destination,controller.signal,session.current);
         if(cancelled)return;
         // Cache only bounded OpenStreetMap results, never Google predictions or errors.
-        if(matches.source==='photon') {
+        if(matches.source==='photon' && matches.places.length) {
           if(cache.size>=50)cache.delete(cache.keys().next().value!);
           cache.set(key,{result:matches,expires:Date.now()+300000});
         }
         setResults(matches.places);setBiased(matches.biased);setApproximate(matches.approximate);
         setSource(matches.source);setLimited(matches.limited);setStatus('ready');
       }catch{if(!cancelled)setStatus('error');}
-    },350);
+    },250);
     return()=>{cancelled=true;clearTimeout(timer);controller.abort();};
   },[query,open,destination,attempt]);
-  useEffect(()=>{if(!open)session.current.token=undefined;},[open]);
   useEffect(()=>{if(active>=0)list.current?.children[active]?.scrollIntoView({block:'nearest'});},[active]);
   function select(index:number){const result=results[index];if(result){onChange(result.label,result.point,result.googlePlaceId);result.finishSelection?.();setOpen(false);setActive(-1);}}
   const expanded=open && query.length>=2;
@@ -84,7 +84,16 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
       <div className="event-location-caption">{status==='loading'?'Searching worldwide…':status==='error'?'Search unavailable':results.length?(destination && biased?`Prioritizing ${destination}${approximate?' (approximate area)':''}`:'Suggested locations'):'No locations found'}</div>
       <div ref={list} id={`${id}-list`} role="listbox" aria-label="Location suggestions">
         {results.map((place,i)=><div key={place.id} role="option" id={`${id}-${i}`} aria-selected={i===active}
-          className={`event-location-option ${i===active?'active':''}`} onPointerDown={e=>e.preventDefault()} onMouseDown={e=>e.preventDefault()}
+          className={`event-location-option ${i===active?'active':''}`} onPointerDown={e=>{
+            // Retain input focus; Safari can suppress the synthetic click after this.
+            e.preventDefault();pointerStart.current={id:e.pointerId,x:e.clientX,y:e.clientY};
+          }} onPointerUp={e=>{
+            const start=pointerStart.current;pointerStart.current=null;
+            if(e.pointerType==='mouse')return;
+            e.preventDefault();
+            // Select a tap on release, not the start of a swipe through the list.
+            if(start?.id===e.pointerId && Math.hypot(e.clientX-start.x,e.clientY-start.y)<10)select(i);
+          }} onPointerCancel={()=>{pointerStart.current=null;}} onMouseDown={e=>e.preventDefault()}
           onMouseEnter={()=>setActive(i)} onClick={()=>select(i)}>
           <MapPin size={17} aria-hidden="true"/><span><strong>{place.name}</strong>{place.address && <small>{place.address}</small>}</span>
         </div>)}

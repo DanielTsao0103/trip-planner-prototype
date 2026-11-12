@@ -1,6 +1,8 @@
 import { installGoogleMapFixture } from "./google-map-fixture";
 import { expectUnderInput } from './popup-alignment';
 import { test, expect, type Page } from "@playwright/test";
+
+test.beforeEach(async ({page}) => { await page.route('https://places.googleapis.com/**', route => route.abort()); });
 import { detailJourney, saved } from "../scripts/trip-detail-browser-flow.mjs";
 const owner = {
   id: "22222222-2222-4222-8222-222222222222",
@@ -531,6 +533,26 @@ test('event location autocomplete selects a worldwide landmark, saves, reloads, 
  await page.evaluate(() => window.dispatchEvent(new Event('release-geocode')));
  await expect.poll(()=>api.rows[0].content.events[0]?.googlePlaceId).toBe('hotel-lobby');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+});
+
+test('event location touch selection fills the exact address and place ID',async({page,isMobile})=>{
+ await page.addInitScript(()=>sessionStorage.setItem('trip-planner-demo-session','active'));
+ await page.route('https://maps.googleapis.com/**',route=>route.abort());
+ await page.route('https://places.googleapis.com/v1/places:*',route=>{
+  if(route.request().url().endsWith(':searchText'))return route.fulfill({json:{places:[{location:{latitude:25.1,longitude:121.5}}]}});
+  return route.fulfill({json:{suggestions:Array.from({length:5},(_,i)=>({placePrediction:{placeId:'palace-'+i,
+   text:{text:`National Palace Museum ${i}, Section 2, Zhi Shan Road, Shilin District, Taipei City, Taiwan`},
+   structuredFormat:{mainText:{text:`National Palace Museum ${i}`},secondaryText:{text:'Section 2, Zhi Shan Road, Shilin District, Taipei City, Taiwan'}},
+  }}))}});
+ });
+ await page.goto('./#/7');await page.getByLabel('Event name',{exact:true}).fill('Touch selected museum');
+ const input=page.getByRole('combobox',{name:'Where',exact:true});await input.fill('national palace museu');
+ const option=page.getByRole('option',{name:/National Palace Museum 0/});await expect(option).toBeVisible();
+ if(isMobile)await option.tap();else await option.click();
+ await expect(input).toHaveValue('National Palace Museum 0, Section 2, Zhi Shan Road, Shilin District, Taipei City, Taiwan');
+ await expect(input).toBeFocused();await expect(input).toHaveAttribute('aria-expanded','false');
+ await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
+ await expect.poll(()=>page.evaluate(()=>JSON.parse(localStorage.getItem('trip-planner-demo-v1:demo-maya')!).trips.flatMap((t:any)=>t.events).find((e:any)=>e.name==='Touch selected museum')?.googlePlaceId)).toBe('palace-0');
 });
 
 test('location suggestions prioritize the selected trip stop and retain worldwide search',async({page})=>{

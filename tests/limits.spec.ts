@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+test.beforeEach(async ({page}) => { await page.route('https://places.googleapis.com/**', route => route.abort()); });
+
 async function demo(page: Page) {
   await page.route("https://*.supabase.co/**", (route) =>
     route.fulfill({ json: {} }),

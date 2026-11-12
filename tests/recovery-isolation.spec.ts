@@ -1,4 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
+
+test.beforeEach(async ({page}) => { await page.route('https://places.googleapis.com/**', route => route.abort()); });
 import { seed } from "../src/data";
 import type { TripRow } from "../src/account-trips";
 

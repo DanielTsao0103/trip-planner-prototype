@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+test.beforeEach(async ({page}) => { await page.route('https://places.googleapis.com/**', route => route.abort()); });
+
 /** Deterministic SDK boundary tests; these do not claim live Google data. */
 async function setup(page: Page, outcome: "ready" | "empty" | "error" | "pending" = "ready") {
   await page.route("https://photon.komoot.io/**", route => route.fulfill({ json: { features: [] } }));
