@@ -3,6 +3,9 @@ import { AuthApp } from "./auth";
 import { Provider } from "./state";
 import { PrototypeApp } from "./prototype";
 import "./styles.css";
+import "./design-system.css";
+import "./recovery-refinement.css";
+import "./theme-compatibility.css";
 import "./budget.css";
 import { ReleaseNotice } from "./release-notice";
 import { StyleSync } from "./style-sync-mount";
@@ -13,9 +16,9 @@ import { signInMethodOf } from "./account";
 startSiteStyle();
 
 createRoot(document.getElementById("root")!).render(
-  <><ReleaseNotice /><AuthApp renderDemo={exitDemo => (
+  <><ReleaseNotice /><AuthApp renderDemo={(exitDemo, enterAsMaya) => (
     <Provider key="standalone-demo" account={{ id: "demo-maya", email: "maya@example.com", name: "Maya Chen" }}
-      initialTripId="seattle" onSignOut={exitDemo}>
+      initialTripId="seattle" initialUserId={enterAsMaya ? "maya" : undefined} onSignOut={exitDemo}>
       <PrototypeApp />
     </Provider>
   )}>{(session, signOut) => (

@@ -38,6 +38,7 @@ npx playwright install chromium webkit
 npm run test:e2e
 npm run test:live-contract
 npm run test:live-persistence
+npm run test:live-repayments
 ```
 
 `npm test` discovers every `src/*.test.ts` file and the inbound parser tests. GitHub Pages deployment is gated on unit tests, strict TypeScript compilation, production build, desktop/mobile Chromium tests, and the persistence suite using WebKit. The live revision verifier checks the deployed HTML and JavaScript against the exact commit.
@@ -50,3 +51,9 @@ The live contract/persistence suites use disposable accounts against the configu
 - Browser storage can be denied, filled, or cleared. Recovery warnings and downloads are necessary; offline data is not a cloud backup.
 - Tabs running a pre-lock release cannot advertise ownership. Reload all old app tabs after this upgrade. Old separate photo-credit writes are denied rather than allowed to corrupt another save.
 - Tests reduce future regression risk; they cannot promise that an arbitrary future feature will never break saving. New persistence features must update this contract and its tests.
+
+## Audited repayment corrections
+
+`Expense.repaymentHistory` is optional for legacy expenses. New entries preserve their UUID, debtor, status, reason and payer identity; the server supplies the authenticated account and timestamp. Earlier entries are immutable. Corrections append an unpaid entry with a reason; a later paid entry can settle it again. Queued payloads may omit timestamps that the server has not yet returned, but cannot rewrite authoritative history.
+
+Ever-paid `settled` markers remain permanent and lock the original expense, including source, amount, shares and payer. A correction changes repayment status, not the original expense or recorded spending. Both owner and collaborator writes use the existing revision-checked transaction, and a later validation failure rolls back any history append. The audit table permits reads only to the current owner and accepted account members; direct client writes are denied. The two November 12 migrations implement the audit and its narrowly scoped read policy.

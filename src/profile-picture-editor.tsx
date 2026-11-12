@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useId, useRef, useState } from "react";
 import { Camera, Trash2 } from "lucide-react";
 import { useApp } from "./state";
 import { Button, ErrorBox } from "./ui";
@@ -7,6 +7,8 @@ import { Button, ErrorBox } from "./ui";
 export function ProfilePictureEditor() {
   const { picture, user, s } = useApp();
   const input = useRef<HTMLInputElement>(null);
+  const formatHintId = useId();
+  const [retryFile, setRetryFile] = useState<File | null>(null);
   // Sample travelers and Maya's standalone demo are not accounts, so they cannot have a picture.
   const editable = Boolean(user) && user!.id === s.userId && !user!.id.startsWith("demo-") && user!.id !== "maya";
   if (!editable) return null;
@@ -29,16 +31,18 @@ export function ProfilePictureEditor() {
             accept="image/jpeg,image/png,image/webp"
             hidden
             aria-label="Choose a profile picture"
+            aria-describedby={formatHintId}
             onChange={(e) => {
               const file = e.target.files?.[0];
               e.target.value = "";
-              if (file) void picture.upload(file);
+              if (file) { setRetryFile(file); void picture.upload(file); }
             }}
           />
           <Button
             variant="outline small"
             disabled={picture.busy}
             onClick={() => input.current?.click()}
+            aria-describedby={formatHintId}
           >
             <Camera size={15} /> {picture.source === "custom" ? "Change photo" : "Upload photo"}
           </Button>
@@ -46,14 +50,16 @@ export function ProfilePictureEditor() {
             <Button
               variant="outline small"
               disabled={picture.busy}
-              onClick={() => void picture.remove()}
+              onClick={() => { setRetryFile(null); void picture.remove(); }}
             >
               <Trash2 size={15} /> Remove
             </Button>
           )}
         </div>
+        <p className="picture-hint" id={formatHintId}>JPEG, PNG or WebP · up to 10 MB.</p>
       </div>
       <ErrorBox text={picture.error} />
+      {picture.error && retryFile && /(?:upload|save).*picture/.test(picture.error) && <Button variant="outline small" disabled={picture.busy} onClick={() => void picture.upload(retryFile)}>Retry photo upload</Button>}
     </div>
   );
 }

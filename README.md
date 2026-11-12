@@ -16,7 +16,7 @@ Trip Planner brings group trips, itineraries, shared maps, traveler preferences,
 | Collaboration | Email invitations for existing and new accounts; trip-preserving authentication and post-join preferences; Viewer, Editor and Day Editor access enforced by the database. |
 | Maps | Google road/satellite maps, itinerary pins, automatic location resolution, saved coordinates/place IDs, pin adjustment and links to the matching daily itinerary item. |
 | Preferences | Each accepted traveler can save their own survey; the group can view aggregated preferences. |
-| Budget | Group and individual budgets, tracking mode, expenses, split allocations and repayment markers stored in relational tables. Money is stored in integer cents. |
+| Budget | Group and individual budgets, tracking mode, expenses, split allocations and audited repayment corrections stored in relational tables. Money is stored in integer cents. |
 | Reminders | Trip reminders and completion state persist. Dismissed suggestion IDs also persist; suggestion content is still illustrative. |
 | Appearance | Account theme, light/dark mode, heading font and corner preferences save to Supabase; demo styling stays local. |
 | Save recovery | Serialized autosaves, atomic owner writes, revision checks, transient retries, validated recovery journals and visible failure/download controls. |
@@ -79,7 +79,7 @@ Screen edit → state.tsx → TripSaveQueue → account-trips.ts
   → server permission and revision checks → transaction → validated saved bundle
 ```
 
-Owner saves commit trip content, ordered destination time zones and cover-photo credit together. Read bundles include consistent root, child and photo data. The client only acknowledges a save after receiving a complete, valid response for the expected trip. A brief “Changes saved” notification follows confirmed writes; failed or pending writes do not report success.
+Owner saves commit trip content, ordered destination time zones and cover-photo credit together. Read bundles include consistent root, child and photo data. The client only acknowledges a save after receiving a complete, valid response for the expected trip. A brief “Trip changes saved” notification follows confirmed writes; failed or pending writes do not report success.
 
 Revision checks reject stale writes rather than overwrite newer work. Retry handling prevents a lost response from duplicating a completed save. Failed loads show an error and retry option instead of an empty account. Unsaved changes retry after temporary failures or reconnect; conflicts retain recovery controls instead of merging automatically.
 
@@ -132,10 +132,12 @@ Fill in `.env.local` using the existing team's service configuration:
 
 ```sh
 npm run supabase:check
-npm run dev -- --port 5190
+npm run dev
 ```
 
 Open [the local app](http://127.0.0.1:5190/). Restart Vite after environment changes. Without Supabase configuration, **Try demo as Maya** still opens the local preview. Google Maps and other external features need their own configuration.
+
+Development and preview default to `127.0.0.1:5190`, the local origin documented in [Ivy's original Maps setup](https://github.com/DanielTsao0103/trip-planner-prototype/pull/1). The configured browser key accepts that origin; a different hostname or port can produce `RefererNotAllowedMapError`. If port 5190 is occupied, stop the existing preview or reuse it. Vite intentionally stops instead of silently selecting another port. Isolated mocked browser tests may use other ports, but verify real Google Maps on 5190. Keep the key's website and API restrictions in place.
 
 Never put service-role/secret keys, management tokens, SMTP credentials or database passwords in `VITE_` variables. Real environment files are ignored. Private QA/admin scripts use separate ignored files; see [Supabase setup](SUPABASE-SETUP.md), whose dated sections also preserve historical setup steps.
 
@@ -244,3 +246,9 @@ UX refinements: the ledger keeps Expense log, Repayments, and Add together on ph
 
 
 Budget UI/UX refinements: tablet layouts give the ledger full width and keep the breakdown collapsed initially. Expense forms scroll their fields separately from the fixed action row, keeping focused choices visible in short viewports. Readable dates and grouped metadata reduce scanning effort; category labels sit beside their controls. Repayments expose the filtered unpaid total and indent individual details with nearby actions. Transient Budget confirmations appear inline above the ledger rather than covering rows; existing account-save confirmation timing remains unchanged. The converter stays optional, at the bottom, with weekly rate checks. Simulated UI and UX ratings remain separate from engineering checks and human-user evidence.
+
+### Final site refinement release
+
+The shared [design standard](DESIGN.md) now covers the implemented pages and their responsive forms, navigation, dialogs and feedback while preserving Ivy’s logo, colors and heading-font choices. Repayment corrections require a reason and append server-timestamped history; the original expense remains locked. Run `npm run test:live-repayments` with the ignored QA credentials to verify real database permissions, retries, correction history and fresh-browser persistence using disposable accounts.
+
+The final design review did **not** reach 9.7 in both UI and UX across every area. Dan explicitly ended further design rounds and authorized publishing these final changes on November 12, 2026. Scores remain simulated reviewer judgments, separate from the release’s automated and live-data checks.

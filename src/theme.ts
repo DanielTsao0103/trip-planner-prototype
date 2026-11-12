@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { readableAccent, readableForeground } from "./color-contrast.ts";
 
 /** Style choices shared between the Style page and the parts of the app that react to them (so far: the budget pie chart). */
 
@@ -12,8 +13,32 @@ export const THEMES = [
   { id: "creme", name: "Creme", primary: "#ad7d57", tint: "#f6e9dc", soft: "#e0bf9f", bg: "#fcf7f1", chart: ["#ad7d57", "#cfa07a", "#e0bf9f", "#a26a52", "#e0d3c4", "#f6eee5"], dark: { primary: "#e0bf9f", tint: "#35291f", soft: "#cfa07a", bg: "#1a1612", surface: "#251f19", chart: ["#e0bf9f", "#cfa07a", "#ad7d57", "#c48a72", "#5a4d40", "#30271f"] } },
 ];
 
+export const RADII: Record<string, number> = { square: 0.3, soft: 1, round: 2 };
+export const HEADING_FONTS: Record<string, string> = {
+  serif: '"Fraunces", serif',
+  sans: '"DM Sans", sans-serif',
+  playfair: '"Playfair Display", serif',
+  lora: '"Lora", serif',
+  poppins: '"Poppins", sans-serif',
+  grotesk: '"Space Grotesk", sans-serif',
+  caveat: '"Caveat", cursive',
+};
+
+
 export const DEFAULT_STYLE = { theme: "blue", matchDevice: true, mode: "light", heading: "serif", corners: "soft" };
 export type StyleChoice = typeof DEFAULT_STYLE;
+
+/** Recover safely from older or malformed saved choices before rendering controls. */
+export function normalizeStyle(value: unknown): StyleChoice {
+  const saved = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    theme: THEMES.some((theme) => theme.id === saved.theme) ? saved.theme as string : DEFAULT_STYLE.theme,
+    matchDevice: typeof saved.matchDevice === "boolean" ? saved.matchDevice : DEFAULT_STYLE.matchDevice,
+    mode: saved.mode === "dark" ? "dark" : "light",
+    heading: typeof saved.heading === "string" && Object.hasOwn(HEADING_FONTS, saved.heading) ? saved.heading : DEFAULT_STYLE.heading,
+    corners: typeof saved.corners === "string" && Object.hasOwn(RADII, saved.corners) ? saved.corners : DEFAULT_STYLE.corners,
+  };
+}
 
 const KEY = "trip-planner-style";
 const listeners = new Set<() => void>();
@@ -21,11 +46,7 @@ const listeners = new Set<() => void>();
 function load(): StyleChoice {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || "null");
-    if (saved && typeof saved === "object") {
-      const merged = { ...DEFAULT_STYLE, ...saved };
-      if (merged.mode === "auto") merged.mode = "light"; // older saved value
-      return merged;
-    }
+    return normalizeStyle(saved);
   } catch {
     /* storage unavailable, use defaults */
   }
@@ -47,6 +68,7 @@ export function applyRemoteStyle(next: StyleChoice) {
 }
 
 export function setStyle(next: StyleChoice, fromAccount = false) {
+  next = normalizeStyle(next);
   current = next;
   if (!fromAccount) saver?.(next);
   try {
@@ -86,9 +108,17 @@ export function useSystemDark(): boolean {
 export function resolvePalette(choice: StyleChoice, systemDark: boolean) {
   const theme = THEMES.find((x) => x.id === choice.theme) ?? THEMES[1];
   const isDark = choice.matchDevice ? systemDark : choice.mode === "dark";
+  // Share the same accessible action foreground with the preview and live CSS.
+  const onPrimary = readableForeground(
+    isDark ? theme.dark.primary : theme.primary,
+    isDark ? theme.dark.bg : "#fffef8",
+  );
+  const source = isDark ? theme.dark : { ...theme, surface: "#fffef9" };
+  const actionInk = readableAccent(source.primary, [source.surface, source.bg, source.tint], isDark);
+  const controlBorder = readableAccent(source.tint, [source.surface, source.bg, source.tint], isDark, 3);
   if (isDark)
-    return { ...theme.dark, ink: "#eef1f5", muted: "#9aa3ae", line: theme.dark.tint, track: "#ffffff22", onPrimary: theme.dark.bg, isDark };
-  return { primary: theme.primary, tint: theme.tint, soft: theme.soft, bg: theme.bg, surface: "#fffef9", chart: theme.chart, ink: "#2b3b50", muted: "#566476", line: theme.tint, track: "#ffffff99", onPrimary: "#fffef8", isDark };
+    return { ...theme.dark, ink: "#eef1f5", muted: "#9aa3ae", line: theme.dark.tint, track: "#ffffff22", onPrimary, actionInk, controlBorder, isDark };
+  return { primary: theme.primary, tint: theme.tint, soft: theme.soft, bg: theme.bg, surface: "#fffef9", chart: theme.chart, ink: "#2b3b50", muted: "#566476", line: theme.tint, track: "#ffffff99", onPrimary, actionInk, controlBorder, isDark };
 }
 
 export function usePalette() {
@@ -101,16 +131,6 @@ export function useChartColors(): string[] {
 
 /* ---------- Applying the style to the whole site ---------- */
 
-export const RADII: Record<string, number> = { square: 0.3, soft: 1, round: 2 };
-export const HEADING_FONTS: Record<string, string> = {
-  serif: '"Fraunces", serif',
-  sans: '"DM Sans", sans-serif',
-  playfair: '"Playfair Display", serif',
-  lora: '"Lora", serif',
-  poppins: '"Poppins", sans-serif',
-  grotesk: '"Space Grotesk", sans-serif',
-  caveat: '"Caveat", cursive',
-};
 
 function hslOf(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16);
@@ -144,7 +164,9 @@ export function applyStyleToSite(choice: StyleChoice, systemDark: boolean) {
     "--la": dark ? "95%" : "0%",
     "--lb": dark ? "-0.85" : "1",
     "--green": pal.primary,
-    "--on-primary": dark ? pal.bg : "#fffef8",
+    "--on-primary": pal.onPrimary,
+    "--action-ink": pal.actionInk,
+    "--control-border": pal.controlBorder,
     "--page": pal.bg,
     "--paper": pal.surface,
     "--ink": tone(hue, 30.1, 24.1, sm, dark),
@@ -157,6 +179,7 @@ export function applyStyleToSite(choice: StyleChoice, systemDark: boolean) {
     "--font-heading": HEADING_FONTS[choice.heading] ?? HEADING_FONTS.serif,
   };
   const root = document.documentElement;
+  root.dataset.heading = choice.heading;
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
   root.style.colorScheme = dark ? "dark" : "light";
 }

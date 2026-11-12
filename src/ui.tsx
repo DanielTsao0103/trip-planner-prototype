@@ -51,6 +51,7 @@ export function Button({
   return (
     <button
       type={type}
+      data-ui="button"
       className={`btn ${variant}`}
       disabled={disabled}
       onClick={(e) => {
@@ -63,6 +64,30 @@ export function Button({
     </button>
   );
 }
+/** Keep keyboard fields in the usable space between recovery and form actions. */
+export function revealFocusedFormField(event: React.FocusEvent<HTMLFormElement>): void {
+  const target = event.target as HTMLElement;
+  const form = event.currentTarget;
+  if (!target.matches("input, textarea, select")) return;
+  requestAnimationFrame(() => {
+    if (!target.isConnected || document.activeElement !== target) return;
+    const actions = form.querySelector<HTMLElement>("[data-fixed-actions]");
+    const fixedActions = actions && ["fixed", "sticky"].includes(getComputedStyle(actions).position);
+    const notice = document.querySelector<HTMLElement>(".trip-recovery-banner");
+    const stickyNotice = notice && ["fixed", "sticky"].includes(getComputedStyle(notice).position);
+    if (!fixedActions && !stickyNotice) return;
+    const bounds = target.getBoundingClientRect();
+    const header = document.querySelector(".topbar")?.getBoundingClientRect().bottom ?? 0;
+    const top = Math.max(0, header, stickyNotice ? notice.getBoundingClientRect().bottom : 0) + 12;
+    const bottom = (fixedActions ? actions.getBoundingClientRect().top : window.innerHeight) - 12;
+    if (bounds.top >= top && bounds.bottom <= bottom) return;
+    const field = target.closest(".field")?.getBoundingClientRect();
+    // Include its label when it fits, and center within the actual unobscured area.
+    const visible = field && field.height <= bottom - top ? field : bounds;
+    window.scrollBy({top: (visible.top + visible.bottom - top - bottom) / 2, behavior:"instant"});
+  });
+}
+
 export function Field({
   label,
   children,
@@ -82,10 +107,11 @@ export function Field({
     if (["input", "select", "textarea"].includes(node.type)) {
       const max = element.props.maxLength;
       const tooLong = typeof max === "number" && String(element.props.value ?? "").length > max;
-      if (tooLong)
+      const atLimit = typeof max === "number" && String(element.props.value ?? "").length === max;
+      if (tooLong || atLimit)
         lengthError = (
           <small id={`${id}-length-error`}>
-            Shorten this to {max.toLocaleString("en-US")} characters or fewer.
+            {tooLong ? `Shorten this to ${max.toLocaleString("en-US")} characters or fewer.` : `${max.toLocaleString("en-US")} character limit reached.`}
           </small>
         );
       return React.cloneElement(element, {
@@ -94,7 +120,7 @@ export function Field({
           [
             element.props["aria-describedby"],
             hint ? id : "",
-            tooLong ? `${id}-length-error` : "",
+            tooLong || atLimit ? `${id}-length-error` : "",
           ]
             .filter(Boolean)
             .join(" ") || undefined,
@@ -112,7 +138,7 @@ export function Field({
   };
   const control = labelControl(children);
   return (
-    <label className="field">
+    <label className="field" data-ui="field">
       <span>{label}</span>
       {control}
       {hint && <small id={id}>{hint}</small>}
@@ -138,7 +164,7 @@ export function Badge({
   children: ReactNode;
   tone?: string;
 }) {
-  return <span className={`badge ${tone}`}>{children}</span>;
+  return <span className={`badge ${tone}`} data-ui="badge">{children}</span>;
 }
 /** Shows the account's picture when this id is the signed-in account, otherwise initials. */
 export function Avatar({
@@ -185,7 +211,7 @@ export function Empty({
   action?: ReactNode;
 }) {
   return (
-    <div className="empty">
+    <div className="empty" data-ui="empty">
       <Compass size={34} strokeWidth={1.3} />
       <h3>{title}</h3>
       {body && <p>{body}</p>}
@@ -205,7 +231,7 @@ export function PageHead({
   action?: ReactNode;
 }) {
   return (
-    <div className="page-head">
+    <div className="page-head" data-ui="page-heading">
       <div>
         {eyebrow && <div className="eyebrow">{eyebrow}</div>}
         <h1>{title}</h1>
@@ -229,18 +255,23 @@ export function Photo({
   src,
   alt,
   className = "",
+  optional = false,
 }: {
   src: string;
   alt: string;
   className?: string;
+  optional?: boolean;
 }) {
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  if (optional && (!src.trim() || failedSource === src)) return null;
   return (
     <img
       src={src}
       alt={alt}
       className={className}
       onError={(e) => {
-        e.currentTarget.style.opacity = ".25";
+        if (optional) setFailedSource(src);
+        else e.currentTarget.style.opacity = ".25";
       }}
     />
   );
@@ -251,26 +282,29 @@ export function PhotoCredit({ credit, compact = false }: { credit?: { name: stri
 }
 export function EventCard({
   event,
+  id,
   edit = false,
 }: {
   event: Event;
+  id?: string;
   edit?: boolean;
 }) {
   const { go, open } = useApp();
   return (
     <button
       className="event-card"
+      id={id}
       onClick={() =>
         edit
           ? go(7, { event: event.id, date: event.date, return: "11" })
           : go(11, { date: event.date, event: event.id })
       }
     >
-      <Photo src={event.image} alt={event.place} />
+      <Photo src={event.image} alt={event.place} optional />
       <div className="event-info">
         <div className="event-time">
           <Clock size={13} />
-          {timeText(event.start)} <span>– {timeText(event.end)}</span>
+          <span>{timeText(event.start)} – {timeText(event.end)}</span>
         </div>
         <h3>{event.name}</h3>
         <p>
@@ -286,64 +320,123 @@ export function Modal({
   title,
   children,
   wide = false,
+  onClose,
+  footer,
+  navigation,
 }: {
   title: string;
   children: ReactNode;
   wide?: boolean;
+  onClose?: () => void;
+  footer?: ReactNode;
+  navigation?: ReactNode;
 }) {
-  const { close } = useApp();
+  const { close: closeOverlay } = useApp();
+  const close = onClose ?? closeOverlay;
   const ref = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(close);
+  closeRef.current = close;
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;
     const openedOnRoute = location.hash;
-    const background = Array.from(
-      document.querySelectorAll<HTMLElement>(".app-shell, .auth, .skip-link"),
-    );
-    background.forEach((node) => (node.inert = true));
     const el = ref.current!;
-    const focus = el.querySelector<HTMLElement>("button,input,select,textarea");
-    focus?.focus();
+    // Include notices outside the shell, while preserving any existing inert state.
+    const background = new globalThis.Map<HTMLElement, boolean>();
+    let branch: HTMLElement = el.parentElement!;
+    while (branch.parentElement) {
+      for (const sibling of branch.parentElement.children) {
+        if (sibling instanceof HTMLElement && sibling !== branch) {
+          background.set(sibling, sibling.inert);
+          sibling.inert = true;
+        }
+      }
+      if (branch.parentElement === document.body) break;
+      branch = branch.parentElement;
+    }
+    const available = (node: HTMLElement): boolean =>
+      !node.matches(":disabled") && !node.closest('[hidden], [inert], [aria-hidden="true"]') &&
+      node.getClientRects().length > 0 && getComputedStyle(node).visibility !== "hidden";
+    const focusable = (): HTMLElement[] => {
+      const nodes = Array.from(el.querySelectorAll<HTMLElement>(
+        'button, input, select, textarea, a[href], summary, [tabindex], [contenteditable="true"]',
+      )).filter(node => node.tabIndex >= 0 && available(node));
+      // A radio group contributes one Tab stop, matching native browser behavior.
+      return nodes.filter(node => {
+        if (!(node instanceof HTMLInputElement) || node.type !== "radio" || !node.name) return true;
+        const group = nodes.filter((other): other is HTMLInputElement =>
+          other instanceof HTMLInputElement && other.type === "radio" &&
+          other.name === node.name && other.form === node.form);
+        return node === (group.find(other => other.checked) || group[0]);
+      }).sort((a, b) => (a.tabIndex || Infinity) - (b.tabIndex || Infinity));
+    };
+    const focusFirst = () => (focusable()[0] || el).focus();
+    focusFirst();
+    const keepFocusInside = () => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement) || !el.contains(active) || !available(active)) focusFirst();
+    };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      // A child popup can consume Escape before the enclosing dialog handles it.
+      if (e.defaultPrevented) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeRef.current();
+      }
       if (e.key === "Tab") {
-        const nodes = Array.from(
-          el.querySelectorAll<HTMLElement>(
-            "button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href]",
-          ),
-        );
+        const nodes = focusable();
         const first = nodes[0],
           last = nodes[nodes.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
+        const active = document.activeElement;
+        if (!nodes.length) {
           e.preventDefault();
-          last?.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
+          el.focus();
+        } else if (!nodes.includes(active as HTMLElement)) {
           e.preventDefault();
-          first?.focus();
+          (e.shiftKey ? last : first).focus();
+        } else if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
         }
       }
     };
     document.addEventListener("keydown", onKey);
+    document.addEventListener("focusin", keepFocusInside);
+    // Async saves and expanded forms can remove, hide, or disable the focused control.
+    const observer = new MutationObserver(keepFocusInside);
+    observer.observe(el, { childList: true, subtree: true, attributes: true,
+      attributeFilter: ["disabled", "hidden", "inert", "aria-hidden", "class", "style", "open"] });
     const old = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
+      observer.disconnect();
       document.removeEventListener("keydown", onKey);
+      document.removeEventListener("focusin", keepFocusInside);
       document.body.style.overflow = old;
-      background.forEach((node) => (node.inert = false));
+      background.forEach((inert, node) => (node.inert = inert));
       // Navigating away should keep focus in the new page, not the old opener.
-      if (location.hash === openedOnRoute && previous?.isConnected)
-        previous.focus();
+      if (location.hash === openedOnRoute && previous?.isConnected && available(previous))
+        previous.focus({ preventScroll: true });
     };
-  }, [title]);
+  }, []);
   return (
     <div
       className="overlay"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) close();
+        if (e.target === e.currentTarget) {
+          // The backdrop disappears on close; its default focus would undo restoration.
+          e.preventDefault();
+          close();
+        }
       }}
     >
       <div
         ref={ref}
         className={`modal ${wide ? "wide" : ""}`}
+        data-ui="dialog"
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -358,11 +451,30 @@ export function Modal({
             <X size={20} />
           </button>
         </div>
+        {navigation && <div className="modal-navigation">{navigation}</div>}
         <div className="modal-body">{children}</div>
+        {footer && <div className="modal-footer">{footer}</div>}
       </div>
     </div>
   );
 }
+/** Shared, non-submitting confirmation actions; closing always keeps the current work. */
+export function ConfirmDialog({ title, children, cancelLabel = "Keep editing", confirmLabel = "Discard changes", onCancel, onConfirm }: {
+  title: string;
+  children: ReactNode;
+  cancelLabel?: string;
+  confirmLabel?: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return <Modal title={title} onClose={onCancel} footer={<div className="confirmation-actions">
+    <Button type="button" variant="outline" onClick={onCancel}>{cancelLabel}</Button>
+    <Button type="button" variant="danger" onClick={onConfirm}>{confirmLabel}</Button>
+  </div>}>
+    <p>{children}</p>
+  </Modal>;
+}
+
 export function Logo() {
   return (
     <span className="logo">
@@ -377,9 +489,36 @@ export function Logo() {
 /** Parent links follow the screen hierarchy, even after a refresh or direct visit. */
 function Breadcrumbs() {
   const { route, trip, s } = useApp();
+  const trail = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const element = trail.current;
+    if (!element) return;
+    let active = true;
+    const updateOverflow = () => {
+      element.toggleAttribute('data-more-before', element.scrollLeft > 1);
+      element.toggleAttribute('data-more-after', element.scrollLeft + element.clientWidth < element.scrollWidth - 1);
+    };
+    const revealCurrent = () => {
+      if (active && window.innerWidth <= 760) {
+        const focused = document.activeElement;
+        if (focused instanceof HTMLAnchorElement && element.contains(focused))
+          focused.scrollIntoView({ block: 'nearest', inline: 'center' });
+        else element.scrollLeft = element.scrollWidth;
+      }
+      if (active) updateOverflow();
+    };
+    revealCurrent();
+    // Font loading and resizing can widen the trail after the first route render.
+    void document.fonts.ready.then(revealCurrent);
+    const observer = new ResizeObserver(revealCurrent);
+    observer.observe(element);
+    if (element.firstElementChild) observer.observe(element.firstElementChild);
+    element.addEventListener('scroll', updateOverflow, { passive: true });
+    return () => { active = false; observer.disconnect(); element.removeEventListener('scroll', updateOverflow); };
+  }, [route.page, route.params.toString()]);
   const page = route.page;
   const crumbs: { label: string; href: string }[] = [
-    { label: "Your workspace", href: "#/4" },
+    { label: "Home", href: "#/4" },
   ];
   const add = (label: string, target: number, params?: Record<string, string>) =>
     crumbs.push({
@@ -424,16 +563,19 @@ function Breadcrumbs() {
   }
 
   return (
-    <nav className="breadcrumbs" aria-label="Breadcrumb">
+    <nav ref={trail} className="breadcrumbs" aria-label="Breadcrumb" onFocusCapture={event => {
+      if (event.target instanceof HTMLAnchorElement && window.innerWidth <= 760)
+        event.target.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }}>
       <ol>
         {crumbs.map((crumb, index) => (
           <li key={`${index}-${crumb.href}`}>
             {index > 0 && <ChevronRight size={13} aria-hidden="true" />}
             {index === crumbs.length - 1 ? (
-              <span aria-current="page" title={crumb.label}>{crumb.label}</span>
+              <span aria-current="page" title={crumb.label}>{page === 8 ? "Itinerary" : crumb.label}</span>
             ) : (
               <a href={crumb.href} title={crumb.label} aria-label={crumb.label}>
-                {page === 12 && crumb.href === "#/8" ? <>
+                {crumb.href === "#/8" ? <>
                   <span className="breadcrumb-trip-label">{crumb.label}</span>
                   <span className="breadcrumb-trip-short" aria-hidden="true">Trip</span>
                 </> : crumb.label}
@@ -446,8 +588,9 @@ function Breadcrumbs() {
   );
 }
 export function Shell({ children }: { children: ReactNode }) {
-  const { user, trip, s, route, go, tripGo, open, returnFromSample } = useApp();
+  const { user, trip, s, route, go, tripGo, open, returnFromSample, accountInfo, signOut, recoveryNotice } = useApp();
   const active = trip && isActive(trip, s.date);
+  const tripContextTarget = [8, 9, 10, 11, 12, 13, 17].includes(route.page) ? route.page : 8;
   const nav = [
     { p: 8, label: "Itinerary", Icon: Route },
     { p: 10, label: "Today", Icon: CalendarDays },
@@ -472,10 +615,10 @@ export function Shell({ children }: { children: ReactNode }) {
         </button>
         <button
           className="trip-switch"
-          onClick={() => open("tripPicker", { target: route.page === 17 ? 17 : 8 })}
+          onClick={() => open("tripPicker", { target: tripContextTarget, activeOnly: tripContextTarget === 10 })}
         >
           <span className="eyebrow">YOUR TRIP</span>
-          <strong>{trip?.title || "Choose a trip"}</strong>
+          <strong title={trip?.title}>{trip?.title || "Choose a trip"}</strong>
           <span>
             {trip
               ? `${dateText(trip.start, true)} – ${dateText(trip.end, true)}`
@@ -529,11 +672,25 @@ export function Shell({ children }: { children: ReactNode }) {
             >
               <Menu size={21} />
             </button>
+        {trip && (
+          <button
+            className="mobile-trip-context"
+            onClick={() => open("tripPicker", { target: tripContextTarget, activeOnly: tripContextTarget === 10 })}
+            aria-label={`Switch trip: ${trip.title}`}
+          >
+            <span>
+              <MapPin size={14} />
+              <strong>{trip.title}</strong>
+            </span>
+            <ChevronRight size={16} />
+          </button>
+        )}
             <Breadcrumbs />
           </div>
           <div className="topbar-right">
-            <button className="prototype-button" onClick={() => open("demo")}>
-              Prototype <span className="status-dot" />
+            {!accountInfo.cloud && <button className="demo-exit" aria-label="Exit demo" onClick={() => void signOut()}>Exit demo</button>}
+            <button className="prototype-button" aria-label="Prototype" title="Prototype controls" onClick={() => open("demo")}>
+              <Settings2 className="prototype-mobile-icon" size={18}/><span className="prototype-label">Prototype</span> <span className="status-dot" />
             </button>
             {trip && (() => {
               // The signed-in person is the picture button on the right, so only show the others here.
@@ -558,19 +715,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </button>
           </div>
         </header>
-        {trip && (
-          <button
-            className="mobile-trip-context"
-            onClick={() => open("tripPicker", { target: route.page === 17 ? 17 : 8 })}
-            aria-label={`Switch trip: ${trip.title}`}
-          >
-            <span>
-              <MapPin size={14} />
-              <strong>{trip.title}</strong>
-            </span>
-            <ChevronRight size={16} />
-          </button>
-        )}
+        {recoveryNotice}
         <main
           id="main-content"
           tabIndex={-1}
@@ -590,7 +735,7 @@ export function Shell({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
-      {trip && (
+      {trip && ![6, 18].includes(route.page) && (
         <nav className="mobile-nav" aria-label="Mobile navigation">
           <button
             aria-current={[8, 7, 11].includes(route.page) ? "page" : undefined}
@@ -616,7 +761,7 @@ export function Shell({ children }: { children: ReactNode }) {
               onClick={() => go(9)}
             >
               <Sparkles size={19} />
-              Ideas
+              Suggestions
             </button>
           )}
           <button

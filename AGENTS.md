@@ -117,3 +117,131 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Budget UX-only review (November 11, 2026): Dan requested a 9.6 quality check focused solely on UX. Evaluate observed clarity, effort, readability, and interaction comfort independently from engineering tests; preserve actual scores and do not claim an unmet target. Keep the Add action at the ledger’s top right, using a compact label on narrow screens with the full accessible name.
 
 - Budget UI and UX continuation (November 11, 2026): Dan requires honest independent ratings of at least 9.6 in both UI and UX. Keep the original UX rubric for comparisons, report UI separately, retain all lower scores, and exclude exploratory rubric changes from acceptance. Fix observed interaction and visual issues between frozen review rounds; never raise a score by changing its definition.
+
+- App-wide design standard (November 11, 2026): Dan approved the Budget design as the baseline across the entire app. Read and follow DESIGN.md for all UI work. Implement reusable rules through src/design-system.css and shared ui.tsx components, preserve functional behavior and theme choices, and verify phone/tablet/desktop and dark-mode layouts. Budget review scores do not automatically apply to other pages.
+
+- Site-wide refinement scope (November 11, 2026): Dan requires local UI/UX review-and-revision rounds for every implemented page and touchpoint, on mobile and desktop, until each reviewed area reaches 9.7 in both UI and UX. Preserve Ivy’s logo, theme colors, heading fonts and design choices across variants. Fetch the latest repository first. After the design gate, run complete implemented-feature and live database-saving verification, fix failures, and only then publish to the main GitHub Pages site. Do not substitute a site average for a failing page, count previews as live services, or promise zero undiscovered bugs.
+
+- Site-wide audit coverage (November 11, 2026): exercise Today with dates inside the trip, not only its inactive empty state. Hidden chart tooltips must not create document overflow; check long names before and after focus/hover and keep only one tooltip visible.
+- Calendar browser-test lesson (November 11, 2026): for horizontally scrolling overlap grids, begin the actual pointer drag before scrolling the destination into view. Otherwise automation can initiate the drag on a different event after the source shifts. Assert the intended dragged event and saved minute after reload.
+- Mixed-input tooltip lesson (November 11, 2026): leaving a previously hovered chart item must not dismiss another item’s keyboard-focused tooltip. Keep one bounded tooltip visible, allow Escape dismissal, and expose complete names through the existing detail dialog.
+- Recovery feedback lesson (November 11, 2026): editing or resetting a style preview must not retain a success sentence that implies the new preview was saved. Likewise, a successful expense deletion must replace the previous expense-recorded message.
+- Fixed phone action bars must leave focused fields and validation messages fully visible. Check actual bounding boxes after keyboard navigation and repeated invalid submissions, not only whether an element intersects the viewport.
+- Inverse chart tooltips must explicitly carry their foreground color to helper text; global small-text colors can silently defeat contrast. Inspect selected and hovered control colors after transitions settle.
+- Long repayment descriptions may wrap, but money and completion labels must not split. Fixed action bars must reserve bottom-navigation space only when that navigation exists.
+
+- Native form validation must open a collapsed disclosure before focusing its invalid required input. An inactive-date trip filter is not proof that the account has no trips; preserve the distinction in empty-state actions.
+- A saved trip remains accessible when invitation delivery fails. Preserve failed recipients for retry while on the form, and offer an explicit Continue action without implying background email delivery.
+
+- Saving an itinerary item must return to its exact day and event, including later pages; do not silently reset to the first trip day. Feedback belongs to its originating task, so connection outcomes must never appear inside the budget ledger.
+- Keep individual expense share and full amount together independently of a wrapping title. Reduce redundant field margins before shrinking text or touch targets.
+
+- Native select height can differ across browser engines despite minimum-height CSS. Measure actual controls in WebKit as well as Chromium; keep native semantics while styling adequate targets. Wait for route focus/fonts before judging keyboard automation.
+- Dismissed suggestions must remain recoverable in mixed added/dismissed lists. Restoring ideas must not remove or duplicate an accepted event.
+- After creation, keep the new trip beside its confirmation and provide a direct Open action. Do not attach an unrelated default photo to a new manual event.
+- Readable breadcrumbs must remain fully scrolled to the current page after fonts or available width change. A style preview needs a return to the last edited control, not repeated manual scrolling.
+- Inline pin-update feedback is not proof of an account save. Account map edits must use the shared queue's confirmed-save notification; incomplete responses and failed retries must never retain success-like pin feedback.
+- Recipient validation can run on Enter without changing focus. Reveal its complete error above fixed actions on every invalid submission, including repeated attempts with the same text.
+- When a parent grid supplies section spacing, remove duplicate PageHead margins before compressing controls. Account section headings should use the shared section scale, while preserving the larger Caveat readability override.
+- A carousel's card width and translation step must use the same measured available width. Keep the focus ring inside a clipped viewport; test the first/last loop and resize while on a later card.
+- Asynchronous photo-upload errors must reveal the complete error and Retry action above sticky editor controls on desktop as well as phones. A visible alert can still have its recovery action covered.
+- A Google Maps access denial must cancel its pending tile timeout. A later timeout must never replace a known access failure with misleading loading-delay copy.
+- Suggestions must skip elapsed hours today and earlier trip dates when choosing a default. Preserve manual editing of past events and explain when no upcoming editable slot remains.
+- A group-hidden sample idea must not immediately reappear as the same venue in Nearby. Preserve the existing editor-controlled dismissal/recovery path and distinguish it from dismissing a temporary nearby alert.
+- Map restoration clarification (November 11, 2026): Dan explicitly requested retaining/restoring Google Maps while the site-wide refinement continues. Distinguish a local referrer denial from a published-site outage. Never present deterministic SDK fixtures as real map imagery or replace the production provider with them.
+- Converter jumps must reserve space only for UI that actually stays fixed. The current top bar scrolls away; a120px scroll margin hid the conversion result on short phones.
+- The Style editor should have one mobile action bar. Keep menu access to trip navigation and restore the bottom trip navigation on return to a planning screen.
+
+- Concurrent itinerary updates must retain the upstream Calendar default and 7/10/20-day List choices. Return from save/cancel to the originating view and exact day/event; phone paging controls must wrap without shrinking 44px targets.
+
+- Async authentication errors can push the recovery action below a short viewport even without a fixed footer. Reveal the error/action after rendering while preserving keyboard focus; test settled fonts and the entire alert rectangle.
+- Keep Previous/range/Next as one wrapping unit for every List page size and final-page range. A44px control check on the first page does not prove the final page remains coherent.
+- Native scrollIntoView nearest ignores overlay bars. Check photo-result cards and attribution against the actual editor-action boundary after images decode.
+- Calendar editing instructions must follow the current user's permissions for the visible week; a Viewer must not be told to drag or use unavailable Move controls.
+- Before treating a sidebar highlight as stale navigation state, inspect aria-current and active classes and move the pointer away. Normal hover styling is not a retained selection.
+- Local Maps setup correction (November 11, 2026): Dan directed checking Ivy's original GitHub configuration. PR1 documents http://127.0.0.1:5190/*; real Maps works there while other review ports receive RefererNotAllowedMapError. Use the configured origin before requesting Cloud access or changing restrictions. Dev/preview default to5190 with strictPort to prevent silent port fallback; isolated mocked tests may still override their port.
+
+- Keep discrete spending labels and responses in the same category column; a continuous scale line can imply intermediate values that the app does not collect. Preserve full-name access and 44px response targets.
+- Dense calendar details must be available to both pointer and keyboard users without adding idle clutter. Keep one dismissible, hoverable, viewport-bounded preview and preserve exact-minute drag/Move behavior.
+
+- Disabling an asynchronous action can move focus to BODY. After failure, restore the correction or Retry control only when focus was lost; preserve any control the traveler deliberately focused while waiting.
+
+- Pending destination lookups must say Finding time zone; reserve unavailable for a completed unsuccessful lookup or a previously unresolved saved destination. Template descriptions must reflect which edits are available before versus after creating a trip.
+- Keep repeated connection buttons identifiable by provider in their accessible names. Modal section navigation should stay outside the scrolling body when it controls a long index; verify which controls actually disappear before changing the header.
+- Browser test evidence belongs in Playwright per-test output paths, not machine-specific or shared review directories, so concurrent projects cannot overwrite each other.
+
+- Live provider checks can reveal behavior absent from SDK fixtures. Google Maps colorScheme is constructor-only; resolve the app/device scheme explicitly and preserve camera, selection and focus when rebuilding. Defer reconstruction during an active pin draft until Save or Cancel.
+- Moving an event across days can replace its original DOM opener. Restore focus to the newly rendered event in its destination week, and ignore a stale native close event if the dialog has already reopened.
+- A partially visible breadcrumb can remain clipped after focus. Center the focused ancestor and preserve it through font/resize updates; otherwise reveal the current page.
+- Nearby preview navigation must not silently dismiss the offer. State the destination of its map action truthfully, and never invent coordinates for a fictional venue.
+
+- Safari pointer clicks can focus a control's focusable ancestor. When restoring focus after a deferred map rebuild, recognize the unchanged completion origin, preserve a later deliberate focus move, and reveal the restored control above actual visible navigation.
+- A focused element intersecting the viewport can still be covered by a fixed bar. Assert complete control bounds above that bar after cross-day calendar Move and pin Save/Cancel, including a viewport resize while the dialog is open. Hidden desktop bars are not viewport boundaries.
+- Keep destination regions beside their own city and render time-zone rows in destination order; grouping nonadjacent destinations by time zone can silently contradict that order.
+- URL.pathname retains escaped spaces in local file URLs. Use fileURLToPath for generated evidence paths instead of creating a percent-encoded sibling directory.
+
+- After saving an expense, reveal its ledger row and preserve any category filter that still includes it; do not leave a successful save offscreen beneath Sample tools.
+- Repeated identical async survey failures need a per-attempt reveal trigger; editing or validation should not retrigger that recovery scroll. Keep narrow actions readable and allow320px wrapping.
+- Contextual preview shortcuts should disappear when their destination is visible without changing observed layout height or removing the currently focused control.
+
+- Time-zone failure guidance must match the fallback control actually present: secondary lookup failures do not require selecting a new primary calendar zone. Retire warnings when the unresolved destination is removed.
+- Keep long-list search outside the modal’s scrolling body, and make prototype section navigation consistent at every width.
+- Repeated sample actions must replace obsolete inline feedback. Scope confirmed trip-write notifications so they cannot be mistaken for account/style success.
+- Cancel prompts should protect actual edits, including date-only drafts, without prompting on untouched existing forms. Device display preferences can persist locally with safe fallbacks when storage is denied.
+- A reopened map chooser needs its complete Close control inside the visible viewport, not merely DOM focus.
+
+- Resolve destination time zones independently: one rejected lookup must not discard successful primary/secondary results or force a known primary zone into a manual fallback. Preserve destination order and guard aborted requests.
+- Keep account field validation persistent and associated with each input. Focus the first invalid field after hints render; retain different login versus signup password rules and clear stale hints when changing mode.
+- Selected control text and background must change together; animating only the background can briefly make its new text invisible. Neutral decorative tiles must follow both light and dark tones.
+- Confirm irreversible repayment effects before applying them. Do not invent a recorded completion date or promise undo when the persisted model only records settled participants.
+- Empty shared collections still need context when the item a traveler was viewing disappears. Preserve removed-item recovery for the final item as well as when other items remain.
+- Changing itinerary page size must retain the viewed day within the new grouping. Day8 can correctly move into Days1–10; focus its heading rather than assuming the range label alone proves a reset.
+- Sample transaction results need the same visible outcome as manual expense saves: reveal the removed confirmation after Undo, or the retained row after Keep/Close, after modal focus restoration.
+- Definition-list values may wrap, but fixed labels such as Email must not shrink into broken words beside long addresses.
+- When a first-save action disappears, focus its replacement control after the dialog closes instead of leaving keyboard users at the document root.
+- Styled confirmations must preserve the original cancellation and persistence semantics. Closing by Escape, X, backdrop or Keep must retain drafts; revalidate a shared removal target and permissions while a nonblocking confirmation is open.
+- A backdrop mousedown default can overwrite restored focus after its dialog disappears. Prevent that default only on the backdrop; explicitly focus confirmation openers in Safari before opening.
+- Photo-only changes are unsaved event changes too; include selected/uploaded photo state in the discard guard.
+- An explicit named demo-entry action must use that participant while preserving saved local work. A normal refresh should retain a deliberately selected fictional participant.
+- Focus-only controls need light/dark contrast checks too. Skip links must pair theme foreground and surface tokens rather than a fixed white background.
+- When a shared event moves, replace its daily-view URL with the displayed date without adding a Back step. Otherwise later deletion or reload can recover to the stale original day.
+- Canonicalizing the date of the same shared event is not new navigation. Keep deliberate keyboard focus in place; reserve item autofocus for opening a different item or returning from another screen.
+- A short-phone converter should expose its refresh action beside the result. Keep a visible label,44px target and a separate live-status region; preserve rate dates, warnings and long-value wrapping.
+- Long invitation identities must wrap inside the Continue action without shrinking or hiding the email; preserve the existing wrong-account rejection and switching flow.
+- Calendar-disabled dates do not replace submit validation. Enforce a starter itinerary’s minimum duration when copying so no plans are created outside the selected trip dates.
+- Typed dates must enforce the calendar’s min/max bounds before emitting changes. Keep an invalid attempted date and its correction message visible instead of navigating and silently falling back to another day.
+
+- Size preference-chart columns from content width after the sidebar, not viewport width alone. Keep category navigation available when tablet charts stack, and preserve Ivy's illustrations and response labels.
+
+- Recovery notices change height with wrapped errors and expanded actions. Measure their actual sticky height for itinerary scroll clearance, preserve deliberate focus, and remove the clearance when the notice disappears.
+
+- A specific Nearby idea can open the existing scheduling form directly when an editable future hour exists. Reuse the same availability rule as Suggestions; keep sample cost/duration visible and preserve cancel, permission and no-slot recovery.
+
+- Submitting a typed destination must perform the same timezone lookup as Add. Await unfinished lookups, retain explicit manual fallback choices, and stop late creation if the traveler leaves the form during lookup.
+- Do not remove an inline calendar error at drag start: its layout shift changes the time beneath a stationary pointer. Keep it until the new drop resolves.
+
+- Money validation should explain a negative amount with the allowed range, not a decimal-format error. Multi-author note controls should identify a note and count without enumerating the full author list before opening it.
+
+- Persistent recovery belongs in the workspace flow on desktop as well as phone. Branded discard must preserve cancel/focus behavior, recheck pending edits at confirmation, and close if background saving resolves them.
+
+- Focused editing fields must use the actual space between a recovery notice and fixed actions, including after viewport changes. Keep an existing-account shortcut visible on short signup screens without adding a row above the form or changing the logo proportions.
+
+- Trip create/edit needs the same single phone action bar as other editors. Keep header navigation and Cancel, and restore the trip tabs when the form closes.
+
+- Let long reminder text regain row width below its visible actions. Keep map controls opaque over changing provider imagery, explain unavailable Nearby scheduling, and reserve enough width for single-word actions in compact mobile bars.
+
+- A rejected visible date draft must not leave a summary announcing its last accepted value as valid. Keep parent summaries aware of field errors without overwriting the attempted date.
+- Check enlarged layouts at short CSS viewports too. Preserve whole action words and44px controls while reducing modal framing so the field and its error remain readable together.
+- Seed a new unscheduled event with a free hour; retain explicit or existing times and leave times for manual entry when no planning hour is available. Keep feature success feedback within its relevant return views.
+- Reconcile the current hash immediately after subscribing to navigation changes; a deep link or Back action can arrive between initial render and listener setup.
+
+- Service outages should retain account entries and expose an explicit retry beside a useful error. Focus the error for outages, reserve password focus for credential corrections, and preserve deliberately moved focus.
+- Invalid date submission should show one inline correction without opening a calendar or native validation bubble over it. Preserve first-invalid focus (query form controls, not invalid fieldsets), submission blocking, and explicit calendar correction.
+- Compact empty itinerary rows may combine day metadata, but must keep direct day navigation, date-specific Add actions and viewer permissions intact.
+
+- Short itineraries that already fit the minimum page size need date navigation, not an ineffective page-size selector. Preserve 7/10/20 choices and viewed-day continuity for longer trips.
+
+- Final release direction (November 12, 2026): Dan approved audited repayment correction, then explicitly requested these be the final changes and to push main. Stop further design-score rounds. Finish the current fixes, financial audit implementation and release verification; preserve candid below-target results rather than claiming9.7.
+- Audited repayment corrections append status/reason/actor records; server timestamps are authoritative. Keep ever-paid markers and original expense fields, including source provenance, locked. Legacy records must not receive invented dates.
+
+- Animation frames do not prove React committed a regrouped list. Reveal pending targets after their DOM commit and preserve deliberate focus changes during deferred route restoration.

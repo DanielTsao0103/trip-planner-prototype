@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ArrowLeftRight, ChevronDown, RefreshCw } from "lucide-react";
+import { ArrowLeftRight, ChevronDown } from "lucide-react";
 import { Button, Field } from "./ui";
 import {
   cachedRate,
@@ -7,6 +7,7 @@ import {
   formatCurrency,
   getExchangeRate,
   MAX_RATE_AGE_MS,
+  OutdatedExchangeRateError,
   RATE_TTL_MS,
   parseConversionAmount,
   type Currency,
@@ -19,6 +20,7 @@ type RateState = {
   rate: ExchangeRate | null;
   loading: boolean;
   failed: boolean;
+  outdatedDate?: string;
 };
 
 export function CurrencyConverter({
@@ -79,6 +81,8 @@ function CurrencyCalculator() {
   const [amount, setAmount] = useState("100");
   const [refresh, setRefresh] = useState(0);
   const handledRefresh = useRef(0);
+  const output = useRef<HTMLDivElement>(null);
+  const revealResult = useRef(true);
   const [state, setState] = useState<RateState | null>(null);
   const same = from === to;
 
@@ -110,7 +114,7 @@ function CurrencyCalculator() {
             loading: false,
             failed: false,
           });
-      } catch {
+      } catch (error) {
         if (!controller.signal.aborted)
           setState({
             base: from,
@@ -118,6 +122,8 @@ function CurrencyCalculator() {
             rate: cachedRate(from, to),
             loading: false,
             failed: true,
+            outdatedDate:
+              error instanceof OutdatedExchangeRateError ? error.date : undefined,
           });
       } finally {
         busy = false;
@@ -167,6 +173,22 @@ function CurrencyCalculator() {
     converted <= Number.MAX_SAFE_INTEGER;
   const invalidAmount = amount !== "" && parsed === null;
   const loading = !same && (!current || current.loading);
+  useLayoutEffect(() => {
+    if (loading || !revealResult.current) return;
+    revealResult.current = false;
+    const result = output.current;
+    if (!result || !result.getClientRects().length) return;
+    const box = result.getBoundingClientRect();
+    // Reveal user-requested feedback only while this result is on screen.
+    // Weekly refreshes and responses after scrolling away must not move the page.
+    if (box.bottom <= 0 || box.top >= window.innerHeight) return;
+    const navigation = document.querySelector<HTMLElement>(".mobile-nav");
+    const bottom = navigation?.getClientRects().length
+      ? navigation.getBoundingClientRect().top : window.innerHeight;
+    if (box.top < 16 || box.bottom > bottom - 16)
+      result.scrollIntoView({ block: "center", behavior: "instant" });
+  }, [loading, current?.failed, from, to]);
+
   const options = Object.entries(CURRENCIES).map(([code, name]) => (
     <option key={code} value={code}>
       {code} — {name}
@@ -196,7 +218,7 @@ function CurrencyCalculator() {
         <Field label="From currency">
           <select
             value={from}
-            onChange={(event) => setFrom(event.target.value as Currency)}
+            onChange={(event) => { revealResult.current = true; setFrom(event.target.value as Currency); }}
           >
             {options}
           </select>
@@ -205,6 +227,7 @@ function CurrencyCalculator() {
           variant="outline currency-swap"
           aria-label="Swap currencies"
           onClick={() => {
+            revealResult.current = true;
             setFrom(to);
             setTo(from);
           }}
@@ -214,7 +237,7 @@ function CurrencyCalculator() {
         <Field label="To currency">
           <select
             value={to}
-            onChange={(event) => setTo(event.target.value as Currency)}
+            onChange={(event) => { revealResult.current = true; setTo(event.target.value as Currency); }}
           >
             {options}
           </select>
@@ -231,67 +254,74 @@ function CurrencyCalculator() {
             : "Enter a number up to 1 trillion, using a decimal point and no commas."}
         </p>
       )}
-      <div
-        className="currency-result"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        <strong>
-          {validResult
-            ? formatCurrency(converted!, to)
-            : loading
-              ? "Loading exchange rate…"
-              : "—"}
-        </strong>
-        {same ? (
-          <p>
-            Same currency: 1 {from} = 1 {to}.
-          </p>
-        ) : (
-          <>
-            {rate && (
-              <p>
-                {rate.rate < 0.01 ? "1,000" : "1"} {from} ≈{" "}
-                {new Intl.NumberFormat("en-US", {
-                  maximumFractionDigits: 4,
-                }).format(rate.rate * (rate.rate < 0.01 ? 1000 : 1))}{" "}
-                {to} · Rate date: <time dateTime={rate.date}>{rate.date}</time>
-              </p>
-            )}
-
-            {loading && rate && <p>Checking for updated rates…</p>}
-            {current?.failed && (
-              <p>
-                {rate
-                  ? "Couldn’t refresh. Showing a saved rate; it may be out of date."
-                  : "Exchange rates are unavailable. Connect to the internet and try Refresh rates."}
-              </p>
-            )}
-            {rate &&
-              Date.now() - Date.parse(`${rate.date}T00:00:00Z`) >
-                RATE_TTL_MS && (
+      <div className="currency-output" ref={output}>
+        <div
+          className="currency-result"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <strong>
+            {validResult
+              ? formatCurrency(converted!, to)
+              : loading
+                ? "Loading exchange rate…"
+                : "—"}
+          </strong>
+          {same ? (
+            <p>
+              Same currency: 1 {from} = 1 {to}.
+            </p>
+          ) : (
+            <>
+              {rate && (
                 <p>
-                  This rate is more than a week old. Refresh rates for the
-                  latest available estimate.
+                  {rate.rate < 0.01 ? "1,000" : "1"} {from} ≈{" "}
+                  {new Intl.NumberFormat("en-US", {
+                    maximumFractionDigits: 4,
+                  }).format(rate.rate * (rate.rate < 0.01 ? 1000 : 1))}{" "}
+                  {to} · Rate date: <time dateTime={rate.date}>{rate.date}</time>
                 </p>
               )}
-            {parsed !== null && converted !== null && !validResult && (
-              <p>This conversion is too large. Enter a smaller amount.</p>
-            )}
-          </>
-        )}
+
+              {loading && rate && <p>Checking for updated rates…</p>}
+              {current?.failed && (
+                <p className="currency-warning">
+                  {current.outdatedDate ? (
+                    <>
+                      Rate dated {current.outdatedDate} is too old to use.{" "}
+                      {rate ? "Showing a saved rate instead." : "Refresh to try again."}
+                    </>
+                  ) : rate
+                    ? "Couldn’t refresh. Showing a saved rate; it may be out of date."
+                    : "Exchange rates are unavailable. Try Refresh rates again in a moment."}
+                </p>
+              )}
+              {rate &&
+                Date.now() - Date.parse(`${rate.date}T00:00:00Z`) >
+                  RATE_TTL_MS && (
+                  <p>
+                    This rate is more than a week old. Refresh rates for the
+                    latest available estimate.
+                  </p>
+                )}
+              {parsed !== null && converted !== null && !validResult && (
+                <p>This conversion is too large. Enter a smaller amount.</p>
+              )}
+            </>
+          )}
+        </div>
+        <Button
+          variant="outline small currency-refresh"
+          aria-label="Refresh rates"
+          disabled={same || loading}
+          onClick={() => { revealResult.current = true; setRefresh((value) => value + 1); }}
+        >
+          Refresh
+        </Button>
       </div>
       <div className="currency-note">
         <span>Weekly reference rates · Bank fees may differ.</span>
-        <Button
-          variant="outline small"
-          disabled={same || loading}
-          onClick={() => setRefresh((value) => value + 1)}
-        >
-          <RefreshCw size={15} aria-hidden="true" />
-          Refresh rates
-        </Button>
         <details className="currency-details">
           <summary>Rate details</summary>
           <p>

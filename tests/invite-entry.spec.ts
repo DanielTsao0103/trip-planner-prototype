@@ -18,7 +18,7 @@ const session = (identity: Identity) => ({ user: user(identity), access_token: t
   refresh_token: "test-refresh", expires_in: 3600, token_type: "bearer" });
 
 /** No external mail or accounts. The actual SDK handles proof and selected-account sessions separately. */
-async function invitation(page: Page, registered: boolean) {
+async function invitation(page: Page, registered: boolean, alternateIdentity: Identity = alternate) {
   let selected = recipient;
   let joined = false;
   let opens = 0;
@@ -86,7 +86,7 @@ async function invitation(page: Page, registered: boolean) {
       return route.fulfill({ status: 422, headers: { "x-supabase-api-version": "2024-01-01", "access-control-expose-headers": "x-supabase-api-version" }, json: { code: "user_already_exists", msg: "User already registered" } });
     if (path.endsWith("/token") || path.endsWith("/signup")) {
       const data = req.postDataJSON();
-      selected = path.endsWith("/signup") ? signupIdentity : data.email === alternate.email ? alternate : recipient;
+      selected = path.endsWith("/signup") ? signupIdentity : data.email === alternateIdentity.email ? alternateIdentity : recipient;
       return route.fulfill({ json: session(selected) });
     }
     if (path === "/auth/v1/user" && req.method() === "PUT") passwordUpdates++;
@@ -176,6 +176,7 @@ test("an existing-account invitation cannot be claimed by the wrong active accou
   await api.open();
   await page.getByRole("button", { name: "Continue as " + alternate.email, exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("unavailable for this account");
+  await expect(page.getByRole("button", {name:"Try again",exact:true})).toHaveCount(0);
   await expect(page.locator("main")).not.toContainText(recipient.email);
   await page.getByRole("button", { name: "Use another account", exact: true }).click();
   await expect(page.getByLabel("Email", { exact: true })).toHaveValue("");
@@ -183,6 +184,36 @@ test("an existing-account invitation cannot be claimed by the wrong active accou
   await api.login(recipient);
   await expect(page.getByText("Joined Invited Osaka trip", { exact: true })).toBeVisible();
   expect(api.accepts).toEqual([alternate.id, recipient.id]);
+  expect(api.errors).toEqual([]);
+});
+
+test("a long active-account email stays inside the invitation action and account switching recovers", async ({ page }) => {
+  const longAccount = { ...alternate, email: "alexandra.traveler.with.a.long.email.address@example.test" };
+  const api = await invitation(page, true, longAccount);
+  await page.goto("./");
+  await api.login(longAccount);
+  await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
+  await api.open();
+  const action = page.getByRole("button", { name: "Continue as " + longAccount.email, exact: true });
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 600 });
+    await page.evaluate(() => document.fonts.ready);
+    const contained = await action.evaluate(button => {
+      const box = button.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(button);
+      return [...range.getClientRects()].every(rect => rect.left >= box.left + 8 && rect.right <= box.right - 8);
+    });
+    expect(contained).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: test.info().outputPath(`long-invite-identity-${width}.png`) });
+  }
+  await action.click();
+  await expect(page.getByRole("alert")).toContainText("unavailable for this account");
+  await page.getByRole("button", { name: "Use another account", exact: true }).click();
+  await api.login(recipient);
+  await expect(page.getByText("Joined Invited Osaka trip", { exact: true })).toBeVisible();
+  expect(api.accepts).toEqual([longAccount.id, recipient.id]);
   expect(api.errors).toEqual([]);
 });
 
@@ -296,7 +327,8 @@ test("a cached seven-day receipt rechecks server expiry on refresh", async ({ pa
   await expect(page.getByRole("button", { name: "Create account", exact: true })).toBeVisible();
   api.expire();
   await page.reload();
-  await expect(page.getByRole("alert")).toContainText("Couldn’t open this invitation");
+  await expect(page.getByRole("alert")).toContainText("This invitation has expired");
+  await expect(page.getByRole("button", {name:"Try again",exact:true})).toHaveCount(0);
   expect(api.accepts).toEqual([]);
   expect(api.passwordUpdates()).toBe(0);
 });
@@ -330,3 +362,32 @@ test("an expired historical setup proof sends fresh mail only after the explicit
   expect(api.emails()).toBe(1);
   expect(api.passwordUpdates()).toBe(0);
 });
+
+test('a cancelled token explains the terminal state and offers leaving the invitation', async ({ page }) => {
+  const api=await invitation(page,false);
+  await page.route('**/rest/v1/rpc/open_trip_token',route=>route.fulfill({status:403,json:{code:'42501',message:'This invitation is no longer active.'}}));
+  await api.open();
+  await expect(page.getByRole('alert')).toContainText('This invitation is no longer active');
+  await expect(page.getByRole('button',{name:'Try again',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Leave invitation',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Log in',exact:true})).toBeVisible();
+});
+
+for (const state of ["new", "existing", "signed-in"] as const) {
+  test(`leaving an unaccepted ${state} invitation clears its context without joining`, async ({ page }) => {
+    const api = await invitation(page, state !== "new");
+    if (state === "signed-in") {
+      await page.goto("./");
+      await api.login(recipient);
+      await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
+    }
+    await api.open();
+    await page.getByRole("button", { name: "Leave invitation", exact: true }).click();
+    await expect(page.getByRole("heading", { name: state === "signed-in" ? "Home" : "Welcome to Stir Crazy", exact: true })).toBeVisible();
+    expect(await page.evaluate(() => sessionStorage.getItem("trip-planner-invite-entry-v1"))).toBeNull();
+    expect(api.accepts).toEqual([]);
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Leave invitation", exact: true })).toHaveCount(0);
+    expect(api.accepts).toEqual([]);
+  });
+}

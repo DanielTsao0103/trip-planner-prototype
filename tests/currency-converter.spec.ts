@@ -101,7 +101,8 @@ test("discards outdated rates and never shows a response for the wrong pair", as
   await expect(result(page)).toContainText("JPY 15,000");
   await expect(result(page)).not.toContainText("KRW");
   await page.getByLabel("To currency").selectOption("EUR");
-  await expect(result(page)).toContainText("Exchange rates are unavailable");
+  await expect(result(page)).toContainText("Rate dated 2000-01-01");
+  await expect(result(page)).toContainText("is too old to use");
   await expect(result(page).locator("strong")).toHaveText("—");
 });
 
@@ -132,4 +133,31 @@ test("keeps rates for a week across focus and reconnect, then renews automatical
   await page.clock.fastForward(24 * 60 * 60 * 1000 + 1000);
   await expect(result(page)).toContainText("KRW 150,000");
   expect(count).toBe(2);
+});
+
+
+test("short-phone failed refresh reveals the saved-rate warning above navigation", async ({ page }) => {
+  await page.setViewportSize({width:390,height:600});
+  let fail = false;
+  await page.route("https://api.frankfurter.dev/**", route => fail
+    ? route.fulfill({status:503,json:{}})
+    : route.fulfill({json:{base:"USD",quote:"KRW",date,rate:1400}}));
+  await openBudget(page);
+  await expect(result(page)).toContainText("KRW 140,000");
+  fail = true;
+  await page.getByRole("button", {name:"Refresh rates",exact:true}).click();
+  const warning = page.locator(".currency-warning");
+  await expect(warning).toContainText("Showing a saved rate");
+  await expect.poll(async () => {
+    const box=await warning.boundingBox();
+    const nav=await page.locator(".mobile-nav").boundingBox();
+    return !!box && box.y>=0 && box.y+box.height<=(nav?.y??600)-8;
+  }).toBe(true);
+  await expect(result(page)).toContainText("KRW 140,000");
+  await page.screenshot({path:test.info().outputPath("currency-failed-refresh-visible.png")});
+  await page.evaluate(()=>window.scrollTo({top:0,behavior:"instant"}));
+  const before=await page.evaluate(()=>scrollY);
+  await page.evaluate(()=>window.dispatchEvent(new Event("online")));
+  await expect(page.getByRole("button",{name:"Refresh rates",exact:true})).toBeEnabled();
+  expect(await page.evaluate(()=>scrollY)).toBe(before);
 });

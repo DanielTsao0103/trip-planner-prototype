@@ -12,5 +12,12 @@ export default defineConfig(({ mode }) => {
   if (key && !key.startsWith("sb_publishable_")) {
     throw new Error("VITE_SUPABASE_PUBLISHABLE_KEY must be an sb_publishable_ key.");
   }
-  return { base: "./", build: { outDir: "dist" } };
+  return {
+    base: "./",
+    // Ivy's Maps key allows this exact local origin. Do not silently move to an
+    // unapproved port when another preview is already running.
+    server: { host: "127.0.0.1", port: 5190, strictPort: true },
+    preview: { host: "127.0.0.1", port: 5190, strictPort: true },
+    build: { outDir: "dist" },
+  };
 });

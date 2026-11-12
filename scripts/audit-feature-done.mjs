@@ -366,6 +366,7 @@ try {
       await button("Open itinerary").click();
       await page.goto(site + `#/7?event=${eventId}`);
       await field("Event name").waitFor();
+      await page.locator('.event-photo-disclosure summary').click();
       await audit("event-photo-editor");
       if (device === "desktop") {
         await button("Find with Unsplash").click();
@@ -405,6 +406,7 @@ try {
         ctx.fillRect(0, 0, 96, 64);
         return canvas.toDataURL("image/png").split(",")[1];
       });
+      if (await page.locator('.event-photo-disclosure:not([open])').count()) await page.locator('.event-photo-disclosure summary').click();
       await field("Upload your own event photo").setInputFiles({
         name: `qa-${device}.png`,
         mimeType: "image/png",

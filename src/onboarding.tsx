@@ -1,3 +1,4 @@
+import { readPhotoDataUrl, validatePhoto } from "./image-validation";
 import { RecipientField, useRecipients } from "./recipient-field";
 import { DatePicker } from "./date-picker";
 import { DestinationInput } from "./destination-input";
@@ -36,12 +37,14 @@ import { ImportedBookings } from "./imported-bookings";
 import {
   Badge,
   Button,
+  ConfirmDialog,
   Empty,
   ErrorBox,
   Field,
   PageHead,
   Photo,
   PhotoCredit,
+  revealFocusedFormField,
   Avatar,
 } from "./ui";
 import { HERO_IMAGE, HERO_ALT } from "./hero";
@@ -53,6 +56,7 @@ import {
   uid,
   days,
   dateText,
+  tripDateRange,
   isOwner,
   member,
   isActive,
@@ -61,7 +65,6 @@ import {
 } from "./domain";
 const PREPLANNED_CARD_WIDTH = 360;
 const PREPLANNED_CARD_GAP = 20;
-const PREPLANNED_CARD_STEP = PREPLANNED_CARD_WIDTH + PREPLANNED_CARD_GAP;
 export function Auth() {
   const { s, mutate, go, open, login, explore, toast } = useApp();
   const [signup, setSignup] = useState(false),
@@ -160,7 +163,7 @@ export function Auth() {
         </div>
         <div className="auth-top">
           <Badge>INTERACTIVE PROTOTYPE</Badge>
-          <button className="text-link" onClick={() => open("demo")}>
+          <button className="text-link" onClick={() => open("demo", {section:"screens"})}>
             Explore the screens <ArrowUpRight size={14} />
           </button>
         </div>
@@ -313,13 +316,15 @@ export function Auth() {
   );
 }
 export function Connections() {
-  const { user, s, go, open } = useApp();
+  const { user, s, go } = useApp();
+  const continuePlanning = () => go(s.trips.some(trip => trip.members.some(member => member.id === s.userId && member.status === "pending")) ? 5 : 4);
   return (
     <div className="narrow-page">
       <PageHead
         eyebrow="OPTIONAL SETUP"
-        title="Bring your inspiration along."
-        description="Connect what’s useful. You can still plan a great trip without connecting anything."
+        title="Connections"
+        description="Optional previews for travel inspiration. Your trip works without them."
+        action={<Button variant="outline" onClick={continuePlanning}>Skip for now</Button>}
       />
       <div className="info-banner">
         <Link2 size={18} />
@@ -342,9 +347,9 @@ export function Connections() {
                   <h3>{service}</h3>
                   <Badge tone={granted.length === all.length ? "green" : ""}>
                     {granted.length === all.length
-                      ? "Connected"
+                      ? "Demo connected"
                       : granted.length
-                        ? "Partial access"
+                        ? "Partial demo access"
                         : "Not connected"}
                   </Badge>
                 </div>
@@ -364,7 +369,7 @@ export function Connections() {
                   </p>
                 ))}
               </div>
-              <Button variant="outline" onClick={() => go(3, { service })}>
+              <Button variant="outline" aria-label={`${granted.length ? "Review" : "Connect"} ${service}`} onClick={() => go(3, { service })}>
                 {granted.length ? "Review" : "Connect"}
               </Button>
             </div>
@@ -376,22 +381,7 @@ export function Connections() {
         covers messages and settings; the demo uses fictional receipts only.
       </p>
       <div className="form-actions">
-        <Button variant="text" onClick={() => open("skip")}>
-          Skip for now
-        </Button>
-        <Button
-          onClick={() =>
-            go(
-              s.trips.some((t) =>
-                t.members.some(
-                  (m) => m.id === s.userId && m.status === "pending",
-                ),
-              )
-                ? 5
-                : 4,
-            )
-          }
-        >
+        <Button onClick={continuePlanning}>
           Continue <ArrowRight size={16} />
         </Button>
       </div>
@@ -399,21 +389,29 @@ export function Connections() {
   );
 }
 export function ConnectProvider() {
-  const { user, route, mutate, go, toast } = useApp();
+  const { user, route, mutate, go, toast, dismissMessage } = useApp();
+  useEffect(() => dismissMessage(), [route.params.get("service")]);
   const service = route.params.get("service") || "Gmail",
     permissions = PERMISSIONS(service);
+  const reviewing = Boolean(user?.connections[service]?.length);
   const [selected, setSelected] = useState<string[]>(
       user?.connections[service] || permissions,
     ),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const recoveryActions = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (error) recoveryActions.current?.scrollIntoView({ block: "center" });
+  }, [error]);
   const finish = (fail = false) => {
     setBusy(true);
     setTimeout(() => {
       setBusy(false);
       if (fail) {
         setError(
-          "The provider could not connect. Your existing permissions are unchanged. Retry or cancel.",
+          reviewing
+            ? "The demo permissions could not be updated. Your existing permissions are unchanged. Retry or cancel."
+            : "The provider could not connect. Your existing permissions are unchanged. Retry or cancel.",
         );
         return;
       }
@@ -422,6 +420,7 @@ export function ConnectProvider() {
       });
       toast(
         `${service}: ${selected.length ? "demo permissions updated" : "no access granted"}.`,
+        "connections",
       );
       go(2);
     }, 650);
@@ -430,9 +429,9 @@ export function ConnectProvider() {
     <div className="consent-page">
       <Badge>SIMULATED AUTHORIZATION</Badge>
       <div className="consent-brand">{service.slice(0, 1)}</div>
-      <h1>Connect {service}</h1>
+      <h1>{reviewing ? `Review ${service} access` : `Connect ${service}`}</h1>
       <p>
-        Stir Crazy would like the following access for
+        {reviewing ? "Review the simulated access for" : "Stir Crazy would like the following access for"}
         <br />
         <strong>{user?.email}</strong>
       </p>
@@ -455,7 +454,8 @@ export function ConnectProvider() {
               <small>
                 {service === "Gmail"
                   ? "Fictional receipt matching. No sending or deleting email."
-                  : "Fictional inspiration for your trip suggestions."}
+                  : p === "Basic profile" ? "Preview your display name and profile picture."
+                    : `Preview trip ideas from travel ${service === "TikTok" ? "videos" : "posts"} you choose.`}
               </small>
             </span>
           </label>
@@ -464,38 +464,52 @@ export function ConnectProvider() {
       <p className="fine-print">
         No account is accessed. These controls only update this prototype.
       </p>
+      <div className="consent-recovery" ref={recoveryActions}>
       <ErrorBox text={error} />
       <div className="form-actions">
         <Button
           variant="outline"
           onClick={() => {
-            toast("Connection canceled. No new access granted.");
+            toast(reviewing ? "Permission review canceled. Your permissions are unchanged." : "Connection canceled. No new access granted.", "connections");
             go(2);
           }}
         >
           Cancel
         </Button>
         <Button disabled={busy} onClick={() => finish()}>
-          {busy ? "Connecting…" : "Allow selected access"}
+          {busy ? "Updating…" : reviewing ? "Save permissions" : selected.length ? "Allow selected access" : "Continue without access"}
         </Button>
+      </div>
       </div>
       <button
         className="text-link centered"
         disabled={busy}
         onClick={() => finish(true)}
       >
-        Try unsuccessful connection
+        {reviewing ? "Try unsuccessful update" : "Try unsuccessful connection"}
       </button>
     </div>
   );
 }
 export function Home() {
-  const { go, explore, open, overlay, accountTrips } = useApp();
+  const { go, explore, open, overlay, accountTrips, route } = useApp();
+  const templateHeading = useRef<HTMLHeadingElement>(null);
+  const section = route.params.get("section");
+  useEffect(() => {
+    if (section !== "templates") return;
+    // Run after the route's main-content focus, so this specific destination wins.
+    const frame = requestAnimationFrame(() => {
+      templateHeading.current?.focus({ preventScroll: true });
+      templateHeading.current?.scrollIntoView({ block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [section]);
   const [carouselPosition, setCarouselPosition] = useState(1);
   const [trackAnimating, setTrackAnimating] = useState(true);
   const [visibleCardCount, setVisibleCardCount] = useState(3);
+  const [carouselCardWidth, setCarouselCardWidth] = useState(PREPLANNED_CARD_WIDTH);
   const carouselWindow = useRef<HTMLDivElement>(null);
-  const [carouselPaused, setCarouselPaused] = useState(false);
+  const [carouselPaused, setCarouselPaused] = useState(true);
   const tripSequence = [PREPLANNED_TRIPS[PREPLANNED_TRIPS.length - 1], ...PREPLANNED_TRIPS, ...PREPLANNED_TRIPS.slice(0, 3)];
   const logicalIndex = (carouselPosition - 1 + PREPLANNED_TRIPS.length) % PREPLANNED_TRIPS.length;
   useEffect(() => {
@@ -508,7 +522,12 @@ export function Home() {
   useEffect(() => {
     const element = carouselWindow.current;
     if (!element) return;
-    const updateVisibleCount = () => setVisibleCardCount(Math.max(1, Math.min(3, Math.floor((element.clientWidth + PREPLANNED_CARD_GAP) / PREPLANNED_CARD_STEP))));
+    const updateVisibleCount = () => {
+      // Keep the complete card inside narrow phones and use that same width for movement.
+      const cardWidth = Math.min(PREPLANNED_CARD_WIDTH, element.clientWidth);
+      setCarouselCardWidth(cardWidth);
+      setVisibleCardCount(Math.max(1, Math.min(3, Math.floor((element.clientWidth + PREPLANNED_CARD_GAP) / (cardWidth + PREPLANNED_CARD_GAP)))));
+    };
     updateVisibleCount();
     const observer = new ResizeObserver(updateVisibleCount);
     observer.observe(element);
@@ -535,7 +554,7 @@ export function Home() {
   };
   return (
     <>
-      <PageHead title="Home" />
+      <PageHead title="Home" action={<Button variant="text" onClick={() => go(4, {section:"templates"})}>Browse trip ideas <ArrowRight size={16}/></Button>} />
       <div className="home-actions">
         <Button onClick={() => go(6)}>
           <Plus size={20} />
@@ -547,23 +566,10 @@ export function Home() {
           <ArrowRight className="push" size={18} />
         </Button>
       </div>
-      <div className="sample-feature">
-        <div>
-          <Badge tone="green">Sample trip</Badge>
-          <h2>Seattle & Bainbridge Island</h2>
-          <p>
-            Preview a sample itinerary, budget, and traveler preferences.
-          </p>
-          <Button variant="light" onClick={explore}>
-            Open the sample trip <ArrowUpRight size={16} />
-          </Button>
-        </div>
-        <Photo src={IMAGES.seattle} alt="Seattle skyline" />
-      </div>
       {accountTrips && <ImportedBookings />}
       <div className="section-title">
         <div>
-          <h2>Pre-planned trips</h2>
+          <h2 id="preplanned-trips" ref={templateHeading} tabIndex={-1}>Pre-planned trips</h2>
           <p>Choose a starting point. You can adjust the plan and dates when you add it.</p>
         </div>
         <span className="muted">Illustrative estimates per person</span>
@@ -576,14 +582,14 @@ export function Home() {
             <button type="button" className="icon-btn" aria-label="Next trips" onClick={() => moveCarousel(1)}><ChevronRight size={19} /></button>
             <button type="button" className="carousel-pause" aria-pressed={carouselPaused} onClick={() => setCarouselPaused(paused => !paused)}>
               {carouselPaused ? <Play size={15} /> : <Pause size={15} />}
-              {carouselPaused ? "Resume" : "Pause"} rotation
+              {carouselPaused ? "Play" : "Pause"} rotation
             </button>
           </div>
         </div>
-        <div className="planned-carousel-window" ref={carouselWindow}>
+        <div className="planned-carousel-window" ref={carouselWindow} onMouseEnter={() => setCarouselPaused(true)} onFocusCapture={() => setCarouselPaused(true)}>
           <div
             className={`planned-track ${trackAnimating ? "" : "without-transition"}`}
-            style={{ transform: `translate3d(-${carouselPosition * PREPLANNED_CARD_STEP}px, 0, 0)` }}
+            style={{ transform: `translate3d(-${carouselPosition * (carouselCardWidth + PREPLANNED_CARD_GAP)}px, 0, 0)` }}
             onTransitionEnd={settleCarouselLoop}
           >
             {tripSequence.map((planned, sequenceIndex) => {
@@ -592,6 +598,7 @@ export function Home() {
                 <button
                   type="button"
                   className="destination-card planned-trip-card"
+                  style={{ width: carouselCardWidth, flexBasis: carouselCardWidth }}
                   key={`${planned.id}-${sequenceIndex}`}
                   aria-hidden={!isVisible}
                   tabIndex={isVisible ? 0 : -1}
@@ -609,6 +616,19 @@ export function Home() {
           </div>
         </div>
       </div>
+      <div className="sample-feature">
+        <div>
+          <Badge tone="green">Sample trip</Badge>
+          <h2>Seattle & Bainbridge Island</h2>
+          <p>
+            Preview a sample itinerary, budget, and traveler preferences.
+          </p>
+          <Button variant="light" aria-label="Open the sample trip" onClick={explore}>
+            Open sample trip <ArrowUpRight size={16} />
+          </Button>
+        </div>
+        <Photo src={IMAGES.seattle} alt="Seattle skyline" />
+      </div>
     </>
   );
 }
@@ -621,6 +641,8 @@ export function Trips() {
   const { s, user, mutate, go, open, route, pendingTripIds } = useApp();
   const [filter, setFilter] = useState("All");
   const trips = s.trips.filter((t) => member(t, s.userId));
+  // Put the new trip beside its confirmation without changing the stored order.
+  const createdId = route.params.get("created");
   const visibleTrips = trips.filter(
     (t) =>
       filter === "All" ||
@@ -629,15 +651,14 @@ export function Trips() {
         : filter === "Active"
           ? isActive(t, s.date)
           : t.start > s.date),
-  );
+  ).sort((a, b) => Number(b.id === createdId) - Number(a.id === createdId));
   const pending = s.trips.filter((t) =>
     t.members.some((m) => m.id === s.userId && m.status === "pending"),
   );
   return (
     <>
       <PageHead
-        eyebrow="YOUR TRAVEL COLLECTION"
-        title="A good trip stays with you."
+        title="My trips"
         description="The plans ahead, and the places you’ve been."
         action={
           <Button onClick={() => go(6)}>
@@ -651,9 +672,12 @@ export function Trips() {
           <div className="info-banner success-banner" role="status">
             <Check size={20} />
             <span>
-              <strong>Your trip is ready.</strong> Open its itinerary below to
-              start planning.
+              <strong>Your trip is ready.</strong>
             </span>
+            <Button variant="text" onClick={() => {
+              mutate((store) => { store.tripId = createdId; });
+              go(8);
+            }}>Open trip <ArrowRight size={16} /></Button>
           </div>
         )}
       {pending.map((t) => (
@@ -703,10 +727,10 @@ export function Trips() {
                     : "On the horizon"}
               </Badge>
             </button>
-            <PhotoCredit credit={t.imageCredit} />
+            <div className="trip-card-credit"><PhotoCredit credit={t.imageCredit} /></div>
             <div className="trip-card-body">
               <div className="eyebrow">
-                {dateText(t.start, true)} – {dateText(t.end, true)} ·{" "}
+                {tripDateRange(t.start, t.end)} ·{" "}
                 {member(t, s.userId)?.role}
               </div>
               <h2>
@@ -795,6 +819,8 @@ export function TripForm() {
     useApp();
   const draftId = useRef(uid());
   const saving = useRef(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const cancelTripButton = useRef<HTMLButtonElement>(null);
   const editing = route.params.get("edit") === "true" && trip;
   const original = editing ? trip : undefined;
   const template = original ? undefined : plannedTrip(route.params.get("template"));
@@ -808,6 +834,17 @@ export function TripForm() {
     [zone, setZone] = useState(original?.zone || "America/Los_Angeles"),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  const [startDateInvalid, setStartDateInvalid] = useState(false);
+  const [endDateInvalid, setEndDateInvalid] = useState(false);
+  const formError = useRef<HTMLDivElement>(null);
+  const calendarZoneInput = useRef<HTMLSelectElement>(null);
+  const [zoneNeedsReview, setZoneNeedsReview] = useState(false);
+  useEffect(() => {
+    if (error) {
+      const target = zoneNeedsReview ? calendarZoneInput.current : formError.current;
+      target?.scrollIntoView({block:"center"}); target?.focus({preventScroll:true});
+    }
+  }, [error, zoneNeedsReview]);
   const recipients = useRecipients();
   const [savedId, setSavedId] = useState("");
   const [photoResults, setPhotoResults] = useState<UnsplashPhoto[]>([]);
@@ -815,14 +852,24 @@ export function TripForm() {
   const [selectedPhoto, setSelectedPhoto] = useState<UnsplashPhoto | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadPreview, setUploadPreview] = useState("");
+  const coverRequest = useRef(0);
+  const [coverPreparing, setCoverPreparing] = useState(false);
+  useEffect(() => () => { coverRequest.current++; }, []);
   const [zoneByDestination, setZoneByDestination] = useState<Record<string, string | null>>(
     Object.fromEntries((original?.destinations ?? []).flatMap((destination, index) => {
-      const value = original?.destinationTimezones?.[index] ?? (index === 0 ? original?.zone : undefined);
-      return value ? [[destination, value]] : [];
+      // A saved null means lookup was unresolved; do not relabel it with the
+      // trip's calendar fallback when the organizer reopens the form.
+      const value = original?.destinationTimezones && index < original.destinationTimezones.length
+        ? original.destinationTimezones[index]
+        : index === 0 ? original?.zone : undefined;
+      return value !== undefined ? [[destination, value]] : [];
     })),
   );
   const [zoneLoading, setZoneLoading] = useState(false);
   const [zoneError, setZoneError] = useState("");
+  const [manualZoneFor, setManualZoneFor] = useState<string | null>(null);
+  const submitZoneRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => { submitZoneRequest.current?.abort(); submitZoneRequest.current = null; }, []);
   const firstDestination = locations[0] || "";
   const [photoDestination, setPhotoDestination] = useState(firstDestination);
   const activePhotoDestination = locations.includes(photoDestination) ? photoDestination : firstDestination;
@@ -834,20 +881,25 @@ export function TripForm() {
     }
   }, [activePhotoDestination]);
   useEffect(() => {
+    if (busy) return;
     const missing = locations.filter(destination => !(destination in zoneByDestination));
     if (!missing.length) return;
     const controller = new AbortController();
     setZoneLoading(true);
     setZoneError("");
-    Promise.all(missing.map(async destination => [destination, await destinationTimeZone(destination, controller.signal)] as const))
-      .then(entries => {
+    Promise.allSettled(missing.map(destination => destinationTimeZone(destination, controller.signal)))
+      .then(results => {
         if (controller.signal.aborted) return;
+        // One unavailable place must not discard another destination's resolved
+        // zone or replace a known primary zone with the manual fallback.
+        const entries = results.map((result, index) => [missing[index], result.status === "fulfilled" ? result.value : null]);
         setZoneByDestination(current => ({ ...current, ...Object.fromEntries(entries) }));
+        setZoneError(results.some(result => result.status === "rejected" || !result.value)
+          ? "Some destination time zones could not be found." : "");
       })
-      .catch(() => { if (!controller.signal.aborted) setZoneError("Some destination time zones could not be found. You can still save the trip."); })
       .finally(() => { if (!controller.signal.aborted) setZoneLoading(false); });
     return () => controller.abort();
-  }, [locations, zoneByDestination]);
+  }, [locations, zoneByDestination, busy]);
   useEffect(() => {
     const primaryZone = zoneByDestination[locations[0]];
     if (primaryZone && primaryZone !== zone) setZone(primaryZone);
@@ -877,18 +929,23 @@ export function TripForm() {
       ]),
     ).values(),
   );
-  const timezoneGroups = locations.reduce<{ timeZone: string | null; destinations: string[] }[]>((groups, destination) => {
-    const timeZone = zoneByDestination[destination] ?? null;
-    const group = timeZone ? groups.find(item => item.timeZone === timeZone) : undefined;
-    if (group) group.destinations.push(destination);
-    else groups.push({ timeZone, destinations: [destination] });
-    return groups;
-  }, []);
   const tripLength = start && end && end >= start ? days(start, end).length : 0;
-  const addPlace = () => {
-    if (!place.trim()) return;
+  const hasPendingTripEdits = Boolean(place.trim() || selectedPhoto || uploadFile || coverPreparing ||
+    recipients.draft.trim() || recipients.emails.length || (original
+      ? title !== original.title || JSON.stringify(locations) !== JSON.stringify(original.destinations) ||
+        start !== original.start || end !== original.end || zone !== original.zone
+      : title || locations.length || start || end));
+  // A failed secondary lookup does not expose the primary calendar fallback.
+  // Explain the zone actually in use, and retire the warning if its place is removed.
+  const zoneRecoveryHint = zoneError && locations.some(destination => !zoneByDestination[destination])
+    ? `${zoneError} ${zoneByDestination[locations[0]]
+      ? `Event times use ${timeZoneLabel(zoneByDestination[locations[0]]!)}.`
+      : "Choose the calendar time zone below."}`
+    : "Each time zone follows its destination order.";
+  const addPlace = (selectedPlace = place) => {
+    if (!selectedPlace.trim()) return;
     const problem = textError(
-      place,
+      selectedPlace,
       "Destination",
       TEXT_LIMITS.destination,
       true,
@@ -902,8 +959,8 @@ export function TripForm() {
       return;
     }
     setError("");
-    if (!locations.some((p) => p.toLowerCase() === place.trim().toLowerCase()))
-      setLocations([...locations, place.trim()]);
+    if (!locations.some((p) => p.toLowerCase() === selectedPlace.trim().toLowerCase()))
+      setLocations([...locations, selectedPlace.trim()]);
     setPlace("");
   };
   if (original && !isOwner(original, s.userId))
@@ -916,8 +973,9 @@ export function TripForm() {
     );
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (saving.current) return;
+    if (saving.current || coverPreparing) return;
     setError("");
+    setZoneNeedsReview(false);
     const problem = tripDetailsError({
       title,
       destinations: previewPlaces,
@@ -927,6 +985,12 @@ export function TripForm() {
     });
     if (problem) {
       setError(problem);
+      return;
+    }
+    if (template && tripLength < template.days) {
+      // Typed dates can bypass the calendar's disabled days; keep every copied
+      // plan within the new trip rather than creating hidden out-of-range plans.
+      setError(`This starter has ${template.days} days of plans. Choose an end date of ${dateText(dateAfter(start, template.days - 1))} or later.`);
       return;
     }
     if (original?.events.some((e) => e.date < start || e.date > end)) {
@@ -954,72 +1018,107 @@ export function TripForm() {
       );
       return;
     }
-    const draft: Trip = original
-      ? structuredClone(original)
-      : {
-          id: draftId.current,
-          title: "",
-          destinations: [],
-          start: "",
-          end: "",
-          zone: "",
-          image: IMAGES.coast,
-          members: [
-            {
-              id: user!.id,
-              name: user!.name,
-              email: user!.email,
-              role: "Owner",
-              days: [],
-              status: "accepted",
-            },
-          ],
-          events: [],
-          prefs: {},
-          expenses: [],
-          budget: null,
-          budgetMode: "group",
-          individual: {},
-          todos: [],
-          dismissed: [],
-        };
-    if (template && !original) {
-      draft.events = template.stops.map(stop => ({
-        id: uid(),
-        name: stop.name,
-        date: dateAfter(start, stop.day),
-        start: stop.start,
-        end: stop.end,
-        cost: 0,
-        attendees: [user!.id],
-        image: template.image,
-        notes: stop.notes,
-        place: stop.place,
-      }));
-      draft.image = template.image;
-    }
-    Object.assign(draft, {
-      title: title.trim(),
-      destinations: previewPlaces,
-      destinationTimezones: previewPlaces.map(destination => zoneByDestination[destination] ?? null),
-      start,
-      end,
-      zone,
-    });
-    if (selectedPhoto) {
-      draft.image = selectedPhoto.url;
-      draft.imageSource = "unsplash";
-      draft.imageCredit = selectedPhoto.credit;
-    }
-    draft.members.forEach((m) => {
-      m.days = m.days.filter((d) => d >= start && d <= end);
-    });
     saving.current = true;
     setBusy(true);
     try {
+      // Submitting a typed destination is the same intent as Add. Resolve every
+      // unfinished lookup before committing its calendar, including a quick save
+      // while an earlier Add lookup is still pending.
+      let resolvedZones = zoneByDestination;
+      const missingZones = previewPlaces.filter(destination => !(destination in resolvedZones));
+      if (missingZones.length) {
+        setLocations(previewPlaces);
+        setPlace("");
+        setZoneLoading(true);
+        const controller = new AbortController();
+        submitZoneRequest.current = controller;
+        const timeout = window.setTimeout(() => controller.abort(), 10000);
+        try {
+          const results = await Promise.allSettled(missingZones.map(destination => destinationTimeZone(destination, controller.signal)));
+          if (submitZoneRequest.current !== controller) return; // The form was left.
+          resolvedZones = {...resolvedZones, ...Object.fromEntries(results.map((result,index) =>
+            [missingZones[index], result.status === "fulfilled" ? result.value : null]))};
+          setZoneByDestination(resolvedZones);
+          setZoneError(results.some(result => result.status === "rejected" || !result.value)
+            ? "Some destination time zones could not be found." : "");
+          if (!resolvedZones[previewPlaces[0]] && missingZones.includes(previewPlaces[0]) &&
+              manualZoneFor?.toLowerCase() !== previewPlaces[0]?.toLowerCase()) {
+            setZoneNeedsReview(true);
+            setError("We couldn’t find the first destination’s time zone. Choose a calendar time zone, then save your trip.");
+            return;
+          }
+        } finally {
+          window.clearTimeout(timeout);
+          if (submitZoneRequest.current === controller) submitZoneRequest.current = null;
+          setZoneLoading(false);
+        }
+      }
+      const calendarZone = resolvedZones[previewPlaces[0]] || zone;
+      setZone(calendarZone);
+      const draft: Trip = original
+        ? structuredClone(original)
+        : {
+            id: draftId.current,
+            title: "",
+            destinations: [],
+            start: "",
+            end: "",
+            zone: "",
+            image: IMAGES.coast,
+            members: [
+              {
+                id: user!.id,
+                name: user!.name,
+                email: user!.email,
+                role: "Owner",
+                days: [],
+                status: "accepted",
+              },
+            ],
+            events: [],
+            prefs: {},
+            expenses: [],
+            budget: null,
+            budgetMode: "group",
+            individual: {},
+            todos: [],
+            dismissed: [],
+          };
+      if (template && !original) {
+        draft.events = template.stops.map(stop => ({
+          id: uid(),
+          name: stop.name,
+          date: dateAfter(start, stop.day),
+          start: stop.start,
+          end: stop.end,
+          cost: 0,
+          attendees: [user!.id],
+          image: template.image,
+          notes: stop.notes,
+          place: stop.place,
+        }));
+        draft.image = template.image;
+      }
+      Object.assign(draft, {
+        title: title.trim(),
+        destinations: previewPlaces,
+        destinationTimezones: previewPlaces.map(destination => resolvedZones[destination] ?? null),
+        start,
+        end,
+        zone: calendarZone,
+      });
+      if (selectedPhoto) {
+        draft.image = selectedPhoto.url;
+        draft.imageSource = "unsplash";
+        draft.imageCredit = selectedPhoto.credit;
+      }
+      draft.members.forEach((m) => {
+        m.days = m.days.filter((d) => d >= start && d <= end);
+      });
       if (!savedId && uploadFile) {
-        if (!accountTrips || !user) throw new Error("Sign in to your account to upload a trip photo.");
-        draft.image = await uploadTripPhoto(uploadFile, user.id, draft.id);
+        draft.image = accountTrips && user
+          ? await uploadTripPhoto(uploadFile, user.id, draft.id)
+          : await readPhotoDataUrl(uploadFile);
         draft.imageSource = "upload";
         draft.imageCredit = undefined;
       }
@@ -1058,13 +1157,12 @@ export function TripForm() {
   return (
     <>
       <PageHead
-        title={original ? "Edit your Trip" : "Make your Trip"}
+        title={original ? "Edit your trip" : "Create your trip"}
       />
-      <form className="form-layout" onSubmit={submit} aria-busy={busy}>
+      <form className="form-layout trip-editor-form" onSubmit={submit} aria-busy={busy} onFocusCapture={revealFocusedFormField}>
         <div className="card form-card">
           <div className="trip-form-intro">
-            <p><CalendarDays size={17} /> Dates turn your itinerary into an on-trip dashboard when the time comes.</p>
-            <p><Check size={17} /> {template ? "Edit this starter plan and choose your trip dates." : "Your new trip starts empty. Add only the plans you want."}</p>
+            <p>{original ? "Update the details. Your existing plans stay with this trip." : template ? "Make this starter plan your own." : "Start with the essentials. Add plans whenever you’re ready."}</p>
           </div>
           <fieldset
             disabled={busy || !!savedId}
@@ -1111,8 +1209,52 @@ export function TripForm() {
                 </span>
               ))}
             </div>
+
+            <div className="form-columns">
+              <DatePicker
+                label="Start date"
+                onErrorChange={setStartDateInvalid}
+                required
+                value={start}
+                onChange={(next) => {
+                  if (next === start) return;
+                  setStart(next);
+                  if (template) setEnd(dateAfter(next, template.days - 1));
+                  else if (!end || end < next) setEnd(next);
+                }}
+              />
+              <DatePicker
+                label="End date"
+                onErrorChange={setEndDateInvalid}
+                required
+                min={template && start ? dateAfter(start, template.days - 1) : start}
+                align="right"
+                value={end}
+                onChange={setEnd}
+              />
+            </div>
+            <Field label="Trip time zones" hint={zoneLoading ? "Finding time zones for your destinations…" : zoneRecoveryHint}>
+              {locations.length ? <ul className="trip-timezone-list"><li><ul className="trip-timezone-group">
+                {locations.map(destination => {
+                  const zone = zoneByDestination[destination];
+                  const pendingZone = !zoneError && !(destination in zoneByDestination);
+                  const timezone = zone ? timeZoneLabel(zone) : pendingZone ? "Finding time zone…" : "Time zone unavailable";
+                  return <li key={destination}><strong>{destination} — {timezone}</strong></li>;
+                })}
+              </ul></li></ul> : <p className="trip-timezone-empty">Add destinations to see their time zones.</p>}
+            </Field>
+            {previewPlaces.length > 0 && !zoneLoading && !zoneByDestination[previewPlaces[0]] && <Field
+              label="Calendar time zone"
+              hint={zoneNeedsReview ? "Choose the time zone for event times, then save your trip." : "The first destination’s time zone is unconfirmed. Choose the time zone to use for event times."}
+            >
+              <select ref={calendarZoneInput} aria-invalid={zoneNeedsReview || undefined} value={zone} onChange={event => { setZone(event.target.value); setManualZoneFor(previewPlaces[0]); setZoneNeedsReview(false); setError(""); }}>
+                {[...new Set([zone, ...Intl.supportedValuesOf("timeZone")])].sort().map(value =>
+                  <option key={value} value={value}>{value.replaceAll("_", " ")}</option>
+                )}
+              </select>
+            </Field>}
+            <details className="photo-disclosure trip-photo-disclosure"><summary>Trip photo <span>Optional</span></summary>
             <section className="trip-photo-picker" aria-label="Choose a trip photo">
-              <h3>Trip photo</h3>
               <p className="trip-photo-intro">Photos on <a href="https://unsplash.com/?utm_source=trip_planner_prototype&utm_medium=referral" target="_blank" rel="noreferrer">Unsplash</a>. Choose one or upload your own.</p>
               {locations.length > 1 && <div className="trip-photo-destination">
                 <label htmlFor="trip-photo-destination">Photos for</label>
@@ -1130,7 +1272,7 @@ export function TripForm() {
                     className={selectedPhoto?.id === photo.id ? "selected" : ""}
                     aria-label={`Choose photo by ${photo.credit.name}`}
                     aria-pressed={selectedPhoto?.id === photo.id}
-                    onClick={() => { setSelectedPhoto(photo); setUploadFile(null); setUploadPreview(""); }}>
+                    onClick={() => { coverRequest.current++; setCoverPreparing(false); setSelectedPhoto(photo); setUploadFile(null); setUploadPreview(""); }}>
                     <img src={photo.thumb} alt={photo.alt} />
                   </button>
                   <PhotoCredit credit={photo.credit} compact />
@@ -1139,54 +1281,39 @@ export function TripForm() {
               <label className="trip-photo-upload">
                 <ImagePlus size={20} aria-hidden="true" />
                 <span>Or Upload Your Own Photo<small>JPEG, PNG, or WebP · up to 5 MB</small></span>
-                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => {
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={async (event) => {
                   const file = event.target.files?.[0] ?? null;
+                  event.target.value = "";
                   if (!file) return;
                   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
                     setError("Choose a JPEG, PNG, or WebP image under 5 MB."); return;
                   }
-                  setUploadFile(file); setUploadPreview(URL.createObjectURL(file)); setSelectedPhoto(null); setError("");
+                  const request = ++coverRequest.current;
+                  setCoverPreparing(true);
+                  try {
+                    await validatePhoto(file);
+                    if (request !== coverRequest.current) return;
+                    setUploadFile(file); setUploadPreview(URL.createObjectURL(file)); setSelectedPhoto(null); setError("");
+                  } catch (error) {
+                    if (request === coverRequest.current) setError(error instanceof Error ? error.message : "Choose a different image.");
+                  } finally {
+                    if (request === coverRequest.current) setCoverPreparing(false);
+                  }
                 }} />
               </label>
+              {coverPreparing && <p role="status">Preparing your cover photo…</p>}
               {(uploadPreview || selectedPhoto?.url || original?.image) && <div className="trip-photo-selection">
+                {!(selectedPhoto && photoResults.some(photo => photo.id === selectedPhoto.id)) && <>
                 <img src={uploadPreview || selectedPhoto?.url || original?.image} alt="Selected trip cover" />
                 {selectedPhoto && <PhotoCredit credit={selectedPhoto.credit} compact />}
                 {!selectedPhoto && !uploadFile && <PhotoCredit credit={original?.imageCredit} compact />}
+                </>}
+                {(selectedPhoto || uploadFile) && <Button variant="text" onClick={() => {
+                  coverRequest.current++; setCoverPreparing(false); setUploadFile(null);
+                  setUploadPreview(""); setSelectedPhoto(null); setError("");
+                }}>{original ? "Keep current cover" : "Use default cover"}</Button>}
               </div>}
-            </section>
-            <div className="form-columns">
-              <DatePicker
-                label="Start date"
-                required
-                value={start}
-                onChange={(next) => {
-                  setStart(next);
-                  if (template) setEnd(dateAfter(next, template.days - 1));
-                  else if (!end || end < next) setEnd(next);
-                }}
-              />
-              <DatePicker
-                label="End date"
-                required
-                min={template && start ? dateAfter(start, template.days - 1) : start}
-                align="right"
-                value={end}
-                onChange={setEnd}
-              />
-            </div>
-            <Field label="Trip time zones" hint={zoneLoading ? "Finding time zones for your destinations…" : zoneError || "Each time zone follows its destination order."}>
-              {locations.length ? <ul className="trip-timezone-list">
-                {timezoneGroups.map(group => {
-                  const labels = group.destinations.map(destination => {
-                    const [city, ...area] = destination.split(",").map(part => part.trim());
-                    return { city, area: area.join(", ") };
-                  });
-                  const areas = [...new Set(labels.map(label => label.area).filter(Boolean))];
-                  const timezone = group.timeZone ? timeZoneLabel(group.timeZone) : "Time zone unavailable";
-                  return <li key={group.timeZone ?? group.destinations[0]}><ul className="trip-timezone-group">{labels.map(label => <li key={label.city}><strong>{label.city} — {timezone}</strong></li>)}</ul>{areas.length > 0 && <small>{areas.join(", ")}</small>}</li>;
-                })}
-              </ul> : <p className="trip-timezone-empty">Add destinations to see their time zones.</p>}
-            </Field>
+            </section></details>
           </fieldset>
           <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
             <div className="step-heading">
@@ -1201,33 +1328,33 @@ export function TripForm() {
               <strong>{title.trim() || "Your trip"}</strong>
               <p>{previewPlaces.join(" · ") || "Add a destination"}</p>
               <p>
-                {tripLength
+                {startDateInvalid || endDateInvalid ? "Check your dates"
+                  : tripLength
                   ? `${dateText(start, true)} – ${dateText(end, true)} · ${tripLength} ${tripLength === 1 ? "day" : "days"}`
                   : "Choose your dates"}
               </p>
             </section>
-            <ErrorBox text={error} />
-            <div className="form-actions">
-              <Button
+            {error && <div ref={formError} tabIndex={-1} className="trip-form-error"><ErrorBox text={error} /></div>}
+            {savedId && error && <p className="note">Your trip is saved. Retry the remaining invitations here, or continue and invite later from The group.</p>}
+            <div data-fixed-actions className="form-actions trip-form-actions">
+              {savedId ? <Button variant="outline" onClick={() => go(original ? 8 : route.params.get("next") ? Number(route.params.get("next")) : 5, original ? {} : {created:savedId})}>Continue to trip</Button> : <Button
+                ref={cancelTripButton}
                 variant="text"
                 onClick={() => {
-                  if (title || locations.length) {
-                    if (
-                      !window.confirm(
-                        "Leave this form? Unsaved changes will be lost.",
-                      )
-                    )
-                      return;
+                  if (hasPendingTripEdits) {
+                    cancelTripButton.current?.focus({ preventScroll: true });
+                    setConfirmDiscard(true);
+                    return;
                   }
                   go(original ? 8 : 4);
                 }}
               >
                 Cancel
-              </Button>
-              <Button type="submit" disabled={busy}>
-                {busy ? "Saving…" : savedId ? (recipients.emails.length || recipients.draft ? "Retry invitations" : "Continue to trip") : original ? "Save changes" : "Create trip"}
+              </Button>}
+              {(!savedId || recipients.emails.length > 0 || recipients.draft) && <Button type="submit" disabled={busy || coverPreparing}>
+                {coverPreparing ? "Preparing photo…" : busy ? zoneLoading ? "Finding time zones…" : "Saving…" : savedId ? "Retry invitations" : original ? "Save changes" : "Create trip"}
                 <ArrowRight size={16} />
-              </Button>
+              </Button>}
             </div>
             {original && !original.sample && (
               <Button
@@ -1242,9 +1369,12 @@ export function TripForm() {
         </div>
         <aside className="form-aside">
           <p><CalendarDays size={17} /> Dates turn your itinerary into an on-trip dashboard when the time comes.</p>
-          <p><Check size={17} /> Your new trip starts empty. Add only the plans you want.</p>
+          <p><Check size={17} /> {original ? "Update the trip details. Your existing plans stay with this trip." : template ? "Edit this starter plan and choose your trip dates." : "Your new trip starts empty. Add only the plans you want."}</p>
         </aside>
       </form>
+      {confirmDiscard && <ConfirmDialog title="Discard trip changes?" onCancel={() => setConfirmDiscard(false)} onConfirm={() => go(original ? 8 : 4)}>
+        Your unsaved changes will be lost.
+      </ConfirmDialog>}
     </>
   );
 }

@@ -1,13 +1,16 @@
+import { readPhotoDataUrl, validatePhoto } from "./image-validation";
 import { resolveSavedLocation } from "./google-maps";
 import { EventLocationInput } from "./event-location-input";
 import { WeeklyCalendar } from "./weekly-calendar";
 /** Implementation status: Account events, todos, and dismissed choices save through updateTrip to Supabase. Confirmation extraction, crowds, costs, and suggestions remain fixtures; uploaded file previews are temporary. See ../IMPLEMENTATION_STATUS.md. */
 import { DatePicker } from "./date-picker";
+import { findAvailableHour } from "./planning-slots";
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { searchDestinationPhotos, trackUnsplashSelection, uploadTripPhoto, type UnsplashPhoto } from "./trip-photos";
 import {
   ArrowRight,
+  X,
   ArrowUpRight,
   CalendarDays,
   Check,
@@ -17,10 +20,12 @@ import {
   ImagePlus,
   MapPin,
   Plus,
+  Pencil,
   Sparkles,
   Users,
   Wallet,
   Upload,
+  Trash2,
   Route,
   CheckCircle2,
 } from "lucide-react";
@@ -29,6 +34,7 @@ import {
   Avatar,
   Badge,
   Button,
+  ConfirmDialog,
   Empty,
   ErrorBox,
   EventCard,
@@ -37,6 +43,7 @@ import {
   Photo,
   PhotoCredit,
   ReadOnly,
+  revealFocusedFormField,
 } from "./ui";
 import { IMAGES } from "./data";
 import {
@@ -63,8 +70,56 @@ export function Itinerary() {
   const { trip: t, s, go, open, route } = useApp();
   const view = route.params.get("view") === "list" ? "list" : "calendar";
   const [dayPage, setDayPage] = useState(0);
-  const [daysPerPage, setDaysPerPage] = useState(7);
-  useEffect(() => setDayPage(0), [t?.id, t?.start, t?.end]);
+  const pageSizeAnchor = useRef<{ tripId: string; date: string; origin: Element | null } | null>(null);
+  const pendingReveal = useRef<{ date: string; event: string | null; origin: Element | null } | null>(null);
+  const [daysPerPage, setDaysPerPage] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem("trip-planner-list-days"));
+      return [7, 10, 20].includes(saved) ? saved : 7;
+    } catch { return 7; }
+  });
+  const changeDaysPerPage = (value: number) => {
+    // Regroup around the current day rather than returning to the trip's beginning.
+    const date = requestedDate && visibleDays.includes(requestedDate) ? requestedDate : visibleDays[0];
+    pageSizeAnchor.current = t && date ? { tripId: t.id, date, origin: document.activeElement } : null;
+    setDaysPerPage(value);
+    // This is a device display preference; denied storage must not prevent paging.
+    try { localStorage.setItem("trip-planner-list-days", String(value)); } catch { /* Keep the current view usable. */ }
+  };
+  const [activeDay, setActiveDay] = useState(t?.start || "");
+  const requestedDate = route.params.get("date");
+  const requestedEvent = route.params.get("event");
+  useLayoutEffect(() => {
+    const dates = t ? days(t.start, t.end) : [];
+    const anchor = pageSizeAnchor.current?.tripId === t?.id ? pageSizeAnchor.current : null;
+    pageSizeAnchor.current = null;
+    const focusedDate = anchor?.date || requestedDate;
+    const index = focusedDate ? dates.indexOf(focusedDate) : -1;
+    setDayPage(index < 0 ? 0 : Math.floor(index / daysPerPage));
+    setActiveDay(index < 0 ? dates[0] || "" : focusedDate!);
+    pendingReveal.current = view === "list" && index >= 0 ? {
+      date: focusedDate!, event: focusedDate === requestedDate ? requestedEvent : null,
+      origin: anchor ? anchor.origin : document.activeElement,
+    } : null;
+  }, [t?.id, t?.start, t?.end, requestedDate, requestedEvent, view, daysPerPage]);
+  // A frame count cannot prove React committed the regrouped page. Wait until
+  // the actual target exists, then let the route's main-focus effect finish.
+  useLayoutEffect(() => {
+    const pending = pendingReveal.current;
+    if (!pending) return;
+    const target = (pending.event && document.getElementById(`itinerary-event-${pending.event}`)) || document.getElementById(`day-${pending.date}`);
+    if (!target) return;
+    const frame = requestAnimationFrame(() => {
+      if (pendingReveal.current !== pending || !target.isConnected) return;
+      pendingReveal.current = null;
+      const active = document.activeElement;
+      // Recovery controls and other deliberate keyboard choices take priority.
+      if (active !== pending.origin && active !== document.body && active?.id !== "main-content") return;
+      target.focus({preventScroll: true});
+      target.scrollIntoView({block: "start"});
+    });
+    return () => cancelAnimationFrame(frame);
+  });
   if (!t) return null;
   const traveler = member(t, s.userId)!;
   const role = traveler.role;
@@ -75,19 +130,25 @@ export function Itinerary() {
   const pageEnd = Math.min(pageStart + daysPerPage, allDays.length);
   const visibleDays = allDays.slice(pageStart, pageEnd);
   const dayRange = `Days ${allDays.length ? pageStart + 1 : 0}–${pageEnd} of ${allDays.length}`;
+  const pageFromBottom = (nextPage: number) => {
+    pendingReveal.current = { date: allDays[nextPage * daysPerPage], event: null, origin: document.activeElement };
+    setDayPage(nextPage);
+  };
   const renderDayPager = () => (
-    <div className="day-page-controls">
+    <div className="day-page-controls" role="navigation" aria-label="Itinerary day pages">
       <label className="day-page-size">
         Show
-        <select aria-label="Days to show" value={daysPerPage} onChange={event => { setDaysPerPage(Number(event.target.value)); setDayPage(0); }}>
+        <select aria-label="Days to show" value={daysPerPage} onChange={event => changeDaysPerPage(Number(event.target.value))}>
           <option value={7}>7 days</option>
           <option value={10}>10 days</option>
           <option value={20}>20 days</option>
         </select>
       </label>
-      {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage - 1)} disabled={currentPage === 0} aria-label="Previous days"><ChevronLeft size={16} /></button>}
-      <span aria-live="polite">{dayRange}</span>
-      {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage + 1)} disabled={currentPage >= pageCount - 1} aria-label="Next days"><ChevronRight size={16} /></button>}
+      <div className="day-page-navigation">
+        {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage - 1)} disabled={currentPage === 0} aria-label="Previous days"><ChevronLeft size={16} /></button>}
+        <span aria-live="polite">{dayRange}</span>
+        {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage + 1)} disabled={currentPage >= pageCount - 1} aria-label="Next days"><ChevronRight size={16} /></button>}
+      </div>
     </div>
   );
   const personalBudget = t.budgetMode === "individual";
@@ -95,7 +156,7 @@ export function Itinerary() {
   const totalSpent = spent(t, personalBudget ? traveler.id : undefined);
   return (
     <>
-      <div className="trip-hero">
+      <div className={`trip-hero ${view === "calendar" ? "calendar-trip-hero" : "list-trip-hero"}`}>
         <Photo src={t.image} alt={t.destinations.join(" and ")} />
         <PhotoCredit credit={t.imageCredit} />
         <div className="trip-hero-shade" />
@@ -105,9 +166,10 @@ export function Itinerary() {
             {isOwner(t, s.userId) && (
               <button
                 className="hero-edit"
+                aria-label="Edit trip"
                 onClick={() => go(6, { edit: "true" })}
               >
-                Edit trip <ArrowUpRight size={14} />
+                <span>Edit trip</span> <Pencil size={14} aria-hidden="true" />
               </button>
             )}
           </div>
@@ -126,23 +188,25 @@ export function Itinerary() {
         </span>
         <span>
           <Users size={18} />
-          {t.members.filter((m) => m.status === "accepted").length} travelers
+          {t.members.filter((m) => m.status === "accepted").length} {t.members.filter((m) => m.status === "accepted").length === 1 ? "traveler" : "travelers"}
         </span>
         <span>
           <Route size={18} />
-          {allDays.length} days, {t.events.length} plans
+          {allDays.length} {allDays.length === 1 ? "day" : "days"}, {t.events.length} {t.events.length === 1 ? "plan" : "plans"}
         </span>
         <button onClick={() => go(13)}>
           Meet your group <ArrowRight size={15} />
         </button>
       </div>
+      <div className="itinerary-controls">
       <div className="section-title itinerary-heading">
         <div>
-          <h2>Add Events to Trip</h2>
+          <h2>Your itinerary</h2>
         </div>
-        <Button
+        {role !== "Viewer" && <Button
           onClick={() =>
             go(7, {
+              view,
               date:
                 role === "Day Editor"
                   ? traveler.days[0] || t.start
@@ -152,14 +216,43 @@ export function Itinerary() {
         >
           <Plus size={17} />
           Add event
-        </Button>
+        </Button>}
       </div>
       <div className="itinerary-view-switch" role="group" aria-label="Itinerary view">
         <button type="button" aria-pressed={view === "calendar"} onClick={() => go(8, { view: "calendar" })}>Calendar</button>
         <button type="button" aria-pressed={view === "list"} onClick={() => go(8, { view: "list" })}>List</button>
       </div>
+      </div>
       {role === "Viewer" && <ReadOnly />}
       {role === "Day Editor" && <ReadOnly day />}
+      {view === "calendar" ? <WeeklyCalendar key={t.id} /> : <div className="itinerary-layout">
+        <div>
+          <div className="day-chips" hidden={pageCount > 1}>
+            {visibleDays.map((date, pageIndex) => (
+              <a
+                href={`#day-${date}`}
+                aria-current={date === activeDay ? "date" : undefined}
+                key={date}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setActiveDay(date);
+                  document
+                    .getElementById(`day-${date}`)
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                Day {pageStart + pageIndex + 1}
+                <span>{dateText(date, true)}</span>
+              </a>
+            ))}
+          </div>
+          {allDays.length > 7 && <div className="day-navigation-tools">
+          {pageCount > 1 && <div className="day-jump"><label htmlFor="itinerary-day-jump">Jump to day</label><select id="itinerary-day-jump" value="" onChange={event => {
+            const date=event.target.value; setDayPage(Math.floor(allDays.indexOf(date) / daysPerPage));
+            requestAnimationFrame(() => document.getElementById(`day-${date}`)?.scrollIntoView({block:"start"}));
+          }}><option value="" disabled>Choose a date</option>{allDays.map((date,index)=><option key={date} value={date}>Day {index+1} · {dateText(date)}</option>)}</select></div>}
+          {renderDayPager()}
+          </div>}
       {!t.events.length && role !== "Viewer" && (
         <section
           className="getting-started card"
@@ -170,6 +263,7 @@ export function Itinerary() {
             <Button
               onClick={() =>
                 go(7, {
+                  view: "list",
                   date:
                     role === "Day Editor"
                       ? traveler.days[0] || t.start
@@ -190,30 +284,32 @@ export function Itinerary() {
           </div>
         </section>
       )}
-      {view === "calendar" ? <WeeklyCalendar key={t.id} /> : <div className="itinerary-layout">
-        <div>
-          <div className="day-chips">
-            {visibleDays.map((date, pageIndex) => (
-              <a
-                href={`#day-${date}`}
-                key={date}
-                onClick={(e) => {
-                  e.preventDefault();
-                  document
-                    .getElementById(`day-${date}`)
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
-              >
-                Day {pageStart + pageIndex + 1}
-                <span>{dateText(date, true)}</span>
-              </a>
-            ))}
-          </div>
-          {renderDayPager()}
           {visibleDays.map((date, pageIndex) => {
             const i = pageStart + pageIndex;
+            const events = orderedEvents(t, date);
+            const weekday = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" });
+            const dayLabel = `Day ${i + 1} — ${date.slice(5).replace("-", "/")}`;
+            if (!events.length) return (
+              <section className="day-section" id={`day-${date}`} tabIndex={-1} key={date}>
+                <div className="day-title">
+                  <h3>
+                    <button className="empty-day-link" onClick={() => go(11, { date })}>
+                      <span><strong>{dayLabel}</strong><small>{weekday} · 0 plans</small></span>
+                      <ArrowUpRight size={15} aria-hidden="true" />
+                    </button>
+                  </h3>
+                </div>
+                <div className="empty-day">
+                  {canEdit(t, s.userId, date) && <button
+                    className="text-link"
+                    aria-label="Add event to this day"
+                    onClick={() => go(7, { date, view: "list" })}
+                  ><Plus size={15} />Add event</button>}
+                </div>
+              </section>
+            );
             return (
-            <section className="day-section" id={`day-${date}`} key={date}>
+            <section className="day-section" id={`day-${date}`} tabIndex={-1} key={date}>
               <div className="day-title">
                 <span className="day-number">
                   {String(i + 1).padStart(2, "0")}
@@ -223,10 +319,7 @@ export function Itinerary() {
                     Day {i + 1} <span>— {date.slice(5).replace("-", "/")}</span>
                   </h3>
                   <p>
-                    {new Date(date + "T12:00:00").toLocaleDateString("en-US", {
-                      weekday: "long",
-                    })}{" "}
-                    · {orderedEvents(t, date).length} plans
+                    {weekday} · {events.length} {events.length === 1 ? "plan" : "plans"}
                   </p>
                 </div>
                 <button
@@ -236,34 +329,19 @@ export function Itinerary() {
                   View day <ArrowUpRight size={15} />
                 </button>
               </div>
-              {orderedEvents(t, date).length ? (
                 <div className="events-list">
-                  {orderedEvents(t, date).map((e) => (
-                    <EventCard key={e.id} event={e} />
+                  {events.map((e) => (
+                    <EventCard key={e.id} id={`itinerary-event-${e.id}`} event={e} />
                   ))}
                 </div>
-              ) : (
-                <div className="empty-day">
-                  <p>No events scheduled.</p>
-                  {canEdit(t, s.userId, date) && (
-                    <button
-                      className="text-link"
-                      onClick={() => go(7, { date })}
-                    >
-                      <Plus size={15} />
-                      Add event to this day
-                    </button>
-                  )}
-                </div>
-              )}
             </section>
             );
           })}
-          <div className="day-page-controls day-page-controls-bottom" aria-label="Day list pages">
-            {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage - 1)} disabled={currentPage === 0} aria-label="Previous days"><ChevronLeft size={16} /></button>}
+          {allDays.length > 7 && <div className="day-page-controls day-page-controls-bottom" role="navigation" aria-label="Day list pages">
+            {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => pageFromBottom(currentPage - 1)} disabled={currentPage === 0} aria-label="Previous days"><ChevronLeft size={16} /></button>}
             <span aria-live="polite">{dayRange}</span>
-            {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage + 1)} disabled={currentPage >= pageCount - 1} aria-label="Next days"><ChevronRight size={16} /></button>}
-          </div>
+            {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => pageFromBottom(currentPage + 1)} disabled={currentPage >= pageCount - 1} aria-label="Next days"><ChevronRight size={16} /></button>}
+          </div>}
         </div>
         <aside className="itinerary-aside">
           <div className="card inspiration-card">
@@ -338,6 +416,8 @@ function eventFormVersion(event?: Event): string {
 
 export function EventForm() {
   const { trip: t, s, route, go, mutate, updateTrip, toast } = useApp();
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const cancelEventButton = useRef<HTMLButtonElement>(null);
   if (!t) return null;
   const original = t.events.find((e) => e.id === route.params.get("event"));
   const openedVersion = useRef(eventFormVersion(original));
@@ -345,6 +425,10 @@ export function EventForm() {
   const stale = changedElsewhere(original);
   const dateParam = route.params.get("date") || t.start;
   const suggested = route.params.get("suggestion");
+  // Seed only a new, unscheduled draft. Editing or an explicit calendar selection
+  // must retain its time, and later background updates must not move the draft.
+  const [initialSlot] = useState(() => !original && !route.params.has("start") && !route.params.has("end")
+    ? findAvailableHour(t, s.userId, [dateParam]) : undefined);
   const [mode, setMode] = useState("manual"),
     [name, setName] = useState(original?.name || suggested || ""),
     [place, setPlace] = useState(
@@ -353,10 +437,10 @@ export function EventForm() {
     [point, setPoint] = useState(original?.point ?? null),
     [date, setDate] = useState(original?.date || dateParam),
     [start, setStart] = useState(
-      original?.start || route.params.get("start") || "15:00",
+      original?.start || route.params.get("start") || initialSlot?.start || "",
     ),
     [end, setEnd] = useState(
-      original?.end || route.params.get("end") || "16:00",
+      original?.end || route.params.get("end") || initialSlot?.end || "",
     ),
     [cost, setCost] = useState(
       original ? String(original.cost / 100) : route.params.get("cost") || "0",
@@ -371,13 +455,90 @@ export function EventForm() {
     [scan, setScan] = useState(""),
     [preview, setPreview] = useState("");
   const [eventPhotos, setEventPhotos] = useState<UnsplashPhoto[]>([]);
+  const photoOptions = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!eventPhotos.length) return;
+    const frame = requestAnimationFrame(() => {
+      const first = photoOptions.current?.querySelector("button");
+      const actions = document.querySelector(".event-editor-actions");
+      if (!first || !first.getClientRects().length || !actions) return;
+      const box = first.getBoundingClientRect();
+      // The fixed action bar is inside the viewport, so nearest scrolling alone
+      // can leave returned photo choices and their attribution underneath it.
+      if (box.top < 16 || box.bottom > actions.getBoundingClientRect().top - 16)
+        first.scrollIntoView({ block: "center" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [eventPhotos]);
   const [selectedEventPhoto, setSelectedEventPhoto] = useState<UnsplashPhoto | null>(null);
   const [uploadedEventPhoto, setUploadedEventPhoto] = useState("");
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [retryPhoto, setRetryPhoto] = useState<File | null>(null);
+  const photoRequest = useRef(0);
+  useEffect(() => () => { photoRequest.current += 1; }, []);
+  async function chooseEventPhoto(file: File): Promise<void> {
+    const request = ++photoRequest.current;
+    setPhotoUploading(true);
+    setPhotoSearchFailed(false);
+    setPhotoError("");
+    setRetryPhoto(null);
+    let decoded = false;
+    try {
+      await validatePhoto(file);
+      decoded = true;
+      let image: string;
+      if (t!.persistence === "account") {
+        if (!s.userId) throw new Error("Sign in to upload an event photo.");
+        image = await uploadTripPhoto(file, s.userId, t!.id);
+      } else {
+        image = await readPhotoDataUrl(file);
+      }
+      if (request === photoRequest.current) {
+        setUploadedEventPhoto(image);
+        setSelectedEventPhoto(null);
+      }
+    } catch (error) {
+      if (request === photoRequest.current) {
+        setPhotoError(error instanceof Error ? error.message : "Your photo couldn’t upload. Try again.");
+        if (decoded) setRetryPhoto(file);
+      }
+    } finally {
+      if (request === photoRequest.current) setPhotoUploading(false);
+    }
+  }
   const [photoError, setPhotoError] = useState("");
+  const [photoSearchFailed, setPhotoSearchFailed] = useState(false);
+  const photoFeedback = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!photoError) return;
+    const frame = requestAnimationFrame(() => {
+      const feedback = photoFeedback.current;
+      const actions = document.querySelector(".event-editor-actions");
+      if (!feedback || !actions) return;
+      // Upload failures add a recovery action after the file picker returns. Keep both visible.
+      if (feedback.getBoundingClientRect().bottom > actions.getBoundingClientRect().top) {
+        feedback.scrollIntoView({ block: "center" });
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [photoError]);
+  const deletePanel = useRef<HTMLDivElement>(null);
+  const extractionFailure = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (scan === "failed") {
+      extractionFailure.current?.scrollIntoView({block:"center"});
+      extractionFailure.current?.focus({preventScroll:true});
+    }
+  }, [scan]);
+  useEffect(() => {
+    if (mode === "delete") { deletePanel.current?.scrollIntoView({block:"center"}); deletePanel.current?.focus({preventScroll:true}); }
+  }, [mode]);
   const findEventPhotos = async () => {
+    setPhotoSearchFailed(false);
     setPhotoBusy(true);
     setPhotoError("");
+    setRetryPhoto(null);
     try {
       const eventQuery = [name, place, t.destinations[0]].filter(Boolean).join(" ");
       const eventMatches = await searchDestinationPhotos(eventQuery);
@@ -391,8 +552,9 @@ export function EventForm() {
       const destination = t.destinations.join(" ");
       const destinationMatches = await searchDestinationPhotos(destination);
       setEventPhotos(destinationMatches);
-      if (!destinationMatches.length) setPhotoError(`No photos found for ${destination}. Try another destination or upload your own.`);
+      if (!destinationMatches.length) setPhotoError(`No photos found for ${destination}. You can upload your own photo or continue without one.`);
     } catch (err) {
+      setPhotoSearchFailed(true);
       setPhotoError(err instanceof Error ? err.message : "Could not find event photos.");
     } finally {
       setPhotoBusy(false);
@@ -405,15 +567,16 @@ export function EventForm() {
         setScan("failed");
         return;
       }
-      setName("An afternoon at the gallery");
+      setName("A visit to the gallery");
       setPoint(null);
       setPlace(
         t.sample
           ? "Cedar Gallery · downtown"
           : `Sample gallery · ${t.destinations[0]}`,
       );
-      setStart("15:00");
-      setEnd("16:00");
+      const slot = findAvailableHour(t, s.userId, [date], original?.id);
+      if (slot) { setStart(slot.start); setEnd(slot.end); setError(""); }
+      else setError("This day has no open one-hour slot. Choose another date or adjust the time before adding the sample.");
       setCost("40");
       setScan("review");
       setMode("manual");
@@ -422,11 +585,21 @@ export function EventForm() {
   const returnTo = route.params.get("return");
   const leaveForm = (day: string, eventId?: string) => {
     if (returnTo === "17") go(17, eventId ? { event: eventId } : {});
+    else if (returnTo === "9") go(9);
+    else if (returnTo === "16") go(16);
     else if (returnTo === "11") go(11, { date: day, ...(eventId ? { event: eventId } : {}) });
-    else go(8, { date: day, ...(route.params.get("view") === "calendar" ? { view: "calendar" } : {}) });
+    else go(8, { date: day, ...(eventId ? {event: eventId} : {}), view: route.params.get("view") === "calendar" ? "calendar" : "list" });
   };
-  const draft = JSON.stringify([name, place, point, date, start, end, cost, attendees, notes]);
+  const draft = JSON.stringify([name, place, point, date, start, end, cost, attendees, notes, uploadedEventPhoto, selectedEventPhoto?.url]);
   const initialDraft = useRef(draft);
+  const timeError = /^(?:End time|This overlaps|Choose a day within)/.test(error);
+  const timeErrorTarget = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (timeError) {
+      timeErrorTarget.current?.scrollIntoView({ block: "center" });
+      timeErrorTarget.current?.focus({ preventScroll: true });
+    }
+  }, [error, timeError]);
   if (route.params.has("event") && !original) {
     return <UnavailableItineraryItem
       label={returnTo === "17" ? "Back to map" : "View itinerary"}
@@ -439,7 +612,7 @@ export function EventForm() {
   }
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (busy || stale) return;
+    if (busy || stale || photoUploading) return;
     const inputProblem =
       textError(name, "Event name", TEXT_LIMITS.eventName, true) ||
       (!place.trim() && "Enter a location.") ||
@@ -459,12 +632,16 @@ export function EventForm() {
       end,
       cost: Math.round(Number(cost) * 100),
       attendees,
-      image: uploadedEventPhoto || selectedEventPhoto?.url || original?.image || IMAGES.museum,
+      image: uploadedEventPhoto || selectedEventPhoto?.url || original?.image || "",
       notes,
     };
     const err = eventError(t, s.userId, event, original);
     if (err) {
       setError(err);
+      requestAnimationFrame(() => {
+        timeErrorTarget.current?.scrollIntoView({block:"center"});
+        timeErrorTarget.current?.focus({preventScroll:true});
+      });
       return;
     }
     setBusy(true);
@@ -502,16 +679,39 @@ export function EventForm() {
     );
     leaveForm(date, event.id);
   };
+  const eventIdentityFields = <>
+              <Field label="Event name">
+                <input
+                  required
+                  maxLength={TEXT_LIMITS.eventName}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="A morning at the museum"
+                />
+              </Field>
+              <EventLocationInput value={place} onChange={(label, position) => { setPlace(label); setPoint(position ?? null); }} destinations={t.destinations} />
+
+  </>;
   const role = member(t, s.userId)?.role;
+  const attendingCount = t.members.filter((m) => m.status === "accepted" && attendees.includes(m.id)).length;
+  const availableAttendees = t.members.filter((m) => m.status === "accepted").length;
   return (
     <>
       <PageHead
-        eyebrow={t.title}
-        title={original ? "A little change of plans." : "Make a little plan."}
+        eyebrow={suggested ? undefined : t.title}
+        title={original ? "A little change of plans." : suggested ? "Choose a time." : "Make a little plan."}
         description="Something to see, somewhere to be, someone to share it with."
+        action={original && <Button variant="outline event-delete-trigger" aria-label="Delete event" disabled={busy || stale || photoUploading} onClick={() => setMode("delete")}><Trash2 size={18} /> Delete</Button>}
       />
       <div className="form-layout">
-        <form className="card form-card" onSubmit={submit}>
+        <form className={`card form-card event-editor-form${suggested ? " is-suggested" : ""}`} onSubmit={submit} onInvalidCapture={(event) => {
+          // Native validation must be able to reveal a required field in a disclosure.
+          let parent = (event.target as HTMLElement).parentElement;
+          while (parent && parent !== event.currentTarget) {
+            if (parent instanceof HTMLDetailsElement) parent.open = true;
+            parent = parent.parentElement;
+          }
+        }} onFocusCapture={revealFocusedFormField}>
           {stale && original && (
             <div role="alert" className="info-banner">
               <span>This event changed while you were editing. Review the latest details before saving or deleting it.</span>
@@ -537,9 +737,8 @@ export function EventForm() {
               <ImagePlus size={16} />
               Use a confirmation
             </button>
-            {original && <button type="button" className={mode === "delete" ? "active danger-tab" : "danger-tab"} disabled={busy || stale} onClick={() => setMode("delete")}>Delete event</button>}
           </div>
-          {mode === "delete" && original && <div className="delete-event-panel"><h3>Delete this event?</h3><p>Are you sure you want to delete “{original.name}” from this trip?</p><Button type="button" variant="danger" disabled={busy || stale} onClick={() => { let deleted=false;updateTrip(trip=>{const current=trip.events.find(e=>e.id===original.id);if(!current||changedElsewhere(current))return;trip.events=trip.events.filter(e=>e.id!==original.id);deleted=true;});if(deleted)leaveForm(original.date);}}>Delete event</Button></div>}
+          {mode === "delete" && original && <div className="delete-event-panel" ref={deletePanel} tabIndex={-1}><h3>Delete this event?</h3><p>Are you sure you want to delete “{original.name}” from this trip?</p><div className="form-actions"><Button variant="outline" onClick={() => setMode("manual")}>Keep editing</Button><Button type="button" variant="danger" disabled={busy || stale || photoUploading} onClick={() => { let deleted=false;updateTrip(trip=>{const current=trip.events.find(e=>e.id===original.id);if(!current||changedElsewhere(current))return;trip.events=trip.events.filter(e=>e.id!==original.id);deleted=true;});if(deleted)leaveForm(original.date);}}>Delete event</Button></div></div>}
           {mode === "upload" && (
             <div className="upload-panel">
               <Upload size={33} />
@@ -553,8 +752,9 @@ export function EventForm() {
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
                 aria-label="Upload confirmation image"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const f = e.target.files?.[0];
+                  e.target.value = "";
                   if (!f) return;
                   if (
                     !["image/png", "image/jpeg", "image/webp"].includes(
@@ -565,8 +765,14 @@ export function EventForm() {
                     setError("Choose a PNG, JPEG, or WebP under 10 MB.");
                     return;
                   }
-                  setPreview(URL.createObjectURL(f));
-                  extract();
+                  try {
+                    await validatePhoto(f, 10);
+                    setError("");
+                    setPreview(URL.createObjectURL(f));
+                    extract();
+                  } catch (error) {
+                    setError(error instanceof Error ? error.message : "Choose a different image.");
+                  }
                 }}
               />
               {preview && (
@@ -593,7 +799,7 @@ export function EventForm() {
                 Try extraction failure
               </button>
               {scan === "failed" && (
-                <ErrorBox text="We couldn’t read this confirmation. Try again or enter the details manually." />
+                <div ref={extractionFailure} tabIndex={-1} className="extraction-recovery"><ErrorBox text="We couldn’t read this confirmation. Try again or enter the details manually." /><Button variant="outline" onClick={() => setMode("manual")}>Enter details manually</Button></div>
               )}
             </div>
           )}
@@ -609,19 +815,11 @@ export function EventForm() {
                   </span>
                 </div>
               )}
-              <Field label="Event name">
-                <input
-                  required
-                  maxLength={TEXT_LIMITS.eventName}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="A morning at the museum"
-                />
-              </Field>
-              <EventLocationInput value={place} onChange={(label, position) => { setPlace(label); setPoint(position ?? null); }} destinations={t.destinations} />
-              <section className="event-photo-picker" aria-label="Event photo"><h3>Event Photo</h3><div className="event-photo-actions"><Button type="button" variant="event-photo-find" disabled={photoBusy} onClick={findEventPhotos}>{photoBusy ? "Finding photos…" : "Find with Unsplash"}</Button><span>OR</span><label className="event-photo-upload">Upload your own<input type="file" accept="image/png,image/jpeg,image/webp" aria-label="Upload your own event photo" onChange={async e=>{const file=e.target.files?.[0];if(!file)return;if(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size>5*1024*1024){setPhotoError("Choose a JPEG, PNG, or WebP image under 5 MB.");return;}setPhotoError("");setSelectedEventPhoto(null);try{if(t.persistence==="account"){if(!s.userId)throw new Error("Sign in to upload an event photo.");setUploadedEventPhoto(await uploadTripPhoto(file,s.userId,t.id));}else setUploadedEventPhoto(await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error("Could not read this image."));reader.readAsDataURL(file);}));}catch(err){setPhotoError(err instanceof Error?err.message:"Could not upload this photo.");}}}/></label></div>{photoError&&<ErrorBox text={photoError}/ >}{eventPhotos.length>0&&<div className="trip-photo-options">{eventPhotos.map(photo=><button type="button" key={photo.id} className={selectedEventPhoto?.id===photo.id?"selected":""} aria-pressed={selectedEventPhoto?.id===photo.id} onClick={()=>{setSelectedEventPhoto(photo);setUploadedEventPhoto("");}}><img src={photo.thumb} alt={photo.alt}/><PhotoCredit credit={photo.credit} compact/></button>)}</div>}{selectedEventPhoto&&<PhotoCredit credit={selectedEventPhoto.credit} compact/>}{uploadedEventPhoto&&<img className="upload-preview" src={uploadedEventPhoto} alt="Your event photo preview"/>}</section>
+              {suggested && <div className="suggested-event-summary"><h2>{name}</h2><p>{place}</p></div>}
+              {!suggested && <>{eventIdentityFields}</>}
+
               <Field label="Day">
-                <select value={date} onChange={(e) => setDate(e.target.value)}>
+                <select value={date} onChange={(e) => { setDate(e.target.value); setError(""); }}>
                   {days(t.start, t.end).map((d, i) => (
                     <option key={d} value={d} disabled={!canEdit(t, s.userId, d)}>
                       Day {i + 1} — {dateText(d, true)}
@@ -636,7 +834,7 @@ export function EventForm() {
                     required
                     type="time"
                     value={start}
-                    onChange={(e) => setStart(e.target.value)}
+                    onChange={(e) => { setStart(e.target.value); setError(""); }}
                   />
                 </Field>
                 <Field label="End time">
@@ -644,14 +842,16 @@ export function EventForm() {
                     required
                     type="time"
                     value={end}
-                    onChange={(e) => setEnd(e.target.value)}
+                    onChange={(e) => { setEnd(e.target.value); setError(""); }}
                   />
                 </Field>
               </div>
+              {timeError && <div ref={timeErrorTarget} tabIndex={-1} className="event-time-error"><ErrorBox text={error} /></div>}
               <p className="fine-print">
                 Times in {zoneText(t.zone)}. For overnight activities, add one event per
                 day.
               </p>
+              {suggested && <details className="suggested-event-details"><summary>Edit name or location</summary>{eventIdentityFields}</details>}
               {place.trim() && (
                 <div className="place-popular-times">
                   <a
@@ -680,8 +880,10 @@ export function EventForm() {
                   onChange={(e) => setCost(e.target.value)}
                 />
               </Field>
-              <fieldset>
-                <legend>Who’s coming?</legend>
+              <details className="event-attendees">
+                <summary><strong>Who’s coming?</strong><span>{attendingCount === availableAttendees && availableAttendees > 0 ? `Everyone · ${attendingCount}` : `${attendingCount} of ${availableAttendees} travelers`}</span></summary>
+                <fieldset>
+                <legend className="sr-only">Choose travelers</legend>
                 <div className="attendee-list">
                   {t.members
                     .filter((m) => m.status === "accepted")
@@ -704,6 +906,7 @@ export function EventForm() {
                     ))}
                 </div>
               </fieldset>
+              </details>
               <Field label="Notes (optional)">
                 <textarea
                   rows={3}
@@ -713,18 +916,24 @@ export function EventForm() {
                   placeholder="A meeting point, ticket details, or a little reminder…"
                 />
               </Field>
+              <details className="photo-disclosure event-photo-disclosure"><summary>Event photo <span>Optional</span></summary><section className="event-photo-picker" aria-label="Event photo"><div className="event-photo-actions"><Button type="button" variant="event-photo-find" disabled={photoBusy || photoUploading} onClick={findEventPhotos}>{photoBusy ? "Finding photos…" : "Find with Unsplash"}</Button><span>OR</span><label className="event-photo-upload">Upload your own<input type="file" accept="image/png,image/jpeg,image/webp" aria-label="Upload your own event photo" disabled={photoUploading || photoBusy} onChange={e => {
+                const file = e.target.files?.[0]; e.target.value = "";
+                if (file) void chooseEventPhoto(file);
+              }}/></label></div>{photoUploading && <p role="status" className="fine-print">Preparing your photo…</p>}<div ref={photoFeedback}>{photoError && <ErrorBox text={photoError} />}{photoSearchFailed && <Button variant="outline" disabled={photoBusy} onClick={findEventPhotos}>Retry photo search</Button>}{retryPhoto && <Button variant="outline" disabled={photoUploading} onClick={() => void chooseEventPhoto(retryPhoto)}>Retry photo upload</Button>}</div>{eventPhotos.length>0&&<div ref={photoOptions} className="trip-photo-options">{eventPhotos.map(photo=><button type="button" key={photo.id} className={selectedEventPhoto?.id===photo.id?"selected":""} aria-pressed={selectedEventPhoto?.id===photo.id} onClick={()=>{setSelectedEventPhoto(photo);setUploadedEventPhoto("");setRetryPhoto(null);setPhotoError("");}}><img src={photo.thumb} alt={photo.alt}/><PhotoCredit credit={photo.credit} compact/></button>)}</div>}{selectedEventPhoto&&<PhotoCredit credit={selectedEventPhoto.credit} compact/>}{(uploadedEventPhoto || selectedEventPhoto?.url || original?.image) && <img className="upload-preview" src={uploadedEventPhoto || selectedEventPhoto?.url || original?.image} alt="Your event photo preview"/>}</section></details>
             </>
           )}
-          <ErrorBox text={error} />
-          <div className="form-actions">
+          <ErrorBox text={timeError ? "" : error} />
+          {stale && original && <div className="note event-conflict-note" role="status"><p>This event changed elsewhere. Review the latest version before saving.</p><button type="button" className="text-link" onClick={() => go(11, {date:original.date,event:original.id})}>View latest event</button></div>}
+          <div data-fixed-actions className={`form-actions event-editor-actions ${mode === "manual" ? "is-manual" : mode === "upload" ? "is-upload" : ""}`}>
             <Button
+              ref={cancelEventButton}
               variant="text"
               onClick={() => {
-                if (
-                  draft !== initialDraft.current &&
-                  !window.confirm("Leave without saving this event?")
-                )
+                if (draft !== initialDraft.current) {
+                  cancelEventButton.current?.focus({ preventScroll: true });
+                  setConfirmDiscard(true);
                   return;
+                }
                 leaveForm(original?.date || dateParam, original?.id);
               }}
             >
@@ -733,14 +942,14 @@ export function EventForm() {
             {mode === "manual" && (
               <Button
                 type="submit"
-                disabled={busy || stale || !canEdit(t, s.userId, date)}
+                disabled={busy || stale || photoUploading || !canEdit(t, s.userId, date)}
               >
                 {busy
                   ? "Saving…"
                   : original
                     ? "Save changes"
                     : "Add to itinerary"}
-                <Plus size={16} />
+                {original ? <Check size={16} /> : <Plus size={16} />}
               </Button>
             )}
           </div>
@@ -767,20 +976,23 @@ export function EventForm() {
           </div>
         </aside>
       </div>
+      {confirmDiscard && <ConfirmDialog title="Discard event changes?" onCancel={() => setConfirmDiscard(false)} onConfirm={() => leaveForm(original?.date || dateParam, original?.id)}>
+        Your unsaved changes will be lost.
+      </ConfirmDialog>}
     </>
   );
 }
 export function Suggestions() {
-  const { trip: t, s, go, updateTrip, toast } = useApp();
-  if (!t) return null;
+  const { trip: t, s, go, updateTrip, toast, message, dismissMessage } = useApp();
   const [loading, setLoading] = useState(false);
+  if (!t) return null;
   const traveler = member(t, s.userId)!;
   const prefs = t.prefs[traveler.id];
   const canDismiss = traveler.role === "Owner" || traveler.role === "Editor";
   const items = [
     {
       id: "gallery",
-      title: "An afternoon with local art",
+      title: "A stop for local art",
       place: t.sample
         ? "Cedar Gallery · downtown"
         : `Gallery near ${t.destinations[0]}`,
@@ -789,7 +1001,7 @@ export function Suggestions() {
       tag: "ART & CULTURE",
       reason: t.events.some((e) => e.id === "museum")
         ? "Since you planned Seattle Art Museum, you might enjoy a smaller local gallery."
-        : `A cultural stop near ${t.destinations[0]} that fits an open afternoon.`,
+        : `A cultural stop near ${t.destinations[0]} to explore when you have time.`,
     },
     {
       id: "garden",
@@ -822,21 +1034,7 @@ export function Suggestions() {
   const preferred = isActive(t, s.date)
     ? [s.date, ...dates.filter((d) => d !== s.date)]
     : dates;
-  let slot: { date: string; start: string; end: string } | undefined;
-  for (const d of preferred) {
-    if (!canEdit(t, s.userId, d)) continue;
-    for (let hour = 9; hour < 18; hour++) {
-      const start = String(hour).padStart(2, "0") + ":00",
-        end = String(hour + 1).padStart(2, "0") + ":00";
-      if (
-        !t.events.some((e) => e.date === d && start < e.end && end > e.start)
-      ) {
-        slot = { date: d, start, end };
-        break;
-      }
-    }
-    if (slot) break;
-  }
+  const slot = findAvailableHour(t, s.userId, preferred, undefined, { date: s.date, time: s.time });
   const walkLimit = Math.min(
     100000,
     ...Object.values(t.prefs).map((p) => p.walk),
@@ -848,33 +1046,34 @@ export function Suggestions() {
   return (
     <>
       <PageHead
-        eyebrow="LEAVE ROOM FOR SOMETHING GOOD"
-        title="A little inspiration."
-        description={`${isActive(t, s.date) && s.location ? "Near your planned stops" : "Around your planned stops"}, with your people in mind.`}
+        title="Suggestions"
+        description="Sample ideas for your trip. Check venue details before you go."
         action={
           <Button
-            variant="outline"
+            variant="outline suggestion-refresh"
+            aria-label="Refresh ideas"
             onClick={() => {
               setLoading(true);
               setTimeout(() => setLoading(false), 600);
             }}
           >
             <Sparkles size={16} />
-            Refresh ideas
+            <span>Refresh</span>
           </Button>
         }
       />
+      {message === "Trip preferences saved." && <div className="inline-success" role="status"><span>{message}</span><button className="icon-btn" aria-label="Dismiss message" onClick={dismissMessage}><X size={16}/></button></div>}
       <div className="suggestion-context">
         <Badge tone="green">
           <MapPin size={13} />
           {t.destinations[0]}
         </Badge>
-        <Badge>Based on your itinerary</Badge>
-        <Badge>{Object.keys(t.prefs).length} preference surveys</Badge>
-        <button className="text-link" onClick={() => go(15)}>
+        <Badge>{Object.keys(t.prefs).length} preference {Object.keys(t.prefs).length === 1 ? "survey" : "surveys"}</Badge>
+        <button className="text-link" onClick={() => { dismissMessage(); go(15, { return: "9" }); }}>
           Update your preferences <ArrowRight size={14} />
         </button>
       </div>
+      {!slot && dates.length > 0 && <p className="note suggestion-time-recovery">There are no upcoming one-hour slots on your editable days. <button className="text-link" onClick={() => go(8)}>Review your itinerary <ArrowRight size={14} /></button></p>}
       {!prefs && (
         <div className="info-banner">
           Tell us what you enjoy in My preferences to make these ideas more
@@ -883,7 +1082,7 @@ export function Suggestions() {
       )}
       {loading ? (
         <div className="skeleton-grid" aria-live="polite">
-          Finding sample ideas…
+          <span className="sr-only">Finding sample ideas…</span>
           <div />
           <div />
           <div />
@@ -892,12 +1091,15 @@ export function Suggestions() {
         <div className="suggestions-grid">
           {eligibleItems
             .filter((i) => !t.dismissed.includes(i.id))
-            .map((i) => (
-              <article className="suggestion-card" key={i.id}>
+            .map((i) => {
+              // Recognize the existing sample by its editable title/location; deleting it makes it available again.
+              const added = t.events.find(event => (event.name === i.title || (i.id === "gallery" && event.name === "An afternoon with local art")) && event.place === i.place);
+              return <article className="suggestion-card" key={i.id}>
                 <Photo src={i.image} alt={i.title} />
                 <div className="suggestion-body">
                   <div className="eyebrow">{i.tag}</div>
                   <h2>{i.title}</h2>
+                  <p className="suggestion-place"><MapPin size={14} aria-hidden="true" />{i.place}</p>
                   <p>{i.reason}</p>
                   <div className="suggestion-meta">
                     <span>
@@ -906,17 +1108,13 @@ export function Suggestions() {
                     </span>
                     <span>{i.cost ? `Est. $${i.cost}` : "Free"}</span>
                   </div>
-                  <div className="compatibility">
-                    <Check size={14} />
-                    Suggested for your group
-                  </div>
                   <p className="available-slot">
-                    {slot
-                      ? `Open: ${dateText(slot.date, true)} at ${timeText(slot.start)}`
-                      : "No editable one-hour slot available"}
+                    {added ? `Added: ${dateText(added.date, true)} at ${timeText(added.start)}` : slot
+                      ? `Free in your itinerary: ${dateText(slot.date, true)} at ${timeText(slot.start)}`
+                      : dates.length ? "No upcoming one-hour slot on your editable days" : "Ask a trip editor to add this idea"}
                   </p>
                   <div className="card-actions">
-                    {canDismiss && <Button
+                    {!added && canDismiss && <Button
                       variant="text"
                       onClick={() => {
                         updateTrip((t) => t.dismissed.push(i.id));
@@ -926,44 +1124,54 @@ export function Suggestions() {
                       Not this time
                     </Button>}
                     <Button
-                      disabled={!slot}
-                      onClick={() =>
-                        slot &&
-                        go(7, {
+                      disabled={!added && !slot}
+                      onClick={() => {
+                        if (added) { dismissMessage(); go(11, {date: added.date, event: added.id}); return; }
+                        dismissMessage();
+                        slot && go(7, {
                           suggestion: i.title,
+                          return: "9",
                           place: i.place,
                           date: slot.date,
                           start: slot.start,
                           end: slot.end,
                           cost: String(i.cost),
-                        })
-                      }
+                        });
+                      }}
                     >
-                      Choose a time <Plus size={15} />
+                      {added ? <>View added plan <ArrowRight size={15} /></> : <>Choose a time <Plus size={15} /></>}
                     </Button>
                   </div>
                 </div>
-              </article>
-            ))}
+              </article>;
+            })}
         </div>
       )}
-      {eligibleItems.length === 0 && (
+      {!loading && eligibleItems.length === 0 && (
         <Empty
           title="No sample matches fit the group right now."
           body="The sample activities exceed a saved walking limit. Review preferences or plan an activity manually."
         />
       )}
-      {eligibleItems.length > 0 &&
+      {!loading && eligibleItems.length > 0 &&
         eligibleItems.every((i) => t.dismissed.includes(i.id)) && (
           <Empty
             title="A little space for your own ideas."
             body="You’ve reviewed all the sample suggestions."
             action={canDismiss &&
-              <Button onClick={() => updateTrip((t) => (t.dismissed = []))}>
+              <Button onClick={() => { updateTrip((t) => (t.dismissed = [])); dismissMessage(); }}>
                 Show suggestions again
               </Button>
             }
           />
+        )}
+      {!loading && canDismiss && eligibleItems.some((item) => t.dismissed.includes(item.id)) &&
+        eligibleItems.some((item) => !t.dismissed.includes(item.id)) && (
+          <div className="suggestion-reset">
+            <Button variant="text" onClick={() => { updateTrip((trip) => (trip.dismissed = [])); dismissMessage(); }}>
+              Show suggestions again
+            </Button>
+          </div>
         )}
     </>
   );
@@ -971,17 +1179,19 @@ export function Suggestions() {
 export function Dashboard() {
   const { trip: t, s, go, open, updateTrip } = useApp();
   const [todoError, setTodoError] = useState("");
+  const remindersPanel = useRef<HTMLDivElement>(null);
+  const [agendaDate, setAgendaDate] = useState("");
   const [todo, setTodo] = useState(""),
     [weekOffset, setWeekOffset] = useState(0);
   if (!t) return null;
   if (!isActive(t, s.date))
     return (
       <Empty
-        title="This trip’s moment is still to come."
+        title={s.date > t.end ? "This trip has wrapped up." : "This trip’s moment is still to come."}
         body={`Today opens during ${dateText(t.start, true)}–${dateText(t.end, true)}. Change the demo date to preview it.`}
         action={
           <>
-            <Button onClick={() => open("demo")}>Change demo date</Button>
+            <Button onClick={() => open("demo", {section:"time"})}>Change demo date</Button>
             <Button variant="outline" onClick={() => go(8)}>
               See the itinerary
             </Button>
@@ -991,6 +1201,12 @@ export function Dashboard() {
     );
   const todays = orderedEvents(t, s.date),
     next = todays.find((e) => e.end > s.time);
+  const reminders = t.todos.filter(todo => todo.date === s.date);
+  const remainingReminders = reminders.filter(todo => !todo.done).length;
+  const reminderJump = reminders.length > 0 && <Button variant="text" onClick={() => {
+    remindersPanel.current?.scrollIntoView({block:"start"});
+    remindersPanel.current?.focus({preventScroll:true});
+  }}>{remainingReminders ? `${remainingReminders} reminder${remainingReminders === 1 ? "" : "s"} left` : "Reminders complete"}</Button>;
   const start = new Date(s.date + "T12:00:00Z");
   start.setUTCDate(start.getUTCDate() - start.getUTCDay() + weekOffset * 7);
   const last = new Date(start);
@@ -999,11 +1215,13 @@ export function Dashboard() {
     start.toISOString().slice(0, 10),
     last.toISOString().slice(0, 10),
   );
+  const visibleAgendaDate = week.includes(agendaDate) ? agendaDate : week.includes(s.date) ? s.date : week.find(day => day >= t.start && day <= t.end) || week[0];
+  const agendaEvents = orderedEvents(t, visibleAgendaDate);
   return (
     <>
       <PageHead
-        eyebrow={`${dateText(s.date)} · ${s.time} · DEMO TIME`}
-        title="A good day to be here."
+        eyebrow={`${dateText(s.date)} · ${timeText(s.time)} · DEMO TIME`}
+        title="Today"
         description={t.title}
         action={
           <Button variant="outline" onClick={() => open("nearby")}>
@@ -1012,6 +1230,14 @@ export function Dashboard() {
           </Button>
         }
       />
+      {next && <section className="card today-next-stop" aria-label="Next stop">
+        <div><span className="eyebrow">{next.start <= s.time ? "Happening now" : "Next stop"} · {timeText(next.start)}</span><h2>{next.name}</h2><p>{next.place}</p></div>
+        <div className="today-next-actions"><Button onClick={() => go(17, {event:next.id})}>View on map <ArrowUpRight size={16}/></Button>{reminderJump}</div>
+      </section>}
+      {!next && <section className="card today-next-stop" aria-label="Today’s plans">
+        <div><h2>{todays.length ? "No more plans today" : "No events today"}</h2><p>{todays.length ? "Your scheduled events have finished." : "Add a plan or enjoy the open time."}</p></div>
+        <div className="today-next-actions">{reminderJump}{!todays.length && <Button variant="outline" onClick={() => go(9)}>Find an idea</Button>}</div>
+      </section>}
       <div className="dashboard-grid">
         <div className="card week-card">
           <div className="section-title">
@@ -1038,49 +1264,34 @@ export function Dashboard() {
               className="text-link"
               onClick={() => go(11, { date: s.date })}
             >
-              Calendar <ArrowUpRight size={16} />
+              View today <ArrowUpRight size={16} />
             </button>
           </div>
-          <div className="week-grid">
-            {week.map((d) => (
-              <button
-                className={`week-day ${d === s.date ? "selected" : ""}`}
-                key={d}
-                disabled={d < t.start || d > t.end}
-                onClick={() => go(11, { date: d })}
-              >
-                <span>
-                  {new Date(d + "T12:00:00").toLocaleDateString("en-US", {
-                    weekday: "short",
-                  })}
-                </span>
-                <strong>{Number(d.slice(8))}</strong>
-                <div>
-                  {orderedEvents(t, d).map((e) => (
-                    <span className="week-event" key={e.id}>
-                      {e.start}
-                      <b>{e.name}</b>
-                    </span>
-                  ))}
-                </div>
-              </button>
-            ))}
-          </div>
+          <p className="week-date-range" aria-live="polite">{dateText(week[0], true)} – {dateText(week[6], true)}</p>
           <div className="mobile-agenda">
-            {todays.map((e) => (
-              <EventCard key={e.id} event={e} />
-            ))}
+            <div className="agenda-day-choices" role="group" aria-label="Choose a day this week">
+              {week.map(day => <button key={day} disabled={day < t.start || day > t.end} aria-pressed={day === visibleAgendaDate} aria-label={dateText(day)} onClick={() => setAgendaDate(day)}>
+                <span>{new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })}</span>
+                <strong>{Number(day.slice(8))}</strong>
+              </button>)}
+            </div>
+            <h3>{dateText(visibleAgendaDate, true)}</h3>
+            {agendaEvents.map(event => <EventCard key={event.id} event={event} />)}
+            {!agendaEvents.length && <p className="fine-print">No plans for this day.</p>}
+            <Button variant="text" onClick={() => go(11, {date:visibleAgendaDate})}>View day <ArrowUpRight size={16}/></Button>
           </div>
         </div>
-        <div className="card todo-card">
+        <div className="card todo-card" ref={remindersPanel} tabIndex={-1}>
           <span className="eyebrow">THE LITTLE THINGS</span>
           <h2>Before you go.</h2>
+          <p className="reminder-date">Today’s reminders · {dateText(s.date, true)}</p>
           {t.todos
             .filter((x) => x.date === s.date)
             .map((todo) => (
-              <label className="todo-item" key={todo.id}>
+              <div className="todo-item" key={todo.id}>
                 <input
                   type="checkbox"
+                  id={`reminder-${todo.id}`}
                   checked={todo.done}
                   disabled={!canEdit(t, s.userId, todo.date)}
                   onChange={() =>
@@ -1089,7 +1300,6 @@ export function Dashboard() {
                     })
                   }
                 />
-                <span className={todo.done ? "done" : ""}>{todo.text}</span>
                 {canEdit(t, s.userId, todo.date) && (
                   <button
                     type="button"
@@ -1106,7 +1316,8 @@ export function Dashboard() {
                     Remove
                   </button>
                 )}
-              </label>
+                <label htmlFor={`reminder-${todo.id}`} className={todo.done ? "done" : ""}>{todo.text}</label>
+              </div>
             ))}
           {!t.todos.some((x) => x.date === s.date) && (
             <p>No little reminders for today.</p>
@@ -1155,7 +1366,7 @@ export function Dashboard() {
       </div>
       <div className="section-title">
         <div>
-          <h2>{next ? "Next stop" : "Trip map"}</h2>
+          <h2>Trip map</h2>
         </div>
         <Button
           variant="outline"
@@ -1165,20 +1376,43 @@ export function Dashboard() {
         </Button>
       </div>
       <TravelMap compact selectedEvent={next?.id} />
-      {!todays.length && (
-        <Empty
-          title="No events today"
-          body="Find an idea or add a plan to the itinerary."
-          action={<Button onClick={() => go(9)}>Find inspiration</Button>}
-        />
-      )}
+
     </>
   );
 }
+/** Keep long optional notes readable without hiding the day's later plans. */
+function EventNotes({ notes }: { notes: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const id = React.useId();
+  if (notes.length <= 320) return <p>{notes || "A little something to look forward to."}</p>;
+  return <div className="event-notes">
+    <p id={id} className={expanded ? "" : "is-collapsed"}>{notes}</p>
+    <button type="button" className="text-link" aria-expanded={expanded} aria-controls={id} onClick={event => {
+      const control = event.currentTarget;
+      setExpanded(value => !value);
+      if (expanded) requestAnimationFrame(() => {
+        const bounds = control.getBoundingClientRect();
+        const bottom = innerHeight - (document.querySelector('.mobile-nav')?.getBoundingClientRect().height || 0);
+        if (bounds.top < 16 || bounds.bottom > bottom - 16) control.scrollIntoView({ block: 'center' });
+      });
+    }}>
+      {expanded ? "Show less" : "Read full notes"}
+    </button>
+  </div>;
+}
+
 export function DayDetail() {
   const { trip: t, s, route, go } = useApp();
   const selectedEvent = route.params.get("event");
   const requested = route.params.get("date");
+  const selectedDate = t?.events.find(event => event.id === selectedEvent)?.date;
+  useEffect(() => {
+    if (selectedEvent && selectedDate && selectedDate !== requested) {
+      // Keep the displayed shared event's day in this history entry. If it is
+      // later removed, recovery and reload still return to the day just viewed.
+      go(11, { ...Object.fromEntries(route.params), date: selectedDate }, true);
+    }
+  }, [selectedEvent, selectedDate, requested, route.params, go]);
   if (!t) return null;
   const date = itineraryDay(t, selectedEvent, requested, s.date);
   if (selectedEvent && !t.events.some((event) => event.id === selectedEvent)) {
@@ -1191,7 +1425,7 @@ export function DayDetail() {
   return (
     <>
       <PageHead
-        eyebrow={`DAY ${index + 1} · ${t.title}`}
+        eyebrow={`DAY ${index + 1} OF ${list.length}`}
         title={
           new Date(date + "T12:00:00").toLocaleDateString("en-US", {
             weekday: "long",
@@ -1200,7 +1434,7 @@ export function DayDetail() {
           dateText(date, true)
         }
         description={`A closer look at your day · ${zoneText(t.zone)}`}
-        action={
+        action={allowed && events.length > 0 &&
           <Button onClick={() => go(7, { date, return: "11" })}>
             <Plus size={17} />
             Add event
@@ -1259,7 +1493,7 @@ export function DayDetail() {
                 aria-labelledby={`event-title-${e.id}`}
                 className={`card detail-event ${selectedEvent === e.id ? "focused" : ""}`}
               >
-                <Photo src={e.image} alt={e.place} />
+                <Photo src={e.image} alt={e.place} optional />
                 <div>
                   <span className="eyebrow">
                     {e.attendees.length}{" "}
@@ -1273,20 +1507,20 @@ export function DayDetail() {
                     <MapPin size={14} />
                     {e.place}
                   </button>
-                  <p>{e.notes || "A little something to look forward to."}</p>
                   <div className="row">
                     <Badge>
                       {e.cost
                         ? `${money(e.cost)} estimated`
                         : "No cost planned"}
                     </Badge>
-                    <Button
+                    {canEdit(t, s.userId, e.date) && <Button
                       variant="outline small"
                       onClick={() => go(7, { event: e.id, date, return: "11" })}
                     >
                       Edit event
-                    </Button>
+                    </Button>}
                   </div>
+                  <EventNotes key={e.id} notes={e.notes} />
                 </div>
               </article>
             </div>
@@ -1305,7 +1539,7 @@ export function DayDetail() {
           )}
         </div>
         <aside className="card day-summary">
-          <h2>{events.length} {events.length === 1 ? "event" : "events"}</h2>
+          {events.length > 0 && <h2>{events.length} {events.length === 1 ? "event" : "events"}</h2>}
           <button className="text-link" onClick={() => go(9)}>
             Find something nearby <ArrowRight size={15} />
           </button>

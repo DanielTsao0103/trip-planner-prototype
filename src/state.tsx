@@ -1,5 +1,7 @@
 import { sharedChangeError } from "./trip-permissions";
 import { useAccountTripSync } from "./account-trip-sync";
+import { useRecoveryClearance } from "./use-recovery-clearance";
+import { ConfirmDialog } from "./ui";
 import React, {
   createContext,
   useContext,
@@ -24,9 +26,12 @@ import {
 } from "./account-trips";
 export type Route = { page: number; params: URLSearchParams };
 export type Overlay = { kind: string; data?: any } | null;
+type FeedbackScope = "global" | "budget" | "connections" | "calendar" | "preferences";
 type Context = {
   s: Store;
   mapSyncOffline: boolean;
+  recoveryNotice: ReactNode;
+  unavailableTrip: string;
   accountTrips: boolean;
   pendingTripIds: string[];
   invite: (tripId: string, emails: string[]) => Promise<{ email: string; error: string }[]>;
@@ -49,9 +54,10 @@ type Context = {
   open: (kind: string, data?: any) => void;
   close: () => void;
   overlay: Overlay;
-  toast: (message: string) => void;
+  toast: (message: string, scope?: FeedbackScope) => void;
   /** Transient UI feedback; Budget presents it inline so it cannot cover expenses. */
   message: string;
+  messageScope: FeedbackScope;
   dismissMessage: () => void;
   updateTrip: (fn: (t: Trip) => void) => void;
   login: (id: string) => void;
@@ -69,6 +75,7 @@ export function Provider({
   account,
   onSignOut,
   initialTripId,
+  initialUserId,
   cloud = false,
   googlePicture,
   signInMethod,
@@ -79,6 +86,7 @@ export function Provider({
   googlePicture?: string;
   signInMethod?: SignInMethod;
   initialTripId?: string;
+  initialUserId?: string;
   onSignOut: () => Promise<void>;
 }) {
   const [s, setS] = useState(() => {
@@ -87,6 +95,14 @@ export function Provider({
     });
     // First-time demo visitors open the sample; existing local work survives refresh.
     if (!saved.tripId && initialTripId) saved.tripId = initialTripId;
+    if (!cloud && initialUserId && saved.users.some(user => user.id === initialUserId)) {
+      // Explicit demo entry honors its named traveler; a normal refresh keeps the selected participant.
+      saved.userId = initialUserId;
+      delete saved.sampleReturn;
+      const accessible = saved.trips.filter(trip => trip.members.some(person => person.id === initialUserId && person.status === "accepted"));
+      if (!accessible.some(trip => trip.id === saved.tripId))
+        saved.tripId = accessible.find(trip => trip.id === initialTripId)?.id ?? accessible[0]?.id ?? null;
+    }
     if (cloud) {
       // A matching email in a fictional fixture is never proof of account ownership.
       if (!saved.users.some((u) => u.id === account.id))
@@ -112,7 +128,12 @@ export function Provider({
     catch { /* The save banner and unload guard still protect in-memory drafts. */ }
   }
   const [, setSaveTick] = useState(0);
-  const [message, setMessage] = useState("");
+  const [{ text: message, scope: messageScope }, setFeedback] = useState<{text: string; scope: FeedbackScope}>({text: "", scope: "global"});
+  // Scope keeps transient feedback out of unrelated feature panels after navigation.
+  const setMessage = (text: string, scope: FeedbackScope = "global") => setFeedback({text, scope});
+  const [demoStorageError, setDemoStorageError] = useState(false);
+  const [unavailableTrip, setUnavailableTrip] = useState("");
+  const demoStorageIssue = useRef(false);
   const [saveNotice, setSaveNotice] = useState(0);
   const noticeSequence = useRef(0);
   const notifySaved = () => {
@@ -121,6 +142,9 @@ export function Provider({
   };
   const queueRef = useRef<TripSaveQueue | null>(null);
   const commit = (next: Store) => {
+    const previous = stateRef.current.trips.find(trip => trip.id === stateRef.current.tripId);
+    if (previous?.persistence === "account" && !next.trips.some(trip => trip.id === previous.id)) setUnavailableTrip(previous.title);
+    else if (next.tripId) setUnavailableTrip("");
     stateRef.current = next;
     setS(next);
   };
@@ -206,6 +230,11 @@ export function Provider({
   const pending = [...queue.pending.values()];
   const saveError = pending.find((entry) => entry.error)?.error;
   const [loadState, setLoadState] = useState(cloud ? "loading" : "ready");
+  const recoveryBanner = useRef<HTMLDivElement>(null);
+  const [confirmRecoveryDiscard, setConfirmRecoveryDiscard] = useState(false);
+  useEffect(() => { if (!pending.length) setConfirmRecoveryDiscard(false); }, [pending.length]);
+  const showRecovery = cloud && loadState === "ready" && (pending.length > 0 || rejectedRecovery.length > 0);
+  useRecoveryClearance(recoveryBanner, showRecovery);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const mounted = useRef(true);
   useEffect(() => {
@@ -380,35 +409,35 @@ export function Provider({
       window.scrollTo(0, 0);
     };
     window.addEventListener("hashchange", handler);
+    // A deep link or browser Back can change between render and subscription.
+    // Re-read after subscribing so the visible page cannot lag behind the URL.
+    setRoute(readRoute());
     // A successful login opens Home directly. Refreshing a demo route keeps that route.
     if (readRoute().page === 1) go(4);
     return () => window.removeEventListener("hashchange", handler);
   }, []);
+  function persistDemoState(store: Store): boolean {
+    try {
+      // Account trips live in the database; this copy holds only local demo work.
+      localStorage.setItem(demoStorageKey(account.id), JSON.stringify(cloud
+        ? {...store, trips: store.trips.filter(trip => trip.persistence !== "account")}
+        : store));
+      demoStorageIssue.current = false;
+      setDemoStorageError(false);
+      return true;
+    } catch {
+      demoStorageIssue.current = true;
+      setDemoStorageError(true);
+      return false;
+    }
+  }
   useEffect(() => {
     if (cloud && loadState !== "ready") return;
-    try {
-      // Database-backed trips are no longer a second permanent browser database.
-      // Only unsaved recovery drafts (above) and standalone demo data stay local.
-      localStorage.setItem(
-        demoStorageKey(account.id),
-        JSON.stringify(
-          cloud
-            ? {
-                ...s,
-                trips: s.trips.filter((t) => t.persistence !== "account"),
-              }
-            : s,
-        ),
-      );
-    } catch {
-      setMessage(
-        "Browser storage is unavailable. Demo changes will last until this page closes.",
-      );
-    }
+    persistDemoState(s);
   }, [s, account.id, cloud, loadState]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (queue.pending.size) {
+      if (queue.pending.size || demoStorageIssue.current) {
         event.preventDefault();
         event.returnValue = "";
       }
@@ -445,9 +474,92 @@ export function Provider({
         });
     }
   };
+  const recoveryNotice = showRecovery && (
+    <div
+      ref={recoveryBanner}
+      className="account-save-banner trip-recovery-banner"
+      role={saveError || recoveryError || rejectedRecovery.length ? "alert" : "status"}
+    >
+      <span>
+        {pending.length === 0 ? "Some local recovery data could not be read. Your saved trips are available. Download the recovery copy before clearing browser data." : saveError
+          ? `Not saved: ${saveError}`
+          : "Saving trip changes… Keep this page open."}
+      </span>
+      {recoveryError && pending.length > 0 && <span>
+        This browser cannot keep a recovery copy. Keep this page open until saving finishes, or download your changes before leaving.
+      </span>}
+      {rejectedRecovery.length > 0 && pending.length > 0 && <span>
+        Some older recovery data could not be read and has been kept for download.
+      </span>}
+      {(saveError || recoveryError || rejectedRecovery.length > 0) && (
+        <>
+          {pending.length > 0 && <button
+            className="btn small recovery-retry"
+            onClick={() => queue.retry()}
+          >
+            Retry save
+          </button>}
+          <details className="recovery-more" onToggle={(event) => {
+            const details = event.currentTarget;
+            if (!details.open || window.innerWidth > 760) return;
+            requestAnimationFrame(() => {
+              const banner = details.closest(".trip-recovery-banner");
+              const eventId = route.params.get("event");
+              const card = eventId ? document.getElementById(`itinerary-event-${eventId}`) : null;
+              if (!banner || !card) return;
+              const clearance = card.getBoundingClientRect().top - banner.getBoundingClientRect().bottom - 12;
+              if (clearance < 0) window.scrollBy({ top: clearance, behavior: "instant" });
+            });
+          }}>
+            <summary>More options</summary>
+            <div className="recovery-secondary-actions">
+          <button
+            className="btn outline small"
+            aria-label="Download unsaved copy"
+            onClick={() => {
+              const blob = new Blob(
+                [
+                  JSON.stringify(
+                    rejectedRecovery.length
+                      ? { pending: pending.map(p => p.draft), unreadable: rejectedRecovery }
+                      : pending.map((p) => p.draft),
+                    null,
+                    2,
+                  ),
+                ],
+                { type: "application/json" },
+              );
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = "unsaved-trip-changes.json";
+              link.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            Download unsaved copy
+          </button>
+          {pending.length > 0 && <button
+            className="btn outline small"
+            aria-label="Discard edits and reload"
+            onClick={(event) => {
+              event.currentTarget.focus({ preventScroll: true });
+              setConfirmRecoveryDiscard(true);
+            }}
+          >
+            <span className="recovery-label-full">Discard edits and reload</span><span className="recovery-label-short" aria-hidden="true">Discard edits</span>
+          </button>}
+            </div>
+          </details>
+        </>
+      )}
+    </div>
+  );
   const value: Context = {
+    recoveryNotice,
     s,
     mapSyncOffline,
+    unavailableTrip,
     accountTrips: cloud && s.userId === account.id,
     pendingTripIds: [...queue.pending.keys()],
     invite: async (tripId, emails) => {
@@ -576,6 +688,7 @@ export function Provider({
       if (target.persistence === "account") notifySaved();
     },
     signOut: async () => {
+      if (demoStorageIssue.current && !window.confirm("Some demo changes are not saved in this browser. Keep this page open and retry, or leave without saving?")) return;
       if (
         queue.pending.size &&
         !window.confirm(
@@ -607,10 +720,11 @@ export function Provider({
     overlay,
     open: (kind, data) => setOverlay({ kind, data }),
     close: () => setOverlay(null),
-    message,
+    message: demoStorageError ? "" : message,
+    messageScope,
     dismissMessage: () => setMessage(""),
-    toast: (message) => {
-      if (!queue.pending.size) setMessage(message);
+    toast: (message, scope = "global") => {
+      if (!queue.pending.size) setMessage(message, scope);
     },
     updateTrip: (fn) =>
       mutate((v) => {
@@ -641,87 +755,17 @@ export function Provider({
   };
   return (
     <C.Provider value={value}>
-      {cloud && loadState === "ready" && (pending.length > 0 || rejectedRecovery.length > 0) && (
-        <div
-          className="account-save-banner"
-          role={saveError || recoveryError || rejectedRecovery.length ? "alert" : "status"}
-        >
-          <span>
-            {pending.length === 0 ? "Some local recovery data could not be read. Your saved trips are available. Download the recovery copy before clearing browser data." : saveError
-              ? `Not saved: ${saveError}`
-              : "Saving trip changes… Keep this page open."}
-          </span>
-          {recoveryError && pending.length > 0 && <span>
-            This browser cannot keep a recovery copy. Keep this page open until saving finishes, or download your changes before leaving.
-          </span>}
-          {rejectedRecovery.length > 0 && pending.length > 0 && <span>
-            Some older recovery data could not be read and has been kept for download.
-          </span>}
-          {(saveError || recoveryError || rejectedRecovery.length > 0) && (
-            <>
-              {pending.length > 0 && <button
-                className="btn outline small"
-                onClick={() => queue.retry()}
-              >
-                Retry save
-              </button>}
-              <button
-                className="btn outline small"
-                onClick={() => {
-                  const blob = new Blob(
-                    [
-                      JSON.stringify(
-                        rejectedRecovery.length
-                          ? { pending: pending.map(p => p.draft), unreadable: rejectedRecovery }
-                          : pending.map((p) => p.draft),
-                        null,
-                        2,
-                      ),
-                    ],
-                    { type: "application/json" },
-                  );
-                  const url = URL.createObjectURL(blob);
-                  const link = document.createElement("a");
-                  link.href = url;
-                  link.download = "unsaved-trip-changes.json";
-                  link.click();
-                  URL.revokeObjectURL(url);
-                }}
-              >
-                Download unsaved copy
-              </button>
-              {pending.length > 0 && <button
-                className="btn outline small"
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      "Discard unsaved changes and reload the database version? Download your unsaved copy first if you want to keep it.",
-                    )
-                  ) {
-                    const discardedIds = [...queue.pending.keys()];
-                    try {
-                      if (!recoveryRef.current) throw new Error("Recovery storage unavailable");
-                      recoveryRef.current.discard(discardedIds);
-                    } catch {
-                      setRecoveryError(true);
-                      return;
-                    }
-                    queue.pending.clear();
-                    queue.stop();
-                    location.reload();
-                  }
-                }}
-              >
-                Reload saved version
-              </button>}
-            </>
-          )}
-        </div>
-      )}
+      {demoStorageError && <div className="account-save-banner demo-storage-error" role="alert">
+        <span>Browser storage is unavailable. Demo changes will last until this page closes.</span>
+        <button className="btn outline small" onClick={() => {
+          if (persistDemoState(stateRef.current)) setMessage("Demo changes saved in this browser.");
+        }}>Retry browser save</button>
+      </div>}
+
       {loadState === "ready" ? (
         children
       ) : (
-        <main className="narrow-page" aria-busy={loadState === "loading"}>
+        <main className="narrow-page account-load-state" aria-busy={loadState === "loading"}>
           <h1>
             {loadState === "loading"
               ? "Loading your trips…"
@@ -746,14 +790,36 @@ export function Provider({
           </button>
         </main>
       )}
+      {confirmRecoveryDiscard && pending.length > 0 && <ConfirmDialog
+        title="Discard unsaved trip changes?"
+        cancelLabel="Keep changes"
+        confirmLabel="Discard and reload"
+        onCancel={() => setConfirmRecoveryDiscard(false)}
+        onConfirm={() => {
+          setConfirmRecoveryDiscard(false);
+          const discardedIds = [...queue.pending.keys()];
+          if (!discardedIds.length) return;
+          try {
+            if (!recoveryRef.current) throw new Error("Recovery storage unavailable");
+            recoveryRef.current.discard(discardedIds);
+          } catch {
+            setRecoveryError(true);
+            return;
+          }
+          queue.pending.clear();
+          queue.stop();
+          location.reload();
+        }}>
+        Your unsaved changes will be lost and your saved trips will reload. Download your unsaved copy first if you want to keep it.
+      </ConfirmDialog>}
       {saveNotice > 0 && (
         <div className="save-toast" role="status" aria-live="polite">
           <Check size={16} aria-hidden="true" />
-          Changes saved
+          Trip changes saved
         </div>
       )}
-      {message && (route.page !== 12 || !trip || overlay) && (
-        <div className="toast" role="status">
+      {message && !demoStorageError && (messageScope !== "calendar" || (route.page === 8 && route.params.get("view") === "calendar")) && (messageScope !== "connections" || [2, 3].includes(route.page)) && (messageScope !== "preferences" || [8, 10, 13].includes(route.page)) && (messageScope !== "budget" || (route.page === 12 && (!trip || overlay))) && (
+        <div className="toast" role="status" data-event-success={/^(?:Event updated everywhere|A new plan, added)/.test(message) || undefined}>
           {message}
           <button aria-label="Dismiss message" onClick={() => setMessage("")}>
             ×

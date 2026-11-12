@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { ArrowRight, LogOut, Palette, Users } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, LogOut, Palette, Users } from "lucide-react";
 import { useApp } from "./state";
 import { Avatar, Button, ErrorBox, Field, PageHead } from "./ui";
 import { ProfilePictureEditor } from "./profile-picture-editor";
 import { PASSWORD_MAX, nameError, passwordChangeError } from "./account";
 import { changeAccountPassword, saveAccountName } from "./account-actions";
 import { TEXT_LIMITS } from "./limits";
+import "./account-style-refinement.css";
 
 /** Account hub, opened from the profile picture. Real accounts store everything in Supabase. */
 export function AccountPage() {
@@ -47,7 +48,7 @@ export function AccountPage() {
             </div>
           </dl>
           {method === "email" ? (
-            <PasswordForm email={email} />
+            <details className="account-password-disclosure"><summary>Change password</summary><PasswordForm email={email} /></details>
           ) : (
             // Passwords for Google (or other provider) accounts belong to that provider, so no form here.
             <p className="account-note">
@@ -75,11 +76,11 @@ export function AccountPage() {
             <Palette size={16} />
           </button>
           <button onClick={() => open("demo")}>
-            Switch demo participant
+            Prototype controls
             <Users size={16} />
           </button>
           <button onClick={() => void signOut()}>
-            Log out
+            {cloud ? "Log out" : "Exit demo"}
             <LogOut size={16} />
           </button>
         </div>
@@ -118,7 +119,7 @@ function NameForm({ current }: { current: string }) {
   }
 
   return (
-    <form className="account-form" onSubmit={submit} noValidate>
+    <form className="account-form account-name-form" onSubmit={submit} noValidate>
       <Field label="Name">
         <input
           type="text"
@@ -153,6 +154,7 @@ function PasswordForm({ email }: { email: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [revealed, setRevealed] = useState({ current: false, next: false, confirm: false });
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -186,36 +188,38 @@ function PasswordForm({ email }: { email: string }) {
   };
 
   return (
-    <form className="account-form" onSubmit={submit} noValidate aria-label="Change password">
-      <h3>Change password</h3>
+    <form className="account-form account-password-form" onSubmit={submit} noValidate aria-label="Change password">
       <Field label="Current password">
-        <input
-          type="password"
+        <span className="password-input"><input
+          type={revealed.current ? "text" : "password"}
           autoComplete="current-password"
           value={current}
           disabled={busy}
           onChange={edit(setCurrent)}
         />
+        <button type="button" className="password-toggle" disabled={busy} aria-label={`${revealed.current ? "Hide" : "Show"} current password`} aria-pressed={revealed.current} onClick={() => setRevealed(value => ({...value, current: !value.current}))}>{revealed.current ? <EyeOff size={18}/> : <Eye size={18}/>}</button></span>
       </Field>
       <Field label="New password" hint="Use at least 8 characters.">
-        <input
-          type="password"
+        <span className="password-input"><input
+          type={revealed.next ? "text" : "password"}
           autoComplete="new-password"
           maxLength={PASSWORD_MAX}
           value={next}
           disabled={busy}
           onChange={edit(setNext)}
         />
+        <button type="button" className="password-toggle" disabled={busy} aria-label={`${revealed.next ? "Hide" : "Show"} new password`} aria-pressed={revealed.next} onClick={() => setRevealed(value => ({...value, next: !value.next}))}>{revealed.next ? <EyeOff size={18}/> : <Eye size={18}/>}</button></span>
       </Field>
       <Field label="Confirm new password">
-        <input
-          type="password"
+        <span className="password-input"><input
+          type={revealed.confirm ? "text" : "password"}
           autoComplete="new-password"
           maxLength={PASSWORD_MAX}
           value={confirm}
           disabled={busy}
           onChange={edit(setConfirm)}
         />
+        <button type="button" className="password-toggle" disabled={busy} aria-label={`${revealed.confirm ? "Hide" : "Show"} confirm new password`} aria-pressed={revealed.confirm} onClick={() => setRevealed(value => ({...value, confirm: !value.confirm}))}>{revealed.confirm ? <EyeOff size={18}/> : <Eye size={18}/>}</button></span>
       </Field>
       <ErrorBox text={error} />
       {done && (

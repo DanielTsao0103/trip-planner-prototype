@@ -1,4 +1,4 @@
-import { eventError, type Event, type Trip } from './domain.ts';
+import { canEdit, EVENT_PERMISSION_MESSAGE, eventError, type Event, type Trip } from './domain.ts';
 
 export function addCalendarDays(date: string, amount: number): string {
   const value = new Date(`${date}T12:00:00Z`);
@@ -23,5 +23,31 @@ export function rescheduleEvent(trip: Trip, user: string | null, eventId: string
   if (duration <= 0 || end >= 1440) return { error: 'This move would end after the last time slot. Choose an earlier start time.' };
   const event = { ...original, date, start, end: clock(end) };
   const error = eventError(trip, user, event, original);
+  if (error === EVENT_PERMISSION_MESSAGE && canEdit(trip, user, original.date) && !canEdit(trip, user, date))
+    return { error: 'You do not have permission to move events to this day. Choose one of your assigned days.' };
   return error ? { error } : { event, error: '' };
+}
+
+/** Assign simultaneous visible cards separate lanes without changing event times.
+ * Minimum display duration accounts for short cards' readable minimum height.
+ */
+export function calendarLanes(events: Pick<Event, 'id' | 'start' | 'end'>[], minimumDisplayMinutes = 40): Map<string, {column: number; columns: number}> {
+  const result = new Map<string, {column: number; columns: number}>();
+  let group: {id: string; column: number}[] = [];
+  let laneEnds: number[] = [];
+  let groupEnd = -1;
+  const finish = () => {
+    for (const item of group) result.set(item.id, {column: item.column, columns: laneEnds.length});
+    group = []; laneEnds = []; groupEnd = -1;
+  };
+  const sorted = [...events].sort((a,b) => minutes(a.start)-minutes(b.start) || minutes(b.end)-minutes(a.end) || a.id.localeCompare(b.id));
+  for (const event of sorted) {
+    const start=minutes(event.start), end=Math.max(minutes(event.end), start+minimumDisplayMinutes);
+    if (start >= groupEnd) finish();
+    let column=laneEnds.findIndex(lastEnd=>lastEnd<=start);
+    if (column<0) column=laneEnds.length;
+    laneEnds[column]=end; group.push({id:event.id,column}); groupEnd=Math.max(groupEnd,end);
+  }
+  finish();
+  return result;
 }

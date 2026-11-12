@@ -1,0 +1,103 @@
+/* Keep foregrounds paired with the fill they were computed for. Brand palettes
+   and logo assets stay unchanged; these are functional theme compatibility rules. */
+:root .gmap-pin.selected {
+  background: var(--green);
+  color: var(--on-primary);
+}
+
+/* Release feedback uses the same inverse ink/paper pair as transient feedback.
+   Its old derived fill was unrelated to the primary action foreground. */
+:root .release-notice {
+  background: var(--ink);
+  color: var(--paper);
+}
+:root .release-notice button {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* A selected date must retain its paired colors while hovered. Holidays keep
+   their existing red fill and white label rather than inheriting theme ink. */
+:root .date-day.selected,
+:root .date-day.selected:hover:not(:disabled) {
+  background: var(--green);
+  color: var(--on-primary);
+}
+:root .date-day.selected.holiday,
+:root .date-day.selected.holiday:hover:not(:disabled) {
+  background: #b3261e;
+  color: #fff;
+}
+
+/* Count badges sit directly on the primary fill, including light Yellow/Creme. */
+:root .dietary-bubble-count {
+  color: var(--on-primary);
+}
+
+/* Selection retains its theme tint and border, with readable text on the tint. */
+:root .choice-chips label.selected,
+:root .survey-nav button.active {
+  color: var(--ink);
+}
+
+/* The preview's primary is a decorative brand color, not a text color for every
+   pale surface. Keep the original fills and use its matching readable ink. */
+:root .sp-button.ghost,
+:root .sp-chip,
+:root .sp-eyebrow,
+:root .sp-row strong {
+  color: var(--sp-ink);
+}
+
+/* Primary fills and chart/logo colors remain untouched. Text and meaningful
+   icons on pale or dark surfaces use the separately contrast-checked accent. */
+:root .btn:is(.outline, .text, .light),
+:root .btn[data-ui="button"]:is(.outline, .text, .light):hover:not(:disabled),
+:root .text-link,
+:root .inline-link,
+:root .success,
+:root .tabs > button.active,
+:root .place-popular-times a,
+:root .trip-summary button,
+:root .dining-preference-heading-icon,
+:root .spending-average-icon,
+:root .mobility-access-icon,
+:root .dietary-bubble,
+:root .trip-photo-intro a,
+:root .trip-photo-upload,
+:root .event-location-option > svg,
+:root .trip-form-intro svg,
+:root .event-photo-upload,
+:root .event-photo-find,
+:root .invite-review .invite-trip-name,
+:root .invite-category-icon {
+  color: var(--action-ink);
+}
+
+/* Tinted helper surfaces need their own readable foreground, not a legacy
+   hue-derived gray. Keep the user's palette and illustrations unchanged. */
+:root .available-slot,
+:root .trip-photo-upload small,
+:root .day-number,
+:root .day-chips a span,
+:root .empty-day p,
+:root .note,
+:root .mobile-trip-preview p,
+:root .badge:not(.white),
+:root .dining-preference-value,
+:root .mobility-radius-label,
+:root .mobility-access-label,
+:root .mobile-nav button.active {
+  color: var(--ink);
+}
+:root .btn.outline {
+  background: var(--paper);
+}
+
+:root .info-banner, :root .sample-feature > div > p, :root .empty p { color: var(--ink); }
+
+:root .demo-mobile-tabs .btn[data-ui="button"][aria-pressed="true"],
+:root .demo-mobile-tabs .btn[data-ui="button"][aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--green);
+  color: var(--on-primary);
+}

@@ -51,6 +51,7 @@ async function login(page: Page) {
   await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
 }
 async function controls(page: Page) {
+  if (!await page.getByRole("button", { name: "Prototype", exact: true }).isVisible()) await page.getByRole("button", { name: "Open navigation menu", exact: true }).click();
   await page.getByRole('button', { name: 'Prototype', exact: true }).click();
   return page.getByRole('dialog', { name: 'Prototype controls' });
 }
@@ -63,16 +64,29 @@ async function noOverflow(page: Page) {
 }
 
 test('destination suggestions and both calendars open directly below their fields', async ({ page }) => {
+  await page.route('**/functions/v1/unsplash-search**', route => route.fulfill({ json: { results: [] } }));
+  await page.route('https://geocoding-api.open-meteo.com/**', route => route.fulfill({ json: { results: [{ name: 'France', timezone: 'Europe/Paris' }] } }));
   await demo(page);
   await page.goto('./#/6');
+  // A pointer left over the new menu can select an option before keyboard input.
+  await page.mouse.move(0, 0);
   const destination = page.getByRole('combobox', { name: 'Where are you going?' });
   await destination.fill('France');
   const menu = page.locator('.destination-menu');
   await expectUnderInput(destination, menu);
   await expect(menu.getByRole('option').first()).toBeVisible();
   await destination.press('ArrowDown');
+  await expect(menu.getByRole('option').first()).toHaveAttribute('aria-selected', 'true');
   await destination.press('Enter');
   await expect(menu).toBeHidden();
+  await expect(destination).toHaveValue('');
+  const addedDestinations = page.locator('.trip-editor-form .chips .chip');
+  await expect(addedDestinations).toHaveCount(1);
+  // Pointer selection uses the same commit path and must not duplicate a place.
+  await destination.fill('France');
+  await menu.getByRole('option').first().click();
+  await expect(addedDestinations).toHaveCount(1);
+  await expect(destination).toHaveValue('');
   for (const [label, edge] of [['Start date', 'left'], ['End date', 'right']] as const) {
     const date = page.getByLabel(label, { exact: true });
     await date.click();
@@ -118,6 +132,7 @@ test('trip photo search follows the chosen destination and keeps two to five opt
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.getByLabel('Photos for')).toHaveCount(0);
   await expect(page.locator('.trip-photo-options button')).toHaveCount(5);
+  await page.locator('.trip-photo-disclosure > summary').click();
   await expect(page.locator('.trip-photo-options img').first()).toHaveAttribute('alt', 'Spain photo 2');
   await destinationInput.fill('France');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
@@ -225,6 +240,8 @@ test('demo core screens render and sample trips survive refresh', async ({ page 
 });
 
 test('created trips survive reload and logout, deletion preserves the samples', async ({ page }) => {
+  await page.route('**/functions/v1/unsplash-search**', route => route.fulfill({json: {results: []}}));
+  await page.route('https://geocoding-api.open-meteo.com/**', route => route.fulfill({json: {results: [{name: 'Taipei', timezone: 'Asia/Taipei'}]}}));
   await demo(page);
   await page.goto('./#/5');
   await page.getByRole('button', { name: 'New trip', exact: true }).click();
@@ -237,7 +254,7 @@ test('created trips survive reload and logout, deletion preserves the samples', 
   await page.reload();
   await expect(page.getByRole('button', { name: 'QA weekend', exact: true })).toBeVisible();
   await openAccount(page);
-  await page.getByRole('button', { name: 'Log out', exact: true }).click();
+  await page.locator('.account-page').getByRole('button', { name: 'Exit demo', exact: true }).click();
   await page.getByRole('button', { name: 'Try demo as Maya', exact: true }).click();
   await page.goto('./#/5');
   await expect(page.getByRole('button', { name: 'QA weekend', exact: true })).toBeVisible();
@@ -251,13 +268,17 @@ test('created trips survive reload and logout, deletion preserves the samples', 
   await expect(page.getByRole('button', { name: 'Seattle & Bainbridge getaway', exact: true })).toBeVisible();
 });
 
-test('itinerary pages through five days and shows the current range', async ({ page }) => {
+test('itinerary defaults to Calendar and List pages through 7, 10, or 20 days', async ({ page }) => {
+  await page.route('**/functions/v1/unsplash-search**', route => route.fulfill({json: {results: []}}));
+  await page.route('https://geocoding-api.open-meteo.com/**', route => route.fulfill({json: {results: [{name: 'Taipei', timezone: 'Asia/Taipei'}]}}));
+  await page.route('https://maps.googleapis.com/maps/api/js?**', route => route.abort());
   await demo(page);
   await page.goto('./#/8');
   await expect(page.getByRole('button', { name: 'Calendar', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'List', exact: true }).click();
-  await expect(page.locator('.day-page-controls').first()).toContainText('Days 1–4 of 4');
-  await expect(page.locator('.day-page-controls-bottom')).toContainText('Days 1–4 of 4');
+  await expect(page.locator('.day-page-controls')).toHaveCount(0);
+  await expect(page.locator('.day-chips a')).toHaveCount(4);
+  await expect(page.locator('.day-section')).toHaveCount(4);
   await expect(page.getByRole('button', { name: 'Next days' })).toHaveCount(0);
 
   await page.goto('./#/5');
@@ -265,31 +286,62 @@ test('itinerary pages through five days and shows the current range', async ({ p
   await page.getByLabel('Trip title', { exact: true }).fill('Paging QA');
   await page.getByLabel('Where are you going?', { exact: true }).fill('Taipei');
   await page.getByLabel('Start date', { exact: true }).fill('2027-05-01');
-  await page.getByLabel('End date', { exact: true }).fill('2027-05-12');
+  await page.getByLabel('End date', { exact: true }).fill('2027-05-23');
   await page.getByRole('button', { name: 'Create trip', exact: true }).click();
   await page.getByRole('button', { name: 'Paging QA', exact: true }).click();
   await page.getByRole('button', { name: 'List', exact: true }).click();
 
-  const pages = page.locator('.day-page-controls');
+  const pages = page.getByRole('navigation', { name: 'Itinerary day pages', exact: true });
+  const bottomPages = page.locator('.day-page-controls-bottom');
   const tiles = page.locator('.day-chips a');
   const sections = page.locator('.day-section');
-  await expect(pages).toContainText('Days 1–7 of 12');
-  await expect(tiles).toHaveCount(7);
-  await expect(sections).toHaveCount(7);
-  await expect(tiles.last()).toContainText('Day 7');
-  await pages.getByRole('button', { name: 'Next days' }).click();
-  await expect(pages).toContainText('Days 8–12 of 12');
-  await expect(tiles.first()).toContainText('Day 8');
-  await expect(sections).toHaveCount(5);
-  await expect(pages.getByRole('button', { name: 'Next days' })).toBeDisabled();
-  await pages.getByRole('button', { name: 'Previous days' }).click();
-  await expect(pages).toContainText('Days 1–7 of 12');
-  await page.getByLabel('Days to show').selectOption('10');
-  await expect(pages).toContainText('Days 1–10 of 12');
-  await expect(tiles).toHaveCount(10);
-  await page.getByLabel('Days to show').selectOption('20');
-  await expect(pages).toContainText('Days 1–12 of 12');
-  await expect(tiles).toHaveCount(12);
+  const pageSize = page.getByRole('combobox', { name: 'Days to show', exact: true });
+  await expect(pageSize).toHaveValue('7');
+  for (const size of [7, 10, 20]) {
+    await pageSize.selectOption(String(size));
+    // Changing page size retains the viewed day; return to the start for this full-range traversal.
+    while (await pages.getByRole('button', { name: 'Previous days' }).isEnabled())
+      await pages.getByRole('button', { name: 'Previous days' }).click();
+    await expect(pages.getByRole('button', { name: 'Previous days' })).toBeDisabled();
+    await expect(bottomPages.getByRole('button', { name: 'Previous days' })).toBeDisabled();
+    for (let start = 1; start <= 23; start += size) {
+      const end = Math.min(start + size - 1, 23);
+      const range = `Days ${start}–${end} of 23`;
+      await expect(pages).toContainText(range);
+      await expect(bottomPages).toContainText(range);
+      await expect(tiles).toHaveCount(end - start + 1);
+      await expect(sections).toHaveCount(end - start + 1);
+      await expect(tiles.first()).toContainText(`Day ${start}`);
+      await expect(tiles.last()).toContainText(`Day ${end}`);
+      await expect(sections.first()).toHaveAttribute('id', `day-2027-05-${String(start).padStart(2, '0')}`);
+      await expect(sections.last()).toHaveAttribute('id', `day-2027-05-${String(end).padStart(2, '0')}`);
+      if (end < 23) await pages.getByRole('button', { name: 'Next days' }).click();
+      else {
+        await expect(pages.getByRole('button', { name: 'Next days' })).toBeDisabled();
+        await expect(bottomPages.getByRole('button', { name: 'Next days' })).toBeDisabled();
+      }
+    }
+    await bottomPages.getByRole('button', { name: 'Previous days' }).click();
+    const previousStart = (Math.ceil(23 / size) - 2) * size + 1;
+    await expect(pages).toContainText(`Days ${previousStart}–${previousStart + size - 1} of 23`);
+    // Bottom paging must bring keyboard and visual context to the new page,
+    // rather than leave the traveler at the end of a different set of dates.
+    await expect(sections.first()).toBeFocused();
+    await expect(sections.first().locator('.day-title')).toBeInViewport({ ratio: 1 });
+    await bottomPages.getByRole('button', { name: 'Next days' }).click();
+    const finalStart = Math.floor(22 / size) * size + 1;
+    await expect(pages).toContainText(`Days ${finalStart}–23 of 23`);
+    await expect(bottomPages).toContainText(`Days ${finalStart}–23 of 23`);
+    await expect(sections.first()).toHaveAttribute('id', `day-2027-05-${String(finalStart).padStart(2, '0')}`);
+    await expect(sections.first()).toBeFocused();
+    await expect(sections.first().locator('.day-title')).toBeInViewport({ ratio: 1 });
+    await expect(bottomPages.getByRole('button', { name: 'Next days' })).toBeDisabled();
+    await page.getByLabel('Jump to day', { exact: true }).selectOption('2027-05-23');
+    await expect(page.locator('#day-2027-05-23')).toBeInViewport();
+    await expect(pages).toContainText(`Days ${Math.floor(22 / size) * size + 1}–23 of 23`);
+    await noOverflow(page);
+  }
+
   await noOverflow(page);
 });
 
@@ -297,6 +349,7 @@ test('prototype start-at-login actually exits demo and remains signed out after 
   for (const entry of ['Start at Log in / Create account', '01 Log in / Create account']) {
     await demo(page);
     const dialog = await controls(page);
+    if (entry.startsWith("01") && await dialog.getByRole("button", {name:"Screens",exact:true}).isVisible()) await dialog.getByRole("button", {name:"Screens",exact:true}).click();
     await dialog.getByRole('button', { name: entry, exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Welcome to Stir Crazy' })).toBeVisible();
     await page.reload();
@@ -324,17 +377,24 @@ test('new release offers reload without interrupting a form', async ({ page }) =
   await expect(page.getByRole('button', { name: 'Reload app', exact: true })).toBeVisible();
   await page.getByLabel('Email', { exact: true }).fill('unsaved@example.com');
   await expect(page.getByLabel('Email', { exact: true })).toHaveValue('unsaved@example.com');
-  await expect(page.getByRole('status')).toContainText('Finish any unsaved edits');
+  await expect(page.getByRole('status')).toContainText('Finish what you’re doing before reloading');
   await noOverflow(page);
   await page.getByRole('button', { name: 'Reload app', exact: true }).click();
   await expect(page).toHaveURL(/release=ffffffff/);
   await expect(page.getByRole('heading', { name: 'Welcome to Stir Crazy' })).toBeVisible();
+  await page.setViewportSize({ width: 768, height: 900 });
+  await page.getByRole('button', { name: 'Try demo as Maya', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Reload app', exact: true })).toBeVisible();
+  const notice = await page.locator('.release-notice').boundingBox();
+  const sidebar = await page.locator('.sidebar').boundingBox();
+  expect(sidebar!.y).toBeGreaterThanOrEqual(notice!.y + notice!.height);
 });
 
 
 test('screen index sample entry preserves the real account return path', async ({ page }) => {
   await login(page);
   const dialog = await controls(page);
+  if (await dialog.getByRole("button", {name:"Screens",exact:true}).isVisible()) await dialog.getByRole("button", {name:"Screens",exact:true}).click();
   await dialog.getByRole('button', { name: '08 Itinerary', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Seattle & Bainbridge getaway', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Back to my trips', exact: true }).click();
@@ -507,6 +567,7 @@ test('account page: email accounts can change their password after confirming th
   await openAccount(page);
   const panel = page.locator('.account-page');
   await expect(panel.getByText('Email and password')).toBeVisible();
+  await panel.locator('.account-password-disclosure > summary').click();
   const form = panel.getByRole('form', { name: 'Change password' });
   await form.getByLabel('Current password', { exact: true }).fill('prototype-test-password');
   await form.getByLabel('New password', { exact: true }).fill('short');
@@ -552,5 +613,72 @@ test('account page: the Maya demo has no editable account details', async ({ pag
   await expect(panel.getByText('local demo account')).toBeVisible();
   await expect(panel.getByLabel('Name', { exact: true })).toHaveCount(0);
   await expect(panel.getByText('Change password')).toHaveCount(0);
-  await expect(panel.getByRole('button', { name: 'Log out' })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Exit demo' })).toBeVisible();
+});
+
+
+test('password visibility preserves entry and demo exit returns to the top of login', async ({ page }) => {
+  await page.goto('./');
+  const password = page.getByLabel('Password', { exact: true });
+  await password.fill('visible-typo-check');
+  await page.getByRole('button', { name: 'Show password', exact: true }).click();
+  await expect(password).toHaveAttribute('type', 'text');
+  await expect(password).toHaveValue('visible-typo-check');
+  await page.getByRole('button', { name: 'Hide password', exact: true }).click();
+  await expect(password).toHaveAttribute('type', 'password');
+  await page.getByRole('button', { name: 'Try demo as Maya', exact: true }).click();
+  await page.goto('./#/13');
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.getByRole('button', { name: 'Exit demo', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Log in', exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+});
+
+test('duplicate signup offers direct login recovery and keeps the email', async ({ page }, testInfo) => {
+  if (testInfo.project.name === 'mobile') await page.setViewportSize({ width: 390, height: 600 });
+  await page.route('https://*.supabase.co/auth/v1/signup**',route=>route.fulfill({status:422,json:{code:'user_already_exists',msg:'User already registered'},headers:{'x-supabase-api-version':'2024-01-01'}}));
+  await page.goto('./');
+  await page.evaluate(() => document.fonts.ready);
+  await page.getByRole('button',{name:'New here? Create an account',exact:true}).click();
+  await page.getByLabel('Your name',{exact:true}).fill('QA Traveler');
+  await page.getByLabel('Email',{exact:true}).fill(account.email);
+  await page.getByLabel('Password',{exact:true}).fill('existing-password');
+  await page.getByRole('button',{name:'Create account',exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('An account already uses this email');
+  await expect(page.getByRole('alert')).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole('button',{name:'Log in instead',exact:true})).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole('button',{name:'Already have an account? Log in',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Log in instead',exact:true}).click();
+  await expect(page.getByLabel('Email',{exact:true})).toHaveValue(account.email);
+  await expect(page.getByLabel('Password',{exact:true})).toBeFocused();
+  await expect(page.getByLabel('Password',{exact:true})).toHaveValue('');
+  await page.getByLabel('Password',{exact:true}).fill('existing-password');
+  await page.getByRole('button',{name:'Log in',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Home',exact:true})).toBeVisible();
+});
+
+test('forwarded booking removal is deliberate and a failed request can be retried', async ({ page }) => {
+  const booking = {booking_id:'qa-booking',kind:'lodging',title:'Harbor stay',start_date:'2027-05-01',end_date:'2027-05-04',location:'Seattle',confirmation_code:'QA123',sender:account.email,received_at:'2026-11-11T12:00:00Z'};
+  let attempts=0, deleted=false;
+  await page.route('**/rest/v1/forwarded_booking**',route=>{
+    if(route.request().method()==='DELETE') {
+      attempts++;
+      if(attempts===1)return route.fulfill({status:503,json:{message:'Temporary failure'}});
+      deleted=true;return route.fulfill({status:204});
+    }
+    return route.fulfill({json:deleted?[]:[booking]});
+  });
+  await login(page);
+  const remove=page.getByRole('button',{name:'Remove Harbor stay',exact:true});
+  await remove.click();
+  const dialog=page.getByRole('dialog',{name:'Remove this booking?',exact:true});
+  await expect(dialog).toContainText('does not cancel your reservation');
+  await dialog.getByRole('button',{name:'Keep booking',exact:true}).click();
+  expect(attempts).toBe(0);await expect(remove).toBeFocused();
+  await remove.click();await dialog.getByRole('button',{name:'Remove booking',exact:true}).click();
+  await expect(dialog.getByRole('alert')).toContainText('could not remove');
+  await expect(page.getByRole('heading',{name:'Harbor stay',exact:true})).toHaveCount(1);
+  await dialog.getByRole('button',{name:'Remove booking',exact:true}).click();
+  await expect(dialog).toHaveCount(0);await expect(page.getByRole('heading',{name:'Forwarded bookings',exact:true})).toBeFocused();
+  expect(attempts).toBe(2);await page.reload();await expect(page.getByRole('heading',{name:'Harbor stay',exact:true})).toHaveCount(0);
 });

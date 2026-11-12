@@ -52,6 +52,17 @@ export type ExchangeRate = {
   checkedAt: number;
 };
 
+/** Keep stale, otherwise valid provider data distinct from malformed responses. */
+export class OutdatedExchangeRateError extends Error {
+  readonly date: string;
+
+  constructor(date: string) {
+    super(`Exchange rate dated ${date} is too old`);
+    this.name = "OutdatedExchangeRateError";
+    this.date = date;
+  }
+}
+
 /** Validate upstream and cached data before using it for any calculation. */
 export function parseRate(
   data: unknown,
@@ -73,11 +84,12 @@ export function parseRate(
     !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
     !Number.isFinite(timestamp) ||
     new Date(timestamp).toISOString().slice(0, 10) !== date ||
-    timestamp > now + 2 * DAY_MS ||
-    now - timestamp > MAX_RATE_AGE_MS
+    timestamp > now + 2 * DAY_MS
   ) {
     throw new Error("Invalid or outdated exchange rate");
   }
+  if (now - timestamp > MAX_RATE_AGE_MS)
+    throw new OutdatedExchangeRateError(date);
   return { base, quote, rate: row.rate, date, checkedAt: now };
 }
 

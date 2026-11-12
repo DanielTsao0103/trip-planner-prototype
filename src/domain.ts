@@ -39,6 +39,15 @@ export type Event = {
   point?: MapPoint | null;
   googlePlaceId?: string | null;
 };
+export type RepaymentEntry = {
+  id: string;
+  debtor: string;
+  status: "paid" | "unpaid";
+  reason: string;
+  actor: string;
+  /** Supplied by the server for account history; absent while the save is pending. */
+  recordedAt?: string;
+};
 export type Expense = {
   id: string;
   purpose: string;
@@ -48,7 +57,9 @@ export type Expense = {
   shares: Record<string, number>;
   date: string;
   source: string;
+  /** Ever-paid participants; retained permanently to lock the original expense. */
   settled: string[];
+  repaymentHistory?: RepaymentEntry[];
 };
 export type Trip = {
   /** Account trips reload all structured planning details from Supabase. */
@@ -119,6 +130,11 @@ export const dateText = (date: string, short = false) =>
       ? { month: "short", day: "numeric" }
       : { month: "long", day: "numeric", year: "numeric" },
   );
+/** Keep same-name trips distinguishable, including ranges that cross New Year. */
+export const tripDateRange = (start: string, end: string): string => {
+  const startYear = start.slice(0, 4), endYear = end.slice(0, 4);
+  return `${dateText(start, true)}${startYear !== endYear ? `, ${startYear}` : ""} – ${dateText(end, true)}, ${endYear}`;
+};
 export const timeText = (t: string) => {
   const [h, m] = t.split(":").map(Number);
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
@@ -133,10 +149,10 @@ export const durationText = (start: string, end: string) => {
   return [h ? `${h} hr` : "", m ? `${m} min` : ""].filter(Boolean).join(" ");
 };
 const ZONE_LABELS: Record<string, string> = {
-  "America/Los_Angeles": "Los Angeles · Pacific Time",
-  "America/Denver": "Denver · Mountain Time",
-  "America/Chicago": "Chicago · Central Time",
-  "America/New_York": "New York · Eastern Time",
+  "America/Los_Angeles": "Pacific Time",
+  "America/Denver": "Mountain Time",
+  "America/Chicago": "Central Time",
+  "America/New_York": "Eastern Time",
   "Europe/London": "London · United Kingdom",
   "Europe/Paris": "Paris · Central Europe",
   "Asia/Taipei": "Taipei · Taiwan",

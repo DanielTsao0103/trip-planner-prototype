@@ -89,15 +89,24 @@ test("20-person preference coverage stays readable on desktop and mobile", async
   await expect(page.getByText("20 of 20 travelers have shared preferences.", { exact: true })).toBeVisible();
   await expect(page.locator(".dietary-no-restrictions")).toContainText("No restrictions");
   for (const label of [...dietChoices, ...foodChoices, ...diningChoices, ...atmosphereChoices,
-    "Budget-conscious", "Moderate", "Room to splurge", ...accessChoices, ...interestChoices,
-    ...ticketChoices, "Pike Place Market", "Seattle Public Library", "Bainbridge ferry terminal",
-    "Volunteer Park", "Local ceramics market", "Needs a slow morning", "Please leave time to rest",
+    "Budget-conscious", "Moderate", "Room to splurge", ...accessChoices,
+    ...ticketChoices, "Needs a slow morning", "Please leave time to rest",
     "Flexible timing works best", "Celebration dinner for the group"]) {
-    await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(label, { exact: true }).filter({ visible: true }).first()).toBeVisible();
+  }
+  // Brochure labels include numeric votes; their exact-text duplicates are hidden tooltips.
+  for (const label of [...interestChoices, "Pike Place Market", "Seattle Public Library",
+    "Bainbridge ferry terminal", "Volunteer Park", "Local ceramics market"]) {
+    await expect(page.locator('.interest-brochure-label').filter({ hasText: label })).toBeVisible();
   }
   await expect(page.locator(".collaborator-row")).toHaveCount(20);
-  await expect(page.locator(".preference-dot-overflow").first()).toContainText("+");
-  await expect(page.locator(".spending-marker")).toHaveCount(20);
+  await expect(page.locator(".preference-dot-overflow")).toHaveCount(0);
+  await expect(page.locator(".spending-count")).toHaveText(["7", "7", "6"]);
+  await page.getByRole('button', {name: '7 travelers: Budget-conscious', exact: true}).click();
+  const spendingNames = page.getByRole('dialog', {name: 'Budget-conscious', exact: true});
+  await expect(spendingNames).toContainText('Maya Chen');
+  await expect(spendingNames).toContainText('Traveler 19');
+  await page.keyboard.press('Escape');
   await expect(page.locator(".mobility-radius-option")).toHaveCount(8);
   await expect(page.locator(".mobility-access-option")).toHaveCount(5);
   await expect(page.locator(".dining-preference-option").filter({ hasText: "Fine dining" })).toBeVisible();

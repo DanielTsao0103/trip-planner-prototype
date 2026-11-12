@@ -24,6 +24,7 @@ async function login(page: Page) {
   await page.getByRole("button", { name: "Log in", exact: true }).click();
 }
 async function fillTrip(page: Page) {
+  await page.route('https://geocoding-api.open-meteo.com/**', route => route.fulfill({json:{results:[{name:'Taipei',timezone:'Asia/Taipei'}]}}));
   await page.goto("./#/6");
   await page.getByLabel("Trip title", { exact: true }).fill("Account weekend");
   await page.getByLabel("Where are you going?", { exact: true }).fill("Taipei");
@@ -202,10 +203,11 @@ test("account saves recover from lost responses without duplicate trips, reload,
       .filter({ hasText: "changed or was deleted elsewhere" })
       .first(),
   ).toBeVisible();
-  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator(".recovery-more > summary").click();
   await page
-    .getByRole("button", { name: "Reload saved version", exact: true })
+    .getByRole("button", { name: "Discard edits and reload", exact: true })
     .click();
+  await page.getByRole("dialog", {name: "Discard unsaved trip changes?"}).getByRole("button", {name: "Discard and reload", exact: true}).click();
   await expect(page.getByLabel("Trip title", { exact: true })).toHaveValue(
     "Updated account trip",
   );
@@ -310,6 +312,10 @@ test("invitees submit their own trip survey before entering the shared trip", as
   const notes = page.getByLabel("Anything else the group should know?");
   await notes.fill("Morning walks");
   await page.reload();
+  // Draft recovery retains the open section as well as its field values.
+  await expect(tickets).toHaveAttribute("aria-expanded", "true");
+  await expect(notes).toHaveValue("Morning walks");
+  await tickets.click();
   await expect(tickets).toContainText("Morning walks");
   await tickets.click();
   await expect(notes).toHaveValue("Morning walks");
@@ -322,6 +328,6 @@ test("invitees submit their own trip survey before entering the shared trip", as
   await expect(page.getByRole("heading", { name: "Taipei with friends", exact: true }).first()).toBeVisible();
   expect(await page.evaluate(() => Object.keys(sessionStorage).filter(k => k.startsWith("trip-survey-draft-v1:")))).toEqual([]);
   await page.goto("./#/15");
-  await page.getByRole("button", { name: /The practical things/ }).click();
+  await page.getByRole("button", { name: /Practical details/ }).click();
   await expect(page.getByLabel("Anything else the group should know?")).toHaveValue("Morning walks");
 });

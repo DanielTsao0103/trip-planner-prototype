@@ -1,0 +1,1367 @@
+/* App-wide foundations derived from the approved Budget design. See DESIGN.md. */
+:root {
+  --ui-font-body: "DM Sans", sans-serif;
+  --ui-text-body: 14px;
+  --ui-text-support: 13px;
+  --ui-text-caption: 12px;
+  --ui-text-input: 16px;
+  --ui-heading-page: 36px;
+  --ui-heading-section: 22px;
+  --ui-heading-compact: 18px;
+  --ui-heading-dialog: 26px;
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 20px;
+  --ui-space-6: 24px;
+  --ui-space-8: 32px;
+  --ui-space-10: 40px;
+  --ui-control-height: 44px;
+  --ui-radius-control: calc(7px * var(--rs));
+  --ui-radius-card: calc(10px * var(--rs));
+  --ui-radius-dialog: calc(13px * var(--rs));
+  --ui-focus: color-mix(in srgb, var(--green) 70%, var(--ink));
+  --ui-scrim: rgb(13 24 39 / 55%);
+}
+
+/* Component contracts outrank the old page-specific miniature control styles. */
+:root .btn {
+  min-height: var(--ui-control-height);
+  font-family: var(--ui-font-body);
+  font-size: var(--ui-text-body);
+  line-height: 1.4;
+  gap: var(--ui-space-2);
+  border-radius: var(--ui-radius-control);
+  /* Keep foreground and surface changes in the same frame when switching themes. */
+  transition: transform .15s;
+}
+:root .btn.small {
+  min-height: var(--ui-control-height);
+  font-size: var(--ui-text-support);
+}
+:root .btn:hover:not(:disabled) {
+  background: var(--green);
+  color: var(--on-primary);
+  transform: none;
+  box-shadow: none;
+}
+:root .btn:is(.outline, .text):hover:not(:disabled) {
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 8%, var(--paper));
+}
+:root .btn.light:hover:not(:disabled) {
+  color: var(--green);
+  background: var(--paper);
+}
+:root .field[data-ui="field"] {
+  font-size: var(--ui-text-body);
+  line-height: 1.5;
+}
+:root .field[data-ui="field"] > span {
+  font-size: var(--ui-text-body);
+}
+:root .field[data-ui="field"] :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  font-family: var(--ui-font-body);
+  font-size: var(--ui-text-input);
+  min-height: 48px;
+  border-radius: var(--ui-radius-control);
+}
+:root .field[data-ui="field"] :is(input, textarea)::placeholder {
+  font-size: var(--ui-text-support);
+}
+:root .field[data-ui="field"] small {
+  font-size: var(--ui-text-support);
+}
+:root .badge[data-ui="badge"] {
+  font-size: var(--ui-text-caption);
+}
+:root [data-ui="page-heading"] h1 {
+  font-size: var(--ui-heading-page);
+  line-height: 1.18;
+}
+:root [data-ui="page-heading"] p {
+  font-size: var(--ui-text-body);
+  line-height: 1.6;
+}
+:root [data-ui="empty"] h3 {
+  font-size: var(--ui-heading-section);
+}
+:root [data-ui="empty"] p {
+  font-size: var(--ui-text-body);
+  line-height: 1.6;
+}
+:root [data-ui="dialog"] {
+  border-radius: var(--ui-radius-dialog);
+}
+:root [data-ui="dialog"] .modal-head h2 {
+  font-size: var(--ui-heading-dialog);
+}
+:root [data-ui="dialog"] .modal-head .icon-btn {
+  width: var(--ui-control-height);
+  height: var(--ui-control-height);
+}
+:root [data-ui="dialog"] .modal-body > p,
+:root [data-ui="dialog"] .note {
+  font-size: var(--ui-text-body);
+  line-height: 1.6;
+}
+:root [data-ui="dialog"] .fine-print {
+  font-size: var(--ui-text-support);
+}
+:root .overlay {
+  background: var(--ui-scrim);
+}
+:root .icon-btn {
+  min-width: var(--ui-control-height);
+  min-height: var(--ui-control-height);
+}
+:root .check-row {
+  min-height: var(--ui-control-height);
+  font-size: var(--ui-text-body);
+}
+:root .check-row small {
+  font-size: var(--ui-text-support);
+}
+:root .text-link,
+:root .inline-link {
+  font-size: var(--ui-text-support);
+  min-height: var(--ui-control-height);
+}
+:root .fine-print {
+  font-size: var(--ui-text-caption);
+}
+:root .eyebrow {
+  font-size: var(--ui-text-caption);
+  letter-spacing: 1px;
+}
+:root .toast {
+  color: var(--paper);
+  background: var(--ink);
+  font-size: var(--ui-text-body);
+}
+:root .toast button {
+  color: inherit;
+  min-width: var(--ui-control-height);
+  min-height: var(--ui-control-height);
+}
+:root .style-group h2 {
+  font-family: var(--font-heading);
+}
+:root .style-option,
+:root .style-switch {
+  min-height: var(--ui-control-height);
+}
+:root .style-option {
+  font-size: var(--ui-text-body);
+}
+
+/* Secondary information stays readable across the core planning surfaces. */
+:root .planned-card-destination,
+:root .planned-card-meta,
+:root .planned-card-meta strong,
+:root .event-info p,
+:root .event-time,
+:root .trip-meta,
+:root .day-title p,
+:root .preference-response-count,
+:root .dining-preference-value,
+:root .collaborator-row .person small,
+:root .member-status,
+:root .permission-line,
+:root .available-slot {
+  font-size: var(--ui-text-support);
+}
+:root .event-info h3,
+:root .collaborator-row .person strong {
+  font-size: var(--ui-text-body);
+  line-height: 1.5;
+}
+:root .dietary-bubble-label {
+  font-size: var(--ui-text-caption);
+  line-height: 1.4;
+}
+:root .dietary-bubble-count {
+  font-size: var(--ui-text-caption);
+  width: auto;
+  padding-inline: 4px;
+  min-width: 20px;
+  min-height: 20px;
+}
+:root :is(button, a, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--ui-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --ui-heading-page: 30px;
+    --ui-heading-section: 20px;
+    --ui-heading-dialog: 25px;
+  }
+  :root [data-ui="page-heading"] {
+    gap: var(--ui-space-3);
+    margin-bottom: var(--ui-space-5);
+  }
+  :root .form-actions {
+    flex-wrap: wrap;
+    gap: var(--ui-space-3);
+  }
+  :root .form-actions > .btn {
+    flex: 1 1 auto;
+  }
+  :root .modal-body {
+    scroll-padding-block: var(--ui-space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root .btn,
+  :root .style-option {
+    transition: none;
+  }
+}
+
+
+/* Readable supporting text replaces legacy 8–11px labels across trip planning. */
+:root .permission-line small,
+:root .step-heading > span,
+:root .day-number,
+:root .day-chips a > span,
+:root .timeline-hour small,
+:root .assigned-days,
+:root .mobility-radius-count,
+:root .sp-eyebrow,
+:root .sp-chip,
+:root .sp-row.small,
+:root .avatar {
+  font-size: var(--ui-text-caption);
+}
+:root .info-banner,
+:root .sample-feature p,
+:root .section-title > .muted,
+:root .trip-card-body > p,
+:root .trip-photo-upload small,
+:root .trip-timezone-empty,
+:root .invite-field > small,
+:root .event-location-bias small,
+:root .trip-hero-content > p,
+:root .trip-summary,
+:root .day-title h3 > span,
+:root .empty-day p,
+:root .budget-peek > p,
+:root .suggestion-meta,
+:root .compatibility,
+:root .date-field > label,
+:root .timeline-hour,
+:root .timeline-hour > span,
+:root .timeline-hour .duration,
+:root .detail-event p,
+:root .dining-preference-heading,
+:root .spending-average,
+:root .spending-average strong,
+:root .mobility-walking-heading,
+:root .mobility-radius-label,
+:root .mobility-access-label,
+:root .mobility-access-section h4,
+:root .preference-empty,
+:root .note,
+:root .style-note,
+:root .person small,
+:root .sp-button {
+  font-size: var(--ui-text-support);
+  line-height: 1.5;
+}
+:root .available-slot { font-size: var(--ui-text-support) !important; }
+:root :is(.dietary-bubble-tooltip, .dining-preference-tooltip, .spending-marker-tooltip, .mobility-preference-tooltip, .interest-brochure-tooltip) {
+  font-size: var(--ui-text-caption);
+  line-height: 1.5;
+}
+:root :is(.dietary-bubble-tooltip, .dining-preference-tooltip, .spending-marker-tooltip, .mobility-preference-tooltip, .interest-brochure-tooltip) strong {
+  font-size: var(--ui-text-support);
+}
+:root .tabs > button,
+:root .carousel-pause,
+:root .hero-edit,
+:root .day-chips a,
+:root .choice-chips label,
+:root .survey-nav button,
+:root .input-action > .btn {
+  font-size: var(--ui-text-support);
+  min-height: var(--ui-control-height);
+}
+:root .survey-nav button > span { font-size: var(--ui-text-caption); }
+:root .dining-preference-option,
+:root .mobility-radius-option,
+:root .mobility-access-option { min-height: var(--ui-control-height); }
+:root .mobility-radius-people { flex-wrap: wrap; justify-content: flex-end; }
+:root .mobility-access-grid { gap: 8px; }
+:root .day-chips a { display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+:root .timeline-hour { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 760px) {
+  /* Four named survey steps remain readable without squeezing words to 8px. */
+  :root .survey-nav .card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  :root .survey-nav button { flex-direction: row; text-align: left; align-items: center; justify-content: flex-start; padding: 8px; }
+  :root .mobility-access-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  :root .page-4 .section-title:has(#preplanned-trips) {
+    display: grid;
+    gap: 8px;
+  }
+  :root .page-4 .section-title:has(#preplanned-trips) > .muted {
+    text-align: left;
+  }
+}
+
+
+/* Dense chart targets wrap within their labeled category instead of overlapping. */
+:root .spending-scale-labels { align-items: start; gap: 8px; color: var(--muted); }
+:root .spending-scale-icon { flex-direction: column; justify-content: center; text-align: center; gap: 8px; font-size: 12px; line-height: 1.4; }
+:root .spending-scale-track { height: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+:root .spending-scale-line { top: 21px; left: 16%; right: 16%; }
+:root .spending-marker-group { display: flex; flex-wrap: wrap; gap: 0; justify-content: center; align-content: start; min-height: 44px; }
+:root .spending-marker { position: relative; top: auto; width: 28px; height: 44px; border: 0; background: transparent; box-shadow: none; transform: none; }
+:root .spending-marker::before { content: ""; position: absolute; width: 14px; height: 14px; top: 15px; left: 7px; border-radius: 50%; background: var(--marker-fill); border: 2px solid var(--paper); box-shadow: 0 1px 3px #101a2733; }
+:root .spending-marker-0 { --marker-fill: hsl(46.7 55% calc(var(--la) + var(--lb) * 68%)); }
+:root .spending-marker-1 { --marker-fill: hsl(calc(var(--hue) + 1) 50% calc(var(--la) + var(--lb) * 66%)); }
+:root .spending-marker-2 { --marker-fill: hsl(27.5 61% calc(var(--la) + var(--lb) * 68%)); }
+:root .spending-marker-3 { --marker-fill: hsl(calc(var(--hue) + -2) 48% calc(var(--la) + var(--lb) * 65%)); }
+:root .spending-empty { display: grid; place-items: center; height: 44px; min-width: 28px; font-size: 12px; color: var(--muted); background: var(--paper); z-index: 1; }
+:root .trip-summary > span,
+:root .trip-summary > button,
+:root .attendee,
+:root .mini-event > span,
+:root .mini-event > small { font-size: var(--ui-text-support); }
+:root .collaborator-table-head { font-size: var(--ui-text-caption); }
+:root .budget-page .budget-stats > div > span,
+:root .budget-page .donut small { font-size: var(--ui-text-caption); }
+:root .hero-edit { color: #fffef9; background: #172d48; }
+:root .avatar { color: var(--ink); }
+@media (max-width: 760px) {
+  :root :is(.survey-layout, .invite-review) .form-columns { grid-template-columns: 1fr; }
+}
+
+
+/* The account entry and shared navigation follow the same readable scale. */
+:root .prototype-button,
+:root .mobile-nav button { font-size: var(--ui-text-caption); min-height: var(--ui-control-height); }
+:root .auth .btn,
+:root .auth-toggle { font-size: var(--ui-text-body); min-height: var(--ui-control-height); }
+:root .auth .divider { font-size: var(--ui-text-caption); }
+:root .auth-recovery-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+:root .password-input { position: relative; display: block; width: 100%; }
+:root .password-input input { width: 100%; padding-right: 52px; }
+:root .password-toggle { position: absolute; right: 2px; top: 2px; width: 44px; height: 44px; display: grid; place-items: center; color: var(--muted); border-radius: var(--ui-radius-control); }
+:root .page-4 .section-title:has(#preplanned-trips) > .muted { max-width: none; }
+
+
+:root .trip-hero-shade { background: linear-gradient(90deg, rgb(13 27 44 / 72%), rgb(13 27 44 / 12%) 95%), linear-gradient(0deg, rgb(13 27 44 / 75%), transparent); }
+:root .trip-hero p { color: #eef1f5; }
+:root .demo-exit { min-height: 44px; font-size: 13px; font-weight: 500; line-height: 1.25; padding: 8px; color: var(--action-ink); border: 1px solid var(--line); border-radius: var(--ui-radius-control); white-space: normal; }
+:root .auth .account-form .field { margin: 0; }
+:root .auth .account-form { gap: 20px; }
+:root .auth-error { padding: 12px 14px; color: var(--ink); background: color-mix(in srgb, #bf4135 9%, var(--paper)); border-left: 3px solid #bf4135; border-radius: var(--ui-radius-control); font-size: 14px; line-height: 1.5; }
+@media (max-width: 760px) {
+  :root .topbar-right { gap: 8px; }
+  :root .trip-hero-shade { background: linear-gradient(0deg, rgb(13 27 44 / 92%), rgb(13 27 44 / 12%) 95%); }
+  :root .auth-toggle { margin-block: 12px; }
+  :root .account-only .auth-form-wrap > .fine-print { margin-block: 16px; }
+}
+
+
+/* Destructive intent stays recognizable through hover and keyboard interaction. */
+:root .btn.danger:not(.text):hover:not(:disabled) { background: #7d221c; color: #fff; box-shadow: none; }
+:root .btn.text.danger:hover:not(:disabled) { color: var(--ink); background: color-mix(in srgb, #bf4135 12%, var(--paper)); box-shadow: none; }
+@media (max-width: 760px) {
+  :root .brand-logo.auth-logo { max-width: 165px; margin-bottom: 18px; }
+  :root .auth-form-wrap h2 { font-size: 34px; }
+}
+
+
+:root .permission-line { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: start; }
+:root .permission-line small { white-space: nowrap; margin-left: 0; }
+:root .connection-info { min-width: 0; }
+:root .inline-status { margin: 12px 0 0; padding: 12px; border-radius: var(--ui-radius-control); background: var(--sage); color: var(--ink); font-size: 13px; line-height: 1.5; }
+
+
+:root .booking-load-error { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-block: 16px; }
+:root .booking-load-error p { flex: 1 1 260px; margin: 0; font-size: 14px; }
+:root .forwarded-bookings > p { margin-top: 12px; }
+:root .trip-photo-picker .trip-photo-options { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+:root .trip-photo-picker .trip-photo-options button { width: 100%; }
+@media (max-width: 760px) {
+  :root .page-6 .form-columns { grid-template-columns: 1fr; }
+}
+
+
+/* Next-stop navigation remains available while the map loads or fails. */
+:root .trip-map.compact { height: auto; min-height: 0; }
+:root .trip-map.compact .map-canvas { height: 250px; min-height: 250px; }
+:root .trip-map.compact > .next-place-card { position: static; margin: 0; width: 100%; max-width: none; box-shadow: none; border-radius: 0; border: 0; border-top: 1px solid var(--line); min-height: 72px; background: var(--paper); }
+:root .next-place-card small { font-size: 12px; }
+:root .next-place-card strong { font-size: 14px; }
+:root .trip-map.compact .google-map-state { padding: 16px; }
+
+
+:root .calendar-grid-help svg { vertical-align: middle; }
+:root .itcal-agenda, :root .calendar-mobile-view { display: none; }
+:root .itcal-grid { grid-template-columns: 64px repeat(7, minmax(150px, 1fr)); min-width: 1114px; }
+:root .itcal-event-time { font-size: 12px; white-space: nowrap; }
+:root .itcal-time-axis > span { font-size: 12px; }
+:root .itcal-event-place { font-size: 12px; }
+:root .todo-item > button { flex-shrink: 0; white-space: nowrap; min-width: 64px; min-height: 44px; }
+@media (max-width: 1024px) {
+  :root .itcal-toolbar { gap: 8px; align-items: center; }
+  :root .itcal-navigation { gap: 4px; }
+  :root .itcal-navigation > .btn { padding-inline: 12px; }
+  :root .calendar-mobile-view { display: inline-flex; margin-left: auto; padding-inline: 8px; font-size: 13px; white-space: nowrap; }
+  :root .calendar-grid-help, :root .weekly-calendar:not(.show-time-grid) .itcal-scroll { display: none; }
+  :root .weekly-calendar:not(.show-time-grid) .itcal-agenda { display: grid; gap: 16px; }
+  :root .week-grid { display: none; }
+  :root .mobile-agenda { display: grid; gap: 10px; }
+}
+@media (max-width: 760px) {
+  :root .timeline-item { grid-template-columns: 9px minmax(0, 1fr); gap: 8px 12px; }
+  :root .timeline-hour { grid-column: 2; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; padding: 0; }
+  :root .timeline-hour > span, :root .timeline-hour small, :root .timeline-hour .duration { margin: 0; white-space: nowrap; }
+  :root .timeline-hour small { letter-spacing: 0; text-transform: none; }
+  :root .timeline-dot { grid-column: 1; grid-row: 2; top: 22px; }
+  :root .timeline:before { left: 4px; }
+  :root .timeline-item .detail-event { grid-column: 2; grid-row: 2; }
+}
+
+/* Transient background feedback must not obscure an open form. */
+body:has([role="dialog"]) .toast { display: none; }
+.map-empty-places { display: flex; flex-wrap: wrap; gap: 12px; }
+.map-empty-places p { flex-basis: 100%; }
+@media (max-width: 760px) {
+  body:has(.suggestions-grid) .page-head { margin-bottom: 20px; }
+  .suggestion-context { gap: 8px; margin-bottom: 20px; }
+  .suggestion-card > .photo { max-height: 156px; }
+}
+
+:root .expense-amount small { font-size: 13px; }
+:root .interest-brochure-fan { gap: 16px; padding: 20px 8px 8px; align-items: start; }
+:root .interest-brochure-wrap { margin-left: 0; flex-basis: 110px; width: 110px; height: auto; text-align: center; }
+:root .interest-brochure { margin: 0 auto; }
+.interest-brochure-label { display: block; margin-top: 12px; font-size: 13px; line-height: 1.4; color: var(--ink); overflow-wrap: anywhere; }
+:root [role="tooltip"].chart-tooltip-floating { position: fixed; bottom: auto; transform: none; z-index: 150; max-height: 50vh; overflow: auto; }
+:root [role="tooltip"].chart-tooltip-dismissed { opacity: 0 !important; }
+:root .upload-panel input[type="file"] { width: min(100%, 360px); font-size: 14px; padding: 8px; color: var(--ink); }
+:root .upload-panel input[type="file"]::file-selector-button { padding: 12px 16px; margin-right: 12px; color: var(--action-ink); background: var(--paper); border: 1px solid var(--line); border-radius: var(--ui-radius-control); cursor: pointer; font: inherit; }
+@media (max-width: 760px) {
+  :root .trip-hero, :root .trip-hero-content { min-height: 220px; }
+  :root .trip-hero-content { padding: 20px; }
+  :root .trip-hero h1 { margin-top: 28px; margin-bottom: 10px; font-size: 30px; }
+  :root .trip-summary { padding-block: 16px; gap: 12px; }
+  :root .suggestion-card > img, :root .suggestion-card:last-child > img { height: 150px; }
+}
+
+:root .style-preview-jump { display: none; }
+:root .style-actions .btn { min-width: min-content; overflow-wrap: normal; word-break: normal; }
+:root .style-actions .style-reset { flex-shrink: 0; white-space: nowrap; }
+@media (max-width: 760px) {
+  :root .style-actions { position: fixed; bottom: calc(58px + env(safe-area-inset-bottom)); left: 0; right: 0; z-index: 25; padding: 10px 16px; background: var(--paper); border-top: 1px solid var(--line); gap: 6px; }
+  :root .style-preview-jump { display: inline-flex; }
+  :root .style-actions .btn { padding-inline: 12px; }
+  :root .page-18 { padding-bottom: 100px; }
+  :root .style-preview { scroll-margin-block: 90px; }
+}
+
+:root .event-photo-picker .upload-preview { width: 180px; max-height: 120px; object-fit: cover; border-radius: var(--ui-radius-control); }
+
+:root .account-load-state { width: min(100% - 32px, 600px); margin: 48px auto; padding: 24px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--ui-radius-card); }
+:root .account-load-state h1 { font-size: 30px; line-height: 1.2; margin: 0 0 20px; }
+:root .account-load-state p { line-height: 1.6; }
+:root .account-load-state .btn { margin: 8px 12px 0 0; min-height: 44px; }
+@media (max-width: 760px) {
+  :root .breadcrumbs ol { width: max-content; flex-wrap: nowrap; }
+  :root .breadcrumbs {
+    --trail-start: #000;
+    --trail-end: #000;
+    mask-image: linear-gradient(to right, var(--trail-start), #000 16px, #000 calc(100% - 16px), var(--trail-end));
+  }
+  :root .breadcrumbs[data-more-before] { --trail-start: transparent; }
+  :root .breadcrumbs[data-more-after] { --trail-end: transparent; }
+  :root .breadcrumbs li + li { margin-left: 8px; gap: 8px; }
+  :root .breadcrumbs [aria-current="page"] { max-width: 145px; }
+}
+
+:root .release-notice { position: sticky; top: 0; }
+:root .sidebar { top: var(--release-notice-height, 0px); }
+
+@media (max-width: 760px) {
+  :root .breadcrumbs a > .breadcrumb-trip-label { display: none; }
+  :root .breadcrumbs a > .breadcrumb-trip-short { display: block; }
+}
+
+/* Phone connection cards give permission details the full readable width. */
+@media (max-width: 760px) {
+  :root .connection-card { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 12px; padding: 16px; }
+  :root .connection-card > .service-logo { grid-column: 1; grid-row: 1; }
+  :root .connection-info { display: contents; }
+  :root .connection-info > .row { grid-column: 2; grid-row: 1; display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 0; }
+  :root .connection-info h3 { font-size: 18px; overflow-wrap: normal; word-break: normal; }
+  :root .connection-card .badge { white-space: nowrap; }
+  :root .connection-info > .permission-line { grid-column: 1 / -1; margin: 0; }
+  :root .connection-card > .btn { grid-column: 1 / -1; width: 100%; margin: 4px 0 0; }
+}
+
+@media (min-width: 761px) and (max-width: 1000px) {
+  :root .auth { display: block; }
+  :root .auth-visual { display: none; }
+  :root .auth-panel { padding: 40px 32px; min-height: 100vh; }
+  :root .auth-form-wrap { width: 100%; max-width: 440px; margin-inline: auto; }
+}
+
+/* Persistent phone recovery belongs in document flow, leaving form actions usable. */
+@media (max-width: 767px) {
+  :root .account-save-banner { position: sticky; top: var(--release-notice-height, 0px); bottom: auto; right: auto; width: calc(100% - 32px); max-width: none; margin: 12px 16px; }
+}
+
+@media (max-width: 767px) {
+  :root .trip-map[data-map-state="unavailable"], :root .trip-map[data-map-state="empty"] { min-height: 0; }
+  :root .trip-map[data-map-state="unavailable"] .map-canvas { height: auto; min-height: 0; }
+  :root .trip-map[data-map-state="unavailable"] .google-map-state { position: relative; padding: 24px 20px; }
+  :root .trip-map[data-map-state="empty"] .map-canvas { height: 240px; min-height: 240px; }
+}
+
+:root .event-time > span { display: inline; white-space: nowrap; }
+:root .pin-placement-copy { display: grid; gap: 4px; min-width: 0; line-height: 1.4; }
+:root .pin-placement-copy strong { overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  :root .event-arrow { display: none; }
+  :root .event-card > img { width: 64px; height: 72px; }
+  :root .trip-hero, :root .trip-hero-content { min-height: 170px; }
+  :root .trip-hero-content { padding: 16px 20px; }
+  :root .trip-hero h1 { font-size: 26px; margin-top: 16px; }
+  :root .trip-summary { margin-bottom: 20px; }
+}
+
+  :root .itcal-agenda-day { padding: 16px; border: 1px solid var(--line); border-radius: var(--ui-radius-card); background: var(--paper); }
+  :root .itcal-agenda-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  :root .itcal-agenda-heading h3 { margin: 0; font-size: 16px; }
+  :root .itcal-agenda-day > p { margin-bottom: 0; }
+  :root .itcal-agenda-event { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; border-top: 1px solid var(--line); }
+  :root .itcal-agenda-details { display: grid; gap: 5px; padding: 16px 0; text-align: left; overflow-wrap: anywhere; }
+  :root .itcal-agenda-details > span { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  :root .itcal-agenda-details strong { font-size: 14px; line-height: 1.5; }
+  :root .itcal-agenda-details small { font-size: 13px; color: var(--muted); }
+  :root .itcal-agenda-move { min-height: 44px; min-width: 48px; font-size: 13px; color: var(--action-ink); }
+
+:root .calendar-desktop-view { margin-left: auto; }
+:root .week-date-range { margin: 0 0 16px; font-size: 13px; color: var(--muted); }
+:root .agenda-day-choices { display: flex; gap: 4px; overflow-x: auto; padding: 4px 0; }
+:root .agenda-day-choices button { flex: 1 0 44px; display: grid; gap: 5px; padding: 8px 4px; min-height: 56px; font-size: 12px; border: 1px solid var(--line); border-radius: var(--ui-radius-control); }
+:root .agenda-day-choices button[aria-pressed="true"] { background: var(--green); color: var(--on-primary); }
+:root .agenda-day-choices button:disabled { opacity: .45; }
+:root .agenda-day-choices strong { font-size: 16px; }
+:root .mobile-agenda > h3 { margin: 8px 0 0; font-size: 16px; }
+@media (min-width: 1025px) {
+  :root .show-desktop-agenda .itcal-scroll, :root .show-desktop-agenda .calendar-grid-help { display: none; }
+  :root .show-desktop-agenda .itcal-agenda { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 1024px) { :root .calendar-desktop-view { display: none; } }
+
+:root .receipt-review-status { display: flex; gap: 12px; align-items: center; padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--ui-radius-control); background: var(--paper); font-size: 13px; }
+:root .receipt-review-status .btn { flex-shrink: 0; }
+@media (max-width: 760px) {
+  :root main:has(.trip-map) > [data-ui="page-heading"] { flex-wrap: wrap; }
+  :root main:has(.trip-map) > [data-ui="page-heading"] > div:first-child { flex-basis: 100%; }
+  :root .receipt-review-status { flex-wrap: wrap; }
+}
+
+:root .message-body-copy { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  :root .itinerary-heading { margin: 16px 0; }
+  :root .itinerary-view-switch { margin-bottom: 16px; }
+  :root .itinerary-view-switch button { padding-inline: 14px; }
+  :root .day-chips { margin-bottom: 20px; }
+}
+
+:root .style-save-inline { display: none; }
+@media (max-width: 760px) {
+  :root .style-actions:has(.style-save-inline) { flex-wrap: wrap; }
+  :root .style-save-inline { display: block; flex-basis: 100%; margin: 0 0 4px; color: var(--ink); font-size: 13px; text-align: left; }
+  :root body:has(.style-save-inline) main { padding-bottom: 220px; }
+}
+
+/* Background hover details must not sit above an active dialog. */
+:root body:has(.modal, dialog[open]) .chart-tooltip-floating { visibility: hidden; }
+
+:root .auth .account-form { max-width: none; }
+
+:root .menu-sections { display: grid; gap: 20px; }
+:root .menu-sections h3 { margin: 0 0 8px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+:root .menu-sections .menu-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; }
+:root .menu-sections .menu-links button { min-height: 44px; padding: 10px 12px; border: 0; border-radius: var(--ui-radius-control); font-size: 14px; }
+:root .menu-sections button[aria-current="page"] { background: color-mix(in srgb, var(--green) 12%, var(--paper)); color: var(--ink); font-weight: 600; }
+:root .demo-mobile-tabs { display: flex; gap: 8px; margin: 0; }
+:root .demo-mobile-tabs .btn { flex: 1; padding-inline: 8px; transition: transform .15s; }
+:root .demo-mobile-tabs [aria-pressed="true"] { background: var(--green); color: var(--on-primary); }
+:root .demo-grid { grid-template-columns: minmax(0,1fr); }
+:root .demo-grid[data-active="experience"] [data-section="time"],
+:root .demo-grid[data-active="time"] [data-section="experience"],
+:root .demo-grid[data-active="screens"],
+:root .demo-screen-section:not([data-active="screens"]) { display: none; }
+:root body:has(.form-card) .toast[data-event-success="true"] { display: none; }
+@media (max-width: 760px) {
+  :root .demo-mobile-tabs { gap: 6px; }
+  :root .narrow-page:has(.connection-list) [data-ui="page-heading"] { flex-wrap: wrap; }
+  :root .narrow-page:has(.connection-list) [data-ui="page-heading"] > div:first-child { flex-basis: 100%; }
+}
+
+:root .date-grid { display: table; table-layout: fixed; width: 100%; border-collapse: separate; border-spacing: 2px; }
+:root .date-grid th, :root .date-grid td { padding: 0; text-align: center; border: 0; }
+:root .date-grid .date-day { width: 100%; min-height: 36px; }
+:root .date-popover { max-height: calc(100dvh - 140px); overflow-y: auto; scroll-margin-block: 70px; }
+:root .day-page-arrow { width: 44px; height: 44px; flex-shrink: 0; }
+@media (max-width: 760px) {
+  :root .booking-inbox { flex-wrap: wrap; }
+  :root .booking-inbox > div { flex-basis: 100%; }
+  :root .booking-inbox > .btn { margin-left: auto; }
+  :root .booking-address { font-size: 13px; line-height: 1.6; }
+  :root .agenda-day-choices { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+  :root .agenda-day-choices button { min-width: 0; padding-inline: 0; }
+  :root .upload-panel { padding: 20px 16px; }
+}
+
+:root .photo-disclosure { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-block: 20px; }
+:root .photo-disclosure > summary { cursor: pointer; min-height: 52px; padding: 14px 0; font-weight: 600; font-size: 15px; }
+:root .photo-disclosure > summary span { margin-left: 8px; color: var(--muted); font-weight: 400; font-size: 13px; }
+:root .photo-disclosure .event-photo-picker, :root .photo-disclosure .trip-photo-picker { margin-top: 0; }
+:root .day-jump { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: 0 0 20px; }
+:root .day-jump label { font-size: 13px; }
+:root .day-jump select { width: auto; max-width: 240px; min-height: 44px; }
+@media (max-width: 760px) {
+  :root .suggestion-refresh { width: auto; padding: 10px 14px; }
+  :root .suggestion-refresh > span { display: inline; }
+  :root body:has(.suggestion-context) .page-head { align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+  :root body:has(.suggestions-grid) .page-head > div:first-child { min-width: 0; flex: 1; }
+  :root body:has(.suggestions-grid) .page-head h1 { font-size: 27px; }
+  :root .suggestion-card > img, :root .suggestion-card:last-child > img { height: 128px; }
+}
+
+:root .scan-box input[type="file"] { width: min(100%, 360px); font-size: 14px; padding: 8px; color: var(--ink); }
+:root .scan-box input[type="file"]::file-selector-button { min-height: 44px; padding: 10px 14px; margin-right: 12px; color: var(--action-ink); background: var(--paper); border: 1px solid var(--line); border-radius: var(--ui-radius-control); cursor: pointer; font: inherit; }
+@media (max-width: 760px) {
+  :root .scan-box { padding: 16px; }
+  :root .scan-box > svg { margin: 0 0 8px; }
+  :root .scan-box h3 { font-size: 22px; }
+}
+@media (max-width: 760px) and (max-height: 700px) {
+  :root .nearby-photo { float: right; width: 80px; height: 80px; margin: 12px 0 12px 16px; }
+  :root .nearby-stats { clear: both; }
+}
+
+/* Keep primary planning work near the top while preserving the trip artwork. */
+:root .page-8 .trip-hero, :root .page-8 .trip-hero-content { min-height: 160px; }
+:root .page-8 .trip-hero-content { padding: 20px 28px; }
+:root .page-8 .trip-hero h1 { margin-block: 10px 8px; font-size: clamp(26px, 2.8vw, 36px); }
+:root .page-8 .trip-summary { padding-block: 14px; margin-bottom: 24px; }
+:root .page-8 .itinerary-heading { margin-block: 20px 12px; }
+:root .itcal-event-place { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+:root .expense-fields > .danger { margin-bottom: 20px; }
+:root .currency-result .currency-warning { padding: 12px 14px; border-left: 3px solid var(--action-ink); border-radius: var(--ui-radius-control); background: var(--sage); color: var(--ink); font-weight: 500; }
+:root .planned-modal-actions { position: sticky; bottom: -28px; padding-block: 14px; background: var(--paper); border-top: 1px solid var(--line); z-index: 2; }
+@media (min-width: 761px) and (max-width: 1050px) {
+  :root .trip-grid { grid-template-columns: minmax(0, 1fr); }
+  :root .suggestions-grid { grid-template-columns: minmax(0, 1fr); }
+  :root .suggestion-card:last-child { display: flex; grid-column: auto; }
+  :root .suggestion-card > img, :root .suggestion-card:last-child > img { height: 180px; width: 100%; }
+}
+@media (max-width: 760px) {
+  :root .page-8 .trip-hero-content { padding: 16px 20px; }
+  :root .page-8 .trip-summary { gap: 8px 12px; margin-bottom: 16px; }
+  :root .trip-map[data-map-state="loading"] { min-height: 0; }
+  :root .trip-map[data-map-state="loading"] .map-canvas { height: 260px; min-height: 260px; }
+  :root .planned-modal-actions { bottom: -20px; }
+}
+
+/* Invisible hit areas grow with their controls, without enlarging brand artwork. */
+:root .btn, :root .tabs > button, :root .expense-list .text-link { min-width: 44px; }
+:root .trip-card h2 button, :root .itinerary-view-switch button { min-height: 44px; }
+:root .date-toggle { width: 44px; height: 44px; right: 2px; }
+:root .date-input input { padding-right: 50px; }
+:root .date-grid .date-day { min-height: 44px; }
+:root .recipient-box input { min-height: 44px; }
+:root .spending-marker { width: 44px; }
+:root .spending-marker::before { left: 15px; }
+:root .spending-count { min-width: 44px; min-height: 44px; border-radius: var(--ui-radius-control); background: var(--paper); color: var(--action-ink); border: 1px solid var(--line); font-weight: 600; }
+
+/* Control boundaries are distinct from quiet decorative card dividers. */
+:root input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+:root select, :root textarea, :root .recipient-box { border-color: var(--control-border); }
+:root .trip-picker button[aria-current="true"] { background: var(--sage); border-color: var(--control-border); }
+
+:root .date-range-error { color: var(--ink); border-left: 3px solid #bf4135; padding-left: 8px; font-size: 13px; margin-top: 6px; }
+@media (max-width: 760px) and (max-height: 700px) {
+  :root .modal:has(.demo-mobile-tabs) .modal-body > .fine-print { margin-block: 0 12px; }
+  :root .demo-grid [data-section="time"] { padding: 16px; }
+  :root .demo-grid [data-section="time"] .form-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  :root .demo-grid [data-section="time"] .field { margin-bottom: 4px; }
+
+}
+
+:root .prototype-mobile-icon { display: none; }
+@media (max-width: 760px) {
+  :root .topbar { grid-template-columns: 44px minmax(0, 1fr) auto; column-gap: 4px; }
+  :root .topbar .menu-button { grid-column: 1; grid-row: 1; }
+  :root .topbar .topbar-right { grid-column: 3; grid-row: 1; gap: 6px; }
+  :root .topbar .mobile-trip-context { grid-column: 2; grid-row: 1; width: 100%; min-width: 0; margin: 0; border: 0; padding: 8px 4px; min-height: 44px; gap: 4px; }
+  :root .topbar .mobile-trip-context > span { min-width: 0; }
+  :root .topbar .mobile-trip-context strong { font-size: 13px; }
+  :root .topbar .mobile-trip-context > span > svg { display: none; }
+  :root .topbar .mobile-trip-context > svg { flex-shrink: 0; }
+  :root .prototype-button { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  :root .prototype-mobile-icon { display: block; }
+  :root .prototype-label, :root .prototype-button .status-dot { display: none; }
+  :root .demo-exit { width: 48px; min-width: 48px; padding: 4px; }
+  :root .topbar .breadcrumbs { grid-column: 1 / -1; }
+}
+
+:root .invite-field .form-error { color: var(--ink); background: color-mix(in srgb, #bf4135 9%, var(--paper)); border-left: 3px solid #bf4135; padding: 10px 12px; border-radius: var(--ui-radius-control); font-size: 14px; line-height: 1.5; }
+@media (max-width: 760px) {
+  :root .page-5 > .page-head { margin-bottom: 20px; }
+  :root .page-5 .success-banner { padding: 12px 14px; margin-block: 0 16px; }
+  :root .trip-photo-selection { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  :root .trip-photo-selection > img { width: 120px; height: 80px; }
+  :root .trip-photo-selection > .photo-credit { flex: 1 1 120px; }
+}
+
+:root .modal-footer { flex-shrink: 0; padding: 16px 28px; border-top: 1px solid var(--line); background: var(--paper); }
+:root .confirmation-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+:root .confirmation-actions > .btn { flex: 1 1 140px; }
+:root .modal-footer .planned-modal-actions { position: static; margin: 0; padding: 0; border: 0; }
+:root .modal-footer:has(.demo-time-footer) { display: block; }
+:root .demo-time-apply { display: none; }
+:root .auth-form-wrap { margin-top: 20px; }
+:root .auth-toggle { margin-block: 12px; }
+:root .invite-account-label { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  :root .modal-footer { padding: 12px 20px; }
+}
+
+:root .day-navigation-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; margin-bottom: 20px; }
+:root .day-navigation-tools:empty { display: none; }
+:root .day-navigation-tools .day-jump, :root .day-navigation-tools .day-page-controls { margin: 0; }
+:root .day-page-controls { flex-wrap: wrap; gap: 8px; }
+:root .day-page-navigation { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+/* Both phone itinerary views lead with plans while retaining the trip photo and identity. */
+@media (max-width: 760px) {
+  :root .page-8 .trip-hero:is(.list-trip-hero, .calendar-trip-hero), :root .page-8 :is(.list-trip-hero, .calendar-trip-hero) .trip-hero-content { min-height: 0; }
+  :root .page-8 :is(.list-trip-hero, .calendar-trip-hero) .trip-hero-content { padding: 12px; }
+  :root .page-8 :is(.list-trip-hero, .calendar-trip-hero) .trip-hero-content > .row { position: absolute; top: 12px; right: 12px; left: auto; margin: 0; }
+  :root :is(.list-trip-hero, .calendar-trip-hero) .badge, :root :is(.list-trip-hero, .calendar-trip-hero) .hero-edit > span { display: none; }
+  :root :is(.list-trip-hero, .calendar-trip-hero) .hero-edit { width: 44px; height: 44px; justify-content: center; padding: 0; }
+  :root :is(.list-trip-hero, .calendar-trip-hero) .hero-edit svg { width: 18px; height: 18px; }
+  :root .page-8 .trip-hero:is(.list-trip-hero, .calendar-trip-hero) h1 { padding-right: 52px; font-size: 24px; line-height: 1.2; margin: 0 0 8px; }
+  :root .page-8:has(.list-trip-hero) .trip-summary { padding-block: 10px; margin-bottom: 12px; }
+  :root .page-8:has(.list-trip-hero, .calendar-trip-hero) .itinerary-controls { margin-block: 12px; }
+  :root .page-8:has(.list-trip-hero) .day-chips { margin-bottom: 12px; }
+  :root .page-8:has(.list-trip-hero) .day-chips a { padding: 4px 7px; gap: 2px; }
+  :root .page-8:has(.list-trip-hero) .day-navigation-tools { margin-bottom: 12px; }
+}
+@media (max-width: 760px) {
+  :root .suggestion-time-recovery { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  :root .suggestion-time-recovery > button { flex-shrink: 0; }
+}
+:root .day-page-size { white-space: nowrap; flex-shrink: 0; }
+@media (max-width: 380px) {
+  :root .day-navigation-tools .day-page-controls { width: 100%; }
+  :root .day-page-size { flex-basis: 100%; }
+}
+:root .day-jump select { font: inherit; font-size: 16px; color: var(--ink); background: var(--paper); padding: 10px 12px; border: 1px solid var(--control-border); border-radius: var(--ui-radius-control); }
+:root .day-chips[hidden] { display: none; }
+:root .delete-event-panel { scroll-margin-block: 80px; }
+@media (max-width: 760px) {
+  :root .event-photo-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  :root .event-photo-actions > span { text-align: center; }
+  :root .event-photo-upload { justify-content: center; min-height: 44px; }
+  :root .upload-panel h2 { font-size: 24px; }
+  :root .upload-panel > p { margin-block: 12px; }
+  :root .trip-map[data-map-state="ready"]:not(.compact) .map-canvas { height: clamp(280px, 38svh, 360px); min-height: 280px; }
+}
+
+@media (min-width: 761px) {
+  :root .page-8 .calendar-trip-hero, :root .page-8 .calendar-trip-hero .trip-hero-content { min-height: 120px; }
+}
+:root .calendar-trip-hero .trip-hero-content { padding-block: 16px; }
+:root .calendar-trip-hero h1 { font-size: 28px; }
+:root .itcal-move { width: 44px; height: 44px; top: 0; right: 0; cursor: pointer; }
+:root .itcal-event-title { padding-right: 38px; }
+:root .itcal-event-time { padding-right: 34px; }
+:root .mobile-agenda { display: grid; gap: 12px; }
+:root .today-next-stop { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; margin-bottom: 24px; }
+:root .today-next-stop > div { min-width: 0; }
+:root .today-next-stop h2 { font-size: 22px; margin: 8px 0; overflow-wrap: anywhere; }
+:root .today-next-stop p { margin: 0; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+:root .today-next-stop > .btn { flex-shrink: 0; }
+@media (min-width: 761px) and (max-width: 1024px) {
+  :root .today-next-stop { flex-wrap: wrap; }
+  :root .today-next-stop > div:first-child { flex-basis: 100%; }
+  :root .today-next-stop .today-next-actions { width: 100%; flex-wrap: wrap; }
+}
+@media (max-width: 760px) {
+  :root .today-next-stop { flex-wrap: wrap; padding: 16px; }
+  :root .today-next-stop > .btn { width: 100%; }
+  :root .page-11 .page-head { margin-bottom: 16px; }
+  :root .page-11 .day-control { margin-bottom: 16px; }
+  :root .page-11 .timeline > .empty { margin-top: 0; padding-block: 24px; }
+  :root .page-11 .timeline > .empty h3 { margin-top: 12px; }
+}
+
+:root .place-actions .primary-recovery { padding: 10px 14px; background: var(--green); color: var(--on-primary); border-radius: var(--ui-radius-control); }
+:root .pin-update-status { flex-basis: 100%; margin: 4px 0 0; font-size: 13px; color: var(--ink); }
+
+/* Keep route effort readable and the receipt's manual path immediately available. */
+:root .nearby-stats { font-size: 14px; line-height: 1.5; gap: 8px 20px; color: var(--ink); }
+:root .receipt-image-options { margin-block: 8px; text-align: left; }
+:root .receipt-image-options summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--action-ink); }
+:root .receipt-image-options summary::before { content: "▸"; margin-right: 8px; }
+:root .receipt-image-options[open] summary::before { content: "▾"; }
+:root .receipt-scan-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+:root .scan-box { padding: 16px; margin-bottom: 20px; }
+:root .scan-box > .text-link { margin: 8px auto 0; }
+:root .scan-box h3 { margin: 0 0 8px; }
+@media (max-width: 760px) {
+  :root .page-9 .suggestion-body { padding: 16px; }
+  :root .page-9 .suggestion-body h2 { margin-block: 6px; font-size: 25px; }
+  :root .page-9 .suggestion-body p { margin-block: 6px; }
+  :root .page-9 .suggestion-meta { margin: 4px 0 8px; }
+  :root .suggestion-context { margin-bottom: 20px; gap: 10px; }
+  :root .nearby-photo { height: 100px; }
+}
+
+@media (max-width: 760px) {
+  :root .demo-grid .card { padding: 16px; }
+  :root .demo-grid h3 { font-size: 22px; margin-bottom: 16px; }
+  :root .demo-grid .field { margin-bottom: 16px; }
+}
+
+:root .todo-item { font-size: 14px; align-items: center; }
+:root .todo-item > button { min-width: 44px; min-height: 44px; font-size: 13px; }
+:root .todo-card .input-action input { font-size: 16px; min-height: 44px; }
+:root .todo-card .input-action input::placeholder { font-size: 13px; }
+@media (max-width: 760px) {
+  :root .suggestion-card > img, :root .suggestion-card:last-child > img { height: 96px; }
+  :root .page-9 .suggestion-card .card-actions { margin-top: 8px; padding-top: 8px; }
+  :root .page-9 .suggestion-card .card-actions .btn { min-height: 44px; }
+}
+
+:root .account-password-disclosure { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 8px; }
+:root .account-password-disclosure > summary { cursor: pointer; min-height: 44px; padding-block: 12px; font-size: 14px; color: var(--action-ink); }
+:root .account-password-disclosure .account-form { margin-top: 12px; }
+
+:root .account-save-banner .recovery-label-short { display: none; }
+:root .account-save-banner .btn > span { flex: none; }
+@media (max-width: 767px) {
+  :root .account-save-banner { gap: 8px; }
+  :root .account-save-banner .btn { min-height: 44px; padding: 8px 6px; font-size: 13px; }
+  :root .account-save-banner .recovery-label-full { display: none; }
+  :root .account-save-banner .recovery-label-short { display: inline; }
+}
+
+:root .release-notice { gap: 12px; padding: 8px 16px; }
+:root .release-notice button { min-height: 44px; flex-shrink: 0; }
+:root .account-save-banner .recovery-retry { background: var(--green); color: var(--on-primary); border-color: var(--green); }
+:root[data-heading="caveat"] :is(.style-group h2, .account-section h2, .section-title h2, .todo-card h2) { font-size: 26px; font-weight: 500; }
+@media (max-width: 767px) {
+  :root .release-notice { flex-wrap: nowrap; font-size: 13px; }
+  :root .release-notice > span { flex: 1; min-width: 0; }
+}
+@media (max-width: 1100px) {
+  :root .style-preview { padding: 12px; }
+  :root .sp-top { margin-bottom: 12px; }
+  :root .sp-body { padding: 16px; }
+  :root .sp-body > .sp-eyebrow, :root .sp-body > p { display: none; }
+  :root .sp-body > h3 { margin: 0 0 12px; font-size: 24px; }
+  :root .sp-card { margin-top: 12px; padding: 12px; }
+  :root .style-group { padding: 20px; }
+}
+
+/* Trip-picker dates are decision-making text, not fine print. */
+:root .trip-picker small { font-size: 13px; line-height: 1.5; }
+:root .budget-peek > strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
+@media (min-width: 768px) and (max-width: 900px) {
+  :root .itinerary-aside { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+}
+:root .event-notes p { white-space: pre-wrap; }
+:root .event-notes p.is-collapsed { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+:root .event-notes .text-link { min-height: 44px; }
+:root .suggestion-place { display: flex; align-items: baseline; gap: 6px; }
+:root .suggestion-place svg { flex-shrink: 0; align-self: flex-start; margin-top: 3px; }
+
+:root .demo-grid .chip, :root .screen-index > button { min-height: 44px; font-size: 13px; }
+:root .screen-index > button > span { font-size: 12px; }
+
+:root .itcal-event.has-title-room .itcal-event-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+:root .today-next-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+:root .todo-card { scroll-margin-top: 112px; }
+@media (max-width: 760px) {
+  :root .calendar-trip-hero + .trip-summary { display: none; }
+  :root .page-8:has(.calendar-trip-hero) .itinerary-controls { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; margin-block: 12px; }
+  :root .page-8:has(.calendar-trip-hero) .itinerary-heading { grid-column: 2; grid-row: 1; margin: 0; }
+  :root .page-8:has(.calendar-trip-hero) .itinerary-heading > div { display: none; }
+  :root .page-8:has(.calendar-trip-hero) .itinerary-view-switch { grid-column: 1; grid-row: 1; justify-self: start; margin: 0; }
+  :root .today-next-actions { width: 100%; flex-wrap: wrap; }
+  :root .today-next-actions > .btn { flex: 1; padding-inline: 10px; }
+  :root .detail-event > div { padding: 16px; }
+  :root .detail-event > img { height: 100px; }
+  :root .detail-event h2 { margin-bottom: 12px; }
+  :root .detail-event p { margin-block: 12px 0; }
+  :root .map-canvas:has(.pin-placement) .trip-map-tools { display: grid; grid-template-columns: repeat(2,44px); }
+  :root .map-canvas:has(.pin-placement) .trip-map-tools button { border: 0; }
+  :root .map-canvas:has(.pin-placement) .trip-map-tools button:nth-child(even) { border-left: 1px solid var(--line); }
+  :root .map-canvas:has(.pin-placement) .trip-map-tools button:nth-child(n+3) { border-top: 1px solid var(--line); }
+}
+
+/* Keep the event's primary action reachable while reviewing long phone forms. */
+:root .permission-traveler { margin: 0 0 20px; font-size: 16px; overflow-wrap: anywhere; }
+:root .receipt-review-status { margin-bottom: 16px; }
+:root .suggestion-preview-label { color: var(--muted); font-size: 13px; margin: -8px 0 20px; }
+@media (max-width: 700px) {
+  /* The editor already provides persistent Save/Cancel actions. Keep one phone
+     action bar; the header menu and Cancel retain access to the rest of the trip. */
+  :root body:has(.event-editor-form) .mobile-nav { display: none; }
+  :root .event-editor-form { padding-bottom: 90px; }
+  :root .event-editor-actions:is(.is-manual, .is-upload) {
+    position: fixed; bottom: env(safe-area-inset-bottom);
+    left: 0; right: 0; z-index: 24; margin: 0; padding: 10px 16px;
+    background: var(--paper); border-top: 1px solid var(--line);
+    display: flex; flex-wrap: nowrap; gap: 12px;
+  }
+  :root .event-editor-actions.is-manual > .btn:first-child { flex: 0 0 auto; }
+  :root .event-editor-actions.is-manual > .btn:last-child { flex: 1; }
+  :root .page-7 .page-head { margin-bottom: 16px; }
+  :root .page-7 .page-head:has(.event-delete-trigger) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+  :root .page-7 .page-head:has(.event-delete-trigger) .head-action { margin: 0; }
+  :root .page-7 .event-delete-trigger { width: auto; padding-inline: 12px; }
+  :root .page-7 .page-head > div > p { display: none; }
+  :root .event-editor-form > .upload-panel { display: grid; justify-items: center; gap: 12px; padding: 16px; margin-bottom: 16px; }
+  :root .event-editor-form > .upload-panel > :is(svg, h3, p, input, .btn, .text-link) { margin: 0; }
+  :root .page-9 .page-head { margin-bottom: 16px; }
+  :root .page-9 .suggestion-context { margin-bottom: 16px; gap: 8px; }
+  :root .page-9 .suggestion-preview-label { margin-bottom: 16px; }
+  :root .page-8 .getting-started { padding: 16px; margin: 16px 0; }
+  :root .page-8 .getting-started h2 { margin-bottom: 12px; }
+}
+
+@media (max-width: 700px) {
+  :root .page-9 .page-head { display: block; position: relative; }
+  :root .page-9 .page-head > div:first-child { display: block; }
+  :root .page-9 .page-head h1 { padding-right: 116px; min-height: 44px; display: flex; align-items: center; }
+  :root .page-9 .page-head .head-action { position: absolute; top: 0; right: 0; margin: 0; }
+  :root .page-9 .page-head p { margin: 8px 0 0; }
+  :root .page-9 .suggestion-refresh { padding-inline: 10px; font-size: 13px; }
+  :root .page-9 .suggestion-card > img { height: 96px; }
+}
+
+:root .trip-picker > button > span { min-width: 0; overflow-wrap: anywhere; }
+:root .trip-picker strong { font-size: 18px; line-height: 1.4; }
+:root[data-heading="caveat"] .trip-picker strong { font-size: 22px; }
+@media (max-width: 760px) {
+  :root .trip-picker > button { padding: 12px; gap: 8px; }
+  :root .trip-picker strong { font-size: 16px; line-height: 1.4; }
+  :root[data-heading="caveat"] .trip-picker strong { font-size: 20px; }
+}
+/* The switch opens the full-name picker; keep the navigation rail compact. */
+:root .trip-switch strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+:root .trip-picker-destinations {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+:root .modal-navigation { flex-shrink: 0; display: none; }
+:root .modal-navigation:has(.demo-mobile-tabs, .trip-picker-search) {
+  display: block;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+:root .modal-navigation .demo-mobile-tabs { margin: 0; }
+:root .trip-picker-search .field { margin: 0; }
+:root .trip-picker-search .fine-print { margin: 8px 0 0; }
+
+@media (max-width: 700px) {
+  :root:has(.event-editor-form) { scroll-padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+  :root .event-time-error { scroll-margin-bottom: 90px; }
+}
+
+
+/* Keep planning content close to its controls without removing trip artwork. */
+:root .trip-card .eyebrow { font-size: 13px; letter-spacing: .01em; text-transform: none; }
+:root .planned-stop-list li small { font-size: 13px; }
+:root .itcal-move { font-size: 12px; font-weight: 600; }
+:root .page-8:has(.calendar-trip-hero) .trip-summary { margin-block: 12px; padding-block: 12px; }
+:root .page-8 .itinerary-controls { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; margin-block: 16px; }
+:root .page-8 .itinerary-heading { grid-column: 2; grid-row: 1; margin: 0; }
+:root .page-8 .itinerary-heading > div { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+:root .page-8 .itinerary-view-switch { grid-column: 1; grid-row: 1; justify-self: start; margin: 0; }
+:root .reminder-date { margin: 8px 0 16px; font-size: 14px; color: var(--muted); }
+@media (max-width: 760px) {
+  :root .trip-photo img { height: 128px; }
+  :root .trip-card-body { padding: 16px; }
+  :root .trip-card h2 { font-size: 24px; margin-bottom: 8px; }
+  :root .planned-modal-intro { gap: 12px; }
+  :root .planned-modal-intro > img { height: 96px; }
+  :root .detail-event > img { height: 72px; }
+  :root .detail-event > div { padding: 12px 16px; }
+  :root .detail-event h2 { margin-bottom: 8px; }
+  :root .detail-event p { margin-top: 8px; }
+  :root .page-10 .page-head { position: relative; display: block; margin-bottom: 16px; }
+  :root .page-10 .page-head h1 { padding-right: 155px; min-height: 44px; }
+  :root .page-10 .page-head .head-action { position: absolute; right: 0; top: 28px; margin: 0; }
+  :root .page-10 .page-head .head-action .btn { padding-inline: 10px; font-size: 13px; }
+  :root .today-next-stop { margin-bottom: 16px; gap: 12px; }
+  :root .week-card { padding: 16px; }
+  :root .week-card .section-title { margin-bottom: 8px; }
+}
+@media (max-width: 760px) and (max-height: 650px) {
+  :root .modal:has(.demo-mobile-tabs) { padding-top: 0; }
+  :root .modal:has(.demo-mobile-tabs) .modal-head { margin-bottom: 12px; }
+  :root .demo-mobile-tabs { margin-block: 8px; }
+}
+
+@media (max-width: 760px) {
+  :root .topbar .prototype-button { display: none; }
+  :root .topbar .mobile-trip-context strong { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.3; }
+}
+@media (min-width: 761px) {
+  :root .calendar-trip-hero .trip-hero-content { position: relative; padding-block: 20px; }
+  :root .calendar-trip-hero .trip-hero-content > .row { position: absolute; top: 16px; right: 24px; }
+  :root .calendar-trip-hero .trip-hero-content > .row .badge { display: none; }
+  :root .calendar-trip-hero h1 { padding-right: 150px; margin-top: 0; }
+}
+:root .itcal-event-time, :root .itcal-event-place, :root .itcal-time-axis > span { color: var(--ink); }
+@media (max-width: 760px) and (max-height: 650px) {
+  :root .page-8:has(.calendar-trip-hero) .itinerary-controls { margin-block: 8px; }
+  :root .itcal-toolbar { margin-bottom: 8px; }
+}
+
+:root .suggested-event-summary { margin-bottom: 20px; }
+:root .suggested-event-summary h2 { margin: 0 0 8px; font-size: 24px; }
+:root .suggested-event-summary p { margin: 0; font-size: 14px; color: var(--muted); }
+:root .suggested-event-details { margin: 16px 0; }
+:root .suggested-event-details > summary { min-height: 44px; padding-block: 12px; cursor: pointer; color: var(--green); font-size: 14px; }
+@media (max-width: 700px) {
+  :root .event-editor-form > .info-banner { flex-wrap: wrap; }
+  :root .event-editor-form > .info-banner > span { flex-basis: 100%; }
+}
+
+:root .map-fit-label { font-size: 12px; line-height: 1.2; font-weight: 600; }
+:root .map-selected-return { display: none; }
+:root .place-select small { font-size: 13px; line-height: 1.5; }
+:root .place-select em { font-size: 13px; font-weight: 600; }
+@media (max-width: 760px) {
+  :root .map-selected-return { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px; min-height: 44px; background: var(--paper); color: var(--green); border: 1px solid var(--line); border-radius: var(--ui-radius-control); text-align: left; font-size: 14px; }
+}
+
+:root .inline-success { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: var(--ui-radius-control); background: var(--paper); color: var(--ink); font-size: 14px; }
+
+:root .detail-event { padding: 0; }
+@media (min-width: 761px) {
+  :root .calendar-trip-hero .trip-hero-content > .row { left: auto; width: auto; justify-content: flex-end; }
+}
+
+@media (max-width: 760px) {
+  :root body:not(:has(.mobile-nav)) .style-actions { bottom: env(safe-area-inset-bottom); }
+}
+
+/* Covers keep their title rows aligned whether or not a credit is present. */
+:root .trip-card-credit { min-height: 32px; }
+:root .trip-card-credit .photo-credit { margin-block: 0; padding-block: 4px; }
+@media (max-width: 760px) {
+  :root .trip-card-credit:empty { min-height: 0; }
+  :root .sample-feature { min-height: 0; }
+  :root .sample-feature > div { padding: 20px; }
+  :root .sample-feature h2 { font-size: 26px; margin-block: 8px; }
+  :root .sample-feature p { margin-bottom: 12px; }
+  :root .sample-feature > img { height: 112px; }
+  :root .booking-inbox { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 16px; }
+  :root .booking-inbox > svg { display: none; }
+  :root .booking-inbox > div { min-width: 0; }
+  :root .booking-inbox > .btn { margin: 0; }
+  :root .booking-inbox .booking-address { font-size: 13px; margin: 4px 0 0; }
+  :root body:has(.page-5) .save-toast { top: 108px; bottom: auto; padding: 8px 12px; }
+}
+@media (max-width: 760px) and (max-height: 650px) {
+  :root .consent-page { padding-top: 16px; }
+  :root .consent-page .consent-brand { width: 44px; height: 44px; margin-bottom: 12px; }
+  :root .consent-page h1 { font-size: 28px; margin-bottom: 12px; }
+}
+
+@media (max-width: 760px) {
+  :root .trip-editor-form { padding-bottom: 90px; }
+  :root .trip-form-actions { position: fixed; z-index: 24; bottom: calc(58px + env(safe-area-inset-bottom)); left: 0; right: 0; display: flex; flex-wrap: nowrap; gap: 12px; margin: 0; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--paper); }
+  :root .trip-form-actions > .btn { padding-inline: 12px; }
+  :root .trip-form-actions > .btn:last-child { flex: 1; }
+  :root body:not(:has(.mobile-nav)) .trip-form-actions { bottom: env(safe-area-inset-bottom); }
+  :root:has(.trip-editor-form) { scroll-padding-bottom: 110px; }
+  :root .trip-form-error { scroll-margin-bottom: 110px; }
+}
+
+:root .event-conflict-note { display: block; }
+:root .event-conflict-note p { margin: 0 0 8px; color: inherit; }
+:root body:has(.event-editor-form, .trip-editor-form) .save-toast { display: none; }
+:root .pin-placement > button[aria-label="Cancel pin placement"] { width: auto; min-width: 64px; font-size: 13px; }
+@media (max-width: 760px) {
+  :root .page-4 .page-head { display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; }
+  :root .page-4 .page-head .head-action { margin: 0; }
+  :root .page-4 .page-head .head-action .btn { padding-inline: 0; font-size: 13px; }
+  :root .home-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+  :root .home-actions > .btn { min-width: 0; min-height: 56px; padding-inline: 12px; justify-content: center; text-align: center; }
+  :root .home-actions > .btn > svg:last-child { display: none; }
+  :root .page-17 .page-head { position: relative; display: block; margin-bottom: 16px; }
+  :root .page-17 .page-head h1 { padding-right: 180px; min-height: 44px; }
+  :root .page-17 .page-head .head-action { position: absolute; right: 0; top: 0; margin: 0; }
+  :root .page-17 .page-head .head-action .btn { font-size: 13px; padding-inline: 10px; }
+  :root .pin-placement { flex-wrap: wrap; gap: 8px; }
+  :root .pin-placement-copy { flex-basis: 100%; }
+  :root .pin-placement > .btn { flex: 1; }
+}
+
+@media (max-width: 760px) and (max-height: 650px) {
+  :root .consent-page { margin-block: 8px; padding-top: 0; }
+  :root .consent-page .consent-brand { display: none; }
+  :root .consent-page > h1 { margin-top: 16px; }
+  :root .consent-page > p { margin-bottom: 12px; }
+  :root .consent-list { padding: 16px; }
+}
+
+/* Keep alternate account entry visible without shrinking fields or brand artwork. */
+:root .auth .auth-form-wrap { margin-top: 0; margin-bottom: 24px; }
+:root .auth .auth-form-wrap > p { margin-bottom: 20px; }
+:root .auth .divider { margin-block: 16px; }
+:root .auth .account-form { gap: 16px; }
+:root .auth .auth-toggle { margin-block: 4px; }
+:root .auth .demo-login-option { padding-top: 16px; }
+/* Keep secondary event choices available without a full list before the next field. */
+:root .event-attendees { margin-block: 0 20px; border-block: 1px solid var(--line); }
+:root .event-attendees summary { min-height: 48px; padding-block: 12px; cursor: pointer; }
+:root .event-attendees summary strong { font-size: 14px; font-weight: 500; }
+:root .event-attendees summary > span { margin-left: 12px; color: var(--muted); font-size: 13px; }
+:root .event-attendees fieldset { margin-block: 4px 16px; }
+:root .event-location-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; }
+:root .event-location-heading .event-location-bias { display: flex; align-items: center; gap: 8px; margin: 0; min-width: 0; max-width: 100%; }
+:root .event-location-heading .event-location-bias select { width: 200px; max-width: 100%; }
+:root .survey-actions { justify-content: space-between; }
+:root .survey-back-actions { display: flex; align-items: center; gap: 4px; }
+:root .survey-back-actions .btn { min-width: 44px; padding-inline: 8px; }
+:root .survey-actions > .btn { flex: 0 1 auto; }
+:root .place-actions .place-show-map { display: none; }
+@media (max-width: 760px) {
+  :root .place-actions .place-show-map { display: inline-flex; }
+  :root .page-7 .page-head > div > .eyebrow { display: none; }
+}
+@media (min-width: 761px) {
+  :root .trip-map-list h2 {
+    position: sticky;
+    top: -18px;
+    z-index: 1;
+    padding-block: 18px 12px;
+    margin-top: -18px;
+    margin-bottom: 0;
+    background: var(--paper);
+  }
+  :root .trip-map-list .place-select { scroll-margin-top: 64px; }
+  /* The stationary shadows reveal overflow; local paper layers cover them at either end. */
+  :root .trip-map-list {
+    background:
+      linear-gradient(var(--paper) 30%, transparent) center top / 100% 40px local,
+      linear-gradient(transparent, var(--paper) 70%) center bottom / 100% 40px local,
+      radial-gradient(farthest-side at 50% 0, color-mix(in srgb, var(--ink) 18%, transparent), transparent) center top / 100% 12px scroll,
+      radial-gradient(farthest-side at 50% 100%, color-mix(in srgb, var(--ink) 18%, transparent), transparent) center bottom / 100% 12px scroll;
+    background-repeat: no-repeat;
+    background-color: var(--paper);
+  }
+}
+/* On short phones, reduce introductory space while retaining the logo and full-size controls. */
+:root .auth-brand-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+:root .auth .auth-brand-row .brand-logo.auth-logo { margin-bottom: 0; }
+:root .auth-brand-row .auth-toggle { flex: none; width: auto; padding: 10px 12px; margin: 0; }
+@media (max-width: 760px) { :root .auth-brand-row { margin-bottom: 18px; } }
+@media (max-width: 760px) and (max-height: 650px) {
+  :root .auth-panel { padding-top: 12px; }
+  :root .auth .brand-logo.auth-logo { max-width: 136px; margin-bottom: 8px; }
+  :root .auth-brand-row { margin-bottom: 8px; }
+  :root .auth .auth-form-wrap h2 { font-size: 30px; margin-top: 8px; }
+  :root .auth .auth-form-wrap > p { margin-bottom: 8px; }
+  :root .auth .divider { margin-block: 8px; }
+  :root .auth .account-form { gap: 12px; }
+}
+@media (max-width: 760px) {
+  :root .demo-exit { width: auto; min-width: 80px; padding-inline: 8px; white-space: nowrap; }
+}
+
+/* Short explanatory content should not occupy a full phone screen. */
+:root .trip-form-intro { margin-bottom: 16px; }
+:root .trip-form-intro p { margin: 0; }
+:root .modal:has(.trip-picker) .empty { padding-block: 20px; }
+@media (max-width: 760px) {
+  :root .sample-feature { display: grid; grid-template-columns: minmax(0,1fr) 80px; }
+  :root .sample-feature > div { padding: 16px; }
+  :root .sample-feature > img { grid-column: 2; height: 100%; min-height: 0; }
+  :root .sample-feature h2 { font-size: 22px; }
+  :root .sample-feature .btn { padding-inline: 8px; gap: 6px; }
+  :root .trip-card-credit:not(:empty) + .trip-card-body { padding-top: 4px; }
+  :root .trip-editor-form .step-heading { margin-bottom: 16px; }
+  :root .trip-editor-form .field { margin-bottom: 16px; }
+  :root .narrow-page:has(.connection-list) .page-head { margin-bottom: 20px; }
+  :root .narrow-page:has(.connection-list) .info-banner { margin-bottom: 16px; }
+  :root .connection-list { gap: 12px; }
+}
+@media (max-width: 760px) and (max-height: 650px) {
+  :root .menu-sections { gap: 12px; }
+  :root .menu-sections h3 { margin-bottom: 4px; }
+  :root .menu-sections .menu-links { row-gap: 0; }
+  :root .demo-grid [data-section="time"] h3 { margin: 0 0 12px; }
+  :root .demo-grid [data-section="time"] .field { margin: 0; }
+  :root .demo-grid [data-section="time"] .form-columns { gap: 12px; margin-bottom: 12px; }
+  :root .modal:has(.demo-mobile-tabs) .modal-head { margin-bottom: 0; }
+  :root .modal:has(.demo-mobile-tabs) .modal-body > .fine-print { margin-bottom: 8px; }
+  :root .modal:has(.demo-mobile-tabs) .modal-head { padding-block: 12px; }
+}
+
+/* Keep date and time together across the full-width phone and tablet panel. */
+@media (min-width: 390px) and (max-width: 1050px) {
+  :root .demo-grid [data-section="time"] .form-columns { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+  :root .demo-grid [data-section="time"] input { min-width: 0; width: 100%; }
+}
+
+/* A connection's action belongs beside its identity; permission details retain full rows. */
+@media (max-width: 760px) {
+  :root .demo-grid [data-section="time"] { padding: 0; border: 0; background: transparent; }
+  :root .connection-card { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  :root .connection-info > .row { flex-direction: column; align-items: flex-start; gap: 4px; }
+  :root .connection-card .badge { white-space: normal; }
+  :root .connection-card > .btn { grid-column: 3; grid-row: 1; width: auto; margin: 0; padding-inline: 12px; }
+}
+
+:root .day-chips a { border-color: var(--line); background: var(--paper); }
+:root .day-chips a[aria-current="date"] { border-color: var(--control-border); background: var(--sage); }
+:root .day-section, :root [id^="itinerary-event-"] { scroll-margin-top: 112px; }
+@media (max-width: 760px) {
+  :root .page-8 .trip-hero, :root .page-8 .trip-hero-content { min-height: 160px; }
+  :root .page-8 .trip-hero h1 { font-size: 28px; line-height: 1.2; margin-block: 8px; }
+  :root .page-8 .trip-summary { margin-bottom: 16px; }
+  :root .trip-map[data-map-state="ready"]:not(.compact) .map-canvas:has(.pin-placement) { height: max(340px, 45svh, calc(var(--pin-actions-height, 110px) * 2 + 112px)); min-height: 340px; }
+}
+
+@media (max-width: 760px) {
+  :root .event-location-menu { display: flex; flex-direction: column; max-height: min(360px, calc(100svh - 300px)); }
+  :root .event-location-menu [role="listbox"] { min-height: 44px; flex: 1 1 auto; }
+  :root .event-location-menu > :not([role="listbox"]) { flex-shrink: 0; }
+}
+
+:root .nearby-details { margin: 8px 0; font-size: 13px; color: var(--muted); }
+:root .nearby-details summary { min-height: 44px; padding-block: 12px; cursor: pointer; color: var(--action-ink); }
+:root .nearby-details p { margin: 0 0 12px; line-height: 1.5; }
+:root .nearby-footer { width: 100%; }
+:root .nearby-footer > p { margin: 0 0 12px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+:root .nearby-footer .nearby-actions { margin: 0; }
+@media (max-width: 760px) and (max-height: 650px) {
+  :root .consent-page > h1 { margin-top: 8px; }
+  :root .consent-list .check-row { margin-block: 8px; }
+  :root .consent-page .consent-recovery > .form-actions { margin-top: 12px; }
+}
+
+/* WebKit's native menulist can ignore minimum height. Keep the native select
+   interaction while drawing a consistent, theme-aware control and chevron. */
+:root select:not([multiple]) {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 44px;
+  padding: 10px 36px 10px 12px;
+  font: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background-color: var(--paper);
+  border: 1px solid var(--control-border);
+  border-radius: var(--ui-radius-control);
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 18px) center, calc(100% - 13px) center;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+
+:root .planned-carousel + .sample-feature { margin-top: 24px; }
+/* Empty dates remain navigable without repeating large blank-state panels. */
+:root .day-section:has(> .empty-day) {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius-card);
+  background: var(--paper);
+}
+:root .day-section:has(> .empty-day) > .day-title { flex: 1 1 0; min-width: 0; margin: 0; }
+:root .day-section:has(> .empty-day) h3 { margin: 0; }
+:root .empty-day-link { display: inline-flex; align-items: center; gap: 8px; text-align: left; background: none; border: 0; color: var(--action-ink); padding: 0; min-height: 44px; max-width: 100%; font: inherit; }
+:root .empty-day-link > span { color: inherit; font: inherit; }
+:root .empty-day-link strong { display: block; font-size: 14px; font-weight: 600; }
+:root .empty-day-link small { display: block; color: var(--muted); font-size: 13px; font-weight: 400; margin-top: 3px; }
+:root .empty-day-link svg { flex-shrink: 0; }
+:root .day-section > .empty-day { padding: 0; border: 0; background: transparent; margin-left: 0; flex-shrink: 0; }
+:root .day-section > .empty-day .text-link { font-size: 13px; }
+:root .day-section > .empty-day p { margin: 0; }
+@media (min-width: 701px) {
+  :root .event-editor-actions.is-manual {
+    position: sticky;
+    bottom: 16px;
+    z-index: 24;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--ui-radius-control);
+    background: var(--paper);
+  }
+}
+/* Only the first lines share space with Remove; long notes regain the full text
+   column below it. Keep the label's generous checkbox target and visible action. */
+:root .todo-item { display: flow-root; }
+:root .todo-item > input { float: left; margin: 14px 9px 0 0; }
+:root .todo-item > button { float: right; margin-left: 8px; }
+:root .todo-item > label { display: block; margin-left: 29px; padding-top: 10px; min-width: 0; min-height: 44px; overflow-wrap: anywhere; cursor: pointer; }
+:root .suggestion-reset { margin-top: 16px; }
+/* Scheduling an idea starts with its time; alternate entry tools remain on the
+   ordinary event form rather than occupying the short-phone scheduling view. */
+@media (max-width: 700px) {
+  :root .event-editor-form.is-suggested > .tabs { display: none; }
+  :root .is-suggested .suggested-event-summary { margin-bottom: 12px; }
+  :root .is-suggested .suggested-event-summary h2 { font-size: 20px; margin-bottom: 4px; }
+  :root .is-suggested .form-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+}
+:root .repayment-decision { display: flex; gap: 12px; margin-top: 24px; }
+:root .repayment-decision > .btn { flex: 1; margin: 0; }
+:root .page-5 > .success-banner { flex-wrap: wrap; }
+:root .page-5 > .success-banner > span { flex: 1; }
+
+/* At high browser zoom, reserve scarce height for the dialog's editable content. */
+@media (max-height: 400px) {
+  :root .overlay { padding: 4px; }
+  :root .modal { max-height: calc(100dvh - 8px); }
+  :root .modal .modal-head { padding: 4px 12px; }
+  :root .modal-body { padding: 12px 16px; }
+  :root .modal-footer { padding: 8px 12px; }
+  :root .expense-fields { padding: 12px 16px 4px; }
+  :root .expense-form .form-actions { padding: 8px 16px; }
+  :root .expense-form textarea { height: 44px; min-height: 44px; }
+  :root .expense-form .expense-field-error { padding: 4px 8px; }
+}

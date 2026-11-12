@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { emailError, invitationsError, TEXT_LIMITS } from "./limits";
 import { getSupabase } from "./supabase";
@@ -17,16 +17,18 @@ export function useRecipients() {
   const [emails, setEmails] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
+  const [validationAttempt, setValidationAttempt] = useState(0);
   function commit(value = draft): string[] | null {
     const next = [...new Set([...emails, ...splitEmails(value)])];
     const problem = invitationsError(next.join(","));
     setError(problem);
+    setValidationAttempt((attempt) => attempt + 1);
     if (problem) return null;
     setEmails(next);
     setDraft("");
     return next;
   }
-  return { emails, setEmails, draft, setDraft, error, setError, commit };
+  return { emails, setEmails, draft, setDraft, error, setError, validationAttempt, commit };
 }
 
 export function RecipientField({
@@ -43,8 +45,18 @@ export function RecipientField({
   disabled?: boolean;
 }) {
   const id = useId();
+  const errorElement = useRef<HTMLParagraphElement>(null);
   const [names, setNames] = useState<Record<string, string>>({});
   const [lookupError, setLookupError] = useState(false);
+  useEffect(() => {
+    if (!r.error) return;
+    const error = errorElement.current;
+    const actions = error?.closest("form")?.querySelector<HTMLElement>("[data-fixed-actions]");
+    if (!error || !actions || !["fixed", "sticky"].includes(getComputedStyle(actions).position)) return;
+    // Enter can validate without changing focus, so the form's focus handler will not run.
+    if (error.getBoundingClientRect().bottom > actions.getBoundingClientRect().top - 12)
+      error.scrollIntoView({ block: "center", inline: "nearest" });
+  }, [r.error, r.validationAttempt]);
   const missing = r.emails.filter((email) => !(email in names)).join(",");
   useEffect(() => {
     if (!live || !missing) return;
@@ -111,10 +123,10 @@ export function RecipientField({
           disabled={disabled}
           value={r.draft}
           maxLength={TEXT_LIMITS.invitations}
-          aria-describedby={id + "-hint"}
+          aria-describedby={[id + "-hint", r.error ? id + "-error" : ""].filter(Boolean).join(" ")}
           aria-invalid={!!r.error}
           placeholder={
-            r.emails.length ? "Add another email" : "Add email addresses"
+            r.emails.length ? "Add email" : "Add email addresses"
           }
           onChange={(e) => {
             r.setDraft(e.target.value);
@@ -157,7 +169,7 @@ export function RecipientField({
           : "Press Enter or paste a list. Demo invitations stay in this browser."}
       </small>
       {r.error && (
-        <p className="form-error" role="alert">
+        <p ref={errorElement} id={id + "-error"} className="form-error" role="alert">
           {r.error}
         </p>
       )}

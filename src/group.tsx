@@ -1,6 +1,7 @@
 /** Implementation status: Account survey answers and guest traveler roles/days are database-backed. Owners can assign editing roles to accepted accounts. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, textError } from "./limits.ts";
-import React, { useState } from "react";
+import "./group-refinement.css";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
@@ -42,7 +43,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useApp } from "./state";
-import { Avatar, Badge, Button, ErrorBox, Field, PageHead } from "./ui";
+import { Avatar, Badge, Button, ConfirmDialog, ErrorBox, Field, Modal, PageHead } from "./ui";
 import { blankPrefs, dateText, isOwner, member, type Trip, type Preference } from "./domain";
 
 function DiningSectionGraphic({ kind }: { kind: "city-town" | "plate" | "disco-chandelier" }) {
@@ -131,23 +132,14 @@ function SpendingLevelGraphic({ level }: { level: string }) {
   );
 }
 
-function PreferenceVoterDots({
-  count,
-  container,
-  dot,
-}: {
-  count: number;
-  container: string;
-  dot: string;
-}) {
-  return (
-    <span className={container} aria-hidden="true">
-      {Array.from({ length: Math.min(count, 5) }, (_, index) => (
-        <i className={dot} key={index} />
-      ))}
-      {count > 5 && <span className="preference-dot-overflow">+{count - 5}</span>}
-    </span>
-  );
+/** Keep group counts literal so larger groups never require counting dots. */
+function PreferenceVoterCount({ count }: { count: number }) {
+  return <span className="preference-voter-count" aria-hidden="true">{count}</span>;
+}
+
+/** Long name lists belong in the existing dialog, not a floating preview. */
+function travelerPreview(names: string[]): string {
+  return names.length === 1 ? names[0] : `${names.length} travelers`;
 }
 
 const mobilityRadiusPalette = ["#6cab8a", "#55abc0", "#d57272", "#b08bc1"];
@@ -166,6 +158,7 @@ const brochureAccents: Record<string, string> = {
 };
 
 function InterestBrochureFan({ items }: { items: [string, string[]][] }) {
+  const { open } = useApp();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const angles = [-8, 5, -4, 7, -6, 4, -7, 6, -3];
 
@@ -199,6 +192,8 @@ function InterestBrochureFan({ items }: { items: [string, string[]][] }) {
               className="interest-brochure"
               aria-label={`${label}: ${names.join(", ")}`}
               aria-describedby={tooltipId}
+              aria-haspopup="dialog"
+              onClick={() => open("message", {title: label, body: names.join("\n")})}
               onFocus={() => setActiveIndex(index)}
               onBlur={() => setActiveIndex(null)}
             >
@@ -207,9 +202,11 @@ function InterestBrochureFan({ items }: { items: [string, string[]][] }) {
                 <span className="interest-brochure-lines"><i /><i /><i /></span>
               </span>
             </button>
-            <span className="interest-brochure-tooltip" id={tooltipId} role="tooltip" aria-hidden={activeIndex !== index}>
+            <span className="interest-brochure-label">{label} <PreferenceVoterCount count={names.length} /></span>
+            <span className="interest-brochure-tooltip" id={tooltipId} role="tooltip">
               <strong>{label}</strong>
-              <span>{names.join(", ")}</span>
+              <span>{travelerPreview(names)}</span>
+                                  <small className="chart-tooltip-hint">Select to view full names</small>
             </span>
           </div>
         );
@@ -220,8 +217,79 @@ function InterestBrochureFan({ items }: { items: [string, string[]][] }) {
 
 export function Group() {
   const { trip: t, s, go, open, updateTrip, toast } = useApp();
+  const travelersHeading = useRef<HTMLHeadingElement>(null);
+  const [travelerQuery, setTravelerQuery] = useState("");
+  const [removal, setRemoval] = useState<{ tripId: string; memberId: string } | null>(null);
+  const [sharedNote, setSharedNote] = useState<{ note: string; names: string[] } | null>(null);
+  useEffect(() => {
+    let active: HTMLElement | null = null;
+    let trigger: Element | null = null;
+    const dismiss = () => {
+      active?.classList.remove("chart-tooltip-active");
+      active = null;
+      trigger = null;
+    };
+    const position = (event: Event) => {
+      if (event.type === "pointerover" && trigger?.contains(document.activeElement)) return;
+      const target = event.target instanceof Element ? event.target.closest("button") : null;
+      const tooltip = target?.querySelector<HTMLElement>('[role="tooltip"]') || target?.parentElement?.querySelector<HTMLElement>('.interest-brochure-tooltip');
+      if (!tooltip || !target || document.querySelector('[role="dialog"]')) { dismiss(); return; }
+      dismiss();
+      active = tooltip;
+      trigger = target;
+      tooltip.classList.add("chart-tooltip-floating", "chart-tooltip-active");
+      const rect = target.getBoundingClientRect();
+      const contentLeft = document.querySelector("main")?.getBoundingClientRect().left || 0;
+      tooltip.style.maxWidth = `${Math.max(120, Math.min(280, innerWidth - contentLeft - 16))}px`;
+      // Start inside the viewport before measuring; hidden tooltips never affect page width.
+      tooltip.style.left = `${contentLeft + 8}px`;
+      tooltip.style.top = "8px";
+      const { width, height } = tooltip.getBoundingClientRect();
+      tooltip.style.left = `${Math.max(contentLeft + 8, Math.min(innerWidth - width - 8, rect.left + rect.width / 2 - width / 2))}px`;
+      tooltip.style.top = `${rect.top > height + 12 ? rect.top - height - 8 : Math.max(8, Math.min(innerHeight - height - 8, rect.bottom + 8))}px`;
+    };
+    const keyboard = (event: KeyboardEvent) => { if (event.key === "Escape") dismiss(); };
+    const leave = (event: Event) => {
+      // Pointer events from a different chart must not dismiss the keyboard tooltip.
+      if (!(event.target instanceof Node) || !trigger?.contains(event.target)) return;
+      if (event.type === "pointerout" && trigger.contains(document.activeElement)) return;
+      const next = (event as FocusEvent | PointerEvent).relatedTarget;
+      if (!(next instanceof Node) || !trigger.contains(next)) dismiss();
+    };
+    document.addEventListener("pointerover", position);
+    document.addEventListener("focusin", position);
+    document.addEventListener("keydown", keyboard);
+    document.addEventListener("pointerout", leave);
+    document.addEventListener("focusout", leave);
+    document.addEventListener("scroll", dismiss, true);
+    window.addEventListener("resize", dismiss);
+    return () => {
+      dismiss();
+      document.removeEventListener("pointerover", position);
+      document.removeEventListener("focusin", position);
+      document.removeEventListener("keydown", keyboard);
+      document.removeEventListener("pointerout", leave);
+      document.removeEventListener("focusout", leave);
+      document.removeEventListener("scroll", dismiss, true);
+      window.removeEventListener("resize", dismiss);
+    };
+  }, []);
   if (!t) return null;
   const owner = isOwner(t, s.userId);
+  const removalTarget = removal?.tripId === t.id && owner
+    ? t.members.find(person => person.id === removal.memberId && person.role !== "Owner" && person.status !== "removed") : undefined;
+  const finishRemoval = () => {
+    setRemoval(null);
+    requestAnimationFrame(() => {
+      travelersHeading.current?.focus({ preventScroll: true });
+      travelersHeading.current?.scrollIntoView({ block: "start" });
+    });
+  };
+  const activeTravelers = t.members.filter((m) => m.status !== "removed");
+  const query = travelerQuery.trim().toLocaleLowerCase();
+  const visibleTravelers = activeTravelers.filter((m) =>
+    !query || `${m.name} ${m.email || ""}`.toLocaleLowerCase().includes(query),
+  );
   const responses = t.members.filter(
     (m) => m.status === "accepted" && t.prefs[m.id],
   );
@@ -255,14 +323,20 @@ export function Group() {
       <PageHead
         title="The group"
         action={
-          <Button variant="outline" onClick={() => go(15)}>
-            My preferences <ArrowRight size={16} />
-          </Button>
+          <div className="group-page-actions">
+            <Button variant="outline" onClick={() => {
+              travelersHeading.current?.focus({ preventScroll: true });
+              travelersHeading.current?.scrollIntoView({ block: "start" });
+            }}><Users size={16} /> Travelers</Button>
+            <Button variant="outline" onClick={() => go(15)}>
+              My preferences <ArrowRight size={16} />
+            </Button>
+          </div>
         }
       />
       <div className="section-title">
         <div>
-          <h2>Group preferences</h2>
+          <h2>Preferences</h2>
           <p>
             {responses.length} of{" "}
             {t.members.filter((m) => m.status === "accepted").length} travelers
@@ -271,8 +345,15 @@ export function Group() {
         </div>
         <Badge tone="green">Visible to the group</Badge>
       </div>
+      {responses.length > 0 && <label className="preference-jump">Jump to
+        <select aria-label="Jump to a preference" value="" onChange={(event) => {
+          const section = document.getElementById(`group-preference-${event.target.value}`);
+          section?.scrollIntoView({block:"start"}); section?.focus({preventScroll:true});
+        }}><option value="" disabled>Choose a category</option>{tiles.map(({title}, index) => <option key={title} value={index}>{title}</option>)}</select>
+      </label>}
+      {responses.length > 0 && <p className="group-chart-legend">Traveler counts · Select an item for names.</p>}
       <div className="preference-grid">
-        {tiles.map(({ title, Icon, keys }) => {
+        {tiles.map(({ title, Icon, keys }, tileIndex) => {
           const counts: Record<string, string[]> = {};
           const noRestrictionNames: string[] = [];
           responses.forEach((m) => {
@@ -370,7 +451,7 @@ export function Group() {
             members: responses.filter((member) => t.prefs[member.id].access.includes(label)),
           })).filter(({ members }) => members.length > 0);
           return (
-            <article className="card preference-tile" key={title}>
+            <article id={`group-preference-${tileIndex}`} tabIndex={-1} className={`card preference-tile${responses.length === 0 ? " preference-tile-empty" : ""}`} key={title}>
               <div className="tile-icon">
                 <Icon size={22} strokeWidth={1.5} />
               </div>
@@ -380,7 +461,9 @@ export function Group() {
                   ? `${sharedTravelers + noRestrictionNames.length} of ${t.members.filter((m) => m.status === "accepted").length} travelers responded`
                   : `${sharedTravelers} of ${t.members.filter((m) => m.status === "accepted").length} travelers shared`}
               </p>
-              {title === "Dining preferences" ? (
+              {responses.length === 0 ? (
+                <p className="muted preference-empty">Nothing shared yet.</p>
+              ) : title === "Dining preferences" ? (
                 <div className="dining-preference-sections">
                   {diningSections.map(({ label, options, graphic }) => (
                     <section className="dining-preference-section" key={label}>
@@ -401,12 +484,15 @@ export function Group() {
                                 key={value}
                                 aria-label={`${value}: ${names.join(", ")}`}
                                 aria-describedby={id}
+                                aria-haspopup="dialog"
+                                onClick={() => open("message", {title: value, body: names.join("\n")})}
                               >
                                 <span className="dining-preference-value">{value}</span>
-                                <PreferenceVoterDots count={names.length} container="dining-preference-dots" dot="dining-preference-dot" />
+                                <PreferenceVoterCount count={names.length} />
                                 <span className="dining-preference-tooltip" id={id} role="tooltip">
                                   <strong>{value}</strong>
-                                  <span>{names.join(", ")}</span>
+                                  <span>{travelerPreview(names)}</span>
+                                  <small className="chart-tooltip-hint">Select to view full names</small>
                                 </span>
                               </button>
                             );
@@ -420,47 +506,41 @@ export function Group() {
                 </div>
               ) : title === "Spending preferences" ? (
                 spendingResponses.length ? (
-                  <div className="spending-preference-chart" aria-label="Group spending comfort scale">
-                    <div className="spending-scale-labels" aria-label="Budget-conscious, moderate, and room to splurge">
-                      {spendingLevels.map((level) => (
-                        <span className="spending-scale-icon" key={level} role="img" aria-label={level}>
-                          <SpendingLevelGraphic level={level} />
-                        </span>
+                  <div className="spending-preference-chart" aria-label="Group spending preferences">
+                    <div className="spending-categories">
+                      {spendingDistribution.map(({ value, members }) => (
+                        <div className="spending-category" key={value} role="group" aria-label={value}>
+                          <span className="spending-scale-icon" aria-hidden="true">
+                            <SpendingLevelGraphic level={value} />
+                            <span>{value}</span>
+                          </span>
+                          <div className="spending-marker-group">
+                            {members.length === 0 && <span className="spending-empty" aria-label={`No travelers selected ${value}`}>None yet</span>}
+                            {members.length > 4 ? <button type="button" className="spending-count" aria-label={`${members.length} travelers: ${value}`} aria-haspopup="dialog" onClick={() => open("message", {title: value, body: members.map(({member}) => member.name).join("\n")})}>{members.length}</button> : members.map(({ member }) => {
+                              const id = `spending-tooltip-${member.id.replace(/[^a-z0-9]+/gi, "-")}`;
+                              return (
+                                <button
+                                  type="button"
+                                  className={`spending-marker spending-marker-${t.members.indexOf(member) % 4}`}
+                                  key={member.id}
+                                  aria-label={`${member.name}: ${value}`}
+                                  aria-describedby={id}
+                                  aria-haspopup="dialog"
+                                  onClick={() => open("message", {title: value, body: member.name})}
+                                >
+                                  <span className="spending-marker-tooltip" id={id} role="tooltip">
+                                    <strong>{value}</strong>
+                                    <span>{member.name}</span>
+                                    <small className="chart-tooltip-hint">Select to view full names</small>
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       ))}
                     </div>
-                    <div className="spending-scale-track">
-                      <span className="spending-scale-line" aria-hidden="true" />
-                      {spendingDistribution.map(({ value, level, members }) => (
-                        <React.Fragment key={value}>
-                          <span
-                            className="spending-scale-stop"
-                            style={{ left: `${10 + level * 40}%` }}
-                            aria-hidden="true"
-                          />
-                          {members.map(({ member }, index) => {
-                            const offset = (index - (members.length - 1) / 2) * 12;
-                            const id = `spending-tooltip-${member.id.replace(/[^a-z0-9]+/gi, "-")}`;
-                            return (
-                              <button
-                                type="button"
-                                className={`spending-marker spending-marker-${t.members.indexOf(member) % 4}`}
-                                key={member.id}
-                                style={{
-                                  left: `calc(${10 + level * 40}% + ${offset}px)`,
-                                }}
-                                aria-label={`${member.name}: ${value}`}
-                                aria-describedby={id}
-                              >
-                                <span className="spending-marker-tooltip" id={id} role="tooltip">
-                                  <strong>{value}</strong>
-                                  <span>{member.name}</span>
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </React.Fragment>
-                      ))}
-                    </div>
+                    <p className="spending-chart-legend">Each dot is one traveler. Select a dot or count to see names.</p>
                     {averageSpendingLevel && (
                       <div className="spending-average">
                         <span className="spending-average-icon" aria-hidden="true"><Tag size={18} /></span>
@@ -494,16 +574,18 @@ export function Group() {
                                 } as React.CSSProperties}
                                 aria-label={`Up to ${distance.toLocaleString()} meters: ${count} ${count === 1 ? "traveler" : "travelers"}, ${members.map((member) => member.name).join(", ")}`}
                                 aria-describedby={id}
+                                aria-haspopup="dialog"
+                                onClick={() => open("message", {title: `Up to ${distance.toLocaleString()} meters`, body: members.map(member => member.name).join("\n")})}
                               >
                                 <span className="mobility-radius-swatch" aria-hidden="true" />
                                 <span className="mobility-radius-label">Up to {distance.toLocaleString()} m</span>
                                 <span className="mobility-radius-people">
                                   <span className="mobility-radius-count">{count} {count === 1 ? "traveler" : "travelers"}</span>
-                                  <PreferenceVoterDots count={members.length} container="mobility-radius-dots" dot="mobility-radius-dot" />
-                                </span>
+                                  </span>
                                 <span className="mobility-preference-tooltip" id={id} role="tooltip">
                                   <strong>Up to {distance.toLocaleString()} m</strong>
-                                  <span>{members.map((member) => member.name).join(", ")}</span>
+                                  <span>{travelerPreview(members.map((member) => member.name))}</span>
+                                  <small className="chart-tooltip-hint">Select to view full names</small>
                                 </span>
                               </button>
                             );
@@ -524,15 +606,18 @@ export function Group() {
                                 key={label}
                                 aria-label={`${label}: ${members.map((member) => member.name).join(", ")}`}
                                 aria-describedby={id}
+                                aria-haspopup="dialog"
+                                onClick={() => open("message", {title: label, body: members.map(member => member.name).join("\n")})}
                               >
                                 <span className="mobility-access-icon" aria-hidden="true">
                                   {AccessIcon ? <AccessIcon size={15} strokeWidth={1.7} /> : <RampGraphic />}
                                 </span>
                                 <span className="mobility-access-label">{label}</span>
-                                <PreferenceVoterDots count={members.length} container="mobility-access-dots" dot="mobility-access-dot" />
+                                <PreferenceVoterCount count={members.length} />
                                 <span className="mobility-preference-tooltip" id={id} role="tooltip">
                                   <strong>{label}</strong>
-                                  <span>{members.map((member) => member.name).join(", ")}</span>
+                                  <span>{travelerPreview(members.map((member) => member.name))}</span>
+                                  <small className="chart-tooltip-hint">Select to view full names</small>
                                 </span>
                               </button>
                             );
@@ -564,12 +649,15 @@ export function Group() {
                               key={value}
                               aria-label={`${value}: ${names.join(", ")}`}
                               aria-describedby={id}
+                              aria-haspopup="dialog"
+                              onClick={() => open("message", {title: value, body: names.join("\n")})}
                             >
                               <span className="dining-preference-value">{value}</span>
-                              <PreferenceVoterDots count={names.length} container="dining-preference-dots" dot="dining-preference-dot" />
+                              <PreferenceVoterCount count={names.length} />
                               <span className="dining-preference-tooltip" id={id} role="tooltip">
                                 <strong>{value}</strong>
-                                <span>{names.join(", ")}</span>
+                                <span>{travelerPreview(names)}</span>
+                                  <small className="chart-tooltip-hint">Select to view full names</small>
                               </span>
                             </button>
                           );
@@ -589,22 +677,24 @@ export function Group() {
                     {noteOptions.length ? (
                       <div className="dining-preference-options">
                         {noteOptions.map(([note, names], index) => {
-                          const id = `additional-note-tooltip-${index}`;
                           const preview = note.replace(/\s+/g, " ");
                           return (
                             <button
                               type="button"
                               className="dining-preference-option tickets-notes-note-option"
                               key={note}
-                              aria-label={`Note: ${note}. Shared by ${names.join(", ")}`}
-                              aria-describedby={id}
+                              aria-label={names.length === 1 ? `Read note from ${names[0]}` : `Read note ${index + 1} from ${names.length} travelers`}
+                              aria-haspopup="dialog"
+                              onClick={(event) => {
+                                // Safari pointer clicks do not reliably focus buttons.
+                                // Capture this opener before the dialog traps focus.
+                                event.currentTarget.focus({ preventScroll: true });
+                                setSharedNote({ note, names });
+                              }}
                             >
                               <span className="dining-preference-value tickets-notes-note-value">{preview}</span>
-                              <PreferenceVoterDots count={names.length} container="dining-preference-dots" dot="dining-preference-dot" />
-                              <span className="dining-preference-tooltip" id={id} role="tooltip">
-                                <strong>{names.join(", ")}</strong>
-                                <span>{note}</span>
-                              </span>
+                              <PreferenceVoterCount count={names.length} />
+                              <ChevronRight size={16} aria-hidden="true" />
                             </button>
                           );
                         })}
@@ -636,6 +726,8 @@ export function Group() {
                             style={{ "--bubble-size": `${size}px` } as React.CSSProperties}
                             aria-label={`${value}: ${names.join(", ")}`}
                             aria-describedby={id}
+                            aria-haspopup="dialog"
+                            onClick={() => open("message", {title: value, body: names.join("\n")})}
                           >
                             <span className="dietary-bubble" aria-hidden="true">
                               <Icon size={Math.round(size * 0.36)} strokeWidth={1.7} />
@@ -644,7 +736,8 @@ export function Group() {
                             <span className="dietary-bubble-label">{value}</span>
                             <span className="dietary-bubble-tooltip" id={id} role="tooltip">
                               <strong>{value}</strong>
-                              <span>{names.join(", ")}</span>
+                              <span>{travelerPreview(names)}</span>
+                                  <small className="chart-tooltip-hint">Select to view full names</small>
                             </span>
                           </button>
                         );
@@ -688,7 +781,7 @@ export function Group() {
       </div>
       <div className="section-title collaborators-title">
         <div>
-          <h2>Travelers</h2>
+          <h2 ref={travelersHeading} id="group-travelers" tabIndex={-1}>Travelers</h2>
         </div>
         {owner && (
           <Button onClick={() => open("inviteMember")}>
@@ -697,6 +790,16 @@ export function Group() {
           </Button>
         )}
       </div>
+      {(activeTravelers.length >= 8 || travelerQuery) && (
+        <div className="traveler-filter">
+          <Field label="Find a traveler">
+            <input type="search" value={travelerQuery} placeholder="Name or email" aria-describedby="traveler-filter-count"
+              onChange={(event) => setTravelerQuery(event.target.value)} />
+          </Field>
+          {travelerQuery && <Button variant="text" onClick={() => setTravelerQuery("")}>Clear filter</Button>}
+          <p id="traveler-filter-count" role="status">{query ? `${visibleTravelers.length} of ${activeTravelers.length} travelers` : `${activeTravelers.length} travelers`}</p>
+        </div>
+      )}
       <div className="card collaborators-table">
         <div className="collaborator-table-head">
           <span>TRAVELER</span>
@@ -704,12 +807,11 @@ export function Group() {
           <span>STATUS</span>
           <span />
         </div>
-        {t.members
-          .filter((m) => m.status !== "removed")
-          .map((m, i) => (
+        {visibleTravelers.length === 0 && <p className="traveler-filter-empty">No travelers match “{travelerQuery.trim()}”. Try another name or email.</p>}
+        {visibleTravelers.map((m) => (
             <div className="collaborator-row" key={m.id}>
               <div className="person">
-                <Avatar name={m.name} index={i} id={m.accountId || m.id} />
+                <Avatar name={m.name} index={activeTravelers.indexOf(m)} id={m.accountId || m.id} />
                 <div>
                   <strong>
                     {m.name}
@@ -723,7 +825,7 @@ export function Group() {
                 {m.role === "Day Editor" && (
                   <small className="assigned-days">
                     {m.days.length
-                      ? m.days.map((d) => dateText(d, true)).join(", ")
+                      ? [...m.days].sort().map((d) => dateText(d, true)).join(", ")
                       : "No days assigned"}
                   </small>
                 )}
@@ -731,7 +833,7 @@ export function Group() {
               <span className={`member-status ${m.status}`}>
                 <span className="status-dot" />
                 {m.status === "accepted"
-                  ? (m.accountId ? "Shared" : "Joined")
+                  ? "Joined"
                   : t.persistence === "account"
                     ? "Pending"
                     : "Invited · demo"}
@@ -740,31 +842,20 @@ export function Group() {
                 {owner && m.role !== "Owner" && (
                   <>
                     {!m.signupPending && <button
-                      className="icon-btn"
+                      className="icon-btn member-permissions-button"
                       aria-label={`Change permissions for ${m.name}`}
+                      title="Change permissions"
                       onClick={() => open("permissions", { memberId: m.id })}
                     >
-                      <Settings2 size={17} />
+                      <Settings2 size={17} /> <span>Permissions</span>
                     </button>}
                     <button
                       className="icon-btn"
                       aria-label={`Remove ${m.name}`}
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            `Remove ${m.name} from this trip? Their historical records will remain.`,
-                          )
-                        ) {
-                          updateTrip(
-                            (t) =>
-                              (t.members = t.members.filter(
-                                (x) => x.id !== m.id,
-                              )),
-                          );
-                          toast(
-                            "Collaborator removed. Historical expenses are preserved.",
-                          );
-                        }
+                      onClick={event => {
+                        // Safari pointer clicks do not focus buttons automatically.
+                        event.currentTarget.focus({ preventScroll: true });
+                        setRemoval({ tripId: t.id, memberId: m.id });
                       }}
                     >
                       <Trash2 size={16} />
@@ -787,6 +878,36 @@ export function Group() {
             </div>
           ))}
       </div>
+      {removal && removalTarget && <ConfirmDialog title="Remove this traveler?"
+        cancelLabel="Keep traveler" confirmLabel="Remove traveler"
+        onCancel={() => setRemoval(null)} onConfirm={() => {
+          // Revalidate against the current render because shared trip updates can arrive while open.
+          if (removalTarget) {
+            updateTrip(current => {
+              if (current.id === removal.tripId && isOwner(current, s.userId))
+                current.members = current.members.filter(person => person.id !== removal.memberId || person.role === "Owner");
+            });
+            toast("Collaborator removed. Historical expenses are preserved.");
+          }
+          finishRemoval();
+        }}>
+        Remove <strong>{removalTarget.name}</strong> from this trip? Their historical records will remain.
+      </ConfirmDialog>}
+      {removal && !removalTarget && <Modal title="Traveler changed" onClose={finishRemoval} footer={<Button variant="outline full" onClick={finishRemoval}>Close</Button>}>
+        <p>This traveler is no longer available to remove. Review the updated traveler list.</p>
+      </Modal>}
+      {sharedNote && (
+        <Modal title={sharedNote.names.length === 1 ? `Note from ${sharedNote.names[0]}` : `Note from ${sharedNote.names.length} travelers`}
+          onClose={() => setSharedNote(null)} footer={<Button variant="full" onClick={() => setSharedNote(null)}>Got it</Button>}>
+          <p className="group-shared-note">{sharedNote.note}</p>
+          {sharedNote.names.length > 1 && (
+            <details className="group-note-authors" open={sharedNote.names.length <= 4 ? true : undefined}>
+              <summary>Shared by {sharedNote.names.length} travelers · View names</summary>
+              <ul>{sharedNote.names.map((name, index) => <li key={`${name}-${index}`}>{name}</li>)}</ul>
+            </details>
+          )}
+        </Modal>
+      )}
       {!owner && (
         <p className="fine-print">
           Only the Owner can invite, remove, or change permissions.
@@ -848,33 +969,174 @@ function Choices({
     </fieldset>
   );
 }
+/** Recover only the complete known answer shape; browser storage is untrusted input. */
+function isSurveyAnswers(value: unknown): value is Preference {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const fields = blankPrefs();
+  const answers = value as Record<string, unknown>;
+  return Object.keys(answers).length === Object.keys(fields).length &&
+    Object.entries(fields).every(([key, defaultValue]) => {
+      const answer = answers[key];
+      return Array.isArray(defaultValue)
+        ? Array.isArray(answer) && answer.length <= 100 && answer.every(item => typeof item === "string" && item.length <= 1000)
+        : typeof defaultValue === "number"
+          ? typeof answer === "number" && Number.isFinite(answer)
+          : typeof answer === "string" && answer.length <= 100000;
+    });
+}
+
 export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboarding?: () => void }) {
-  const { s, go, savePreferences, toast } = useApp();
+  const { s, go, route, savePreferences, toast, open, dismissMessage } = useApp();
+  useEffect(() => dismissMessage(), []);
+  const returnPage = route.params.get("return") === "9" ? 9 : route.params.get("return") === "10" ? 10 : 13;
   const traveler = member(t, s.userId)!;
   const [saving, setSaving] = useState(false);
-  const draftKey = leaveOnboarding ? `trip-survey-draft-v1:${s.userId}:${t.id}:${traveler.id}` : null;
-  const [expanded, setExpanded] = useState<number | null>(null);
-  const [p, setP] = useState<Preference>(() => {
-    const initial = t.prefs[traveler.id] || blankPrefs();
-    if (draftKey) {
-      try {
-        const draft = JSON.parse(sessionStorage.getItem(draftKey) || "null");
-        if (draft && Object.entries(initial).every(([key, value]) =>
-          Array.isArray(value) ? Array.isArray(draft[key]) && draft[key].every((item: unknown) => typeof item === "string")
-            : typeof draft[key] === typeof value)) return draft;
-      } catch { /* Private browsing can disable session storage. */ }
+  // sessionStorage is tab-local; the key also separates accounts, trips and travelers.
+  const draftKey = `trip-survey-draft-v1:${s.userId}:${t.id}:${traveler.id}`;
+  const panel = useRef<HTMLDivElement>(null);
+  const surveyLayout = useRef<HTMLFieldSetElement>(null);
+  const inviteForm = useRef<HTMLFormElement>(null);
+  const [failedSaveAttempt, setFailedSaveAttempt] = useState(0);
+  useEffect(() => {
+    if (!failedSaveAttempt || !inviteForm.current ||
+        !window.matchMedia("(max-width: 700px) and (max-height: 650px)").matches) return;
+    const frame = requestAnimationFrame(() => {
+      const alert = inviteForm.current?.querySelector<HTMLElement>('.error[role="alert"]');
+      // Reveal the error, recovery advice and retry together after an async
+      // rejection; ordinary validation and draft edits must not trigger a jump.
+      alert?.focus({ preventScroll: true });
+      alert?.scrollIntoView({ block: "start", behavior: "instant" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [failedSaveAttempt]);
+  const [recovery] = useState(() => {
+    const initial = structuredClone(t.prefs[traveler.id] || blankPrefs());
+    try {
+      const raw = sessionStorage.getItem(draftKey);
+      if (!raw) return { answers: initial, step: 0, restored: false, warning: "", invalid: false };
+      const stored = JSON.parse(raw);
+      const legacy = isSurveyAnswers(stored);
+      const answers = legacy ? stored : stored?.answers;
+      const validEnvelope = stored?.version === 2 && stored.accountId === s.userId && stored.tripId === t.id &&
+        stored.travelerId === traveler.id && Number.isInteger(stored.step) && stored.step >= 0 && stored.step <= 2;
+      if (!isSurveyAnswers(answers) || (!legacy && !validEnvelope)) throw new Error("invalid");
+      const restored = JSON.stringify(answers) !== JSON.stringify(initial);
+      return { answers: restored ? answers : initial, step: restored && !legacy ? stored.step as number : 0,
+        restored, expanded: restored && !legacy && (stored.expanded === null ||
+          (Number.isInteger(stored.expanded) && stored.expanded >= 0 && stored.expanded <= 3))
+          ? stored.expanded as number | null : null, warning: "", invalid: false };
+    } catch (issue) {
+      const invalid = issue instanceof SyntaxError || (issue instanceof Error && issue.message === "invalid");
+      return { answers: initial, step: 0, restored: false, invalid,
+        warning: invalid ? "This browser draft could not be restored. Download or discard it before making a new recovery copy."
+          : "Browser draft recovery is unavailable. Keep this page open until you save, or download your answers." };
     }
-    return structuredClone(initial);
-  }),
-    [error, setError] = useState(""),
-    [step, setStep] = useState(0);
+  });
+  const [expanded, setExpanded] = useState<number | null>(recovery.expanded ?? null);
+  const [p, setP] = useState<Preference>(recovery.answers);
+  const [error, setError] = useState("");
+  const [step, setStep] = useState(recovery.step);
+  const [hasDraft, setHasDraft] = useState(recovery.restored);
+  const [restoredDraft, setRestoredDraft] = useState(recovery.restored);
+  const [storageWarning, setStorageWarning] = useState(recovery.warning);
+  const [invalidDraft, setInvalidDraft] = useState(recovery.invalid);
+  useEffect(() => {
+    // Resume only a recovered ordinary survey. Keep its section navigation and
+    // sharing notice in view; fresh visits and invitation onboarding start normally.
+    if (!recovery.restored || leaveOnboarding || window.innerWidth > 700) return;
+    const frame = requestAnimationFrame(() => surveyLayout.current?.scrollIntoView({ block: "start" }));
+    return () => cancelAnimationFrame(frame);
+  }, [recovery.restored, leaveOnboarding]);
+  const persistDraft = (answers: Preference, currentStep: number, currentExpanded = expanded) => {
+    setHasDraft(true);
+    if (invalidDraft) return;
+    try {
+      sessionStorage.setItem(draftKey, JSON.stringify({ version: 2, accountId: s.userId, tripId: t.id,
+        travelerId: traveler.id, answers, step: currentStep, expanded: currentExpanded }));
+      setStorageWarning("");
+    } catch {
+      setStorageWarning("Your latest answers could not be backed up in this browser. Keep this page open until you save, or download your answers.");
+    }
+  };
   const set = <K extends keyof Preference>(key: K, value: Preference[K]) => {
     const next = { ...p, [key]: value };
     setP(next);
-    if (draftKey) {
-      try { sessionStorage.setItem(draftKey, JSON.stringify(next)); } catch { /* Keep editing in memory. */ }
-    }
+    setError("");
+    persistDraft(next, step);
   };
+  const discardDraft = () => {
+    try { sessionStorage.removeItem(draftKey); }
+    catch {
+      setStorageWarning("The browser draft could not be removed. Your answers are still here; try again before leaving this page.");
+      return;
+    }
+    setP(structuredClone(t.prefs[traveler.id] || blankPrefs()));
+    setHasDraft(false);
+    setRestoredDraft(false);
+    setInvalidDraft(false);
+    setStorageWarning("");
+    setError("");
+  };
+  const downloadDraft = () => {
+    let data = JSON.stringify(p, null, 2);
+    if (invalidDraft) {
+      try { data = sessionStorage.getItem(draftKey) || data; } catch { /* Current answers remain downloadable. */ }
+    }
+    const url = URL.createObjectURL(new Blob([data], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url; link.download = "trip-preferences-draft.json"; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const resumeDraft = () => {
+    const section = expanded ?? 0;
+    if (leaveOnboarding && expanded === null) {
+      setExpanded(section);
+      persistDraft(p, step, section);
+    }
+    requestAnimationFrame(() => {
+      const target = leaveOnboarding
+        ? document.getElementById(`invite-panel-${section}`)
+        : panel.current?.querySelector<HTMLElement>('.step-heading');
+      if (!target) return;
+      target.tabIndex = -1;
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: 'start' });
+    });
+  };
+  const draftNotice = (restoredDraft || storageWarning) && (
+    <div className="survey-draft-notice">
+      <p role={storageWarning ? "alert" : "status"}>{storageWarning || (restoredDraft
+        ? "Unsaved preferences restored from this tab. Save them to share with your group."
+        : "Unsaved preferences kept in this tab until you save or discard them.")}</p>
+      <div>
+        {restoredDraft && !storageWarning && <Button variant="outline" onClick={resumeDraft} disabled={saving}>Resume editing</Button>}
+        {storageWarning && <Button variant="text" onClick={downloadDraft} disabled={saving}>Download draft</Button>}
+        <Button variant="text" onClick={discardDraft} disabled={saving}>Discard draft</Button>
+      </div>
+    </div>
+  );
+  const accessRecovery = /invitation.*(?:no longer active|expired)|access.*(?:revoked|removed)/i.test(error) && (
+    <p className="note">Ask the trip owner to restore your access. {storageWarning ? "Keep this page open or download your draft to preserve your answers." : "Your answers are kept in this tab."}</p>
+  );
+  const draftStatus = hasDraft && !restoredDraft && !storageWarning && (
+    <div className="survey-draft-status">
+      <small>Draft kept in this tab.</small>
+      <Button variant="text" onClick={discardDraft} disabled={saving}>Discard draft</Button>
+    </div>
+  );
+  function advance(next: number) {
+    if (next > step && step === 1 && (!Number.isInteger(p.walk) || p.walk < 0 || p.walk > 100000)) {
+      setError("Enter a whole number between 0 and 100,000 meters.");
+      return;
+    }
+    setError("");
+    setStep(next);
+    if (hasDraft) persistDraft(p, next);
+    // Step changes should reveal the fields on shorter screens, not repeat the introduction.
+    requestAnimationFrame(() => {
+      if (window.innerWidth <= 700) panel.current?.scrollIntoView({ block: "start" });
+    });
+  }
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (saving || (!leaveOnboarding && step !== 2)) return;
@@ -882,11 +1144,13 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
     const problem = placesError || textError(p.notes, "Additional notes", TEXT_LIMITS.notes);
     if (problem) {
       if (leaveOnboarding) setExpanded(placesError ? 1 : 3);
+      else setStep(placesError ? 1 : 2);
       setError(problem);
       return;
     }
     if (!Number.isInteger(p.walk) || p.walk < 0 || p.walk > 100000) {
       if (leaveOnboarding) setExpanded(2);
+      else setStep(1);
       setError("Enter a whole number between 0 and 100,000 meters.");
       return;
     }
@@ -894,13 +1158,25 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
     setError("");
     try {
       await savePreferences(t, p);
-      if (draftKey) {
-        try { sessionStorage.removeItem(draftKey); } catch { /* Storage is optional. */ }
+      try { sessionStorage.removeItem(draftKey); }
+      catch {
+        // If deletion is denied, replacing the old copy with confirmed answers prevents
+        // stale answers from being restored on the next visit. Never navigate if both fail.
+        try {
+          sessionStorage.setItem(draftKey, JSON.stringify({ version: 2, accountId: s.userId, tripId: t.id,
+            travelerId: traveler.id, answers: p, step }));
+        } catch {
+          setRestoredDraft(false);
+          setStorageWarning("Your preferences were saved, but the older browser draft could not be cleared. Keep this page open and retry Discard draft before leaving.");
+          return;
+        }
       }
-      toast("Trip preferences saved.");
-      go(leaveOnboarding ? 8 : 13);
+      toast("Trip preferences saved.", "preferences");
+      go(leaveOnboarding ? 8 : returnPage);
+      if (!leaveOnboarding && route.params.get("nearby") === "true") open("nearby");
     } catch (issue) {
       setError(issue instanceof Error ? issue.message : "Could not save preferences. Try again.");
+      setFailedSaveAttempt(attempt => attempt + 1);
     } finally {
       setSaving(false);
     }
@@ -1076,7 +1352,8 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
       { title: "Places & interests", Icon: MapPin, fields: interestFields,
         summary: [...p.interests, p.destinations].filter(Boolean).join(" · ") || "Add activities or places you’d like to visit" },
       { title: "Walking & accessibility", Icon: Footprints, fields: mobilityFields,
-        summary: [`Walks up to ${p.walk.toLocaleString()} m`, ...p.access].join(" · ") },
+        summary: [Number.isInteger(p.walk) && p.walk >= 0 && p.walk <= 100000
+          ? `Walks up to ${p.walk.toLocaleString()} m` : "Walking distance needs review", ...p.access].join(" · ") },
       { title: "Tickets & notes", Icon: Ticket, fields: bookingFields,
         summary: [p.tickets, p.notes].filter(Boolean).join(" · ") },
     ];
@@ -1087,14 +1364,19 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
           <h1>Your trip preferences</h1>
           <p>Review the starting choices below. You can change them now or later from the group page.</p>
         </header>
-        <form onSubmit={save} noValidate>
+        <form ref={inviteForm} onSubmit={save} noValidate>
+          {draftNotice}
           <fieldset disabled={saving} aria-busy={saving} className="invite-review-fields">
             {sections.map(({title, Icon, fields, summary}, index) => (
               <section key={title} className="invite-review-section">
                 <h2><button type="button" aria-expanded={expanded === index} aria-controls={`invite-panel-${index}`}
-                  onClick={() => setExpanded(expanded === index ? null : index)}>
+                  onClick={() => {
+                    const next = expanded === index ? null : index;
+                    setExpanded(next);
+                    if (hasDraft) persistDraft(p, step, next);
+                  }}>
                   <Icon className="invite-category-icon" size={20} aria-hidden="true" />
-                  <span><strong>{title}</strong><small>{summary}</small></span>
+                  <span><strong>{title}</strong>{expanded !== index && <small>{summary}</small>}</span>
                   <ChevronDown className="invite-chevron" size={18} aria-hidden="true" />
                 </button></h2>
                 <div id={`invite-panel-${index}`} hidden={expanded !== index} className="invite-review-panel">
@@ -1104,7 +1386,9 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
             ))}
           </fieldset>
           <ErrorBox text={error} />
+          {accessRecovery}
           <p className="invite-audience"><Users size={16} aria-hidden="true" /> Everyone on this trip can see your answers. Use fictional details in this prototype.</p>
+          {draftStatus}
           <div className="invite-review-actions">
             <Button type="submit" disabled={saving}>{saving ? "Saving preferences…" : "Save and open trip"} <ArrowRight size={16} /></Button>
             <Button variant="text" onClick={leaveOnboarding} disabled={saving}>Back to my trips</Button>
@@ -1114,24 +1398,24 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
     );
   }
   return (
-    <>
+    <div className="ordinary-survey">
       <PageHead
         eyebrow="YOUR PART OF THE PLAN"
-        title="What makes a good trip for you?"
-        description="Share a little about yourself. We’ll help the plan fit the people."
+        title="Your trip preferences"
+        description="Share what makes a good trip for you."
       />
       <form onSubmit={save}>
-        <fieldset className="survey-layout survey-fields" disabled={saving} aria-busy={saving}>
+        <fieldset className="survey-layout survey-fields" ref={surveyLayout} disabled={saving} aria-busy={saving}>
         <aside className="survey-nav">
           <div className="card">
             <span className="eyebrow">A FEW LITTLE DETAILS</span>
-            {["Food & dining", "Places & pace", "The practical things"].map(
+            {["Food & dining", "Places & pace", "Practical details"].map(
               (label, i) => (
                 <button
                   type="button"
                   className={step === i ? "active" : ""}
                   key={label}
-                  onClick={() => setStep(i)}
+                  onClick={() => advance(i)}
                 >
                   <span>{i + 1}</span>
                   {label}
@@ -1145,7 +1429,8 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
             details in this prototype.
           </p>
         </aside>
-        <div className="card form-card">
+        <div className="card form-card" ref={panel}>
+          {draftNotice}
           {step === 0 && (
             <>
               <div className="step-heading"><span>01</span><h2>Good food, your way.</h2></div>
@@ -1169,15 +1454,15 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
             </>
           )}
           <ErrorBox text={error} />
-          <div className="form-actions">
-            <Button
-              variant="text"
-              onClick={() => (step ? setStep(step - 1) : go(13))}
-            >
-              {step ? "Back" : "Cancel"}
-            </Button>
+          {accessRecovery}
+          {draftStatus}
+          <div className="form-actions survey-actions">
+            <div className="survey-back-actions">
+              {step > 0 && <Button variant="text" onClick={() => advance(step - 1)}>Back</Button>}
+              <Button variant="text" onClick={() => go(returnPage)}>Cancel</Button>
+            </div>
             {step < 2 ? (
-              <Button onClick={() => setStep(step + 1)}>
+              <Button onClick={() => advance(step + 1)}>
                 Next <ArrowRight size={16} />
               </Button>
             ) : (
@@ -1189,6 +1474,6 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
         </div>
         </fieldset>
       </form>
-    </>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 /** Implementation status: Account budgets, expenses, splits, and repayment markers save through updateTrip to Supabase. Sample trips stay local. Receipt scans/Gmail/bank actions remain fixtures; no messages or money are sent. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowDownLeft,
   ArrowLeftRight,
@@ -20,7 +20,9 @@ import {
   ScanLine,
 } from "lucide-react";
 import { useApp } from "./state";
+import { dateText } from "./domain";
 import { Badge, Button, Empty, ErrorBox, Field, Modal, PageHead } from "./ui";
+import { repaymentPaid, recordRepayment } from "./repayments";
 import { CurrencyConverter } from "./currency-converter";
 import { useChartColors } from "./theme";
 import {
@@ -43,7 +45,7 @@ function BudgetFeedback({
   dismiss: () => void;
 }) {
   return (
-    <div className="budget-feedback" role="status">
+    <div className="budget-feedback" role="status" tabIndex={-1}>
       <Info size={18} aria-hidden="true" />
       <span>{message}</span>
       <button aria-label="Dismiss message" onClick={dismiss}>
@@ -62,6 +64,7 @@ export function Budget() {
     updateTrip,
     toast,
     message,
+    messageScope,
     dismissMessage,
     overlay,
   } = useApp();
@@ -76,6 +79,29 @@ export function Budget() {
   const [converterExpanded, setConverterExpanded] = useState(false);
   const [converterJump, setConverterJump] = useState(0);
   const [repaymentView, setRepaymentView] = useState("Owed to me");
+  const [savedExpense, setSavedExpense] = useState("");
+  useEffect(() => {
+    if (!savedExpense) return;
+    if (overlay) { setSavedExpense(""); return; }
+    const frame = requestAnimationFrame(() => {
+      // Sample tools can be far below the new row. Reveal the result after the
+      // modal restores its opener, without changing account-save feedback timing.
+      const result = document.getElementById(`expense-${savedExpense}`)
+        || document.querySelector<HTMLElement>(".ledger-card .budget-feedback");
+      result?.focus({ preventScroll: true });
+      result?.scrollIntoView({ block: "center", inline: "nearest" });
+      setSavedExpense("");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [savedExpense, overlay]);
+  const openExpense = (data: { id?: string; scan?: boolean } = {}) => open("expense", {
+    ...data,
+    onSaved: (expense: Expense) => {
+      setTab("Expenses");
+      setFilter(current => current === "All" || current === expense.category ? current : "All");
+      setSavedExpense(expense.id);
+    },
+  });
   const COLORS = useChartColors();
   if (!t) return null;
   const travelerId = member(t, s.userId)!.id;
@@ -129,14 +155,15 @@ export function Budget() {
       unpaid: 0,
     };
     group.items.push(debt);
-    if (!debt.expense.settled.includes(debt.debtor))
+    if (!repaymentPaid(debt.expense, debt.debtor))
       group.unpaid += debt.amount;
     repaymentGroups.set(key, group);
   }
-  const visibleExpenses = t.expenses.filter(
-    (e) =>
-      (filter === "All" || e.category === filter) &&
-      (!individual || e.shares[travelerId] || e.payer === travelerId),
+  const scopedExpenses = t.expenses.filter(
+    (e) => !individual || e.shares[travelerId] || e.payer === travelerId,
+  );
+  const visibleExpenses = scopedExpenses.filter(
+    (e) => filter === "All" || e.category === filter,
   );
   const name = (id: string) =>
     t.members.find((m) => m.id === id)?.name ||
@@ -154,7 +181,8 @@ export function Budget() {
   };
   const transaction = () => {
     if (t.expenses.some((e) => e.id === "demo-transaction")) {
-      toast("This sample transaction is already logged.");
+      toast("This sample transaction is already logged.", "budget");
+      requestAnimationFrame(() => document.querySelector(".budget-feedback")?.scrollIntoView({block:"center"}));
       return;
     }
     updateTrip((t) =>
@@ -170,7 +198,11 @@ export function Budget() {
         settled: [],
       }),
     );
-    open("transaction");
+    toast("Sample transaction added.", "budget");
+    open("transaction", { onResolved: () => {
+      // A kept sample has a row; Undo falls back to its visible confirmation.
+      setSavedExpense("demo-transaction");
+    } });
   };
   return (
     <div className="budget-page">
@@ -198,9 +230,9 @@ export function Budget() {
             <ArrowLeftRight size={15} aria-hidden="true" />
             USD · Convert
           </button>
-          {(isOwner(t, s.userId) || individual) && (
-            <button className="text-link" onClick={() => open("budgetSetup")}>
-              {budget === null ? "Set budget" : "Budget settings"}
+          {budget !== null && (isOwner(t, s.userId) || individual) && (
+            <button id="budget-settings" className="text-link" onClick={() => open("budgetSetup")}>
+              Budget settings
               <SlidersHorizontal size={15} aria-hidden="true" />
             </button>
           )}
@@ -221,14 +253,15 @@ export function Budget() {
           )}
         </div>
       )}
-      {message.startsWith("Budget updated.") && !overlay && (
+      {messageScope === "budget" && message.startsWith("Budget updated.") && !overlay && (
         <BudgetFeedback message={message} dismiss={dismissMessage} />
       )}
-      <div className="budget-stats">
+      <p className="budget-phone-scope">{individual ? "Your share" : "Whole group"} · USD</p>
+      <div className={`budget-stats${Math.max(total, budget || 0, Math.abs(remaining || 0)) >= 1000000 ? " budget-stats-wide" : ""}`}>
         <div>
           <span>{individual ? "YOUR SHARE SPENT" : "TOTAL SPENT"}</span>
           <strong>{money(total)}</strong>
-          <small>Across {t.expenses.length} logged expenses</small>
+          <small>Across {scopedExpenses.length} {individual ? (scopedExpenses.length === 1 ? "expense share" : "expense shares") : (scopedExpenses.length === 1 ? "logged expense" : "logged expenses")}</small>
         </div>
         <div>
           <span>{individual ? "YOUR BUDGET" : "TRIP BUDGET"}</span>
@@ -247,9 +280,11 @@ export function Budget() {
             {remaining === null ? "—" : money(Math.abs(remaining))}
           </strong>
           <small>
-            {remaining !== null && remaining < 0
-              ? "Time to revisit the plan."
-              : "A little room for possibility."}
+            {remaining === null
+              ? (isOwner(t, s.userId) || individual ? "Set a budget to see what remains." : "Ask the trip owner to set a budget.")
+              : remaining < 0
+                ? "Time to revisit the plan."
+                : "A little room for possibility."}
           </small>
         </div>
       </div>
@@ -264,7 +299,7 @@ export function Budget() {
                 aria-pressed={tab === "Expenses"}
                 onClick={() => setTab("Expenses")}
               >
-                Expense log <Badge>{visibleExpenses.length}</Badge>
+                Expense log <Badge>{scopedExpenses.length}</Badge>
               </button>
               <button
                 className={tab === "Reimbursements" ? "active" : ""}
@@ -277,7 +312,7 @@ export function Budget() {
             <Button
               variant="small ledger-add"
               aria-label="Add expense"
-              onClick={() => open("expense")}
+              onClick={() => openExpense()}
             >
               <Plus size={17} aria-hidden="true" />
               <span className="ledger-add-label">Add expense</span>
@@ -286,7 +321,7 @@ export function Budget() {
               </span>
             </Button>
           </div>
-          {message && !message.startsWith("Budget updated.") && !overlay && (
+          {messageScope === "budget" && message && !message.startsWith("Budget updated.") && !overlay && (
             <BudgetFeedback message={message} dismiss={dismissMessage} />
           )}
           {tab === "Expenses" ? (
@@ -308,10 +343,15 @@ export function Budget() {
                     <option key={c}>{c}</option>
                   ))}
                 </select>
+                {filter !== "All" && (
+                  <span className="ledger-filter-count" role="status">
+                    {visibleExpenses.length} of {scopedExpenses.length} expenses
+                  </span>
+                )}
               </div>
               <div className="expense-list">
                 {visibleExpenses.map((e) => (
-                  <div className="expense-row" key={e.id}>
+                  <div className="expense-row" id={`expense-${e.id}`} tabIndex={-1} key={e.id}>
                     <span className="expense-icon">
                       <Receipt size={19} />
                     </span>
@@ -356,20 +396,20 @@ export function Budget() {
                       )}
                     </div>
                     <div className="expense-amount">
+                      <span className="expense-value">
                       <strong>
                         {money(
                           individual ? e.shares[travelerId] || 0 : e.amount,
                         )}
                       </strong>
                       {individual && <small>of {money(e.amount)}</small>}
-                      {e.payer === travelerId && (
+                      </span>
                         <button
                           className="text-link"
-                          onClick={() => open("expense", { id: e.id })}
+                          onClick={() => openExpense({ id: e.id })}
                         >
-                          Edit
+                          {e.settled.length || e.payer !== travelerId ? "Details" : "Edit"}
                         </button>
-                      )}
                     </div>
                   </div>
                 ))}
@@ -399,7 +439,7 @@ export function Budget() {
                   title="A fresh start for the budget."
                   body="Add your first expense or try a sample receipt."
                   action={
-                    <Button onClick={() => open("expense")}>
+                    <Button onClick={() => openExpense()}>
                       Add an expense
                     </Button>
                   }
@@ -472,19 +512,31 @@ export function Budget() {
                           <div>
                             <strong>{money(amount)}</strong>
                             <p>{e.purpose}</p>
-                            {e.settled.includes(debtor) && (
+                            {repaymentPaid(e, debtor) && (
                               <Badge tone="green">Completed</Badge>
                             )}
+                            {(e.repaymentHistory ?? []).some(entry => entry.debtor === debtor) && (
+                              <details className="repayment-history">
+                                <summary>Repayment history</summary>
+                                <ol>
+                                  {e.repaymentHistory?.find(entry => entry.debtor === debtor)?.status === "unpaid" && <li>Earlier record: marked paid. Date was not recorded.</li>}
+                                  {e.repaymentHistory?.filter(entry => entry.debtor === debtor).map(entry => <li key={entry.id}>
+                                    <strong>{entry.status === "paid" ? "Marked paid" : "Corrected to unpaid"}</strong>
+                                    <span>{name(entry.actor)} · {entry.recordedAt ? new Date(entry.recordedAt).toLocaleString() : "Awaiting save"}</span>
+                                    {entry.reason && <p>{entry.reason}</p>}
+                                  </li>)}
+                                </ol>
+                              </details>
+                            )}
                           </div>
-                          {e.payer === travelerId &&
-                            !e.settled.includes(debtor) && (
+                          {e.payer === travelerId && (
                               <Button
                                 variant="outline small"
                                 onClick={() =>
-                                  open("settle", { expenseId: e.id, debtor })
+                                  open("settle", { expenseId: e.id, debtor, correct: repaymentPaid(e, debtor) })
                                 }
                               >
-                                Mark paid
+                                {repaymentPaid(e, debtor) ? "Correct repayment" : "Mark paid"}
                               </Button>
                             )}
                         </div>
@@ -525,7 +577,7 @@ export function Budget() {
             <details className="budget-samples">
               <summary>Sample tools</summary>
               <div className="ledger-tools">
-                <button onClick={() => open("expense", { scan: true })}>
+                <button onClick={() => openExpense({ scan: true })}>
                   <Camera size={16} />
                   Try sample receipt
                 </button>
@@ -566,7 +618,7 @@ export function Budget() {
             >
               <div>
                 <small>{individual ? "YOUR SHARE" : "SPENT SO FAR"}</small>
-                <strong>{money(total)}</strong>
+                <strong style={money(total).length > 8 ? {fontSize: Math.max(16, Math.floor(240 / money(total).length))} : undefined}>{money(total)}</strong>
                 <span>
                   of {budget === null ? "unset budget" : money(budget)}
                 </span>
@@ -647,6 +699,7 @@ export function BudgetSetup() {
       ),
     ),
     [error, setError] = useState("");
+  const [amountError, setAmountError] = useState("");
   return (
     <Modal title="A budget that fits">
       <form
@@ -655,7 +708,7 @@ export function BudgetSetup() {
           e.preventDefault();
           const problem = moneyError(amount, MONEY_LIMITS.budget);
           if (problem) {
-            setError(problem);
+            setAmountError(problem);
             return;
           }
           if (mode === "group" && !owner) {
@@ -667,8 +720,10 @@ export function BudgetSetup() {
             if (mode === "group") t.budget = Math.round(Number(amount) * 100);
             else t.individual[travelerId] = Math.round(Number(amount) * 100);
           });
-          toast("Budget updated. Existing expenses and shares are unchanged.");
+          toast("Budget updated. Existing expenses and shares are unchanged.", "budget");
           close();
+          // The initial Set budget opener disappears after the first save.
+          requestAnimationFrame(() => document.getElementById("budget-settings")?.focus());
         }}
       >
         {owner && (
@@ -678,6 +733,8 @@ export function BudgetSetup() {
               onChange={(e) => {
                 const value = e.target.value as "group" | "individual";
                 setMode(value);
+                setAmountError("");
+                setError("");
                 setAmount(
                   String(
                     ((value === "group"
@@ -694,6 +751,7 @@ export function BudgetSetup() {
             </select>
           </Field>
         )}
+        <div className="expense-validated-field">
         <Field
           label={
             mode === "group"
@@ -708,9 +766,18 @@ export function BudgetSetup() {
             max={MONEY_LIMITS.budget / 100}
             step="0.01"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            aria-invalid={!!amountError}
+            aria-describedby={amountError ? "budget-amount-error" : undefined}
+            onInvalid={(event) => {
+              event.preventDefault();
+              setAmountError(amount.trim() ? moneyError(amount, MONEY_LIMITS.budget) : "Enter your budget.");
+              event.currentTarget.focus();
+            }}
+            onChange={(e) => { setAmount(e.target.value); setAmountError(""); }}
           />
         </Field>
+        {amountError && <span id="budget-amount-error" className="error expense-field-error" role="alert">{amountError}</span>}
+        </div>
         {mode === "individual" && (
           <p className="note">
             Each person sets their own budget. The Owner sees per-person totals.
@@ -747,8 +814,24 @@ export function ExpenseForm() {
     [scan, setScan] = useState(overlay?.data?.scan ? "ready" : ""),
     [error, setError] = useState(""),
     [source, setSource] = useState(original?.source || "Manual");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const purposeRef = useRef<HTMLTextAreaElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
+  const purposeProblem = textError(purpose, "Expense description", TEXT_LIMITS.expense, true);
+  const amountProblem = amount.trim()
+    ? moneyError(amount, MONEY_LIMITS.expense)
+    : "Enter the amount you paid.";
+  // Focus the first invalid control and reveal its persistent explanation as one field.
+  const revealInvalidField = (control: HTMLTextAreaElement | HTMLInputElement | null) => {
+    requestAnimationFrame(() => {
+      control?.focus({ preventScroll: true });
+      control?.closest(".expense-validated-field")?.scrollIntoView({ block: "nearest" });
+    });
+  };
   // Integer cents keep the visible split identical to the saved allocation.
-  const previewCents = moneyError(amount, MONEY_LIMITS.expense)
+  const previewAmountError = moneyError(amount, MONEY_LIMITS.expense);
+  const previewCents = previewAmountError
     ? 0
     : Math.round(Number(amount) * 100);
   const previewShares = splitCents(previewCents, people);
@@ -768,25 +851,52 @@ export function ExpenseForm() {
       setScan("review");
     }, 650);
   };
+  const recordedShares = original ? Object.entries(original.shares).filter(([, value]) => value > 0) : [];
+  if (original && (original.settled.length || original.payer !== travelerId)) return <Modal title="Expense details">
+    <div className="expense-history">
+      <p className="note">{original.settled.length ? "This expense has repayment history and cannot be changed." : `Only the payer, ${t.members.find(person => person.id === original.payer)?.name || "the former traveler"}, can edit this expense.`}</p>
+      <h3>{original.purpose}</h3>
+      <dl className="expense-history-facts">
+        <div><dt>Total paid</dt><dd>{money(original.amount)}</dd></div>
+        <div><dt>Paid by</dt><dd>{t.members.find((person) => person.id === original.payer)?.name || "Former traveler"}</dd></div>
+        <div><dt>Category</dt><dd>{original.category}</dd></div>
+        <div><dt>Date</dt><dd>{new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${original.date}T00:00:00Z`))}</dd></div>
+      </dl>
+      <details className="expense-history-splits"><summary>Expense shares <span>{recordedShares.length} {recordedShares.length === 1 ? "traveler" : "travelers"}</span></summary>
+      <ul className="expense-history-shares">{recordedShares.map(([id, value]) => <li key={id}>
+        <span>{t.members.find((person) => person.id === id)?.name || "Former traveler"}
+          {id !== original.payer && <small>{repaymentPaid(original, id) ? "Repayment completed" : "Repayment unpaid"}</small>}</span>
+        <strong>{money(value)}</strong>
+      </li>)}</ul></details>
+    </div>
+    <Button variant="full" onClick={close}>Done</Button>
+  </Modal>;
+  if (confirmDelete && original) return <Modal title="Delete this expense?">
+    <p><strong>{original.purpose}</strong> · {money(original.amount)}</p>
+    <p>This removes the expense and its unpaid shares. This cannot be undone.</p>
+    <div className="form-actions"><Button variant="outline" onClick={() => setConfirmDelete(false)}>Keep expense</Button><Button variant="danger" onClick={() => {
+      // Recheck settlement history at the destructive action, not only on opening.
+      if (original.settled.length) { setConfirmDelete(false); setError("Completed repayments must stay in the history. Add an adjustment expense instead."); return; }
+      updateTrip(trip => { trip.expenses = trip.expenses.filter(expense => expense.id !== original.id); });
+      toast("Expense deleted. Your totals are up to date.", "budget");
+      close();
+    }}>Delete expense</Button></div>
+  </Modal>;
   return (
     <Modal title={original ? "Edit an expense" : "Add an expense"}>
       <form
         className="expense-form"
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
           if (original && original.payer !== travelerId) {
             setError("Only the payer can edit this expense.");
             return;
           }
-          const problem =
-            textError(
-              purpose,
-              "Expense description",
-              TEXT_LIMITS.expense,
-              true,
-            ) || moneyError(amount, MONEY_LIMITS.expense);
-          if (problem) {
-            setError(problem);
+          setSubmitted(true);
+          setError("");
+          if (purposeProblem || amountProblem) {
+            revealInvalidField(purposeProblem ? purposeRef.current : amountRef.current);
             return;
           }
           const cents = Math.round(Number(amount) * 100);
@@ -800,7 +910,7 @@ export function ExpenseForm() {
           }
           if (original?.settled.length) {
             setError(
-              "This expense has completed repayments. Keep the historical record and add a separate adjustment expense.",
+              "This expense has repayment history. Keep the original record and add a separate adjustment expense.",
             );
             return;
           }
@@ -825,12 +935,15 @@ export function ExpenseForm() {
             shared && t.persistence !== "account"
               ? "Expense recorded. Shares updated; no message sent."
               : "Expense recorded. Your totals are up to date.",
+            "budget",
           );
           close();
+          overlay?.data?.onSaved?.(record);
         }}
       >
         <div className="expense-fields">
-          {original && original.payer === travelerId && (
+          {original && original.payer === travelerId && original.settled.length > 0 && <p className="note">This expense has completed repayments and cannot be deleted. Add an adjustment expense to preserve the history.</p>}
+          {original && original.payer === travelerId && original.settled.length === 0 && (
             <Button
               variant="text danger"
               onClick={() => {
@@ -840,32 +953,28 @@ export function ExpenseForm() {
                   );
                   return;
                 }
-                if (
-                  window.confirm("Delete this expense and its unpaid shares?")
-                ) {
-                  updateTrip((trip) => {
-                    trip.expenses = trip.expenses.filter(
-                      (e) => e.id !== original.id,
-                    );
-                  });
-                  close();
-                }
+                setConfirmDelete(true);
               }}
             >
               Delete expense
             </Button>
           )}
-          {scan && (
+          {scan === "review" ? (
+            <div className="receipt-review-status" role="status">
+              <span>Sample details added. Review the expense below.</span>
+              <Button variant="text" onClick={() => setScan("ready")}>Choose another</Button>
+            </div>
+          ) : scan && (
             <div className="scan-box">
-              <ScanLine size={30} />
               <h3>
                 {scan === "loading"
                   ? "Reading the sample receipt…"
                   : scan === "review"
                     ? "A few details, ready to review."
-                    : "Start with a receipt."}
+                    : "Try a sample receipt"}
               </h3>
-              <p>Simulated scanning. Choose an image or try the sample.</p>
+              <p>Simulated scanning fills details for you to review.</p>
+              <details className="receipt-image-options"><summary>Choose an image instead</summary>
               <input
                 aria-label="Receipt image"
                 type="file"
@@ -881,6 +990,8 @@ export function ExpenseForm() {
                   }
                 }}
               />
+              </details>
+              <div className="receipt-scan-actions">
               <Button
                 variant="outline"
                 disabled={scan === "loading"}
@@ -888,34 +999,48 @@ export function ExpenseForm() {
               >
                 Use sample receipt
               </Button>
-              <button
+              <Button variant={scan === "failed" ? "primary" : "text"} disabled={scan === "loading"} onClick={() => setScan("")}>{scan === "failed" ? "Enter expense manually" : "Enter manually"}</Button>
+              </div>
+              {scan !== "failed" && <button
                 className="text-link"
                 type="button"
+                disabled={scan === "loading"}
                 onClick={() => scanReceipt(true)}
               >
                 Try scan failure
-              </button>
+              </button>}
               {scan === "failed" && (
-                <ErrorBox text="The scan didn’t work. Try another image or type the details below." />
+                <ErrorBox text="The scan didn’t work. Use the sample receipt or enter the details manually." />
               )}
             </div>
           )}
+          <p className="expense-date-context">Expense date: {dateText(original?.date || s.date)}{t.persistence !== "account" && " · Demo date"}</p>
+          <div className="expense-validated-field">
           <Field label="What was it for?">
-            <input
+            <textarea
+              ref={purposeRef}
+              rows={2}
               required
+              aria-invalid={submitted && !!purposeProblem}
+              aria-describedby={submitted && purposeProblem ? "expense-purpose-error" : undefined}
               maxLength={TEXT_LIMITS.expense}
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
               placeholder="Lunch by the waterfront"
             />
           </Field>
+          {submitted && purposeProblem && <span id="expense-purpose-error" className="error expense-field-error" role="alert">{purposeProblem}</span>}
+          </div>
           <div className="form-columns">
+            <div className="expense-validated-field">
             <Field label="Amount (USD)">
               <input
+                ref={amountRef}
                 required
                 type="number"
                 min="0.01"
-                aria-describedby="expense-amount-hint"
+                aria-invalid={submitted && !!amountProblem}
+                aria-describedby={submitted && amountProblem ? "expense-amount-error" : "expense-amount-hint"}
                 max={MONEY_LIMITS.expense / 100}
                 step="0.01"
                 value={amount}
@@ -923,6 +1048,8 @@ export function ExpenseForm() {
                 placeholder="0.00"
               />
             </Field>
+            {submitted && amountProblem && <span id="expense-amount-error" className="error expense-field-error" role="alert">{amountProblem}</span>}
+            </div>
             <Field label="Category">
               <select
                 value={category}
@@ -934,11 +1061,11 @@ export function ExpenseForm() {
               </select>
             </Field>
           </div>
-          <p className="expense-amount-hint" id="expense-amount-hint">
+          {!(submitted && amountProblem) && <p className="expense-amount-hint" id="expense-amount-hint">
             {shared
               ? "Enter the total you paid, including others’ shares."
               : "Enter the amount you paid."}
-          </p>
+          </p>}
           <label className="check-row">
             <input
               type="checkbox"
@@ -956,9 +1083,10 @@ export function ExpenseForm() {
               )}
             </span>
           </label>
+          {shared && previewAmountError && <p className="note">Enter a valid amount to preview each person’s share.</p>}
           {shared && (
             <fieldset>
-              <legend>Who’s included?</legend>
+              <legend>Who’s included? · {people.length} selected</legend>
               {t.members
                 .filter((m) => m.status === "accepted")
                 .map((m) => (
@@ -975,7 +1103,7 @@ export function ExpenseForm() {
                       }
                     />
                     <span>{m.name}</span>
-                    <strong>{money(previewShares[m.id] || 0)}</strong>
+                    <strong>{previewAmountError ? "—" : money(previewShares[m.id] || 0)}</strong>
                   </label>
                 ))}
             </fieldset>
@@ -991,4 +1119,47 @@ export function ExpenseForm() {
       </form>
     </Modal>
   );
+}
+
+
+/** One append-only correction flow for both local samples and queued account saves. */
+export function RepaymentForm() {
+  const {trip, s, overlay, updateTrip, close, toast} = useApp();
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState("");
+  const reasonInput = useRef<HTMLTextAreaElement>(null);
+  const expense = trip?.expenses.find(item => item.id === overlay?.data.expenseId);
+  const debtor = overlay?.data.debtor as string;
+  const correct = Boolean(overlay?.data.correct);
+  const actor = trip ? member(trip, s.userId)?.id : undefined;
+  if (!trip || !expense || !actor || expense.payer !== actor || !(expense.shares[debtor] > 0) || debtor === actor)
+    return <Modal title="Repayment unavailable"><p>Only the payer can update this repayment.</p><Button onClick={close}>Close</Button></Modal>;
+  const changed = repaymentPaid(expense, debtor) !== correct;
+  return <Modal title={correct ? "Correct repayment" : "Confirm repayment"}>
+    <form className="repayment-form" onSubmit={event => {
+      event.preventDefault();
+      if (correct && !reason.trim()) { setError("Enter a reason for this correction."); reasonInput.current?.focus(); return; }
+      try {
+        updateTrip(current => {
+          const latest = current.expenses.find(item => item.id === expense.id);
+          const currentActor = member(current, s.userId)?.id;
+          if (!latest || !currentActor) throw new Error("This repayment is no longer available.");
+          recordRepayment(latest, debtor, currentActor, correct ? "unpaid" : "paid", reason,
+            current.persistence === "account" ? undefined : new Date().toISOString());
+        });
+        toast(correct ? "Repayment corrected to unpaid. The original expense is unchanged." : "Repayment marked completed. Spending totals are unchanged.", "budget");
+        close();
+      } catch (issue) { setError(issue instanceof Error ? issue.message : "Could not update the repayment."); }
+    }}>
+      <p className="repayment-copy">{correct ? "Mark" : "Record that you received"} <strong>{money(expense.shares[debtor])}</strong> from <strong>{trip.members.find(person => person.id === debtor)?.name || "Former traveler"}</strong> for {expense.purpose}{correct ? " as unpaid again." : "."}</p>
+      <p className="repayment-copy">{correct ? "The earlier paid record stays in the history. This amount returns to unpaid repayments; the original expense stays locked." : "This only updates the repayment log. No money is transferred or verified. The expense stays locked; a mistaken paid status can be corrected with a reason."}</p>
+      {correct && <Field label="Reason for correction"><textarea ref={reasonInput} rows={3} maxLength={220} value={reason}
+        aria-invalid={!!error} aria-describedby={error ? "repayment-error" : undefined}
+        onChange={event => {setReason(event.target.value);setError("");}} /></Field>}
+      {changed && <p role="alert" className="error">This repayment changed. Close this dialog and check its current status.</p>}
+      {error && <p id="repayment-error" role="alert" className="error">{error}</p>}
+      <div className="repayment-decision"><Button variant="outline" onClick={close}>Cancel</Button>
+        <Button type="submit" variant="repayment-confirm" disabled={changed}>{correct ? "Mark as unpaid" : "Mark paid"}<Check size={16}/></Button></div>
+    </form>
+  </Modal>;
 }

@@ -58,10 +58,14 @@ export function moneyError(
   maxCents: number,
   allowZero = false,
 ): string {
-  if (!/^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(value.trim()))
+  const decimal = value.trim();
+  // Recognize a negative decimal so its error explains the allowed range.
+  // Keep all negative inputs invalid, including a typed negative zero.
+  if (!/^-?(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(decimal))
     return "Enter an amount with no more than 2 decimal places (no letters or exponents).";
   const cents = Math.round(Number(value) * 100);
   if (
+    decimal.startsWith("-") ||
     !Number.isSafeInteger(cents) ||
     cents < (allowZero ? 0 : 1) ||
     cents > maxCents

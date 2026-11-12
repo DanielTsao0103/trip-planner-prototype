@@ -1,5 +1,7 @@
 import { getSupabase, inviteProofClient } from "./supabase";
 
+import { passwordRecoveryEntry } from "./password-recovery-state";
+
 const key = "trip-planner-invite-entry-v1";
 export type InviteClaim = {
   trip: string;
@@ -35,8 +37,8 @@ function capture(): Entry | null {
   const notice = url.searchParams.has("trip_notice");
   if (notice || url.searchParams.has("trip_invite")) {
     const token = notice ? null : url.searchParams.get("trip_token");
-    const access = notice || token ? null : hash.get("access_token");
-    const refresh = notice || token ? null : hash.get("refresh_token");
+    const access = notice || token || passwordRecoveryEntry ? null : hash.get("access_token");
+    const refresh = notice || token || passwordRecoveryEntry ? null : hash.get("refresh_token");
     const entry: Entry = {
       trip: url.searchParams.get(notice ? "trip_notice" : "trip_invite"),
       notice,
@@ -45,14 +47,14 @@ function capture(): Entry | null {
       access: access || "",
       refresh: refresh || "",
     };
-    if (hash.has("error") || url.searchParams.has("error"))
+    if (!passwordRecoveryEntry && (hash.has("error") || url.searchParams.has("error")))
       entry.error =
         "This invitation link is incomplete or expired. Ask the trip owner for a fresh invitation.";
     url.searchParams.delete("trip_invite");
     url.searchParams.delete("trip_notice");
     url.searchParams.delete("trip_token");
     url.searchParams.delete("invitation");
-    url.hash = "";
+    if (!passwordRecoveryEntry) url.hash = "";
     history.replaceState(history.state, "", url);
     sessionStorage.removeItem("trip-planner-demo-session");
     sessionStorage.setItem(key, JSON.stringify(entry));
@@ -118,6 +120,13 @@ export async function openInvite(): Promise<InviteClaim> {
     // Revalidate setup status without invalidating this tab's existing ticket.
     ...(inviteEntry.claim?.ticket ? { p_ticket: inviteEntry.claim.ticket } : {}),
   });
+  if (error) {
+    const reason = typeof error.message === "string" ? error.message : "";
+    if (/(?:invitation|link).*expired/i.test(reason))
+      throw new Error("This invitation has expired. Ask the trip owner for a fresh invitation.");
+    if (/(?:invitation|link).*(?:cancelled|canceled|no longer active|invalid)/i.test(reason))
+      throw new Error("This invitation is no longer active. Ask the trip owner for a fresh invitation.");
+  }
   if (error || !data?.ticket)
     throw new Error(
       "Couldn’t open this invitation. Retry, or ask the trip owner for a fresh link.",

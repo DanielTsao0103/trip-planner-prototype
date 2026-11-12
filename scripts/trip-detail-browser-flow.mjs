@@ -28,7 +28,7 @@ export async function detailJourney(page, base, travelerEmail) {
   await expect(page.getByText(`Taipei — ${taipeiLabel}`, { exact: true })).toBeVisible();
   await button("Create trip").click();
   await button("Full detail browser QA").click();
-  await button("List").click();
+  await expect(button("Calendar")).toHaveAttribute("aria-pressed", "true");
   await saved(page);
   await goto("13");
   await button("Invite someone").click();
@@ -46,9 +46,12 @@ export async function detailJourney(page, base, travelerEmail) {
   await field("End time").fill("11:00");
   await field("Estimated cost (USD)").fill("10.07");
   await field("Notes (optional)").fill("Bring tickets");
+  await page.locator(".event-attendees > summary").click();
   await page.getByRole("checkbox", { name: /Guest Traveler/ }).check();
   await button("Add to itinerary").click();
   await saved(page);
+  await expect(button("List")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('[id^="itinerary-event-"]').filter({ hasText: "Museum visit" })).toBeFocused();
   // Edit via the actual itinerary card, then verify the form reloads saved values.
   await goto("8?view=list");
   await page
@@ -115,16 +118,18 @@ export async function detailJourney(page, base, travelerEmail) {
     .filter({ hasText: "Temporary snack" })
     .getByRole("button", { name: "Edit", exact: true })
     .click();
-  page.once("dialog", (d) => d.accept());
   await button("Delete expense").click();
+  await page.getByRole("dialog", { name: "Delete this expense?", exact: true }).getByRole("button", { name: "Delete expense", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await saved(page);
   await page
     .locator(".expense-row")
     .filter({ hasText: "Shared lunch edited" })
-    .getByRole("button", { name: "Edit", exact: true })
+    .getByRole("button", { name: "Details", exact: true })
     .click();
-  await button("Delete expense").click();
-  await expect(page.getByRole("alert")).toContainText("Completed repayments");
+  await expect(button("Delete expense")).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Expense details", exact: true })).toContainText("This expense has repayment history and cannot be changed.");
+  await expect(button("Save expense")).toHaveCount(0);
   await button("Close dialog").click();
   await goto("10");
   await field("New to-do").fill("Pack tickets");
@@ -143,8 +148,8 @@ export async function detailJourney(page, base, travelerEmail) {
     page.getByRole("checkbox", { name: /Pack tickets/ }),
   ).toBeChecked();
   await goto("13");
-  page.once("dialog", (d) => d.accept());
   await button("Remove Guest Traveler").click();
+  await page.getByRole("dialog", { name: "Remove this traveler?" }).getByRole("button", { name: "Remove traveler", exact: true }).click();
   await saved(page);
   await expect(
     page.getByRole("button", { name: "Remove Guest Traveler", exact: true }),

@@ -1,0 +1,89 @@
+/* Account password fields share one compact rhythm; legacy Field margins would
+   otherwise stack on top of the form's grid gap. Keep labels and 44px controls. */
+:root .account-password-disclosure .account-password-form {
+  gap: 16px;
+  margin-top: 8px;
+}
+:root .account-password-form .field[data-ui="field"] {
+  margin: 0;
+  gap: 8px;
+}
+:root .account-password-form .error,
+:root .account-password-form .account-status {
+  margin: 0;
+}
+
+/* Retry stays visible. Native details exposes optional export/discard actions
+   with keyboard support and an announced expanded state, without a popup. */
+:root .trip-recovery-banner {
+  /* Keep persistent recovery above the content it protects, inside the workspace. */
+  position: sticky;
+  top: var(--release-notice-height, 0px);
+  bottom: auto;
+  right: auto;
+  width: calc(100% - 32px);
+  max-width: none;
+  margin: 12px 16px;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: start;
+}
+:root .trip-recovery-banner > span {
+  grid-column: 1 / -1;
+  line-height: 1.5;
+}
+:root .trip-recovery-banner .recovery-retry {
+  min-height: 44px;
+  padding: 8px 12px;
+}
+:root .trip-recovery-banner .recovery-more {
+  min-width: 0;
+}
+:root .recovery-more > summary {
+  display: list-item;
+  cursor: pointer;
+  min-height: 44px;
+  padding: 12px 8px;
+  font-size: 14px;
+  line-height: 20px;
+  color: inherit;
+}
+:root .trip-recovery-banner .recovery-more[open] {
+  grid-column: 1 / -1;
+}
+:root .recovery-secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+:root .trip-recovery-banner .recovery-secondary-actions .btn {
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+/* Wide notices keep the message, retry and disclosure in one readable row. */
+@media (min-width: 768px) {
+  :root .trip-recovery-banner { grid-template-columns: minmax(0, 1fr) max-content max-content; }
+  :root .trip-recovery-banner > span:first-child { grid-column: 1; grid-row: 1; align-self: center; }
+  :root .trip-recovery-banner .recovery-retry { grid-column: 2; grid-row: 1; }
+  :root .trip-recovery-banner .recovery-more { grid-column: 3; grid-row: 1; }
+  :root .trip-recovery-banner .recovery-more[open] {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+  :root .trip-recovery-banner .recovery-more[open] > summary {
+    float: left;
+    margin-right: 16px;
+  }
+  :root .trip-recovery-banner .recovery-secondary-actions { padding-top: 0; border-top: 0; }
+}
+
+/* The notice grows with errors, text wrapping and expanded recovery actions. */
+  :root .day-section,
+  :root [id^="itinerary-event-"],
+  :root [id^="day-event-"] {
+    scroll-margin-top: max(112px, calc(var(--trip-recovery-height, 0px) + var(--release-notice-height, 0px) + 12px));
+  }

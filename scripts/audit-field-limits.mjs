@@ -84,9 +84,11 @@ for (const device of ['desktop', 'mobile']) {
     await audit('expense-validation');
     await button('Close dialog').click();
     await page.goto(`${site}#/8`);
+    if (!await button('Prototype').isVisible()) await button('Open navigation menu').click();
     await button('Prototype').click();
+    if (await button('Date & time').isVisible()) await button('Date & time').click();
     await button('During').click();
-    await button('Apply & preview landing').click();
+    await button(/^Apply & open (Home|Today)$/).click();
     await page.getByLabel('New to-do', { exact: true }).waitFor();
     await audit('reminders');
   } finally { await browser.close(); }

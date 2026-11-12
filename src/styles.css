@@ -459,7 +459,8 @@ legend {
   left: 10px;
   top: -60px;
   z-index: 1000;
-  background: white;
+  background: var(--paper);
+  color: var(--action-ink);
   padding: 12px;
 }
 .skip-link:focus {
@@ -1327,6 +1328,10 @@ legend {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
+:root .planned-carousel .planned-trip-card:focus-visible {
+  /* The carousel clips adjacent slides; keep the focused card's entire ring inside it. */
+  outline-offset: -3px;
+}
 .planned-trip-card .planned-card-copy {
   display: block;
   box-sizing: border-box;
@@ -1515,7 +1520,7 @@ legend {
   color: hsl(calc(var(--hue) + -1.9) calc(40.2% * var(--sm)) calc(var(--la) + var(--lb) * 42%));
 }
 .service-2 {
-  background: #e3e3e0;
+  background: hsl(60 5.1% calc(var(--la) + var(--lb) * 88.4%));
   color: hsl(calc(var(--hue) + 0.7) calc(14.3% * var(--sm)) calc(var(--la) + var(--lb) * 26.1%));
 }
 .service-3 {

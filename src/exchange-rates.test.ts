@@ -5,6 +5,7 @@ import {
   formatCurrency,
   getExchangeRate,
   MAX_RATE_AGE_MS,
+  OutdatedExchangeRateError,
   parseConversionAmount,
   parseRate,
   RATE_TTL_MS,
@@ -41,6 +42,18 @@ test("validates rate identity, positivity, dates and maximum age", () => {
   assert.equal(
     parseRate({ ...valid, date: "2026-11-12" }, "USD", "KRW", now).date,
     "2026-11-12",
+  );
+});
+
+test("distinguishes an outdated provider date from malformed rate data", () => {
+  assert.throws(
+    () => parseRate({ ...valid, date: "2026-10-01" }, "USD", "KRW", now),
+    (error: unknown) => error instanceof OutdatedExchangeRateError && error.date === "2026-10-01",
+  );
+  // Bad values must not be mislabeled as merely old, even when their date is old.
+  assert.throws(
+    () => parseRate({ ...valid, date: "2026-10-01", rate: -1 }, "USD", "KRW", now),
+    (error: unknown) => error instanceof Error && !(error instanceof OutdatedExchangeRateError),
   );
 });
 

@@ -1,5 +1,48 @@
+import { installGoogleMapFixture } from "./google-map-fixture";
 import { expect, test } from "@playwright/test";
 import { seed } from "../src/data.ts";
+
+test("slow map tiles offer recovery and become ready when they arrive", async ({ page }) => {
+  await installGoogleMapFixture(page, { tilesLoaded: false });
+  await page.clock.install();
+  await page.addInitScript(() => sessionStorage.setItem('trip-planner-demo-session', 'active'));
+  await page.goto('./#/17');
+  await expect(page.locator('.trip-map-host')).toHaveAttribute('tabindex', '0');
+  await page.clock.fastForward(8500);
+  await expect(page.getByText('Still loading Google Maps', { exact: true })).toBeVisible();
+  await expect(page.locator('.google-map-state').getByRole('button', { name: 'Retry', exact: true })).toBeVisible();
+  await page.locator('.trip-map-host').evaluate(host => host.dispatchEvent(new Event('tilesloaded')));
+  await expect(page.locator('.trip-map')).toHaveAttribute('data-map-state', 'ready');
+  await expect(page.getByText('Still loading Google Maps', { exact: true })).toHaveCount(0);
+});
+
+test("a delayed map SDK offers recovery before its connection timeout", async ({ page }) => {
+  await page.route('https://maps.googleapis.com/**', () => {});
+  await page.clock.install();
+  await page.addInitScript(() => sessionStorage.setItem('trip-planner-demo-session', 'active'));
+  await page.goto('./#/17');
+  await expect(page.getByText('Loading Google Maps…', { exact: true })).toBeVisible();
+  await page.clock.fastForward(8500);
+  await expect(page.getByText('Still loading Google Maps', { exact: true })).toBeVisible();
+  await page.clock.fastForward(8000);
+  await expect(page.getByText('Google Maps could not connect. Check your connection and retry.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Still loading Google Maps', { exact: true })).toHaveCount(0);
+});
+
+test("map access denial remains accurate after the tile timeout", async ({ page }) => {
+  await installGoogleMapFixture(page, { tilesLoaded: false });
+  await page.clock.install();
+  await page.goto("./");
+  await page.getByRole("button", { name: "Try demo as Maya", exact: true }).click();
+  await page.goto("./#/17");
+  await expect(page.locator('.trip-map-host')).toHaveAttribute("tabindex", "0");
+  await page.evaluate(() => window.dispatchEvent(new Event("trip-google-maps-auth-failure")));
+  await expect(page.getByText("Your itinerary is still available. Try again later or open Google Maps.", { exact: true })).toBeVisible();
+  await page.clock.fastForward(20000);
+  await expect(page.getByText("Your itinerary is still available. Try again later or open Google Maps.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Google Maps is taking longer than usual to display this area.", { exact: true })).toHaveCount(0);
+  await expect(page.locator('.trip-map[data-map-state="unavailable"]')).toBeVisible();
+});
 
 test("select a shared stop, fine-tune its pin, reload, and restore the overview", async ({
   page,
@@ -21,118 +64,7 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
   }, store);
   // Keep the save/reload regression deterministic. Live provider rendering is
   // checked separately with the published origin and its restricted browser key.
-  await page.addInitScript(() => {
-    type Point = { lat: number; lng: number };
-    class Geocoder {
-      async geocode(request: { address?: string; placeId?: string }) {
-        const places = [
-          {
-            address: "400 Broad St, Seattle, WA",
-            id: "needle",
-            lat: 47.62,
-            lng: -122.349,
-          },
-          {
-            address: "85 Pike St, Seattle, WA",
-            id: "market",
-            lat: 47.609,
-            lng: -122.342,
-          },
-        ];
-        const place = places.find(
-          (p) => request.address === p.address || request.placeId === p.id,
-        );
-        return {
-          results: place
-            ? [
-                {
-                  place_id: place.id,
-                  types: ["street_address"],
-                  geometry: {
-                    location: {
-                      toJSON: () => ({ lat: place.lat, lng: place.lng }),
-                    },
-                  },
-                },
-              ]
-            : [],
-        };
-      }
-    }
-    class TestMap {
-      center: Point = { lat: 0, lng: 0 };
-      zoom = 2;
-      host: HTMLElement;
-      constructor(host: HTMLElement) {
-        this.host = host;
-        host.tabIndex = 0;
-        host.addEventListener("keydown", (key) => {
-          if (key.key === "ArrowRight")
-            this.center = { ...this.center, lng: this.center.lng + 0.001 };
-        });
-      }
-      getCenter() {
-        return { toJSON: () => this.center };
-      }
-      getZoom() {
-        return this.zoom;
-      }
-      setZoom(zoom: number) {
-        this.zoom = zoom;
-        this.host.dispatchEvent(new Event("zoom_changed"));
-      }
-      moveCamera({ center, zoom }: { center: Point; zoom: number }) {
-        this.center = center;
-        this.zoom = zoom;
-        this.host.dispatchEvent(new Event("zoom_changed"));
-      }
-      addListener(type: string, fn: EventListener) {
-        this.host.addEventListener(type, fn);
-        if (type === "tilesloaded")
-          queueMicrotask(() => this.host.dispatchEvent(new Event(type)));
-      }
-      fitBounds() {}
-    }
-    class TestMarker extends HTMLElement {
-      constructor(options: { map: TestMap; title: string }) {
-        super();
-        this.tabIndex = 0;
-        this.setAttribute("role", "button");
-        this.setAttribute("aria-label", options.title);
-        this.onclick = () => this.dispatchEvent(new Event("gmp-click"));
-        this.onkeydown = (key) => {
-          if (key.key === "Enter") this.click();
-        };
-        options.map.host.append(this);
-      }
-      set map(value: null) {
-        if (value === null) this.remove();
-      }
-    }
-    customElements.define("test-map-marker", TestMarker);
-    class Bounds {
-      points: Point[] = [];
-      extend(p: Point) {
-        this.points.push(p);
-      }
-      getNorthEast() {
-        return { equals: () => this.points.length === 1 };
-      }
-      getSouthWest() {
-        return this.points[0];
-      }
-    }
-    Object.assign(window, {
-      google: {
-        maps: {
-          importLibrary: async () => ({ Map: TestMap, Geocoder }),
-          marker: { AdvancedMarkerElement: TestMarker },
-          LatLngBounds: Bounds,
-          event: { clearInstanceListeners() {} },
-        },
-      },
-    });
-  });
+  await installGoogleMapFixture(page);
   await page.route("https://photon.komoot.io/**", (route) =>
     route.fulfill({ json: { features: [] } }),
   );
@@ -176,15 +108,42 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
   await expect(picker.getByRole("button", {name: /Settle into our city stay/})).toBeVisible();
   await picker.getByRole("button", {name: /A morning of art/}).click();
   await expect(picker).toHaveCount(0);
+  // Reopening from a partially scrolled map must reveal the chooser's close control.
+  await page.locator('.trip-map-host').evaluate(host => window.scrollTo(0, host.getBoundingClientRect().top + window.scrollY + 160));
+  await museum.evaluate(marker => (marker as HTMLElement).focus({ preventScroll: true }));
+  await page.keyboard.press('Enter');
+  await expect(picker.getByRole('button', { name: 'Close stop list', exact: true })).toBeFocused();
+  await expect.poll(() => picker.evaluate(panel => {
+    const bounds = panel.getBoundingClientRect();
+    const nav = document.querySelector<HTMLElement>('.mobile-nav');
+    const bottom = nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight;
+    return bounds.top >= 0 && bounds.bottom <= bottom;
+  })).toBe(true);
+  await page.screenshot({ path: test.info().outputPath('reopened-map-choices-visible.png') });
+  await page.keyboard.press('Escape');
+  await expect(picker).toHaveCount(0);
+  await expect(museum).toBeFocused();
   await overlap.evaluate((el) => el.remove());
   await expect(
     page.getByRole("link", { name: "Directions", exact: true }),
   ).toHaveAttribute("href", /47.6077008%2C-122.3385575/);
-  await page.getByRole("button", { name: "Adjust pin" }).click();
+  const adjustPin = page.getByRole("button", { name: "Adjust pin" });
+  await adjustPin.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", {name:"Cancel pin placement",exact:true})).toHaveText("Cancel");
+  if (test.info().project.name === "mobile") {
+    await page.setViewportSize({width:390,height:600});
+    const toolbar=await page.locator('.trip-map-tools').boundingBox(), actions=await page.locator('.pin-placement').boundingBox();
+    expect(toolbar!.y+toolbar!.height).toBeLessThanOrEqual(actions!.y);
+    const crosshair=await page.locator('.pin-crosshair').boundingBox();
+    expect(crosshair!.y+crosshair!.height).toBeLessThan(actions!.y);
+    await page.screenshot({path:test.info().outputPath('short-pin-actions.png')});
+  }
   const map = page.locator(".trip-map-host");
-  await map.focus();
-  await map.press("ArrowRight");
+  await expect(map).toBeFocused();
+  await page.keyboard.press("ArrowRight");
   await page.getByRole("button", { name: "Save pin", exact: true }).click();
+  await expect(adjustPin).toBeFocused();
   const url = await page
     .getByRole("link", { name: "Directions", exact: true })
     .getAttribute("href");
@@ -217,6 +176,16 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
       () => document.documentElement.scrollWidth <= innerWidth + 1,
     ),
   ).toBe(true);
+  if (test.info().project.name === "mobile") {
+    await page.evaluate(() => { const key="trip-planner-demo-v1:demo-maya", state=JSON.parse(localStorage.getItem(key)!); state.trips.find((t: any)=>t.id===state.tripId).events.find((e: any)=>e.id==="museum").name="A very long gallery visit with the whole group and a detailed meeting point before the afternoon tour"; localStorage.setItem(key,JSON.stringify(state)); });
+    await page.reload();
+    await page.goto("./#/17?event=museum");
+    await page.getByRole("button",{name:"Adjust pin",exact:true}).click();
+    await expect.poll(async()=>{const cross=await page.locator('.pin-crosshair').boundingBox(), bar=await page.locator('.pin-placement').boundingBox();return !!cross&&!!bar&&cross.y+cross.height<bar.y;}).toBe(true);
+    await expect(page.getByRole("button",{name:"Save pin",exact:true})).toBeInViewport();
+    await page.screenshot({path:test.info().outputPath('short-long-pin-actions.png')});
+    await page.getByRole("button",{name:"Cancel pin placement",exact:true}).click();
+  }
 });
 
 test("a blocked Google SDK offers recovery and keeps saved directions available", async ({
@@ -267,7 +236,8 @@ test("a viewer can collapse a stop, return to it with Back, and follow a resched
   await row.click();
   await page.getByRole("link", {name:"View itinerary item"}).click();
   const item = page.getByRole("article", {name:"A morning of art"});
-  await expect(item.getByRole("button", {name:"Edit event"})).toBeVisible();
+  await expect(item).toBeVisible();
+  await expect(item.getByRole("button", {name:"Edit event"})).toHaveCount(0);
   await page.goBack();
   await expect(row).toHaveAttribute("aria-expanded", "true");
   await page.goto("./#/11?date=2026-10-15&event=museum");

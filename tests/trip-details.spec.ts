@@ -1,3 +1,4 @@
+import { installGoogleMapFixture } from "./google-map-fixture";
 import { expectUnderInput } from './popup-alignment';
 import { test, expect, type Page } from "@playwright/test";
 import { detailJourney, saved } from "../scripts/trip-detail-browser-flow.mjs";
@@ -147,6 +148,41 @@ async function backend(page: Page) {
     },
   };
 }
+test('traveler confirmation retires safely when a shared update removes its target', async ({ page }) => {
+  const api = await backend(page);
+  const guest = '33333333-3333-4333-8333-333333333333';
+  const row = {
+    tripID: '44444444-4444-4444-8444-444444444444', owner_id: owner.id, created_by: owner.id,
+    trip_name: 'Shared removal confirmation', destinations: ['Seattle'], timezone: 'America/Los_Angeles',
+    start_date: '2027-05-01', end_date: '2027-05-04', revision: 1, content_version: 1,
+    content: {
+      image: '', destinationTimezones: ['America/Los_Angeles'], events: [], expenses: [], prefs: {}, todos: [], dismissed: [], budget: null, budgetMode: 'group', individual: {},
+      members: [
+        { id: owner.id, name: owner.user_metadata.name, email: owner.email, role: 'Owner', status: 'accepted', days: [] },
+        { id: guest, name: 'Guest Traveler', email: 'guest@example.test', role: 'Viewer', status: 'accepted', days: [] },
+      ],
+    },
+  };
+  api.rows.push(row);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.goto('./#/5');
+  await page.getByRole('button', { name: row.trip_name, exact: true }).click();
+  await page.goto('./#/13');
+  await page.getByRole('button', { name: 'Remove Guest Traveler', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Remove this traveler?' })).toBeVisible();
+  let writes = 0;
+  page.on('request', request => { if (request.url().includes('/save_account_trip')) writes++; });
+  row.content.members[1].status = 'removed';
+  row.revision++;
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  const changed = page.getByRole('dialog', { name: 'Traveler changed' });
+  await expect(changed).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remove traveler', exact: true })).toHaveCount(0);
+  await changed.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.locator('#group-travelers')).toBeFocused();
+  expect(writes).toBe(0);
+});
+
 test("all detail screens persist changes and preserve financial history", async ({
   page,
   baseURL,
@@ -253,7 +289,7 @@ test("failed detail saves automatically resume after reload without losing edits
     .getByRole("button", { name: "Add to itinerary", exact: true })
     .click();
   await expect(page.getByRole("alert")).toContainText("Not saved:");
-  await expect(page.getByText("Changes saved", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Trip changes saved", { exact: true })).toHaveCount(0);
   expect(api.rows[0].content.events).toEqual([]);
   api.setFail(false);
   await page.reload();
@@ -360,12 +396,12 @@ test("legacy browser trip details import once into the owned database trip", asy
   expect(api.rows[0].revision).toBe(revision);
 });
 
-test("save popup waits for confirmation, sits bottom-right, then disappears", async ({
+test("save popup waits for confirmation, leaves trip actions clear, then disappears", async ({
   page,
 }) => {
   const api = await backend(page);
   await expect(page.locator(".account-save-banner")).toHaveCount(0);
-  await expect(page.getByText("Changes saved", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Trip changes saved", { exact: true })).toHaveCount(0);
   await page.goto("./#/6");
   await page.getByLabel("Trip title", { exact: true }).fill("Save feedback");
   await page.getByLabel("Where are you going?", { exact: true }).fill("Taipei");
@@ -376,15 +412,22 @@ test("save popup waits for confirmation, sits bottom-right, then disappears", as
   await expect(page.locator(".account-save-banner")).toContainText(
     "Saving trip changes",
   );
-  await expect(page.getByText("Changes saved", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Trip changes saved", { exact: true })).toHaveCount(0);
   release();
-  const toast = page.getByText("Changes saved", { exact: true });
+  const toast = page.getByText("Trip changes saved", { exact: true });
   await expect(toast).toBeVisible();
   await expect(page.locator(".account-save-banner")).toHaveCount(0);
   const box = await toast.boundingBox();
   const viewport = page.viewportSize()!;
   expect(box!.x).toBeGreaterThan(viewport.width / 2);
-  expect(box!.y).toBeGreaterThan(viewport.height / 2);
+  if (viewport.width > 760) expect(box!.y).toBeGreaterThan(viewport.height / 2);
+  else {
+    // The compact phone acknowledgment sits below navigation, above trip actions.
+    const header = await page.locator(".topbar").boundingBox();
+    expect(box!.y).toBeGreaterThanOrEqual(header!.y + header!.height);
+    const action = await page.getByRole("button", { name: "Open trip", exact: true }).boundingBox();
+    expect(box!.y + box!.height).toBeLessThanOrEqual(action!.y);
+  }
   expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width - 15);
   await page.screenshot({ path: test.info().outputPath("changes-saved.png") });
   await expect(toast).toHaveCount(0, { timeout: 5000 });
@@ -401,7 +444,7 @@ test('weekly calendar reschedules through the save API, reloads, and recovers fa
   await page.goto('./#/5'); await page.reload();
   await page.getByRole('button',{name:'Open itinerary',exact:true}).click();
   await page.getByRole('button',{name:'Calendar',exact:true}).click();
-  await expect(page.getByRole('region',{name:'Scrollable seven-day calendar'})).toBeVisible();
+  await expect(page.getByRole('region',{name: testInfo.project.name === 'desktop' ? 'Scrollable seven-day calendar' : 'Seven-day agenda'})).toBeVisible();
   await expect(page.locator('.itcal-day-header')).toHaveCount(7);
   await page.getByRole('button',{name:'Next seven days',exact:true}).click();
   await expect(page.locator('.itcal-day-header').first()).toContainText('Jun 8');
@@ -418,6 +461,8 @@ test('weekly calendar reschedules through the save API, reloads, and recovers fa
   if(testInfo.project.name==='desktop') {
     const day = page.locator('[data-calendar-date="2027-06-03"]');
     const card = page.locator('.itcal-event');
+    // The calendar initially opens near the first plan. Reveal the earlier target hour before dragging.
+    await page.locator(".itcal-scroll").evaluate(el => { el.scrollIntoView({block:"start"}); el.scrollTop=0; });
     const sourcePosition = { x: 12, y: 39 };
     // Three hours below the 7 AM start. The pointer stays 39px below the card's top.
     await card.dragTo(day, { sourcePosition, targetPosition: { x: 50, y: 3 * 72 + 39 } });
@@ -603,6 +648,7 @@ for (const malformedPart of ["draft", "retryDraft"] as const) {
     await expect(page.locator(".account-save-banner")).toContainText("Some local recovery data could not be read");
     await expect(page.getByRole("button", { name: "Retry save", exact: true })).toHaveCount(0);
     const downloadPromise = page.waitForEvent("download");
+    await page.locator(".recovery-more > summary").click();
     await page.getByRole("button", { name: "Download unsaved copy", exact: true }).click();
     const stream = await (await downloadPromise).createReadStream();
     let content = "";
@@ -646,6 +692,7 @@ test("storage quota failure warns honestly and offers a usable unsaved download"
     key.startsWith("trip-planner-pending")))).toEqual([]);
   expect(api.rows[0].content.events).toEqual([]);
   const downloadPromise = page.waitForEvent("download");
+  await page.locator(".recovery-more > summary").click();
   await page.getByRole("button", { name: "Download unsaved copy", exact: true }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe("unsaved-trip-changes.json");
@@ -658,4 +705,108 @@ test("storage quota failure warns honestly and offers a usable unsaved download"
   await page.getByRole("button", { name: "Retry save", exact: true }).click();
   await saved(page);
   expect(api.rows[0].content.events[0].name).toBe("Download my unsaved plan");
+});
+
+test('failed event photo upload retries the selected file and saves the recovered image', async ({ page }) => {
+  const api=await backend(page);
+  await page.route('https://maps.googleapis.com/**',route=>route.abort());
+  let uploads=0;
+  const png=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=16;canvas.height=16;canvas.getContext('2d')!.fillRect(0,0,16,16);return canvas.toDataURL('image/png').split(',')[1];});
+  await page.route('https://*.supabase.co/storage/v1/object/**',route=>{
+    if(route.request().method()==='POST') {
+      uploads++;
+      return uploads===1 ? route.fulfill({status:503,json:{message:'Temporary test failure'}}) : route.fulfill({json:{Key:'test-photo.png'}});
+    }
+    return route.fulfill({contentType:'image/png',body:Buffer.from(png,'base64')});
+  });
+  await page.goto('./#/6');
+  await page.getByLabel('Trip title',{exact:true}).fill('Photo recovery');
+  await page.getByLabel('Where are you going?',{exact:true}).fill('Taipei');
+  await page.getByLabel('Start date',{exact:true}).fill('2027-05-01');
+  await page.getByLabel('End date',{exact:true}).fill('2027-05-04');
+  await page.getByRole('button',{name:'Create trip',exact:true}).click();
+  await page.getByRole('button',{name:'Photo recovery',exact:true}).click();
+  await saved(page);
+  await page.getByRole('button',{name:'Add event',exact:true}).click();
+  await page.getByLabel('Event name',{exact:true}).fill('Recovered photo stop');
+  await page.getByLabel('Where',{exact:true}).fill('Taipei park');
+  await page.locator('.event-photo-disclosure summary').click();
+  await page.getByLabel('Upload your own event photo').setInputFiles({name:'generated.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});
+  await expect(page.getByRole('alert')).toContainText('Your photo couldn’t upload');
+  await expect.poll(async () => {
+    const retry = await page.getByRole('button', { name: 'Retry photo upload', exact: true }).boundingBox();
+    const actions = await page.locator('.event-editor-actions').boundingBox();
+    const alert = await page.getByRole('alert').boundingBox();
+    return !!retry && !!actions && !!alert && alert.y >= 0 && retry.y + retry.height <= actions.y;
+  }).toBe(true);
+  await page.getByRole('button',{name:'Retry photo upload',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Retry photo upload',exact:true})).toHaveCount(0);
+  await expect(page.getByAltText('Your event photo preview')).toHaveAttribute('src',/storage\/v1\/object\/public\/trip-photos/);
+  await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
+  await saved(page);
+  expect(uploads).toBe(2);
+  expect(api.rows[0].content.events[0].image).toContain('/storage/v1/object/public/trip-photos/');
+  await page.reload();
+  await expect(page.getByRole('button',{name:/Recovered photo stop/}).first()).toBeVisible();
+});
+
+test('saved trip remains directly accessible after invitation delivery fails', async ({page,isMobile}) => {
+  const api=await backend(page);
+  let attempts=0;
+  await page.route('**/auth/v1/otp**',route=>{attempts++;return route.fulfill({status:429,json:{message:'Rate limit reached'}});});
+  if(isMobile)await page.setViewportSize({width:390,height:600});
+  await page.goto('./#/6');
+  await page.getByLabel('Trip title',{exact:true}).fill('Invite later weekend');
+  await page.getByLabel('Where are you going?',{exact:true}).fill('Taipei');
+  await page.getByLabel('Start date',{exact:true}).fill('2027-03-01');
+  await page.getByLabel('End date',{exact:true}).fill('2027-03-03');
+  const invite=page.getByLabel('Invite by email (optional)');await invite.fill('new@example.test');await invite.press('Enter');
+  await page.getByRole('button',{name:'Create trip',exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('Trip saved.');
+  await expect(page.getByRole('button',{name:'Retry invitations',exact:true})).toBeVisible();
+  const proceed=page.getByRole('button',{name:'Continue to trip',exact:true});
+  await expect(proceed).toBeInViewport();
+  await expect(page.locator('.recipient-chip')).toHaveText(['new@example.test']);
+  await proceed.click();
+  await expect(page.getByRole('button',{name:'Invite later weekend',exact:true})).toBeVisible();
+  expect(api.rows).toHaveLength(1);expect(attempts).toBe(1);
+});
+
+
+test("account pin feedback waits for a complete save response and recovers", async ({ page }) => {
+  await installGoogleMapFixture(page);
+  const api = await backend(page);
+  await page.goto("./#/6");
+  await page.getByLabel("Trip title", { exact: true }).fill("Pin feedback trip");
+  await page.getByLabel("Where are you going?", { exact: true }).fill("Seattle");
+  await page.getByLabel("Start date", { exact: true }).fill("2027-05-01");
+  await page.getByLabel("End date", { exact: true }).fill("2027-05-04");
+  await page.getByRole("button", { name: "Create trip", exact: true }).click();
+  // Creation awaits the destination lookup before the save banner can appear.
+  await expect(page.getByRole("button", { name: "Pin feedback trip", exact: true })).toBeVisible();
+  await saved(page);
+  await expect.poll(() => api.rows.length).toBe(1);
+  const eventId = "66666666-6666-4666-8666-666666666666";
+  api.rows[0].content.events = [{ id: eventId, name: "Museum visit", place: "Seattle Art Museum",
+    date: "2027-05-01", start: "10:00", end: "11:00", cost: 0, notes: "", image: "",
+    attendees: [owner.id], point: { lat: 47.6077, lng: -122.3386 } }];
+  api.rows[0].revision++;
+  await page.reload();
+  await page.goto(`./#/17?event=${eventId}`);
+  await page.getByRole("button", { name: "Adjust pin", exact: true }).click();
+  await page.locator(".trip-map-host").press("ArrowRight");
+  // A nominal 200 without the complete bundle must remain a failed save.
+  const saveUrl = "**/rest/v1/rpc/save_account_trip";
+  await page.route(saveUrl, route => route.fulfill({ json: [] }));
+  await page.getByRole("button", { name: "Save pin", exact: true }).click();
+  await expect(page.locator(".account-save-banner")).toContainText("Not saved");
+  await expect(page.getByText("Pin position updated.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Trip changes saved", { exact: true })).toHaveCount(0);
+  expect(api.rows[0].content.events[0].point.lng).toBe(-122.3386);
+  await page.unroute(saveUrl);
+  await page.locator(".account-save-banner").getByRole("button", { name: "Retry save", exact: true }).click();
+  await expect(page.getByText("Trip changes saved", { exact: true })).toBeVisible();
+  expect(api.rows[0].content.events[0].point.lng).toBeCloseTo(-122.3376, 6);
+  await page.reload();
+  await expect(page.getByText("Trip changes saved", { exact: true })).toHaveCount(0);
 });

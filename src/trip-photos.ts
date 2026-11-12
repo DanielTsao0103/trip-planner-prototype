@@ -1,4 +1,5 @@
 import { getSupabase } from "./supabase";
+import { validatePhoto } from "./image-validation";
 
 export type UnsplashPhoto = {
   id: string;
@@ -28,8 +29,11 @@ export async function searchDestinationPhotos(query: string, signal?: AbortSigna
       apikey: publishableKey,
       ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
     },
+  }).catch((error) => {
+    if (signal?.aborted) throw error;
+    throw new Error("Photos couldn’t load. Check your connection and try again, or upload your own.");
   });
-  if (!response.ok) throw new Error(`Photo search is unavailable (${response.status}).`);
+  if (!response.ok) throw new Error("Photos couldn’t load. Try again in a moment, or upload your own.");
   const body = await response.json();
   const results = Array.isArray(body) ? body : body.results ?? body.photos ?? body.data?.results ?? [];
   if (!Array.isArray(results)) throw new Error("Photo search returned an unexpected response.");
@@ -51,19 +55,16 @@ export async function searchDestinationPhotos(query: string, signal?: AbortSigna
 export async function trackUnsplashSelection(downloadLocation: string): Promise<void> {
   const { error } = await getSupabase().functions.invoke("unsplash-track", { body: { downloadLocation } });
   if (error) {
-    const response = error.context instanceof Response ? error.context : null;
-    const detail = response ? await response.text() : error.message;
-    throw new Error(`Could not register this Unsplash photo (${response?.status ?? "network error"}: ${detail}). Please try again.`);
+    throw new Error("That photo couldn’t be selected. Try again or choose another.");
   }
 }
 
 export async function uploadTripPhoto(file: File, ownerId: string, tripId: string): Promise<string> {
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Choose a JPEG, PNG, or WebP image.");
-  if (file.size > 5 * 1024 * 1024) throw new Error("Choose an image under 5 MB.");
+  await validatePhoto(file);
   const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
   const path = `${ownerId}/${tripId}/${crypto.randomUUID()}.${extension}`;
   const client = getSupabase();
   const { error } = await client.storage.from("trip-photos").upload(path, file, { contentType: file.type, upsert: false });
-  if (error) throw new Error(`Could not upload the photo: ${error.message}`);
+  if (error) throw new Error("Your photo couldn’t upload. Check your connection and try again.");
   return client.storage.from("trip-photos").getPublicUrl(path).data.publicUrl;
 }

@@ -145,6 +145,7 @@ function migrateLegacyDetails(source: Trip, ownerId: string): Trip {
       e.payer,
       ...Object.keys(e.shares),
       ...e.settled,
+      ...(e.repaymentHistory ?? []).flatMap(entry => [entry.actor, entry.debtor]),
     ]),
     ...Object.keys(trip.prefs),
     ...Object.keys(trip.individual),
@@ -179,6 +180,7 @@ function migrateLegacyDetails(source: Trip, ownerId: string): Trip {
     payer: mapId(e.payer),
     shares: keys(e.shares),
     settled: e.settled.map(mapId),
+    ...(e.repaymentHistory ? {repaymentHistory: e.repaymentHistory.map(entry => ({...entry,actor:mapId(entry.actor),debtor:mapId(entry.debtor)}))} : {}),
   }));
   trip.prefs = keys(trip.prefs);
   trip.individual = keys(trip.individual);
@@ -253,7 +255,7 @@ export async function saveAccountTrip(
   if (!data || data.tripID !== trip.id || data.content_version !== 1 || !Number.isSafeInteger(data.revision) ||
       data.revision < (trip.revision ?? 0) || data.content?.image !== trip.image ||
       (owner && photoCredit && Object.entries(photoCredit).some(([key, value]) => data.photoCredit?.[key] !== value)))
-    throw Object.assign(new Error("The database did not confirm the complete save. Please retry."), { retryOriginal: true });
+    throw Object.assign(new Error("We couldn’t confirm your changes were saved. Please retry."), { retryOriginal: true });
   let saved: Trip;
   try { saved = tripFromRow(data as TripRow, account); }
   catch {

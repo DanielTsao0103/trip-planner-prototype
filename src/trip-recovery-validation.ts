@@ -1,6 +1,7 @@
 import type {
   Event,
   Expense,
+  RepaymentEntry,
   MapPoint,
   Member,
   Preference,
@@ -94,6 +95,10 @@ const event = shape({
   point: optional(nullable(point)),
   googlePlaceId: optional(nullable(text)),
 } satisfies Schema<Event>);
+const repaymentEntry = shape({
+  id, debtor: id, status: oneOf("paid", "unpaid"), reason: text, actor: id,
+  recordedAt: optional(value => typeof value === "string" && Number.isFinite(Date.parse(value))),
+} satisfies Schema<RepaymentEntry>);
 const expense = shape({
   id,
   purpose: text,
@@ -104,6 +109,7 @@ const expense = shape({
   date,
   source: text,
   settled: list(id),
+  repaymentHistory: optional(list(repaymentEntry)),
 } satisfies Schema<Expense>);
 const preference = shape({
   diet: list(text),

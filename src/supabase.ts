@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { passwordRecoveryEntry } from "./password-recovery-state.ts";
+
 let client: SupabaseClient | undefined;
 
 /** Validate the public connection settings used by both browser clients. */
@@ -26,7 +28,7 @@ export function getSupabase(): SupabaseClient {
   client = createClient(url, key, {
     // PKCE returns OAuth results as ?code=... in the query string. The default flow puts tokens in
     // the URL hash, which would collide with this app's #/page routing.
-    auth: { flowType: hasEmailLink() ? "implicit" : "pkce" },
+    auth: { flowType: hasEmailLink() ? "implicit" : "pkce", detectSessionInUrl: !passwordRecoveryEntry },
     global: {
       fetch: (input, init) =>
         fetch(input, {
@@ -101,4 +103,24 @@ export function passwordCheckClient(): SupabaseClient {
   const { url, key } = connectionSettings();
   return createClient(url, key, { auth: { storageKey: "trip-password-check",
     persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+}
+
+
+let recoveryClient: SupabaseClient | undefined;
+/** Recovery owns its PKCE verifier and session; an existing planner account stays untouched. */
+export function passwordRecoveryClient(): SupabaseClient {
+  if (recoveryClient) return recoveryClient;
+  const { url, key } = connectionSettings();
+  const hash = new URLSearchParams(location.hash.slice(1));
+  recoveryClient = createClient(url, key, {
+    auth: {
+      storageKey: "trip-password-recovery",
+      flowType: hash.get("type") === "recovery" ? "implicit" : "pkce",
+      detectSessionInUrl: passwordRecoveryEntry,
+    },
+    global: { fetch: (input, init) => fetch(input, {
+      ...init, signal: init?.signal ?? AbortSignal.timeout(20000),
+    }) },
+  });
+  return recoveryClient;
 }

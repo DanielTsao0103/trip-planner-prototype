@@ -56,20 +56,42 @@ test("a viewer follows a shared pin, receives itinerary changes, and loses acces
   await page.goto("./#/5");
   await page.getByRole("button", { name: trip.trip_name, exact: true }).click();
   await page.goto("./#/17?event=museum");
+  await expect(page.locator('[data-ui="page-heading"]')).toContainText('View only');
   await page.getByRole("link", { name: "View itinerary item" }).click();
   const event = page.getByRole("article", { name: "Museum visit" });
   const editButton = event.getByRole("button", { name: "Edit event" });
-  await editButton.click();
   const denial = page.getByRole("dialog");
-  await expect(denial).toContainText("You do not have permission to edit this event.");
-  await denial.getByRole("button", { name: "Got it" }).click();
+  await expect(editButton).toHaveCount(0);
   await expect(page).toHaveURL(/#\/11\?/);
   await expect(event).toContainText("Meet at the front");
+  const nextDay = page.getByRole("button", { name: "Next day", exact: true });
+  await nextDay.focus();
   Object.assign(trip.content.events[0], { date: "2027-05-02", notes: "Meet at the south door" });
   trip.revision++;
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(event).toContainText("Meet at the south door");
   await expect(page.getByRole("heading", { name: /Sunday/ })).toBeVisible();
+  await expect(page).toHaveURL(/date=2027-05-02/);
+  await expect(nextDay).toBeFocused();
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/17\?event=museum$/);
+  await page.goForward();
+  await expect(event).toContainText("Meet at the south door");
+
+  // Removing a remotely moved event must retain its last displayed day, even on reload.
+  const movedEvent = structuredClone(trip.content.events[0]);
+  trip.content.events = [];
+  trip.revision++;
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByRole("heading", { name: "Itinerary item unavailable" })).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "View day", exact: true }).click();
+  await expect(page).toHaveURL(/date=2027-05-02/);
+  await expect(page.getByRole("heading", { name: /Sunday/ })).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("moved-then-removed-day.png") });
+  trip.content.events = [movedEvent];
+  trip.revision++;
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
 
   expect(writes).toBe(0);
   trip.content.members[0].role = "Editor";
@@ -77,6 +99,8 @@ test("a viewer follows a shared pin, receives itinerary changes, and loses acces
   await page.goto("./#/13");
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(page.locator(".collaborator-row")).toContainText("Editor", { timeout: 10000 });
+  await page.goto("./#/17?event=museum");
+  await expect(page.locator('[data-ui="page-heading"]')).not.toContainText('View only');
   await page.goto("./#/11?date=2027-05-02&event=museum");
   await editButton.click();
   const notes = page.getByLabel("Notes (optional)");
@@ -96,7 +120,7 @@ test("a viewer follows a shared pin, receives itinerary changes, and loses acces
   await expect(page.getByRole("button", { name: "Save changes", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Delete event" })).toBeDisabled();
   expect(writes).toBe(0);
-  await page.getByRole("button", { name: "View latest event" }).click();
+  await page.getByRole("button", { name: "View latest event" }).first().click();
   await expect(event).toContainText("Owner's concurrent note");
   await editButton.click();
   await notes.fill("This stale edit must disappear");

@@ -1,0 +1,45 @@
+/* The grid already separates the name field and action; avoid doubling that gap. */
+:root .account-page .account-name-form > .field { margin: 0; }
+/* The account grid owns section spacing; the heading must not add a second gap. */
+:root .account-page > .page-head { margin-bottom: 0; }
+:root .account-section > h2 { font-size: var(--ui-heading-section); }
+/* Long addresses wrap in the value column without breaking short field labels. */
+:root .account-facts dt { flex-shrink: 0; white-space: nowrap; }
+:root .account-page :is(.account-note, .account-status) { font-size: var(--ui-text-support); line-height: 1.5; }
+:root .style-note[role="alert"] {
+  padding: 12px 14px;
+  border-left: 3px solid #bf4135;
+  border-radius: var(--ui-radius-control);
+  background: color-mix(in srgb, #bf4135 9%, var(--paper));
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+@media (min-width: 761px) {
+  :root .account-name-form { grid-template-columns: minmax(0, 1fr) auto; align-items: end; max-width: none; }
+  :root .account-name-form > .field { grid-column: 1; grid-row: 1; }
+  :root .account-name-form > .btn { grid-column: 2; grid-row: 1; }
+  :root .account-name-form > :is(.error, .account-status) { grid-column: 1 / -1; }
+}
+
+:root .style-tablet-preview,
+:root .style-tablet-edit { display: none; }
+
+/* Stacked tablet previews retain every visual sample. These two shortcuts keep
+   choices and their preview reachable without compressing the artwork or type. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  :root .style-tablet-preview,
+  :root .style-tablet-edit { display: inline-flex; }
+  :root .style-tablet-preview {
+    position: sticky;
+    top: calc(var(--release-notice-height, 0px) + 12px);
+    z-index: 2;
+    justify-self: end;
+    background: var(--paper);
+    border: 1px solid var(--line);
+  }
+  /* Keep its space stable for the observer, and retain an already focused
+     shortcut until focus moves. A visible preview needs no second jump to it. */
+  :root .style-tablet-preview.preview-in-view:not(:focus) { visibility: hidden; }
+  :root .style-controls { scroll-margin-top: calc(var(--release-notice-height, 0px) + 12px); }
+}

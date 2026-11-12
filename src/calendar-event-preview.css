@@ -1,0 +1,41 @@
+/* Quiet, full-detail companion to compact time-grid cards. No idle decoration. */
+.calendar-event-preview {
+  position: fixed;
+  z-index: 120;
+  visibility: hidden;
+  display: grid;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 16px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius-card, 10px);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 6px 24px color-mix(in srgb, var(--ink) 16%, transparent);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.calendar-event-preview strong {
+  color: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 600;
+}
+.calendar-event-preview span { color: inherit; }
+.calendar-event-preview-time { font-variant-numeric: tabular-nums; }
+
+/* Only mounted when the visible grid has content beyond its measured width. */
+.calendar-overflow-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.calendar-overflow-hint svg { flex: none; }

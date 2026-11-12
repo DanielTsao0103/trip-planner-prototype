@@ -1,12 +1,12 @@
 import { TEXT_LIMITS } from "./limits.ts";
 import { useEffect, useId, useRef, useState } from "react";
-import { MapPin, ArrowUpLeft } from "lucide-react";
+import { MapPin, Plus } from "lucide-react";
 
 import { loadIndex, searchIndex, searchWorldwide, mergePlaces, type Destination } from "./destination-search";
 const cache = new Map<string, Destination[]>();
 
 export function DestinationInput({ value, onChange, onAdd }: {
-  value: string; onChange: (value: string) => void; onAdd: () => void;
+  value: string; onChange: (value: string) => void; onAdd: (destination?: string) => void;
 }) {
   const id = useId();
   const listRef = useRef<HTMLDivElement>(null);
@@ -60,6 +60,7 @@ export function DestinationInput({ value, onChange, onAdd }: {
     const p = matches[index];
     if (!p) return;
     onChange(p.label);
+    onAdd(p.label);
     setOpen(false); setActive(-1);
   }
   return <div className="destination-search" onBlur={e => {
@@ -93,11 +94,11 @@ export function DestinationInput({ value, onChange, onAdd }: {
             onMouseDown={e => e.preventDefault()} onMouseEnter={() => setActive(i)} onClick={() => choose(i)}>
             <span className="destination-icon"><MapPin size={18} /></span>
             <span className="destination-name"><strong>{p.name}</strong><small>{p.detail}</small></span>
-            <span className="destination-kind">{p.kind}</span><ArrowUpLeft size={15}/>
+            <span className="destination-kind">{p.kind}</span><Plus size={15}/>
           </div>)}
         </div>
         <div className="destination-foot" role="status" aria-live="polite">
-          {query.length < 2 ? "Type at least 2 characters to find a city, region or country." : status === "offline" ? "Live search unavailable. You can still add a destination manually." : matches.length ? "↑ ↓ to explore · Enter to select" : status === "loading" ? "Finding places…" : "Try another spelling, or add this destination using Add."}
+          {query.length < 2 ? "Type at least 2 characters to find a city, region or country." : status === "offline" ? "Live search unavailable. You can still add a destination manually." : matches.length ? "↑ ↓ to explore · Enter to add" : status === "loading" ? "Finding places…" : "Try another spelling, or add this destination using Add."}
         </div>
         <div className="destination-attribution">Places by <a href="https://www.geonames.org/" target="_blank" rel="noreferrer">GeoNames</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a></div>
       </div>}

@@ -1,8 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /** Offer a safe refresh for tabs left open through a deployment. Never discard a form automatically. */
 export function ReleaseNotice() {
   const [available, setAvailable] = useState("");
+  const noticeRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const notice = noticeRef.current;
+    if (!notice) return;
+    // Reserve the real wrapped height so tablet notices never cover the brand.
+    const measure = () => document.documentElement.style.setProperty("--release-notice-height", `${notice.getBoundingClientRect().height}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(notice);
+    return () => { observer.disconnect(); document.documentElement.style.removeProperty("--release-notice-height"); };
+  }, [available]);
   useEffect(() => {
     const current = import.meta.env.VITE_BUILD_SHA;
     if (!current) return;
@@ -32,8 +43,8 @@ export function ReleaseNotice() {
       document.removeEventListener("visibilitychange", check);
     };
   }, []);
-  return available ? <aside className="release-notice" role="status">
-    <span>A new version is ready. Finish any unsaved edits, then reload.</span>
+  return available ? <aside className="release-notice" role="status" ref={noticeRef}>
+    <span>Update ready. Finish what you’re doing before reloading.</span>
     <button type="button" onClick={() => {
       // A release-specific URL avoids reusing a cached HTML document; keep the current route.
       const url = new URL(location.href);

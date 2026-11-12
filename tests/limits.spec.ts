@@ -74,12 +74,14 @@ test("text controls cap pasted text without displaying counters across all forms
   await capped(page, "What was it for?", 130);
   await noOverflow(page);
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+  if (!await page.getByRole("button", {name:"Prototype",exact:true}).isVisible()) await page.getByRole("button",{name:"Open navigation menu",exact:true}).click();
   await page
     .getByRole("button", { name: "Prototype", exact: true })
     .click();
+  if (await page.getByRole("button",{name:"Date & time",exact:true}).isVisible()) await page.getByRole("button",{name:"Date & time",exact:true}).click();
   await page.getByRole("button", { name: "During", exact: true }).click();
   await page
-    .getByRole("button", { name: "Apply & preview landing", exact: true })
+    .getByRole("button", { name: /^Apply & open (Home|Today)$/ })
     .click();
   await page.goto("./#/10");
   await capped(page, "New to-do", 220);
@@ -188,11 +190,14 @@ test("maximum-length trip and event details survive saving and remain within the
   page,
 }) => {
   await demo(page);
+  await page.route('https://geocoding-api.open-meteo.com/**', route => route.fulfill({json:{results:[]}}));
   await page.goto("./#/6");
   await page.getByLabel("Trip title", { exact: true }).fill("T".repeat(100));
   await page
     .getByLabel("Where are you going?", { exact: true })
     .fill("D".repeat(220));
+  // This deliberately fictional place needs an explicit calendar fallback.
+  await page.getByLabel('Calendar time zone',{exact:true}).selectOption('Asia/Taipei');
   await page.getByLabel("Start date", { exact: true }).fill("2027-05-01");
   await page.getByLabel("End date", { exact: true }).fill("2027-05-02");
   await page.getByRole("button", { name: "Create trip", exact: true }).click();

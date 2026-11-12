@@ -1,5 +1,7 @@
+import { PasswordRecovery } from "./password-recovery";
+import { passwordRecoveryEntry } from "./password-recovery-state";
 import { TEXT_LIMITS, textError, emailError } from "./limits.ts";
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabase, hasEmailLink, appleSignInEnabled, inviteProofClient, sendTripInvitationEmail } from "./supabase";
 import {
@@ -12,6 +14,7 @@ import {
 } from "./invite-entry";
 import { HERO_IMAGE, HERO_ALT } from "./hero";
 import { Field } from "./ui";
+import { Eye, EyeOff } from "lucide-react";
 import { BrandLogo } from "./brand-logo";
 import googleLogo from "./assets/auth/google-g.svg";
 import appleButton from "./assets/auth/apple-sign-in.png";
@@ -19,6 +22,8 @@ import appleButton from "./assets/auth/apple-sign-in.png";
 // Sign in with Apple needs a paid Apple Developer account, so the button stays hidden for now.
 // To bring it back: set up Apple in Supabase, then flip this to true.
 const SHOW_APPLE_SIGN_IN = false;
+const ACCOUNT_UNAVAILABLE = "The account service is temporarily unavailable. Your entries are still here. Please try again.";
+const ACCOUNT_DISCONNECTED = "Could not connect. Check your connection and try again. Your entries are still here.";
 
 /** Supabase authenticates the account; account trip details are stored in PostgreSQL. */
 export function AuthApp({
@@ -26,11 +31,12 @@ export function AuthApp({
   renderDemo,
 }: {
   children: (session: Session, signOut: () => Promise<void>) => ReactNode;
-  renderDemo: (exitDemo: () => Promise<void>) => ReactNode;
+  renderDemo: (exitDemo: () => Promise<void>, enterAsMaya: boolean) => ReactNode;
 }) {
+  const [enterAsMaya, setEnterAsMaya] = useState(false);
   const [demo, setDemo] = useState(() => {
     try {
-      if (inviteEntry || hasEmailLink()) {
+      if (inviteEntry || hasEmailLink() || passwordRecoveryEntry) {
         sessionStorage.removeItem("trip-planner-demo-session");
         return false;
       }
@@ -39,31 +45,96 @@ export function AuthApp({
       return false;
     }
   });
+  const [recovery, setRecovery] = useState<"callback" | "request" | null>(passwordRecoveryEntry ? "callback" : null);
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [problem, setProblem] = useState("");
   const [signup, setSignup] = useState(inviteEntry?.authMode === "signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [emailFieldError, setEmailFieldError] = useState("");
+  const [nameError, setNameError] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const passwordInput = useRef<HTMLInputElement>(null);
+  const emailInput = useRef<HTMLInputElement>(null);
+  const nameInput = useRef<HTMLInputElement>(null);
+  const authAction = useRef<HTMLButtonElement>(null);
+  const authError = useRef<HTMLParagraphElement>(null);
+  const rejectedSubmitFocus = useRef(false);
+  const existingAccount = signup && error === "An account already uses this email. Log in to continue.";
+  const retryableError = error === ACCOUNT_UNAVAILABLE || error === ACCOUNT_DISCONNECTED;
+  useEffect(() => {
+    if (!error || busy) return;
+    const restoreSubmitFocus = rejectedSubmitFocus.current;
+    rejectedSubmitFocus.current = false;
+    // Reveal the error and recovery action together after the form settles.
+    let settledFrame = 0;
+    const frame = requestAnimationFrame(() => {
+      settledFrame = requestAnimationFrame(() => {
+        const action = authAction.current;
+        const target = existingAccount ? action : error.startsWith("Invalid login credentials.")
+          ? passwordInput.current : authError.current;
+        // A service outage needs retry guidance, not apparent password correction.
+        // Preserve focus if the traveler deliberately moved elsewhere.
+        if (restoreSubmitFocus && document.activeElement === document.body)
+          target?.focus({ preventScroll: true });
+        if (action && authError.current) {
+          const top = Math.min(authError.current.getBoundingClientRect().top,
+            target?.closest('.field')?.getBoundingClientRect().top ?? target?.getBoundingClientRect().top ?? Infinity);
+          const bottom = action.getBoundingClientRect().bottom;
+          if (top < 16 || bottom > window.innerHeight - 16)
+            window.scrollBy({top: (top + bottom - window.innerHeight) / 2, behavior: "instant"});
+        }
+      });
+    });
+    return () => { cancelAnimationFrame(frame); cancelAnimationFrame(settledFrame); };
+  }, [error, busy, existingAccount]);
+  function recoverExistingAccount(): void {
+    setAuthMode(false);
+    setPassword("");
+    setShowPassword(false);
+    setError("");
+    requestAnimationFrame(() => passwordInput.current?.focus());
+  }
   const [setupRefresh, setSetupRefresh] = useState(false);
 
   const [claim, setClaim] = useState<InviteClaim | null>(null);
   const [joiningError, setJoiningError] = useState("");
+  const invitationAccountMismatch = /unavailable for this account|different account|wrong account/i.test(joiningError);
+  const invitationUnavailable = /(?:invitation|link).*(?:expired|cancelled|canceled|no longer active|incomplete)/i.test(joiningError);
   const [joinedTrip, setJoinedTrip] = useState<string>();
   const [chosen, setChosen] = useState(Boolean(inviteEntry?.choosing));
   const [attempt, setAttempt] = useState(0);
   const wrongInviteAccount = !!(claim?.accountId && session && claim.accountId !== session.user.id);
   function setAuthMode(signingUp: boolean): void {
     setSignup(signingUp);
+    setPasswordError("");
+    setEmailFieldError("");
+    setNameError("");
     setSetupRefresh(false);
     if (inviteEntry) {
       inviteEntry.authMode = signingUp ? "signup" : "login";
       storeInvite();
     }
+  }
+  function switchAuthForm(signingUp: boolean): void {
+    const modeTrigger = document.activeElement;
+    setAuthMode(signingUp);
+    setPassword("");
+    setShowPassword(false);
+    setError("");
+    setNotice("");
+    requestAnimationFrame(() => {
+      // A traveler may reach another field before this frame; keep that deliberate focus.
+      if (document.activeElement !== modeTrigger && document.activeElement !== document.body) return;
+      window.scrollTo({top: 0, behavior: "instant"});
+      (signingUp ? nameInput.current : email.trim() ? passwordInput.current : emailInput.current)?.focus({preventScroll:true});
+    });
   }
   function chooseAccount(): void {
     if (inviteEntry) {
@@ -73,7 +144,7 @@ export function AuthApp({
     }
   }
   useEffect(() => {
-    if (!inviteEntry) return;
+    if (!inviteEntry || recovery) return;
     let active = true;
     void openInvite()
       .then((value) => {
@@ -89,9 +160,9 @@ export function AuthApp({
     return () => {
       active = false;
     };
-  }, [attempt]);
+  }, [attempt, recovery]);
   useEffect(() => {
-    if (!claim || !session || !chosen || joinedTrip || wrongInviteAccount) return;
+    if (recovery || !claim || !session || !chosen || joinedTrip || wrongInviteAccount) return;
     let active = true;
     const client = getSupabase();
     const joining = claim.notice
@@ -118,7 +189,7 @@ export function AuthApp({
     return () => {
       active = false;
     };
-  }, [claim, session?.user.id, chosen, joinedTrip, wrongInviteAccount]);
+  }, [claim, session?.user.id, chosen, joinedTrip, wrongInviteAccount, recovery]);
 
   useEffect(() => {
     let active = true;
@@ -163,7 +234,7 @@ export function AuthApp({
     // Google/Supabase send failures back as ?error_description=... on the return trip.
     const params = new URLSearchParams(location.search);
     const reason = params.get("error_description");
-    if (reason) {
+    if (reason && !passwordRecoveryEntry) {
       setError(`Sign-in didn’t finish: ${reason}`);
       for (const key of ["error", "error_code", "error_description"])
         params.delete(key);
@@ -183,19 +254,27 @@ export function AuthApp({
   }, []);
 
   useEffect(() => {
-    if (!demo && (!session || inviteEntry))
+    if (!recovery && !demo && (!session || inviteEntry))
       document.title = `${session && claim ? "Trip invitation" : signup ? "Create account" : "Log in"} · Stir Crazy`;
-  }, [session, signup, demo, claim]);
+  }, [session, signup, demo, claim, recovery]);
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (busy) return;
+    if (existingAccount) { recoverExistingAccount(); return; }
     setError("");
     setNotice("");
-    const problem =
-      (signup ? textError(name, "Your name", TEXT_LIMITS.name, true) : "") ||
-      emailError(email);
-    if (problem) {
-      setError(problem);
+    const invalidName = signup ? textError(name, "Your name", TEXT_LIMITS.name, true) : "";
+    const invalidEmail = emailError(email);
+    const invalidPassword = !password ? "Enter your password."
+      : signup && password.length < 8 ? "Enter at least 8 characters." : "";
+    setNameError(invalidName);
+    setEmailFieldError(invalidEmail);
+    setPasswordError(invalidPassword);
+    if (invalidName || invalidEmail || invalidPassword) {
+      // Reveal the first correction after its persistent, associated hint renders.
+      const firstInvalid = invalidName ? nameInput : invalidEmail ? emailInput : passwordInput;
+      requestAnimationFrame(() => firstInvalid.current?.focus());
       return;
     }
     setBusy(true);
@@ -306,9 +385,18 @@ export function AuthApp({
         setPassword("");
       }
     } catch (issue) {
+      rejectedSubmitFocus.current = true;
+      const unavailable = issue instanceof Error && "status" in issue && typeof issue.status === "number" && issue.status >= 500;
+      const disconnected = issue instanceof Error && /failed to fetch|fetch failed|network|load failed/i.test(issue.message);
       setError(
-        issue instanceof Error
-          ? issue.message
+        unavailable ? ACCOUNT_UNAVAILABLE
+          : disconnected ? ACCOUNT_DISCONNECTED
+          : issue instanceof Error
+          ? issue.message === "Invalid login credentials"
+            ? "Invalid login credentials. Check your email and password, then try again."
+            : /already registered|already exists/i.test(issue.message)
+              ? "An account already uses this email. Log in to continue."
+              : issue.message
           : "Could not connect. Please try again.",
       );
     } finally {
@@ -353,6 +441,7 @@ export function AuthApp({
     setNotice("");
     setSignup(false);
     location.hash = "/1";
+    window.scrollTo(0, 0);
     if (joinedTrip) location.reload();
   }
 
@@ -408,6 +497,7 @@ export function AuthApp({
     setError("");
     setNotice("");
     location.hash = "/8";
+    setEnterAsMaya(true);
     setDemo(true);
   }
 
@@ -418,13 +508,26 @@ export function AuthApp({
       /* Storage may be unavailable. */
     }
     setDemo(false);
+    setEnterAsMaya(false);
     setSignup(false);
     setNotice("");
     location.hash = "/1";
+    window.scrollTo(0, 0);
   }
 
-  if (demo) return renderDemo(exitDemo);
-  if (ready && session && !problem && (!inviteEntry || joinedTrip))
+  const recoveryRedirect = new URL(location.pathname, location.origin);
+  recoveryRedirect.searchParams.set("password_recovery", "1");
+  // Token invitations can travel to a new tab without carrying account credentials.
+  if (inviteEntry?.trip && (inviteEntry.notice || inviteEntry.token)) {
+    recoveryRedirect.searchParams.set(inviteEntry.notice ? "trip_notice" : "trip_invite", inviteEntry.trip);
+    if (inviteEntry.token) recoveryRedirect.searchParams.set("trip_token", inviteEntry.token);
+    if (inviteEntry.invitationId) recoveryRedirect.searchParams.set("invitation", inviteEntry.invitationId);
+  }
+  const legacyRecoveryInvitation = !!(inviteEntry && !inviteEntry.notice && !inviteEntry.token) ||
+    new URLSearchParams(location.search).has("recovery_invitation");
+  if (legacyRecoveryInvitation) recoveryRedirect.searchParams.set("recovery_invitation", "1");
+  if (demo && !recovery) return renderDemo(exitDemo, enterAsMaya);
+  if (!recovery && ready && session && !problem && (!inviteEntry || joinedTrip))
     return children(session, signOut);
 
   return (
@@ -439,13 +542,24 @@ export function AuthApp({
       </div>
       <section className="auth-panel" aria-label="Your account">
         <div className="auth-form-wrap">
-          <BrandLogo className="brand-logo auth-logo" />
-          {joiningError ? (
+          {ready && signup && !session && !problem && !joiningError && !recovery && (!inviteEntry || claim) && !existingAccount ? (
+            <div className="auth-brand-row">
+              <BrandLogo className="brand-logo auth-logo" />
+              <button className="auth-toggle" type="button" disabled={busy}
+                aria-label="Already have an account? Log in" onClick={() => switchAuthForm(false)}>Log in</button>
+            </div>
+          ) : <BrandLogo className="brand-logo auth-logo" />}
+          {recovery ? <PasswordRecovery callback={recovery === "callback"} initialEmail={email}
+            redirectTo={recoveryRedirect.href} reopenInvitation={legacyRecoveryInvitation} returnLabel={session ? "Back to your account" : "Back to log in"}
+            onExit={() => { setRecovery(null); setAuthMode(false); setPassword(""); setError(""); setNotice(""); }} /> : joiningError ? (
             <>
               <h2>Trip invitation</h2>
               <p role="alert">{joiningError}</p>
-              <button
-                className="btn"
+              {invitationUnavailable && !/fresh|ask the trip owner/i.test(joiningError) && <p>Ask the trip owner for a fresh invitation.</p>}
+              <div className="auth-recovery-actions">
+              {session && invitationAccountMismatch && <button className="btn" disabled={busy} onClick={() => void switchAccount()}>Use another account</button>}
+              {!invitationUnavailable && !invitationAccountMismatch && <button
+                className={invitationAccountMismatch ? "btn outline" : "btn"}
                 onClick={() => {
                   setJoiningError("");
                   setClaim(null);
@@ -453,8 +567,8 @@ export function AuthApp({
                 }}
               >
                 Try again
-              </button>
-              {session && (
+              </button>}
+              {session && !invitationUnavailable && !invitationAccountMismatch && (
                 <button
                   className="btn outline"
                   disabled={busy}
@@ -463,9 +577,10 @@ export function AuthApp({
                   Use another account
                 </button>
               )}
-              {error && <p role="alert">{error}</p>}
+              </div>
+              {error && <p className="auth-error" role="alert">{error}</p>}
               <button
-                className="auth-toggle"
+                className={invitationUnavailable ? "btn full" : "auth-toggle"}
                 onClick={() => {
                   leaveInvite();
                   location.reload();
@@ -495,11 +610,11 @@ export function AuthApp({
                 {wrongInviteAccount
                   ? `This invitation is for ${claim!.email}. Sign in with that account to open the trip.`
                   : claim && session
-                    ? "Continue with your signed-in account to open this trip."
+                    ? "Continue with your signed-in account to see the trip details."
                     : claim
                       ? signup
-                        ? "Create your account to join this trip."
-                        : "Log in to open this trip."
+                        ? "Create an account to join and see the trip details."
+                        : "Log in to join and see the trip details."
                   : signup
                     ? "A little planning. More time together."
                     : "Log in with your email and password."}
@@ -513,11 +628,11 @@ export function AuthApp({
                 <div>
                   {!wrongInviteAccount && (
                     <button className="btn full" disabled={busy} onClick={chooseAccount}>
-                      Continue as {session.user.email}
+                      <span className="invite-account-label">Continue as {session.user.email}</span>
                     </button>
                   )}
                   {wrongInviteAccount && <p>Currently signed in as {session.user.email}.</p>}
-                  {error && <p role="alert">{error}</p>}
+                  {error && <p className="auth-error" role="alert">{error}</p>}
                   <button
                     className="auth-toggle"
                     disabled={busy}
@@ -570,86 +685,98 @@ export function AuthApp({
                   <div className="divider">
                     <span>or with email</span>
                   </div>
-                  <form onSubmit={submit} className="account-form">
+                  <form onSubmit={submit} noValidate className="account-form">
                     {signup && (
-                      <Field label="Your name">
+                      <Field label="Your name" hint={nameError || undefined}>
                         <input
                           required
+                          ref={nameInput}
+                          aria-invalid={Boolean(nameError)}
                           autoComplete="name"
                           maxLength={TEXT_LIMITS.name}
                           value={name}
                           disabled={busy}
-                          onChange={(e) => setName(e.target.value)}
+                          onChange={(e) => {
+                            setName(e.target.value);
+                            if (nameError) setNameError(textError(e.target.value, "Your name", TEXT_LIMITS.name, true));
+                          }}
                         />
                       </Field>
                     )}
-                    <Field label="Email">
+                    <Field label="Email" hint={emailFieldError || undefined}>
                       <input
                         required
+                        ref={emailInput}
+                        aria-invalid={Boolean(emailFieldError)}
                         type="email"
                         autoComplete="email"
                         maxLength={TEXT_LIMITS.email}
                         value={email}
                         disabled={busy}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (emailFieldError) setEmailFieldError(emailError(e.target.value));
+                          if (existingAccount) setError("");
+                        }}
                       />
                     </Field>
-                    <label>
-                      Password
-                      <input
-                        required
-                        type="password"
-                        minLength={signup ? 8 : undefined}
-                        autoComplete={
-                          signup ? "new-password" : "current-password"
-                        }
-                        value={password}
-                        disabled={busy}
-                        onChange={(e) => setPassword(e.target.value)}
-                        aria-describedby={signup ? "password-hint" : undefined}
-                      />
-                    </label>
-                    {signup && (
-                      <small id="password-hint">
-                        Use at least 8 characters.
-                      </small>
-                    )}
-                    {error && <p role="alert">{error}</p>}
-                    <button className="btn full" type="submit" disabled={busy}>
-                      {busy
-                        ? "Please wait…"
-                        : signup
+                    <Field label="Password" hint={passwordError || (signup ? "Use at least 8 characters." : undefined)}>
+                      <span className="password-input">
+                        <input
+                          required
+                          ref={passwordInput}
+                          type={showPassword ? "text" : "password"}
+                          minLength={signup ? 8 : undefined}
+                          autoComplete={signup ? "new-password" : "current-password"}
+                          value={password}
+                          disabled={busy}
+                          aria-invalid={Boolean(passwordError)}
+                          onChange={(e) => {
+                            setPassword(e.target.value);
+                            if (passwordError) setPasswordError(e.target.value.length >= (signup ? 8 : 1)
+                              ? "" : signup ? "Enter at least 8 characters." : "Enter your password.");
+                          }}
+                        />
+                        <button type="button" className="password-toggle" disabled={busy}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </span>
+                    </Field>
+                    {error && <p ref={authError} tabIndex={-1} className="auth-error" role="alert">{error}</p>}
+                    <button ref={authAction} className="btn full" type={existingAccount ? "button" : "submit"} disabled={busy}
+                      onClick={existingAccount ? recoverExistingAccount : undefined}>
+                      {existingAccount ? "Log in instead" : busy
+                        ? (signup ? "Creating account…" : "Signing in…")
+                        : retryableError ? "Try again" : signup
                           ? "Create account"
                           : "Log in"}
                     </button>
                   </form>
+                  {!signup && <button className="auth-toggle" type="button" disabled={busy} onClick={() => {
+                    setPassword(""); setError(""); setNotice(""); setRecovery("request");
+                  }}>Forgot password?</button>}
                   {setupRefresh && <button className="btn outline full" type="button" disabled={busy} onClick={() => void emailFreshSetup()}>
                     Email me a fresh setup link
                   </button>}
-                  <button
+                  {!existingAccount && !signup && <button
                     className="auth-toggle"
                     type="button"
                     disabled={busy}
-                    onClick={() => {
-                      setAuthMode(!signup);
-                      setPassword("");
-                      setError("");
-                      setNotice("");
-                    }}
+                    onClick={() => switchAuthForm(true)}
                   >
-                    {signup
-                      ? "Already have an account? Log in"
-                      : "New here? Create an account"}
-                  </button>
-                  <p className="fine-print">
-                    Create and save trips to your account. Sample trips are a
-                    local preview.
-                  </p>
+                    New here? Create an account
+                  </button>}
                 </>
               )}
+              {claim && <button className="auth-toggle" type="button" disabled={busy} onClick={() => {
+                leaveInvite();
+                location.reload();
+              }}>Leave invitation</button>}
             </>
           )}
-          {!inviteEntry && (
+          {!inviteEntry && !recovery && (
             <div className="demo-login-option">
               <button
                 className="btn outline full"

@@ -4,7 +4,7 @@ import { locationQuery, locationSearchKey, resolveSearchFocus, searchMeetingPlac
 
 const cache = new Map<string, {places:MeetingPlace[];biased:boolean;approximate:boolean}>();
 export function EventLocationInput({value,onChange,destinations=[]}: {value:string;onChange:(value:string,point?:MeetingPlace["point"])=>void;destinations?:string[]}) {
-  const id=useId(), list=useRef<HTMLDivElement>(null);
+  const id=useId(), list=useRef<HTMLDivElement>(null), menu=useRef<HTMLDivElement>(null);
   const [open,setOpen]=useState(false), [active,setActive]=useState(-1);
   const [results,setResults]=useState<MeetingPlace[]>([]);
   const [status,setStatus]=useState<'loading'|'ready'|'error'>('ready');
@@ -43,16 +43,28 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
   useEffect(()=>{if(active>=0)list.current?.children[active]?.scrollIntoView({block:'nearest'});},[active]);
   function select(index:number){const result=results[index];if(result){onChange(result.label,result.point);setOpen(false);setActive(-1);}}
   const expanded=open && query.length>=2;
+  useEffect(() => {
+    if (!expanded) return;
+    const frame = requestAnimationFrame(() => {
+      const popup = menu.current;
+      const actions = popup?.closest('form')?.querySelector<HTMLElement>('[data-fixed-actions]');
+      if (!popup || !actions || getComputedStyle(actions).position !== 'fixed') return;
+      const excess = popup.getBoundingClientRect().bottom - actions.getBoundingClientRect().top + 8;
+      if (excess > 0) window.scrollBy({top: excess, behavior: 'instant'});
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [expanded, status, results]);
   return <div className="field event-location-field">
+    <div className="event-location-heading">
+    <label htmlFor={`${id}-input`}>Where</label>
     {stops.length > 1 && <div className="event-location-bias">
-      <label htmlFor={`${id}-near`}>Search near</label>
+      <label htmlFor={`${id}-near`}>Near</label>
       <select id={`${id}-near`} aria-label="Prioritize locations near" value={destination} onChange={e=>{setNear(e.target.value);setActive(-1);setResults([]);setOpen(true);}}>
         {stops.map(stop=><option key={stop} value={stop}>{stop}</option>)}
         <option value="">Worldwide (no preference)</option>
       </select>
-      <small>Nearby matches first. Other locations are still included.</small>
     </div>}
-    <label htmlFor={`${id}-input`}>Where</label>
+    </div>
     <div className="field-popup-anchor" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setOpen(false);}}>
     <input id={`${id}-input`} required value={value} role="combobox" aria-label="Where"
       aria-autocomplete="list" aria-expanded={expanded} aria-controls={`${id}-list`}
@@ -67,7 +79,7 @@ export function EventLocationInput({value,onChange,destinations=[]}: {value:stri
         }else if(e.key==='Enter' && expanded){e.preventDefault();if(active>=0)select(active);else setOpen(false);}
         else if(e.key==='Escape' && expanded){e.preventDefault();setOpen(false);}
       }}/>
-    {expanded && <div className="field-popup event-location-menu">
+    {expanded && <div ref={menu} className="field-popup event-location-menu">
       <div className="event-location-caption">{status==='loading'?'Searching worldwide…':status==='error'?'Search unavailable':results.length?(destination && biased?`Near ${destination}${approximate?' (approximate area)':''}`:'Suggested locations'):'No locations found'}</div>
       <div ref={list} id={`${id}-list`} role="listbox" aria-label="Location suggestions">
         {results.map((place,i)=><div key={place.id} role="option" id={`${id}-${i}`} aria-selected={i===active}

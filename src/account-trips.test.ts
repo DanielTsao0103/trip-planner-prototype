@@ -189,6 +189,6 @@ test("an incomplete database acknowledgement never counts as a confirmed save", 
     trip_name: trip.title, destinations: trip.destinations, start_date: trip.start,
     end_date: trip.end, timezone: trip.zone }]) {
     const client = { rpc: async () => ({ data, error: null, status: 200 }) } as unknown as SupabaseClient;
-    await assert.rejects(saveAccountTrip(client, account, trip), /did not confirm the complete save/);
+    await assert.rejects(saveAccountTrip(client, account, trip), /couldn’t confirm your changes were saved/);
   }
 });

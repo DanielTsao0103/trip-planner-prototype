@@ -24,7 +24,7 @@ import { Shell, Empty, Button } from "./ui";
 import { PAGES } from "./data";
 import { member, type Trip } from "./domain";
 export function PrototypeApp() {
-  const { route, user, trip, open, tripGo, go, s, accountTrips } = useApp();
+  const { route, user, trip, open, tripGo, go, s, accountTrips, unavailableTrip, recoveryNotice } = useApp();
   const [deferred, setDeferred] = useState<string[]>([]);
   const needsSurvey = (t: Trip) => {
     const traveler = member(t, s.userId);
@@ -38,16 +38,22 @@ export function PrototypeApp() {
   );
   const routeKey = `${route.page}?${route.params}`;
   const previousRoute = useRef(routeKey);
+  const previousDailyItem = useRef<string | null>(null);
   useEffect(() => {
     const eventId = route.page === 11 && route.params.get("event");
     const target = eventId && document.getElementById(`day-event-${eventId}`);
-    if (target) {
+    const itemKey = target ? `${trip?.id}:${eventId}` : null;
+    // Updating the date of the same shared item is not a new navigation task.
+    // Preserve any control the traveler deliberately focused while it changed.
+    const sameDailyItem = itemKey !== null && itemKey === previousDailyItem.current;
+    if (target && !sameDailyItem) {
       target.focus({ preventScroll: true });
       target.scrollIntoView({ block: "center" });
-    } else if (previousRoute.current !== routeKey && route.page !== 16 &&
+    } else if (!sameDailyItem && previousRoute.current !== routeKey && route.page !== 16 &&
         !(route.page === 17 && previousRoute.current.startsWith("17?"))) {
       document.getElementById("main-content")?.focus({ preventScroll: true });
     }
+    previousDailyItem.current = itemKey;
     previousRoute.current = routeKey;
   }, [routeKey, trip?.id, Boolean(pendingSurvey)]);
   useEffect(() => {
@@ -55,12 +61,15 @@ export function PrototypeApp() {
     if (!pendingSurvey && route.page === 16 && user) open("nearby");
   }, [route.page, user?.id, pendingSurvey]);
   if (pendingSurvey) return (
+    <>
+    {recoveryNotice}
     <main className="main-content page-15 invite-survey" id="main-content" tabIndex={-1}>
       <Survey key={pendingSurvey.id} trip={pendingSurvey} leaveOnboarding={() => {
         setDeferred(s.trips.filter(needsSurvey).map(t => t.id));
         go(5);
       }} />
     </main>
+    </>
   );
   let content: React.ReactNode;
   if (!user || route.page === 1) content = <Shell><Home /></Shell>;
@@ -68,10 +77,10 @@ export function PrototypeApp() {
     content = (
       <Shell>
         <Empty
-          title="Choose your next adventure."
-          body="Select an accepted trip to see its plans, group, and details."
+          title={unavailableTrip ? "This trip is no longer available." : s.trips.length ? "Choose your next adventure." : "Your first trip starts here."}
+          body={unavailableTrip ? `“${unavailableTrip}” may have been removed or your access changed. Choose another trip, or ask its owner for access.` : s.trips.length ? "Select an accepted trip to see its plans, group, and details." : "Create a trip to start planning your itinerary, group, and budget."}
           action={
-            <Button onClick={() => tripGo(route.page)}>Choose a trip</Button>
+            s.trips.length || unavailableTrip ? <Button onClick={() => tripGo(route.page)}>Choose a trip</Button> : <Button onClick={() => go(6, {next:String(route.page)})}>Create a trip</Button>
           }
         />
       </Shell>

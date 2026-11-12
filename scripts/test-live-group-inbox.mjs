@@ -184,7 +184,7 @@ try {
     await delay(30000);
     await delay(30000);
     await op
-      .getByRole("button", { name: "Send invitations", exact: true })
+      .getByRole("button", { name: "Retry invitations", exact: true })
       .click();
   }
   await expect(op.getByRole("dialog")).toHaveCount(0, { timeout: 25000 });

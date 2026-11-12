@@ -34,6 +34,8 @@ import { seed, PAGES, PERMISSIONS, SERVICES } from "./data";
 import {
   days,
   dateText,
+  timeText,
+  tripDateRange,
   isActive,
   isOwner,
   member,
@@ -42,8 +44,10 @@ import {
   splitCents,
   type Role,
 } from "./domain";
-import { BudgetSetup, ExpenseForm } from "./finance";
+import { BudgetSetup, ExpenseForm, RepaymentForm } from "./finance";
+import { addCalendarDays } from "./calendar";
 import { plannedTrip } from "./preplanned-trips";
+import { findAvailableHour } from "./planning-slots";
 function AuthProvider() {
   const { overlay, s, mutate, go, login, close } = useApp();
   const { service, signup } = overlay!.data;
@@ -118,6 +122,7 @@ function InviteMember() {
   const recipients = useRecipients();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   if (!trip || !isOwner(trip, s.userId)) return null;
   const live = trip.persistence === "account";
   return <Modal title="Invite travelers">
@@ -134,6 +139,8 @@ function InviteMember() {
       try {
         const failed = await invite(trip.id, emails);
         if (failed.length) {
+          const sent = emails.filter(email => !failed.some(failure => failure.email === email));
+          setSuccess(sent.length ? `${live ? "Invitation sent" : "Demo invitation added"} to ${sent.join(", ")}. Only the remaining addresses need a retry.` : "");
           recipients.setEmails(failed.map(f => f.email));
           setError(failed.map(f => f.email + " — " + f.error).join(" "));
         } else {
@@ -144,9 +151,10 @@ function InviteMember() {
       finally { setBusy(false); }
     }}>
       <RecipientField recipients={recipients} live={live} users={s.users} disabled={busy}/>
+      {success && <p className="note" role="status">{success}</p>}
       <ErrorBox text={error}/>
       <Button variant="full" type="submit" disabled={busy || (!recipients.emails.length && !recipients.draft.trim())}>
-        <Mail size={16}/> {busy ? "Inviting…" : live ? "Send invitations" : "Invite in demo"}
+        <Mail size={16}/> {busy ? "Inviting…" : error ? "Retry invitations" : live ? "Send invitations" : "Invite in demo"}
       </Button>
     </form>
   </Modal>;
@@ -160,7 +168,8 @@ function Permissions() {
     [error, setError] = useState("");
   if (!t || !m || !isOwner(t, s.userId) || m.role === "Owner" || m.status === "removed" || m.signupPending) return null;
   return (
-    <Modal title={`Permissions for ${m.name}`}>
+    <Modal title="Permissions">
+      <p className="permission-traveler">{m.name}</p>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -188,7 +197,7 @@ function Permissions() {
           <select
             value={role}
             disabled={saving}
-            onChange={(e) => setRole(e.target.value as Role)}
+            onChange={(e) => { setRole(e.target.value as Role); setError(""); }}
           >
             <option>Viewer</option>
             <option>Editor</option>
@@ -211,13 +220,10 @@ function Permissions() {
                   type="checkbox"
                   disabled={saving}
                   checked={dates.includes(d)}
-                  onChange={(e) =>
-                    setDates(
-                      e.target.checked
-                        ? [...dates, d]
-                        : dates.filter((x) => x !== d),
-                    )
-                  }
+                  onChange={(e) => {
+                    setDates(e.target.checked ? [...dates, d] : dates.filter((x) => x !== d));
+                    setError("");
+                  }}
                 />
                 <span>
                   Day {i + 1} · {dateText(d)}
@@ -269,7 +275,7 @@ function Gmail() {
           variant="full"
           onClick={() => {
             if (match && match.payer !== member(t, s.userId)?.id) {
-              toast("Only the payer can update this expense.");
+              toast("Only the payer can update this expense.", "budget");
               return;
             }
             if (match) {
@@ -301,6 +307,7 @@ function Gmail() {
               match
                 ? "Receipt matched. No duplicate expense."
                 : "Sample expense added.",
+              "budget",
             );
           }}
         >
@@ -314,10 +321,15 @@ function Gmail() {
   );
 }
 function Demo() {
-  const { s, user, trip, route, mutate, go, close, explore, toast, signOut } =
+  const { s, user, trip, route, mutate, go, close, explore, signOut, overlay } =
     useApp();
+  const [feedback, setFeedback] = useState("");
+  const [section, setSection] = useState(overlay?.data?.section === "time" || overlay?.data?.section === "screens" ? overlay.data.section as string : "experience");
   const [date, setDate] = useState(s.date),
     [time, setTime] = useState(s.time);
+  const opensToday = (trip && isActive(trip, date)) ||
+    s.trips.filter((item) => member(item, s.userId) && isActive(item, date)).length === 1;
+  const landingLabel = opensToday ? "Apply & open Today" : "Apply & open Home";
   const landing = () => {
     mutate((v) => {
       v.date = date;
@@ -334,13 +346,16 @@ function Demo() {
     } else go(4);
   };
   return (
-    <Modal title="Prototype controls" wide>
+    <Modal title="Prototype controls" navigation={
+      <div className="demo-mobile-tabs" role="group" aria-label="Prototype sections">
+        {[["experience", "Scenario"], ["time", "Date & time"], ["screens", "Screens"]].map(([id,label]) => <Button key={id} variant="outline" aria-pressed={section === id} onClick={() => setSection(id)}>{label}</Button>)}
+      </div>
+    } footer={section === "time" ? <div className="demo-time-footer"><Button variant="full" disabled={!s.userId || !date || !time} onClick={landing}>{landingLabel} <ArrowRight size={15}/></Button></div> : undefined}>
       <p className="fine-print">
-        Fictional data, local browser storage, simulated integrations. These
-        controls let you explore scenarios without changing any real account.
+        Explore fictional trips and simulated integrations in this browser.
       </p>
-      <div className="demo-grid">
-        <div className="card">
+      <div className="demo-grid" data-active={section}>
+        <div className="card" data-section="experience">
           <h3>Try the experience</h3>
           <Button variant="outline full" onClick={explore}>
             Explore the sample trip
@@ -364,7 +379,7 @@ function Demo() {
                   if (!v.trips.some((t) => t.id === v.tripId && member(t, id)))
                     v.tripId = accessible?.id || null;
                 });
-                toast("Participant changed. Permissions update immediately.");
+                setFeedback("Participant changed. Permissions update immediately.");
               }}
             >
               <option value="" disabled>
@@ -404,13 +419,14 @@ function Demo() {
                 ];
                 v.noticeDismissed = false;
               });
-              toast("Sample trips restored. Your own trips are unchanged.");
+              setFeedback("Sample trips restored. Your own trips are unchanged.");
             }}
           >
             Restore sample trips
           </Button>
+          {feedback && <p className="inline-status" role="status">{feedback}</p>}
         </div>
-        <div className="card">
+        <div className="card" data-section="time">
           <h3>Travel through time</h3>
           <div className="form-columns">
             <Field label="Demo date">
@@ -430,9 +446,9 @@ function Demo() {
           </div>
           <div className="chips">
             {[
-              ["Before", "2026-10-14"],
-              ["During", "2026-10-16"],
-              ["After", "2026-10-19"],
+              ["Before", addCalendarDays(trip?.start || s.date, -1)],
+              ["During", trip?.start || s.date],
+              ["After", addCalendarDays(trip?.end || s.date, 1)],
             ].map(([label, d]) => (
               <button key={label} className="chip" onClick={() => setDate(d)}>
                 {label}
@@ -440,16 +456,16 @@ function Demo() {
             ))}
           </div>
           <p className="fine-print">
-            Date/time are interpreted in{" "}
+            Presets follow {trip?.title || "the selected trip"}. Date/time are interpreted in{" "}
             {trip?.zone || "the selected trip’s time zone"}. Active dates open
             Today. Other dates open Home.
           </p>
           <Button
-            variant="full"
+            variant="full demo-time-apply"
             disabled={!s.userId || !date || !time}
             onClick={landing}
           >
-            Apply & preview landing <ArrowRight size={15} />
+            {landingLabel} <ArrowRight size={15} />
           </Button>
           <h3>Your testing session</h3>
           <p className="fine-print">
@@ -459,6 +475,7 @@ function Demo() {
           </p>
         </div>
       </div>
+      <section className="demo-screen-section" data-active={section}>
       <h3>Screen index</h3>
       <div className="screen-index">
         {Object.entries(PAGES).map(([id, label]) => (
@@ -498,6 +515,7 @@ function Demo() {
         Page 14 is reserved because the requirements omit it. Page 16 is an
         overlay. Separate mobile layouts appear automatically on narrow screens.
       </p>
+      </section>
     </Modal>
   );
 }
@@ -551,6 +569,53 @@ function DeleteTrip() {
   );
 }
 
+function TripPicker() {
+  const { s, overlay: o, mutate, go } = useApp();
+  const [query, setQuery] = useState("");
+  if (!o) return null;
+    const availableTrips = s.trips.filter(trip => member(trip, s.userId));
+    const trips = availableTrips.filter(trip => !o.data?.activeOnly || isActive(trip, s.date));
+    const outsideDates = o.data?.activeOnly && availableTrips.length > 0 && trips.length === 0;
+    const matches = trips.filter(trip => `${trip.title} ${trip.destinations.join(" ")} ${trip.start} ${trip.end}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
+    return (
+      <Modal title="Choose a trip" navigation={trips.length > 5 ? <div className="trip-picker-search">
+        <Field label="Find a trip"><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, destination, or year" /></Field>
+        {query.trim() && <p className="fine-print" role="status">{matches.length} {matches.length === 1 ? "trip" : "trips"} found</p>}
+      </div> : undefined} footer={<Button variant="outline full" onClick={() => go(6, { next: String(o.data?.target || 8) })}><Plus size={16} />Create a new trip</Button>}>
+        <div className="trip-picker">
+          {matches.map((t) => (
+            <button
+              key={t.id}
+              aria-current={t.id === s.tripId ? "true" : undefined}
+              onClick={() => {
+                mutate((v) => (v.tripId = t.id));
+                go(o.data?.target || 8);
+              }}
+            >
+              <span>
+                <strong>{t.title}</strong>
+                <small>
+                  {t.id === s.tripId && "Current trip · "}{tripDateRange(t.start, t.end)}
+                </small>
+                <small className="trip-picker-destinations" title={t.destinations.join(" · ")}>{t.destinations.length > 1 && `${t.destinations.length} destinations · `}{t.destinations.join(" · ")}</small>
+              </span>
+              <ArrowRight size={17} />
+            </button>
+          ))}
+        </div>
+        {trips.length > 0 && !matches.length && <Empty title="No matching trips" body="Try a name, destination, or year." action={<Button variant="outline" onClick={() => setQuery("")}>Clear search</Button>} />}
+        {!trips.length && (
+          <Empty
+            title={outsideDates ? "No trips on this date" : "Your first trip starts here."}
+            body={outsideDates ? `Your trips fall outside ${dateText(s.date)}. Open My trips to plan ahead.` : "Create one to use your budget, calendar, map, and group tools."}
+            action={outsideDates && <Button onClick={() => go(5)}>View all trips</Button>}
+          />
+        )}
+
+      </Modal>
+    );
+}
+
 export function Overlays() {
   const app = useApp();
   const {
@@ -579,141 +644,28 @@ export function Overlays() {
   if (o.kind === "message")
     return (
       <Modal title={o.data.title}>
-        <p>{o.data.body}</p>
+        <p className="message-body-copy">{o.data.body}</p>
         <Button variant="full" onClick={close}>
           Got it
         </Button>
       </Modal>
     );
-  if (o.kind === "skip") {
-    const missing = SERVICES.filter((service) =>
-      PERMISSIONS(service).some(
-        (p) => !user?.connections[service]?.includes(p),
-      ),
-    );
-    return (
-      <Modal title="You can travel a little lighter">
-        <p>Without these connections, a few extras will be unavailable:</p>
-        <ul className="clean-list">
-          {missing.map((service) => (
-            <li key={service}>
-              <span>•</span>
-              {service === "Gmail"
-                ? "Gmail receipt matching"
-                : `${service} inspiration in your suggestions`}
-            </li>
-          ))}
-        </ul>
-        <p>
-          You can still create trips, enter events, upload sample confirmations,
-          and use preference-based suggestions.
-        </p>
-        <div className="form-actions">
-          <Button variant="outline" onClick={close}>
-            Keep connecting
-          </Button>
-          <Button
-            onClick={() =>
-              go(
-                s.trips.some((t) =>
-                  t.members.some(
-                    (m) => m.id === s.userId && m.status === "pending",
-                  ),
-                )
-                  ? 5
-                  : 4,
-              )
-            }
-          >
-            Skip & continue
-          </Button>
-        </div>
-      </Modal>
-    );
-  }
   if (o.kind === "menu")
     return (
       <Modal title="Your next stop">
-        <div className="menu-links">
-          <button onClick={() => go(19)}>
-            Your account <Users size={17} />
-          </button>
-          {[
-            [4, "Home"],
-            [5, "All trips"],
-            [6, "New trip"],
-            [12, "Budget"],
-            [11, "Calendar"],
-            [17, "Map"],
-            [13, "Collaborators"],
-            [9, "Suggestions"],
-            [15, "My preferences"],
-          ].map(([p, label]) => (
-            <button
-              key={p}
-              onClick={() =>
-                Number(p) < 7 ? go(Number(p)) : tripGo(Number(p))
-              }
-            >
-              {label}
-            </button>
-          ))}
-          <button
-            onClick={() =>
-              open("message", {
-                title: "Pre-planned trips",
-                body: "Coming soon. For now, explore the built-in fictional trip or create your own.",
-              })
-            }
-          >
-            Pre-planned trips<Badge>Coming soon</Badge>
-          </button>
-        </div>
+        <nav className="menu-sections" aria-label="All pages">
+          <section><h3>Workspace</h3><div className="menu-links">
+            {[[4, "Home"], [5, "My trips"], [6, "New trip"]].map(([page, label]) => <button key={page} aria-current={app.route.page === page ? "page" : undefined} onClick={() => go(Number(page))}>{label}</button>)}
+            <button onClick={() => go(4, {section:"templates"})}>Pre-planned trips</button>
+          </div></section>
+          <section><h3>Your trip</h3><div className="menu-links">
+            {[[8, "Itinerary"], [11, "Daily itinerary"], [17, "Map"], [12, "Budget"], [13, "The group"], [9, "Suggestions"], [15, "My preferences"], ...(t && isActive(t, s.date) ? [[10, "Today"]] : [])].map(([page, label]) => <button key={page} aria-current={app.route.page === page ? "page" : undefined} onClick={() => tripGo(Number(page))}>{label}</button>)}
+          </div></section>
+          <section><h3>Personal</h3><div className="menu-links"><button onClick={() => go(19)}>Your account <Users size={17}/></button><button onClick={() => go(18)}>Style <Palette size={17}/></button><button onClick={() => open("demo")}>Prototype</button></div></section>
+        </nav>
       </Modal>
     );
-  if (o.kind === "tripPicker") {
-    const trips = s.trips.filter(
-      (t) =>
-        member(t, s.userId) && (!o.data?.activeOnly || isActive(t, s.date)),
-    );
-    return (
-      <Modal title="Which trip are we planning?">
-        <div className="trip-picker">
-          {trips.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => {
-                mutate((v) => (v.tripId = t.id));
-                go(o.data?.target || 8);
-              }}
-            >
-              <MapPin size={20} />
-              <span>
-                <strong>{t.title}</strong>
-                <small>
-                  {dateText(t.start, true)} – {dateText(t.end, true)}
-                </small>
-              </span>
-              <ArrowRight size={17} />
-            </button>
-          ))}
-        </div>
-        {!trips.length && (
-          <Empty
-            title="Your first trip starts here."
-            body="Create one to use your budget, calendar, map, and group tools."
-          />
-        )}
-        <Button
-          variant="outline full"
-          onClick={() => go(6, { next: String(o.data?.target || 8) })}
-        >
-          <Plus size={16} />
-          Create a new trip
-        </Button>
-      </Modal>
-    );
-  }
+  if (o.kind === "tripPicker") return <TripPicker />;
   if (o.kind === "invitation") {
     const trip = s.trips.find((t) => t.id === o.data.tripId),
       m = trip?.members.find((m) => m.id === o.data.userId);
@@ -798,45 +750,14 @@ export function Overlays() {
       </Modal>
     );
   }
-  if (o.kind === "settle" && t) {
-    const expense = t.expenses.find((e) => e.id === o.data.expenseId);
-    if (!expense || expense.payer !== member(t, s.userId)?.id)
-      return (
-        <Modal title="Only the creditor can mark this paid">
-          <Button onClick={close}>Close</Button>
-        </Modal>
-      );
+  if (o.kind === "settle" && t) return <RepaymentForm />;
+  if (o.kind === "transaction") {
+    const finishTransaction = () => {
+      o.data?.onResolved?.();
+      close();
+    };
     return (
-      <Modal title="Confirm repayment">
-        <p className="repayment-copy">
-          Record that you received{" "}
-          <strong>{money(expense.shares[o.data.debtor])}</strong> from{" "}
-          <strong>{t.members.find((person) => person.id === o.data.debtor)?.name || "Former traveler"}</strong> for {expense.purpose}.
-        </p>
-        <p className="repayment-copy">
-          This only updates the repayment log. No money is transferred or
-          verified.
-        </p>
-        <Button
-          variant="full repayment-confirm"
-          onClick={() => {
-            updateTrip((t) =>
-              t.expenses
-                .find((e) => e.id === expense.id)!
-                .settled.push(o.data.debtor),
-            );
-            toast("Repayment marked completed. Spending totals are unchanged.");
-            close();
-          }}
-        >
-          Mark paid <Check size={16} />
-        </Button>
-      </Modal>
-    );
-  }
-  if (o.kind === "transaction")
-    return (
-      <Modal title="A little purchase, logged">
+      <Modal title="A little purchase, logged" onClose={finishTransaction}>
         <Badge>DEMO TRANSACTION NOTIFICATION</Badge>
         <h3>$6.50 · sample coffee</h3>
         <p>
@@ -853,22 +774,27 @@ export function Overlays() {
                     (e) => e.id !== "demo-transaction",
                   )),
               );
-              toast("Sample transaction removed.");
-              close();
+              toast("Sample transaction removed.", "budget");
+              finishTransaction();
             }}
           >
             Undo
           </Button>
-          <Button onClick={close}>Keep expense</Button>
+          <Button onClick={finishTransaction}>Keep expense</Button>
         </div>
       </Modal>
     );
+  }
   if (o.kind === "nearby") {
+    const plannedGallery = t?.events.find(event => event.place.split("·")[0].trim().toLowerCase() === "cedar gallery");
+    const hiddenGallery = t?.sample && t.dismissed.includes("gallery");
     const eligible =
       t &&
       isActive(t, s.date) &&
       s.location &&
       !s.noticeDismissed &&
+      !plannedGallery &&
+      !hiddenGallery &&
       (t.prefs[member(t, s.userId)!.id]?.walk === undefined ||
         t.prefs[member(t, s.userId)!.id].walk >= 214);
     const dismiss = () => {
@@ -876,8 +802,30 @@ export function Overlays() {
       if (app.route.page === 16) go(10);
       else close();
     };
+    const slot = eligible && t ? findAvailableHour(t, s.userId,
+      [s.date, ...days(t.start, t.end).filter(date => date !== s.date)], undefined,
+      {date:s.date,time:s.time}) : undefined;
+    const schedulingReason = !slot && t ? member(t, s.userId)?.role === "Viewer"
+      ? "You have view-only access. Ask a trip editor to add this idea."
+      : "No upcoming one-hour slot is free on your editable days." : "";
     return (
       <Modal
+        footer={eligible ? <div className="nearby-footer">
+          {schedulingReason && <p>{schedulingReason}</p>}
+            <div className="form-actions nearby-actions">
+              <Button variant="outline" onClick={dismiss}>
+                Dismiss
+              </Button>
+              <Button
+                onClick={() => slot ? go(7, {
+                  suggestion: "A stop for local art", place: "Cedar Gallery · downtown",
+                  date: slot.date, start: slot.start, end: slot.end, cost: "40", return: "16",
+                }) : go(9)}
+              >
+                {slot ? "Choose a time" : "Explore ideas"} <ArrowRight size={17} />
+              </Button>
+            </div>
+        </div> : undefined}
         title={
           eligible ? "A good little detour." : "No nearby suggestion right now"
         }
@@ -890,34 +838,22 @@ export function Overlays() {
             <div className="nearby-photo" />
             <h2>Cedar Gallery</h2>
             <p>
-              A little local art, just around the corner. Matches cultural
-              interests and the sample step-free preference.
+              A fictional gallery matched to cultural interests and the sample
+              step-free preference.
             </p>
             <div className="nearby-stats">
               <span>
                 <MapPin size={16} />
-                420 ft nearby
+                128 m nearby
               </span>
-              <span>700 ft route · about 4 min</span>
+              <span>214 m route · about 4 min</span>
             </div>
-            <p className="fine-print">
-              Simulated location and suitability. The roughly 500-foot trigger
-              is straight-line proximity, not walking distance. Actual access
-              needs checking.
-            </p>
-            <div className="form-actions">
-              <Button variant="outline" onClick={dismiss}>
-                No
-              </Button>
-              <Button
-                onClick={() => {
-                  mutate((v) => (v.noticeDismissed = true));
-                  go(17);
-                }}
-              >
-                Open trip map <ArrowRight size={17} />
-              </Button>
-            </div>
+            <p className="fine-print">Sample location and suitability. Check actual access before visiting.</p>
+            <p className="fine-print">About 1 hour · Est. $40</p>
+            <details className="nearby-details"><summary>How this sample is matched</summary>
+              <p>The roughly 150-meter trigger uses straight-line proximity. The 214-meter route is the walking distance checked against your saved limit.</p>
+            </details>
+
           </>
         ) : (
           <>
@@ -928,19 +864,20 @@ export function Overlays() {
                   ? "Nearby suggestions appear during active trip dates."
                   : !s.location
                     ? "Enable the simulated location in demo controls."
-                    : s.noticeDismissed
+                    : plannedGallery
+                      ? "Cedar Gallery is already in your itinerary. Explore another idea or view your plan."
+                      : hiddenGallery
+                      ? "This idea is hidden in Suggestions. Trip editors can restore it there."
+                      : s.noticeDismissed
                       ? "You dismissed the sample suggestion. You can reset it below."
                       : "The sample route exceeds your saved walking limit."}
             </p>
-            <Button
-              variant="outline"
-              onClick={() => mutate((v) => (v.noticeDismissed = false))}
-            >
-              Reset nearby suggestion
-            </Button>
-            <Button variant="text" onClick={() => open("demo")}>
-              Demo controls
-            </Button>
+            {!t ? <Button onClick={() => go(5)}>Choose a trip</Button>
+              : !isActive(t, s.date) || !s.location ? <Button onClick={() => open("demo", {section:!isActive(t, s.date) ? "time" : "experience"})}>Demo controls</Button>
+                : plannedGallery ? <div className="form-actions"><Button onClick={() => go(11, {event:plannedGallery.id, date:plannedGallery.date})}>View your plan</Button><Button variant="outline" onClick={() => go(9)}>More ideas</Button></div>
+                : hiddenGallery ? <Button onClick={() => go(9)}>Review suggestions</Button>
+                : s.noticeDismissed ? <Button onClick={() => mutate((v) => (v.noticeDismissed = false))}>Reset nearby suggestion</Button>
+                  : <div className="form-actions"><Button onClick={() => go(9)}>More ideas</Button><Button variant="outline" onClick={() => go(15, { return: "10", nearby: "true" })}>Update your preferences</Button></div>}
           </>
         )}
       </Modal>
@@ -954,7 +891,10 @@ function PlannedTripPreview() {
   const planned = plannedTrip(overlay?.data?.id ?? null);
   if (!planned) return null;
   return (
-    <Modal title={planned.title} wide>
+    <Modal title={planned.title} wide footer={      <div className="form-actions planned-modal-actions">
+        <Button variant="outline" onClick={close}>Keep browsing</Button>
+        <Button onClick={() => go(6, { template: planned.id })}>Add this trip <ArrowRight size={17} /></Button>
+      </div>}>
       <div className="planned-modal-intro">
         <img src={planned.image} alt={`${planned.destinations[0]} scenery`} />
         <div>
@@ -968,15 +908,11 @@ function PlannedTripPreview() {
         {planned.stops.map((stop, index) => (
           <li key={`${stop.day}-${stop.name}-${index}`}>
             <span className="planned-stop-day">Day {stop.day + 1}</span>
-            <span><strong>{stop.name}</strong><small>{stop.start}–{stop.end} · {stop.place}</small></span>
+            <span><strong>{stop.name}</strong><small>{timeText(stop.start)}–{timeText(stop.end)} · {stop.place}</small></span>
           </li>
         ))}
       </ol>
-      <p className="muted planned-estimate-note">Choose your dates after adding. You can edit the activities, destinations, and dates before saving.</p>
-      <div className="form-actions planned-modal-actions">
-        <Button variant="outline" onClick={close}>Keep browsing</Button>
-        <Button onClick={() => go(6, { template: planned.id })}>Add this trip <ArrowRight size={17} /></Button>
-      </div>
+      <p className="muted planned-estimate-note">Choose your dates and destinations next. You can edit activities after creating the trip.</p>
     </Modal>
   );
 }
