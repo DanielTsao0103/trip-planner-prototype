@@ -7,6 +7,7 @@ const draft = { id: "33333333-3333-4333-8333-333333333333", title: "Recovery wee
 
 /** All account traffic is mocked: this suite never writes to a real account. */
 async function setup(page: Page) {
+  await page.route("https://places.googleapis.com/**", route => route.abort());
   let saveFails = true;
   let savedDraft = structuredClone(draft);
   await page.route("https://*.supabase.co/**", async route => {
@@ -130,7 +131,7 @@ test("keyboard editing keeps fields between expanded recovery and fixed actions"
   for(const width of [390,320]) {
     await page.setViewportSize({width,height:600});
     await page.getByLabel('Event name',{exact:true}).focus();
-    for(const name of ['Event name','Where','Day']) {
+    for(const name of ['Event name','Prioritize locations near','Where','Day']) {
       const control=page.getByLabel(name,{exact:true});
       await expect(control).toBeFocused();
       await expect.poll(async()=>{
