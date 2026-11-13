@@ -29,7 +29,32 @@ for (const time of ["09:00", "23:00"]) {
     await page.getByRole("button", { name: "Show all pins", exact: true }).click();
     await expect(markers).toHaveCount(todays.length);
 
-    // Changing the date while Today is open must remove the previous day's pins.
+    // The week selector changes the displayed day without changing the clock.
+    // Compare stop identities: these days happen to have equal marker counts.
+    const expectDayPins = async (date: string) => {
+      const labels = trip.events.filter((event) => event.date === date)
+        .map((event) => `Select ${event.place}`).sort();
+      await expect.poll(() => markers.evaluateAll((items) =>
+        items.map((item) => item.getAttribute("aria-label")).sort(),
+      )).toEqual(labels);
+    };
+    for (const day of [15, 17]) {
+      await page.getByRole("button", { name: `October ${day}, 2026`, exact: true }).click();
+      await expect(page.getByRole("heading", { name: `Map for Oct ${day}`, exact: true })).toBeVisible();
+      await expectDayPins(`2026-10-${day}`);
+      await page.getByRole("button", { name: "Show all pins", exact: true }).click();
+      await expectDayPins(`2026-10-${day}`);
+    }
+    await page.getByRole("button", { name: "Next week", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Map for Oct 18", exact: true })).toBeVisible();
+    await expect(page.locator(".trip-map .map-feedback")).toHaveText("No plans for this day.");
+    await expectDayPins("2026-10-18");
+    await page.getByRole("button", { name: "Previous week", exact: true }).click();
+    await expectDayPins("2026-10-17");
+    await page.getByRole("button", { name: "October 16, 2026", exact: true }).click();
+    await expectDayPins("2026-10-16");
+
+    // An explicit agenda selection stays in sync with its map when the clock changes.
     if (!await page.getByRole("button", { name: "Prototype", exact: true }).isVisible()) {
       await page.getByRole("button", { name: "Open navigation menu", exact: true }).click();
     }
@@ -38,6 +63,8 @@ for (const time of ["09:00", "23:00"]) {
     if (await timeTab.isVisible()) await timeTab.click();
     await page.getByLabel("Demo date", { exact: true }).fill("2026-10-17");
     await page.getByRole("button", { name: "Apply & open Today", exact: true }).filter({ visible: true }).click();
+    await expectDayPins("2026-10-16");
+    await page.getByRole("button", { name: "October 17, 2026", exact: true }).click();
     const tomorrow = trip.events.filter((event) => event.date === "2026-10-17");
     await expect(markers).toHaveCount(tomorrow.length);
     for (const event of tomorrow) {

@@ -290,6 +290,8 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 - Today map correction (November 13, 2026): the compact Today map must only look up and display events for Today’s displayed date, including completed stops. All pins and overlapping-stop choices must remain inside that day; the full Map tab retains its trip-wide day controls.
 
+- Today map follow-up (November 13, 2026): Dan means the date selected in “This week, together,” including week navigation, not only the app clock’s today date. Use the same visible agenda date for the map and its heading, reset selection when that date changes, and test actual stop identities across days with equal pin counts.
+
 - Recovery layout QA (November 13, 2026): automatic 503 backoff legitimately replaces error controls and closes their disclosure during slow screenshots. Control the browser clock for resize/confirmation audits that also verify reconnect recovery, advancing short frames for layout while retaining the original transient failure and all recovery assertions.
 
 - CI timing isolation (November 13, 2026): static recovery contrast/keyboard audits use a rejected write rather than a transient error whose automatic retry replaces the controls mid-scan; keep retry/backoff coverage in persistence tests. Install a known clock time and pause at a future time, not the current host time, to avoid clock-pause races.

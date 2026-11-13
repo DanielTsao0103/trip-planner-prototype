@@ -1221,6 +1221,7 @@ export function Dashboard() {
   );
   const visibleAgendaDate = week.includes(agendaDate) ? agendaDate : week.includes(s.date) ? s.date : week.find(day => day >= t.start && day <= t.end) || week[0];
   const agendaEvents = orderedEvents(t, visibleAgendaDate);
+  const mapEvent = (visibleAgendaDate === s.date ? next : undefined) ?? agendaEvents[0];
   return (
     <>
       <PageHead
@@ -1370,16 +1371,16 @@ export function Dashboard() {
       </div>
       <div className="section-title">
         <div>
-          <h2>Today’s map</h2>
+          <h2>{visibleAgendaDate === s.date ? "Today’s map" : `Map for ${dateText(visibleAgendaDate, true)}`}</h2>
         </div>
         <Button
           variant="outline"
-          onClick={() => go(17, next ? { event: next.id } : {})}
+          onClick={() => go(17, mapEvent ? { event: mapEvent.id } : {})}
         >
           Open map <ArrowUpRight size={16} />
         </Button>
       </div>
-      <TravelMap key={`${t.id}:${s.date}`} compact date={s.date} selectedEvent={next?.id} />
+      <TravelMap key={`${t.id}:${visibleAgendaDate}`} compact date={visibleAgendaDate} selectedEvent={visibleAgendaDate === s.date ? next?.id : undefined} />
 
     </>
   );
