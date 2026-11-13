@@ -1,6 +1,7 @@
 /** Hosted save-contract regression. Uses disposable users/trips, sends no email,
  * and removes every fixture. Run with node --experimental-strip-types. */
 import assert from "node:assert/strict";
+import { TRIP_CLIENT_INFO } from "../src/trip-client-info.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 import { randomUUID } from "node:crypto";
@@ -20,6 +21,7 @@ const env = {
 const options = {
   auth: { persistSession: false, autoRefreshToken: false },
   global: {
+    headers: { "X-Client-Info": TRIP_CLIENT_INFO },
     fetch: (input, init) =>
       fetch(input, { ...init, signal: AbortSignal.timeout(20000) }),
   },
@@ -209,6 +211,26 @@ try {
   verify("exact app retry does not increment revision", () =>
     assert.equal(retry.revision, saved.revision),
   );
+
+  const legacyClient = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_PUBLISHABLE_KEY, {
+    ...options, global: {...options.global, headers: {"X-Client-Info":"supabase-js-web/2.117.3"}},
+  });
+  const {session: ownerSession} = check(await owner.client.auth.getSession());
+  check(await legacyClient.auth.setSession(ownerSession));
+  const legacyRow = check(await legacyClient.rpc("load_trip_bundles")).find(value => value.tripID === row.tripID);
+  verify("cached clients receive their supported response shape", () => assert.equal("savedPlaces" in legacyRow.content, false));
+  // The release gate supplies the actual previously shipped writer as well.
+  const oldWriter = process.env.TRIP_LEGACY_WRITER
+    ? (await import(process.env.TRIP_LEGACY_WRITER)).saveAccountTrip : saveAccountTrip;
+  const oldTrip = tripFromRow(legacyRow, owner);
+  oldTrip.todos.push({id:randomUUID(),text:"Written by cached client",date:oldTrip.start,done:false});
+  const legacySaved = await oldWriter(legacyClient, owner, oldTrip);
+  verify("cached client confirms a save while retaining newer saved places", () => {
+    assert.equal("savedPlaces" in legacySaved, false);
+    assert.ok(legacySaved.todos.some(todo => todo.text === "Written by cached client"));
+  });
+  row = await read(row.tripID);
+  assert.deepEqual(row.content.savedPlaces, original.savedPlaces);
 
   const oldClient = payload(row);
   delete oldClient.savedPlaces;

@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { TRIP_CLIENT_INFO } from "./trip-client-info.ts";
 import { passwordRecoveryEntry } from "./password-recovery-state.ts";
 
 let client: SupabaseClient | undefined;
@@ -30,6 +31,7 @@ export function getSupabase(): SupabaseClient {
     // the URL hash, which would collide with this app's #/page routing.
     auth: { flowType: hasEmailLink() ? "implicit" : "pkce", detectSessionInUrl: !passwordRecoveryEntry },
     global: {
+      headers: { "X-Client-Info": TRIP_CLIENT_INFO },
       fetch: (input, init) =>
         fetch(input, {
           ...init,

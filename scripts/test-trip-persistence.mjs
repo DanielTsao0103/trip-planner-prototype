@@ -1,6 +1,7 @@
 /** Opt-in integration tests against the real configured project. Only generated QA
  * accounts/trips are changed; cleanup runs even when an assertion fails. */
 import assert from "node:assert/strict";
+import { TRIP_CLIENT_INFO } from "../src/trip-client-info.ts";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { parseEnv } from "node:util";
 import { randomUUID } from "node:crypto";
@@ -14,6 +15,7 @@ const env = {
 };
 const options = {
   global: {
+    headers: { "X-Client-Info": TRIP_CLIENT_INFO },
     fetch: (input, init) =>
       fetch(input, { ...init, signal: AbortSignal.timeout(20000) }),
   },

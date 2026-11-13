@@ -161,6 +161,9 @@ test('trip photo search follows the chosen destination and keeps two to five opt
   await page.locator('.trip-photo-options button').first().click();
   await page.getByLabel('Trip title', { exact: true }).fill('Spain escape');
   await page.getByLabel('Start date', { exact: true }).fill('2027-05-01');
+  // Commit the start-date blur and its automatic end-date alignment before editing the end.
+  await page.getByLabel('Start date', { exact: true }).press('Tab');
+  await expect(page.getByLabel('End date', { exact: true })).toHaveValue('May 1, 2027');
   await page.getByLabel('End date', { exact: true }).fill('2027-05-04');
   await page.getByLabel('End date', { exact: true }).press('Escape');
   await page.getByRole('button', { name: 'Create trip', exact: true }).click();
