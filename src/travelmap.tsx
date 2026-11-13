@@ -57,10 +57,12 @@ const tripDayNumber = (start: string, date: string) => {
 
 export function TravelMap({
   compact = false,
+  date,
   selectedEvent,
   selectedPlace,
 }: {
   compact?: boolean;
+  date?: string;
   selectedEvent?: string;
   selectedPlace?: string;
 }) {
@@ -104,8 +106,12 @@ export function TravelMap({
   const [preciseZoom, setPreciseZoom] = useState(false);
   const [locationStatus, setLocationStatus] = useState("");
   const [locating, setLocating] = useState(false);
+  // Scope both location lookups and every map interaction to the displayed day.
+  const mapTrip = trip && date
+    ? { ...trip, events: trip.events.filter((event) => event.date === date) }
+    : trip;
   const { events, statusFor, retryLookup } = useItineraryPins(
-    trip,
+    mapTrip,
     s.userId,
     ready && !loadError,
     updateTrip,
@@ -677,6 +683,10 @@ export function TravelMap({
         ) : !ready ? (
           <div className="google-map-state" role="status">
             Loading Google Maps…
+          </div>
+        ) : date && !events.length ? (
+          <div className="map-feedback" role="status">
+            No plans for this day.
           </div>
         ) : (
           (locationStatus || mapSyncOffline) && (

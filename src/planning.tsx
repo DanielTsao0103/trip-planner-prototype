@@ -1372,7 +1372,7 @@ export function Dashboard() {
       </div>
       <div className="section-title">
         <div>
-          <h2>Trip map</h2>
+          <h2>Today’s map</h2>
         </div>
         <Button
           variant="outline"
@@ -1381,7 +1381,7 @@ export function Dashboard() {
           Open map <ArrowUpRight size={16} />
         </Button>
       </div>
-      <TravelMap compact selectedEvent={next?.id} />
+      <TravelMap key={`${t.id}:${s.date}`} compact date={s.date} selectedEvent={next?.id} />
 
     </>
   );
