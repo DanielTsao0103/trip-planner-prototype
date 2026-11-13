@@ -796,9 +796,8 @@ test('suggested event puts scheduling first and Nearby recognizes an existing pl
   await page.reload();await page.goto('./#/10');
   await page.getByRole('button',{name:'Discover nearby',exact:true}).click();
   const dialog=page.getByRole('dialog');
-  await expect(dialog).toContainText('Cedar Gallery is already in your itinerary');
-  await dialog.getByRole('button',{name:'View your plan',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'A stop for local art',exact:true})).toBeVisible();
+  await expect(dialog).toContainText('Sample trip: you can explore the planning context here.');
+  await expect(dialog.getByRole('button',{name:'Find nearby suggestions',exact:true})).toBeDisabled();
 });
 
 test('a viewer daily itinerary has no permission-dead-end Add action', async ({page}) => {
@@ -1093,78 +1092,37 @@ test('suggestions use future free time and never fall back to a past trip day', 
   await expect(page).toHaveURL(/#\/8$/);
 });
 
-test('an idea hidden in Suggestions stays hidden in Nearby until restored', async ({ page }) => {
-  await page.goto('./#/9');
-  await page.waitForFunction(() => !!localStorage.getItem('trip-planner-demo-v1:demo-maya'));
-  await page.evaluate(() => {
-    const key='trip-planner-demo-v1:demo-maya', state=JSON.parse(localStorage.getItem(key)!);
-    state.date='2026-10-16'; state.time='14:30'; state.noticeDismissed=false;
-    localStorage.setItem(key,JSON.stringify(state));
-  });
-  await page.reload();
-  await page.locator('.suggestion-card').filter({hasText:'A stop for local art'}).getByRole('button',{name:'Not this time',exact:true}).click();
-  await page.reload();
-  await page.getByRole('button',{name:'Today',exact:true}).filter({visible:true}).click();
-  await page.getByRole('button',{name:'Discover nearby',exact:true}).click();
-  await expect(page.getByText('This idea is hidden in Suggestions. Trip editors can restore it there.',{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Review suggestions',exact:true}).click();
-  await page.getByRole('button',{name:'Show suggestions again',exact:true}).click();
-  await page.goto('./#/10');
-  await page.getByRole('button',{name:'Discover nearby',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Cedar Gallery',exact:true})).toBeVisible();
+test('sample idea dismissal does not masquerade as researched nearby results', async ({page}) => {
+ await page.goto('./#/9');
+ await page.locator('.suggestion-card').filter({hasText:'A stop for local art'}).getByRole('button',{name:'Not this time',exact:true}).click();
+ await page.getByRole('button',{name:'Nearby suggestions',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
+ await expect(dialog).not.toContainText('Cedar Gallery');
+ await expect(dialog).toContainText('Sample trip:');
 });
 
-test('Nearby schedules its shown idea directly and cancel returns without creating a plan', async ({page}, info) => {
-  await page.setViewportSize({width:info.project.name==='mobile'?390:1440,height:info.project.name==='mobile'?600:900});
-  await page.goto('./#/10');
-  await page.waitForFunction(()=>!!localStorage.getItem('trip-planner-demo-v1:demo-maya'));
-  await page.evaluate(()=>{const key='trip-planner-demo-v1:demo-maya',s=JSON.parse(localStorage.getItem(key)!);s.date='2026-10-16';s.time='14:30';s.noticeDismissed=false;s.location=true;localStorage.setItem(key,JSON.stringify(s));});
-  await page.reload();
-  const savedCount=()=>page.evaluate(()=>{const s=JSON.parse(localStorage.getItem('trip-planner-demo-v1:demo-maya')!);return s.trips.find((t:any)=>t.id===s.tripId).events.length;});
-  const before=await savedCount();
-  await page.getByRole('button',{name:'Discover nearby',exact:true}).click();
-  let dialog=page.getByRole('dialog');
-  await expect(dialog).toContainText('A SAMPLE MATCH FOR YOU');
-  await expect(dialog).toContainText('About 1 hour · Est. $40');
-  await page.screenshot({path:test.info().outputPath('nearby-direct-scheduling.png')});
-  await dialog.getByRole('button',{name:'Choose a time',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Choose a time.',exact:true})).toBeVisible();
-  await expect(page.locator('.suggested-event-summary')).toContainText('Cedar Gallery');
-  await page.getByRole('button',{name:'Cancel',exact:true}).click();
-  dialog=page.getByRole('dialog');
-  await expect(dialog.getByRole('heading',{name:'Cedar Gallery',exact:true})).toBeVisible();
-  expect(await savedCount()).toBe(before);
-  await dialog.getByRole('button',{name:'Choose a time',exact:true}).click();
-  await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
-  await expect(dialog).toContainText('Cedar Gallery is already in your itinerary');
-  expect(await savedCount()).toBe(before+1);
-  await page.reload();
-  await expect(dialog).toContainText('Cedar Gallery is already in your itinerary');
-  await dialog.getByRole('button',{name:'View your plan',exact:true}).click();
-  await expect(page).toHaveURL(/#\/11\?event=.*date=2026-10-16/);
-  await expect(page.locator('[id^="day-event-"]').filter({has:page.getByRole('heading',{name:'A stop for local art',exact:true})})).toBeFocused();
+test('Nearby research remains in a popup and never silently schedules an event', async ({page}) => {
+ await page.goto('./#/17');
+ const count=()=>page.evaluate(()=>{const s=JSON.parse(localStorage.getItem('trip-planner-demo-v1:demo-maya')!);return s.trips.find((t:any)=>t.id===s.tripId).events.length;});
+ const before=await count();
+ await page.getByRole('button',{name:'Nearby suggestion',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
+ await expect(dialog.getByRole('button',{name:'Choose a time',exact:true})).toHaveCount(0);
+ await expect(dialog.getByRole('button',{name:'Find nearby suggestions',exact:true})).toBeDisabled();
+ await page.keyboard.press('Escape');
+ expect(await count()).toBe(before);
 });
 
-test('Nearby keeps exploration available when the traveler cannot schedule a free hour', async ({page}) => {
-  await page.setViewportSize({width:390,height:600});
-  await page.goto('./#/10');
-  await page.waitForFunction(()=>!!localStorage.getItem('trip-planner-demo-v1:demo-maya'));
-  for(const role of ['Viewer','Owner']){
-    await page.evaluate(role=>{const key='trip-planner-demo-v1:demo-maya',s=JSON.parse(localStorage.getItem(key)!);const t=s.trips.find((t:any)=>t.id===s.tripId);t.members.find((m:any)=>m.id===s.userId).role=role;s.date=role==='Viewer'?'2026-10-16':t.end;s.time=role==='Viewer'?'14:30':'18:30';s.noticeDismissed=false;s.location=true;localStorage.setItem(key,JSON.stringify(s));},role);
-    await page.reload();
-    await page.getByRole('button',{name:'Today',exact:true}).filter({visible:true}).click();
-    await page.getByRole('button',{name:'Discover nearby',exact:true}).click();
-    const dialog=page.getByRole('dialog');
-    await expect(dialog.getByRole('button',{name:'Choose a time',exact:true})).toHaveCount(0);
-    await expect(dialog.getByText(role==='Viewer' ? 'You have view-only access. Ask a trip editor to add this idea.' : 'No upcoming one-hour slot is free on your editable days.',{exact:true})).toBeInViewport({ratio:1});
-    await expect(dialog.getByRole('button',{name:'Explore ideas',exact:true})).toBeInViewport({ratio:1});
-    await dialog.locator('.nearby-details summary').click();
-    await expect(dialog.getByRole('button',{name:'Explore ideas',exact:true})).toBeInViewport({ratio:1});
-    await page.screenshot({path:test.info().outputPath(`nearby-unavailable-${role}.png`)});
-    await dialog.getByRole('button',{name:'Explore ideas',exact:true}).click();
-    await expect(page).toHaveURL(/#\/9$/);
-    for(const button of await page.getByRole('button',{name:'Choose a time',exact:true}).all())await expect(button).toBeDisabled();
-  }
+test('Nearby lets viewers inspect planning constraints without offering scheduling', async ({page}) => {
+ await page.goto('./#/10');
+ await page.evaluate(()=>{const key='trip-planner-demo-v1:demo-maya',s=JSON.parse(localStorage.getItem(key)!);s.trips.find((t:any)=>t.id===s.tripId).members.find((m:any)=>m.id===s.userId).role='Viewer';localStorage.setItem(key,JSON.stringify(s));});
+ await page.reload();await page.goto('./#/17');
+ await page.getByRole('button',{name:'Nearby suggestion',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
+ await dialog.getByText('Planning details used',{exact:true}).click();
+ await expect(dialog).toContainText('A trip editor will need to schedule them.');
+ await expect(dialog).toContainText('Dietary needs');
+ await expect(dialog.getByRole('button',{name:'Choose a time',exact:true})).toHaveCount(0);
 });
 
 test('compact empty dates keep direct view and add actions with viewer permissions', async ({ page }) => {

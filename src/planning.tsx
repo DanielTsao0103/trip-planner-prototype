@@ -200,6 +200,7 @@ export function Itinerary() {
           Meet your group <ArrowRight size={15} />
         </button>
       </div>
+      {view === "calendar" && <div className="form-actions"><Button variant="outline" onClick={() => open("nearby", { date: activeDay })}><Sparkles size={17} />Nearby suggestions</Button></div>}
       <div className="itinerary-controls">
       <div className="section-title itinerary-heading">
         <div>
@@ -351,8 +352,8 @@ export function Itinerary() {
               <Sparkles size={22} />
             </span>
             <h3>Suggestions</h3>
-            <Button variant="outline full" onClick={() => go(9)}>
-              View suggestions <ArrowRight size={16} />
+            <Button variant="outline full" onClick={() => open("nearby", { date: activeDay })}>
+              Nearby suggestions <ArrowRight size={16} />
             </Button>
           </div>
           <div className="card budget-peek">
@@ -989,7 +990,7 @@ export function EventForm() {
   );
 }
 export function Suggestions() {
-  const { trip: t, s, go, updateTrip, toast, message, dismissMessage } = useApp();
+  const { trip: t, s, go, open, updateTrip, toast, message, dismissMessage } = useApp();
   const [loading, setLoading] = useState(false);
   if (!t) return null;
   const traveler = member(t, s.userId)!;
@@ -1057,14 +1058,11 @@ export function Suggestions() {
         action={
           <Button
             variant="outline suggestion-refresh"
-            aria-label="Refresh ideas"
-            onClick={() => {
-              setLoading(true);
-              setTimeout(() => setLoading(false), 600);
-            }}
+            aria-label="Nearby suggestions"
+            onClick={() => open("nearby")}
           >
             <Sparkles size={16} />
-            <span>Refresh</span>
+            <span>Nearby suggestions</span>
           </Button>
         }
       />
@@ -1408,7 +1406,7 @@ function EventNotes({ notes }: { notes: string }) {
 }
 
 export function DayDetail() {
-  const { trip: t, s, route, go } = useApp();
+  const { trip: t, s, route, go, open } = useApp();
   const selectedEvent = route.params.get("event");
   const requested = route.params.get("date");
   const selectedDate = t?.events.find(event => event.id === selectedEvent)?.date;
@@ -1546,7 +1544,7 @@ export function DayDetail() {
         </div>
         <aside className="card day-summary">
           {events.length > 0 && <h2>{events.length} {events.length === 1 ? "event" : "events"}</h2>}
-          <button className="text-link" onClick={() => go(9)}>
+          <button className="text-link" onClick={() => open("nearby", { date })}>
             Find something nearby <ArrowRight size={15} />
           </button>
           <hr />

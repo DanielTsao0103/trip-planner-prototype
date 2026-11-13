@@ -1,0 +1,23 @@
+.nearby-research-modal { color: var(--ink); }
+.nearby-intro { margin-top: 0; color: var(--muted); }
+.nearby-research-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.nearby-context-panel { margin: 12px 0 20px; padding: 16px; border-left: 3px solid var(--green); background: color-mix(in srgb, var(--green) 6%, var(--paper)); border-radius: var(--ui-radius-control); }
+.nearby-context-panel p:first-child, .nearby-proposed-time, .nearby-results > p { display: flex; align-items: flex-start; gap: 8px; }
+.nearby-context-panel svg, .nearby-result svg, .nearby-results > p svg { flex-shrink: 0; margin-top: 3px; }
+.nearby-context-panel p { overflow-wrap: anywhere; }
+.nearby-context-panel summary, .nearby-result summary, .nearby-search-details summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; text-decoration: underline; text-underline-offset: 4px; }
+.nearby-empty-explanation { margin: 16px 0; padding: 16px; border: 1px solid var(--line); border-radius: var(--ui-radius-control); }
+.nearby-empty-explanation h4 { margin: 0; font-size: 18px; }
+.nearby-context-panel dl { display: grid; grid-template-columns: minmax(100px, .6fr) 1fr; gap: 8px 16px; }
+.nearby-context-panel dt { font-weight: 600; }
+.nearby-context-panel dd { margin: 0; }
+.nearby-results { margin-top: 24px; }
+.nearby-result { padding: 20px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.nearby-result h4 { font-family: var(--font-heading); font-size: 23px; margin: 0; }
+.nearby-result ul { padding-left: 20px; }
+.nearby-result li + li { margin-top: 8px; }
+.nearby-result a { color: var(--action-ink, var(--green)); text-decoration: underline; }
+.nearby-listing-links { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 8px 0; }
+.nearby-listing-links a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; text-underline-offset: 3px; }
+.nearby-listing-links a svg { margin: 0; }
+@media (max-width: 480px) { .nearby-research-controls { grid-template-columns: 1fr; gap: 0; } .nearby-context-panel dl { grid-template-columns: 1fr; gap: 4px; } .nearby-context-panel dd { margin-bottom: 8px; } }

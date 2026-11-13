@@ -893,6 +893,7 @@ export function TravelMap({
 }
 export function MapPage() {
   const { trip, s, route, open } = useApp();
+  const selection = trip?.events.find(event => event.id === route.params.get("event"));
   const viewOnly = trip && member(trip, s.userId)?.role === "Viewer";
   return (
     <>
@@ -901,7 +902,7 @@ export function MapPage() {
         description={trip?.destinations.join(" · ")}
         title="Map"
         action={
-          <Button variant="outline" onClick={() => open("nearby")}>
+          <Button variant="outline" onClick={() => open("nearby", { date: selection?.date, event: selection?.id })}>
             <Sparkles size={16} />
             Nearby suggestion
           </Button>

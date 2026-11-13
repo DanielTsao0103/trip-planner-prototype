@@ -47,7 +47,7 @@ import {
 import { BudgetSetup, ExpenseForm, RepaymentForm } from "./finance";
 import { addCalendarDays } from "./calendar";
 import { plannedTrip } from "./preplanned-trips";
-import { findAvailableHour } from "./planning-slots";
+import { NearbySuggestions } from "./nearby-suggestions";
 function AuthProvider() {
   const { overlay, s, mutate, go, login, close } = useApp();
   const { service, signup } = overlay!.data;
@@ -785,104 +785,7 @@ export function Overlays() {
       </Modal>
     );
   }
-  if (o.kind === "nearby") {
-    const plannedGallery = t?.events.find(event => event.place.split("·")[0].trim().toLowerCase() === "cedar gallery");
-    const hiddenGallery = t?.sample && t.dismissed.includes("gallery");
-    const eligible =
-      t &&
-      isActive(t, s.date) &&
-      s.location &&
-      !s.noticeDismissed &&
-      !plannedGallery &&
-      !hiddenGallery &&
-      (t.prefs[member(t, s.userId)!.id]?.walk === undefined ||
-        t.prefs[member(t, s.userId)!.id].walk >= 214);
-    const dismiss = () => {
-      mutate((v) => (v.noticeDismissed = true));
-      if (app.route.page === 16) go(10);
-      else close();
-    };
-    const slot = eligible && t ? findAvailableHour(t, s.userId,
-      [s.date, ...days(t.start, t.end).filter(date => date !== s.date)], undefined,
-      {date:s.date,time:s.time}) : undefined;
-    const schedulingReason = !slot && t ? member(t, s.userId)?.role === "Viewer"
-      ? "You have view-only access. Ask a trip editor to add this idea."
-      : "No upcoming one-hour slot is free on your editable days." : "";
-    return (
-      <Modal
-        footer={eligible ? <div className="nearby-footer">
-          {schedulingReason && <p>{schedulingReason}</p>}
-            <div className="form-actions nearby-actions">
-              <Button variant="outline" onClick={dismiss}>
-                Dismiss
-              </Button>
-              <Button
-                onClick={() => slot ? go(7, {
-                  suggestion: "A stop for local art", place: "Cedar Gallery · downtown",
-                  date: slot.date, start: slot.start, end: slot.end, cost: "40", return: "16",
-                }) : go(9)}
-              >
-                {slot ? "Choose a time" : "Explore ideas"} <ArrowRight size={17} />
-              </Button>
-            </div>
-        </div> : undefined}
-        title={
-          eligible ? "A good little detour." : "No nearby suggestion right now"
-        }
-      >
-        {eligible ? (
-          <>
-            <Badge tone="green">
-              <Sparkles size={13} />A SAMPLE MATCH FOR YOU
-            </Badge>
-            <div className="nearby-photo" />
-            <h2>Cedar Gallery</h2>
-            <p>
-              A fictional gallery matched to cultural interests and the sample
-              step-free preference.
-            </p>
-            <div className="nearby-stats">
-              <span>
-                <MapPin size={16} />
-                128 m nearby
-              </span>
-              <span>214 m route · about 4 min</span>
-            </div>
-            <p className="fine-print">Sample location and suitability. Check actual access before visiting.</p>
-            <p className="fine-print">About 1 hour · Est. $40</p>
-            <details className="nearby-details"><summary>How this sample is matched</summary>
-              <p>The roughly 150-meter trigger uses straight-line proximity. The 214-meter route is the walking distance checked against your saved limit.</p>
-            </details>
-
-          </>
-        ) : (
-          <>
-            <p>
-              {!t
-                ? "Choose a trip first."
-                : !isActive(t, s.date)
-                  ? "Nearby suggestions appear during active trip dates."
-                  : !s.location
-                    ? "Enable the simulated location in demo controls."
-                    : plannedGallery
-                      ? "Cedar Gallery is already in your itinerary. Explore another idea or view your plan."
-                      : hiddenGallery
-                      ? "This idea is hidden in Suggestions. Trip editors can restore it there."
-                      : s.noticeDismissed
-                      ? "You dismissed the sample suggestion. You can reset it below."
-                      : "The sample route exceeds your saved walking limit."}
-            </p>
-            {!t ? <Button onClick={() => go(5)}>Choose a trip</Button>
-              : !isActive(t, s.date) || !s.location ? <Button onClick={() => open("demo", {section:!isActive(t, s.date) ? "time" : "experience"})}>Demo controls</Button>
-                : plannedGallery ? <div className="form-actions"><Button onClick={() => go(11, {event:plannedGallery.id, date:plannedGallery.date})}>View your plan</Button><Button variant="outline" onClick={() => go(9)}>More ideas</Button></div>
-                : hiddenGallery ? <Button onClick={() => go(9)}>Review suggestions</Button>
-                : s.noticeDismissed ? <Button onClick={() => mutate((v) => (v.noticeDismissed = false))}>Reset nearby suggestion</Button>
-                  : <div className="form-actions"><Button onClick={() => go(9)}>More ideas</Button><Button variant="outline" onClick={() => go(15, { return: "10", nearby: "true" })}>Update your preferences</Button></div>}
-          </>
-        )}
-      </Modal>
-    );
-  }
+  if (o.kind === "nearby") return <NearbySuggestions key={t?.id || "no-trip"} />;
   return null;
 }
 
