@@ -106,3 +106,8 @@ To repeat the role and bypass checks with disposable accounts, run `node scripts
 ## Admin access list (November 12, 2026)
 
 `20261112150000_admin_access_list.sql` creates `public.admin_email` (RLS on), `private.is_admin()`, `public.is_admin()` and a trigger that keeps at least one admin. Run it once in the SQL editor of the team project. It seeds the four starting admin emails. An account counts as admin only when it signed in with Google and the Google-verified email is on the list, because email/password signups are not verified in this prototype. If someone must use email/password instead, turn email confirmation on first.
+
+## Sorting forwarded bookings into trips (November 13, 2026)
+
+Run `supabase/migrations/20261113220000_forwarded_booking_trip_link.sql` once (SQL editor). It adds `trip_id` and `added_at` to `forwarded_booking` and lets an account update only those two columns on its own rows, and only to a trip it can already see. The event itself is saved through the normal trip save, so no other table or policy changes. Run it before deploying the app, because the app now reads the new column.
+
