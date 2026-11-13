@@ -201,7 +201,9 @@ test("repayment subtotals exclude completed payments and relationship filters pr
   await budget(page);
   const spent = await page.locator(".budget-stats").innerText();
   await page.getByRole("button", { name: /^Repayments/ }).click();
-  await expect(page.getByLabel("Show repayments")).toHaveValue("Owed to me");
+  await expect(page.getByLabel("Show repayments")).toHaveValue("All repayments");
+  await expect(page.locator(".repayment-group")).toHaveCount(9);
+  await page.getByLabel("Show repayments").selectOption("Owed to me");
   await expect(page.locator(".repayment-group")).toHaveCount(3);
   await expect(page.locator(".repayment-overview")).toContainText("$1,290.00");
   const group = page

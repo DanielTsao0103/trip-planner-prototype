@@ -283,3 +283,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Popular Times speed correction (November 12, 2026): Dan requires refresh to begin within 100 ms of changing Where. Remove the former 350 ms typing debounce; replace the frame in the same render, clear stale charts, and distinguish immediate request initiation from Google response latency.
 
 - Map day organization (November 12, 2026): group Places by itinerary date, use a stable trip-day color for every pin and list marker, and provide per-day plus all-days map visibility controls. Keep locations in their day groups when their pins are hidden.
+
+- Repayment default correction (November 13, 2026): open the Repayments dropdown on All repayments, not Owed to me; retain both personal relationship filters.

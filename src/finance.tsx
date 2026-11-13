@@ -78,7 +78,7 @@ export function Budget() {
     tab === "Expenses" ? showBreakdown : showRepaymentBreakdown;
   const [converterExpanded, setConverterExpanded] = useState(false);
   const [converterJump, setConverterJump] = useState(0);
-  const [repaymentView, setRepaymentView] = useState("Owed to me");
+  const [repaymentView, setRepaymentView] = useState("All repayments");
   const [savedExpense, setSavedExpense] = useState("");
   useEffect(() => {
     if (!savedExpense) return;
