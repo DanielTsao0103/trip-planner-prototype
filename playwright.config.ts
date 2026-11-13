@@ -9,7 +9,7 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   timeout: 30000,
   // The expanded suite needs more time on the two-worker hosted runner.
-  globalTimeout: process.env.CI ? 600000 : 360000,
+  globalTimeout: process.env.CI ? 900000 : 360000,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: `http://127.0.0.1:${port}/trip-planner-prototype/`,

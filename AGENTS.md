@@ -285,3 +285,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Map day organization (November 12, 2026): group Places by itinerary date, use a stable trip-day color for every pin and list marker, and provide per-day plus all-days map visibility controls. Keep locations in their day groups when their pins are hidden.
 
 - Repayment default correction (November 13, 2026): open the Repayments dropdown on All repayments, not Owed to me; retain both personal relationship filters.
+
+- CI suite growth (November 13, 2026): the expanded browser matrix exceeded the ten-minute limit on main without assertion failures. Allow fifteen minutes for the hosted suite and eighteen for test/build, preserving every test and the six-minute local default.
