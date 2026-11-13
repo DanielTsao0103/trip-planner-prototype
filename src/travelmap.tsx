@@ -46,6 +46,15 @@ function focusPoint(map: google.maps.Map, point: MapPoint, area = false) {
   });
 }
 
+const mapDayColors = ["#245f9e", "#b84f32", "#147a70", "#7855a6", "#a73858", "#657d18", "#9a650a", "#147a9a"];
+const tripDayNumber = (start: string, date: string) => {
+  const parse = (value: string) => {
+    const [year, month, day] = value.split("-").map(Number);
+    return Date.UTC(year, month - 1, day);
+  };
+  return Math.max(1, Math.floor((parse(date) - parse(start)) / 86_400_000) + 1);
+};
+
 export function TravelMap({
   compact = false,
   selectedEvent,
@@ -74,6 +83,7 @@ export function TravelMap({
   const [attempt, setAttempt] = useState(0);
   const [satellite, setSatellite] = useState(false);
   const [compactSelection, setCompactSelection] = useState<string>();
+  const [hiddenMapDays, setHiddenMapDays] = useState<string[]>([]);
   const requestedId = selectedEvent || trip?.events.find((e) => e.place === selectedPlace)?.id || "";
   const selectedId = compact ? compactSelection ?? requestedId : requestedId;
   function select(id: string) {
@@ -100,6 +110,21 @@ export function TravelMap({
     ready && !loadError,
     updateTrip,
   );
+  const mapDays = Array.from(new Set(events.map((event) => event.date))).sort();
+  const dayColor = (date: string) => {
+    const day = tripDayNumber(trip?.start || date, date);
+    return mapDayColors[(day - 1 + mapDayColors.length) % mapDayColors.length];
+  };
+  const visibleMapDays = new Set(mapDays.filter((date) => !hiddenMapDays.includes(date)));
+  const allDaysVisible = mapDays.every((date) => visibleMapDays.has(date));
+  const mapDayGroups = mapDays.map((date) => ({
+    date,
+    day: tripDayNumber(trip?.start || date, date),
+    events: events.filter((event) => event.date === date),
+  }));
+  useEffect(() => {
+    setHiddenMapDays((current) => current.filter((date) => mapDays.includes(date)));
+  }, [trip?.id, mapDays.join(",")]);
   const nearbyStops = events.filter((event) => nearbyIds.includes(event.id) && event.point);
   useEffect(() => {
     const panel = chooser.current;
@@ -122,7 +147,7 @@ export function TravelMap({
     if (!compact && selectedId) activeActions.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [compact, selectedId]);
   // Keep markers and the visitor's viewport stable through unrelated trip saves.
-  const pinKey = JSON.stringify(events.map((e) => [e.id, e.place, e.point, e.area]));
+  const pinKey = JSON.stringify([trip?.start, events.map((e) => [e.id, e.place, e.date, e.point, e.area, !hiddenMapDays.includes(e.date)])]);
   const destination = trip?.destinations[0] ?? "";
   const initialFocus = useRef(true);
   const geoDot = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
@@ -243,7 +268,7 @@ export function TravelMap({
     if (!ready || !view || loadError) return;
     const controller = new AbortController();
     const points: MapPoint[] = [];
-    const pinned = new Set(events.filter((event) => event.point).map((event) => event.id));
+    const pinned = new Set(events.filter((event) => event.point && !hiddenMapDays.includes(event.date)).map((event) => event.id));
     markers.current.forEach((marker, id) => {
       if (!pinned.has(id)) {
         detachMarker(marker);
@@ -251,14 +276,17 @@ export function TravelMap({
       }
     });
     events.forEach((event, index) => {
-      if (!event.point) return;
+      if (!event.point || hiddenMapDays.includes(event.date)) return;
       points.push(event.point);
       // Another stop finishing its lookup must not detach a focused marker.
       const signature = JSON.stringify([event.place, event.point.lat, event.point.lng, event.area]);
       const existing = markers.current.get(event.id);
       if (existing?.dataset.pinSignature === signature) {
         const numeral = existing.querySelector(".trip-pin-face");
-        if (numeral) numeral.textContent = String(index + 1);
+        if (numeral) {
+          numeral.textContent = String(index + 1);
+          (numeral as HTMLElement).style.setProperty("--trip-day-color", dayColor(event.date));
+        }
         return;
       }
       if (existing) detachMarker(existing);
@@ -267,6 +295,7 @@ export function TravelMap({
       const numeral = document.createElement("span");
       numeral.className = "trip-pin-face";
       numeral.textContent = String(index + 1);
+      numeral.style.setProperty("--trip-day-color", dayColor(event.date));
       face.append(numeral);
       const marker = new google.maps.marker.AdvancedMarkerElement({
         map: view,
@@ -432,6 +461,7 @@ export function TravelMap({
     initialFocus.current = false;
     setNearbyIds([]);
     setEditing(false);
+    setHiddenMapDays((current) => current.filter((date) => date !== event.date));
     select(event.id);
     if (event.point && map.current)
       focusPoint(map.current, event.point, event.area);
@@ -706,13 +736,37 @@ export function TravelMap({
           <h2>
             Places <small>{events.length}</small>
           </h2>
+          {mapDayGroups.length > 0 && (
+            <label className="map-day-all-toggle">
+              <input
+                type="checkbox"
+                aria-label="Show events from all days on the trip"
+                checked={allDaysVisible}
+                onChange={(change) => {
+                  const show = change.currentTarget.checked;
+                  setHiddenMapDays(show ? [] : mapDays);
+                }}
+              />
+              <span>Show events from all days on the trip</span>
+            </label>
+          )}
           {selectedId && !selection && events.length > 0 && (
             <div role="status"><p>This stop was removed or no longer has a location.</p><Button variant="outline" onClick={() => go(8)}>View itinerary</Button></div>
           )}
           {!events.length && (
             <div className="map-empty-places"><p role={selectedId ? "status" : undefined}>{selectedId ? "This stop was removed or no longer has a location." : trip && canEdit(trip, s.userId, trip.start) ? "Add a place to your itinerary to see it on the map." : "Places will appear when a trip editor adds locations to the itinerary."}</p><Button variant="outline" onClick={() => go(8)}>View itinerary</Button>{trip && canEdit(trip, s.userId, trip.start) && <Button onClick={() => go(7, { date: trip.start, return: "17" })}>Add a place</Button>}</div>
           )}
-          {events.map((event, index) => (
+          {mapDayGroups.map((group, groupIndex) => (
+            <div className="map-day-group" key={group.date} style={{ "--trip-day-color": dayColor(group.date) } as React.CSSProperties}>
+              <details className="map-day-disclosure" open={groupIndex === 0 || selection?.date === group.date}>
+                <summary>
+                  <span className="map-day-number">Day {group.day}</span>
+                  <span className="map-day-date">{dateText(group.date, true)}</span>
+                  <small>{group.events.length}</small>
+                  <ChevronRight size={15} aria-hidden="true" />
+                </summary>
+                <div className="map-day-events">
+            {group.events.map((event, index) => (
             <div
               key={event.id}
               className={
@@ -730,7 +784,7 @@ export function TravelMap({
                   } else choose(event);
                 }}
               >
-                <span className="place-number">{index + 1}</span>
+                <span className="place-number" style={{ "--trip-day-color": dayColor(event.date) } as React.CSSProperties}>{index + 1}</span>
                 <span>
                   <strong>{event.name}</strong>
                   <small>{event.place}</small>
@@ -802,6 +856,24 @@ export function TravelMap({
                   {updatedPin === event.id && <p className="pin-update-status" role="status">Pin position updated.</p>}
                 </div>
               )}
+            </div>
+          ))}
+                </div>
+              </details>
+              <label className="map-day-toggle">
+                <input
+                  type="checkbox"
+                  aria-label={`Show Day ${group.day} events on the map`}
+                  checked={visibleMapDays.has(group.date)}
+                  onChange={(change) => {
+                    const show = change.currentTarget.checked;
+                    setHiddenMapDays((current) => show
+                      ? current.filter((date) => date !== group.date)
+                      : current.includes(group.date) ? current : [...current, group.date]);
+                  }}
+                />
+                <span>Show on map</span>
+              </label>
             </div>
           ))}
         </aside>

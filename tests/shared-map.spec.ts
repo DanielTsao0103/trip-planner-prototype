@@ -161,6 +161,7 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
   await expect(
     page.getByRole("link", { name: "Directions", exact: true }),
   ).toHaveCount(0);
+  await page.locator(".map-day-group").filter({hasText: "Day 3"}).locator("summary").click();
   const ferry = page.getByRole("button", {name: /Across the sound.*Bainbridge Island ferry/});
   await ferry.click();
   await page.getByRole("button", { name: "Place pin", exact: true }).click();
@@ -229,10 +230,13 @@ test("a viewer can collapse a stop, return to it with Back, and follow a resched
   }, store);
   await page.route("https://maps.googleapis.com/maps/api/js?**", r => r.abort());
   await page.goto("./#/17");
-  const row = page.getByRole("button", {name: /A morning of art.*Seattle Art Museum/});
+  const museumDay = page.locator(".map-day-group").filter({hasText: "Day 2"});
+  await museumDay.locator("summary").click();
+  const row = museumDay.locator(".place-select").filter({hasText: "A morning of art"});
   await row.click();
   await row.click();
   await expect(row).toHaveAttribute("aria-expanded", "false");
+  await museumDay.locator("summary").click();
   await row.click();
   await page.getByRole("link", {name:"View itinerary item"}).click();
   const item = page.getByRole("article", {name:"A morning of art"});

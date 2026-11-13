@@ -652,13 +652,13 @@ export function Overlays() {
     );
   if (o.kind === "menu")
     return (
-      <Modal title="Your next stop">
+      <Modal title="Your next stop" className="menu-navigation-modal">
         <nav className="menu-sections" aria-label="All pages">
           <section><h3>Workspace</h3><div className="menu-links">
             {[[4, "Home"], [5, "My trips"], [6, "New trip"]].map(([page, label]) => <button key={page} aria-current={app.route.page === page ? "page" : undefined} onClick={() => go(Number(page))}>{label}</button>)}
             <button onClick={() => go(4, {section:"templates"})}>Pre-planned trips</button>
           </div></section>
-          <section><h3>Your trip</h3><div className="menu-links">
+          <section><h3>Your trip{t?.title ? ` - ${t.title}` : ""}</h3><div className="menu-links">
             {[[8, "Itinerary"], [11, "Daily itinerary"], [17, "Map"], [12, "Budget"], [13, "The group"], [9, "Suggestions"], [15, "My preferences"], ...(t && isActive(t, s.date) ? [[10, "Today"]] : [])].map(([page, label]) => <button key={page} aria-current={app.route.page === page ? "page" : undefined} onClick={() => tripGo(Number(page))}>{label}</button>)}
           </div></section>
           <section><h3>Personal</h3><div className="menu-links"><button onClick={() => go(19)}>Your account <Users size={17}/></button><button onClick={() => go(18)}>Style <Palette size={17}/></button><button onClick={() => open("demo")}>Prototype</button></div></section>

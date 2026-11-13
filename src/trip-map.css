@@ -67,7 +67,7 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #244d68;
+  background: var(--trip-day-color, #244d68);
   border: 2px solid white;
   color: white;
   font: 700 14px system-ui;
@@ -87,8 +87,9 @@
 }
 .trip-pin.chosen .trip-pin-face,
 gmp-advanced-marker:focus-visible .trip-pin-face {
-  background: #075bba;
+  background: var(--trip-day-color, #075bba);
   transform: scale(1.16);
+  box-shadow: 0 0 0 2px white;
 }
 .pin-crosshair {
   pointer-events: none;
@@ -131,6 +132,83 @@ gmp-advanced-marker:focus-visible .trip-pin-face {
   font: 500 13px system-ui;
   color: var(--muted);
 }
+.map-day-all-toggle,
+.map-day-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.map-day-all-toggle {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--green) 38%, var(--line));
+  border-radius: var(--ui-radius-control, calc(8px * var(--rs)));
+  background: color-mix(in srgb, var(--green) 9%, var(--paper));
+  color: var(--action-ink, var(--green));
+  font-weight: 600;
+}
+.map-day-all-toggle input,
+.map-day-toggle input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  accent-color: var(--trip-day-color, var(--accent));
+}
+.map-day-all-toggle input { accent-color: var(--action-ink, var(--green)); }
+.map-day-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0 8px;
+  border-bottom: 1px solid var(--line);
+}
+.map-day-disclosure {
+  min-width: 0;
+}
+.map-day-disclosure summary {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 7px;
+  list-style: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+.map-day-disclosure summary::-webkit-details-marker { display: none; }
+.map-day-disclosure summary > svg {
+  flex: 0 0 auto;
+  color: var(--trip-day-color);
+  transition: transform .14s ease;
+}
+.map-day-disclosure[open] summary > svg { transform: rotate(90deg); }
+.map-day-number {
+  color: var(--trip-day-color);
+  font-weight: 700;
+}
+.map-day-date { color: var(--muted); font-size: 13px; }
+.map-day-disclosure summary > small {
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  margin-left: auto;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--trip-day-color) 14%, var(--paper));
+  color: var(--trip-day-color);
+  font: 650 12px system-ui;
+}
+.map-day-toggle {
+  justify-content: flex-end;
+  padding-left: 4px;
+  white-space: nowrap;
+}
+.map-day-events { min-width: 0; }
 .place-row {
   border-bottom: 1px solid var(--line);
 }
@@ -156,8 +234,8 @@ gmp-advanced-marker:focus-visible .trip-pin-face {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #e2ecf2;
-  color: #203f58;
+  background: color-mix(in srgb, var(--trip-day-color) 15%, var(--paper));
+  color: var(--trip-day-color);
   min-width: 25px;
   height: 25px;
   font-size: 12px;

@@ -320,6 +320,7 @@ export function Modal({
   title,
   children,
   wide = false,
+  className = "",
   onClose,
   footer,
   navigation,
@@ -327,6 +328,7 @@ export function Modal({
   title: string;
   children: ReactNode;
   wide?: boolean;
+  className?: string;
   onClose?: () => void;
   footer?: ReactNode;
   navigation?: ReactNode;
@@ -434,7 +436,7 @@ export function Modal({
     >
       <div
         ref={ref}
-        className={`modal ${wide ? "wide" : ""}`}
+        className={`modal ${wide ? "wide" : ""} ${className}`.trim()}
         data-ui="dialog"
         tabIndex={-1}
         role="dialog"

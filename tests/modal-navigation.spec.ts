@@ -57,11 +57,32 @@ test("prototype sections are directly reachable on desktop tablet and short phon
 test("navigation opens the existing template collection and focuses its heading", async ({ page }) => {
   await enterDemo(page);
   await page.goto("./#/12");
+  await page.setViewportSize({ width: 390, height: 844 });
   const menu = page.getByRole("button", { name: "Open navigation menu", exact: true });
   // Desktop uses the same responsive menu once the sidebar collapses.
   if (!await menu.isVisible()) await page.setViewportSize({ width: 768, height: 900 });
   await menu.click();
   const dialog = page.getByRole("dialog", { name: "Your next stop" });
+  const menuTitle = dialog.getByRole("heading", { name: "Your next stop", exact: true });
+  const titleFont = await menuTitle.evaluate((heading) => {
+    const probe = document.createElement("span");
+    probe.style.fontFamily = "var(--font-heading)";
+    heading.append(probe);
+    const selected = getComputedStyle(probe).fontFamily;
+    const actual = getComputedStyle(heading).fontFamily;
+    probe.remove();
+    return { selected, actual };
+  });
+  expect(titleFont.actual).toBe(titleFont.selected);
+  const tripSection = dialog.getByRole("heading", { name: "Your trip - Seattle & Bainbridge getaway", exact: true });
+  await expect(tripSection).toBeVisible();
+  const tripSectionStyle = await tripSection.evaluate((heading) => ({
+    fontSize: Number.parseFloat(getComputedStyle(heading).fontSize),
+    divider: getComputedStyle(heading).borderBottomStyle,
+  }));
+  const menuItemFontSize = await dialog.getByRole("button", { name: "Map", exact: true }).evaluate((button) => Number.parseFloat(getComputedStyle(button).fontSize));
+  expect(tripSectionStyle.fontSize).toBeGreaterThanOrEqual(menuItemFontSize * 1.45);
+  expect(tripSectionStyle.divider).toBe("solid");
   await dialog.getByRole("button", { name: "Pre-planned trips", exact: true }).click();
   await expect(page).toHaveURL(/#\/4\?section=templates$/);
   const heading = page.getByRole("heading", { name: "Pre-planned trips", exact: true });
