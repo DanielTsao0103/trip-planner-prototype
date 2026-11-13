@@ -71,6 +71,7 @@ test("reloaded unsaved itinerary keeps the focused event below its sticky recove
 
 test("desktop recovery leaves itinerary actions usable and canceled discard retains the draft", async ({ page }) => {
   await page.setViewportSize({width:1440,height:900});
+  await page.clock.install();
   const account=await setup(page);
   await page.goto('./#/5');
   await page.getByRole('button',{name:'Open itinerary',exact:true}).click();
@@ -80,11 +81,16 @@ test("desktop recovery leaves itinerary actions usable and canceled discard reta
   await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
   const banner=page.locator('.trip-recovery-banner');
   await expect(banner).toContainText('Not saved:');
+  // Preserve the real reconnect behavior, but keep its three-second automatic
+  // retry from replacing the expanded controls while screenshots are taken.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 100);
   await page.goto('./#/8?view=list');
+  await page.clock.runFor(100);
   await banner.locator('summary').click();
   const lastAdd=page.getByRole('button',{name:'Add event to this day',exact:true}).last();
   for (const width of [1440,1024,768]) {
     await page.setViewportSize({width,height:900});
+    await page.clock.runFor(100);
     await page.evaluate(()=>document.fonts.ready);
     await lastAdd.scrollIntoViewIfNeeded();
     await expect(lastAdd).toBeInViewport({ratio:1});
@@ -101,16 +107,19 @@ test("desktop recovery leaves itinerary actions usable and canceled discard reta
   const confirmation=page.getByRole('dialog',{name:'Discard unsaved trip changes?',exact:true});
   await expect(confirmation).toContainText('Download your unsaved copy first');
   await page.keyboard.press('Escape');
+  await page.clock.runFor(100);
   await expect(discard).toBeFocused();
   await expect(page.getByRole('button',{name:/Keep my desktop plan/}).first()).toBeVisible();
   await lastAdd.click();
   await expect(page.getByLabel('Event name',{exact:true})).toBeVisible();
   await expect(page).toHaveURL(/date=2027-05-04/);
   await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.clock.runFor(100);
   await discard.click();
   await expect(confirmation).toBeVisible();
   account.allowSave();
   await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+  await page.clock.runFor(100);
   await expect(confirmation).toHaveCount(0);
   await expect(banner).toHaveCount(0);
   await page.reload();
