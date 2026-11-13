@@ -1,8 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Bed, Calendar, Car, Copy, Mail, MapPin, Plane, Ticket, Train, Trash2, Utensils } from "lucide-react";
 import { Button, ErrorBox, Modal } from "./ui";
+import { useApp } from "./state";
+import { canEdit } from "./domain";
 import {
+  bookingEventParams,
   bookingsInboxAddress,
+  setBookingTrip,
   formatBookingDate,
   KIND_LABELS,
   loadForwardedBookings,
@@ -30,6 +34,8 @@ function dateRange(b: ForwardedBooking): string {
 
 /** Bookings the signed-in account forwarded by email. Shown on Home for real accounts only. */
 export function ImportedBookings() {
+  const { s, go, mutate } = useApp();
+  const [choice, setChoice] = useState<Record<string, string>>({});
   const [items, setItems] = useState<ForwardedBooking[] | null>(null);
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -62,6 +68,32 @@ export function ImportedBookings() {
     };
   }, [loadAttempt]);
 
+  // Only account trips where this person may add an event on the day the form would open on.
+  function tripsFor(b: ForwardedBooking) {
+    return s.trips.filter(
+      (t) => t.persistence === "account" && canEdit(t, s.userId, bookingEventParams(b, t).date),
+    );
+  }
+
+  function review(b: ForwardedBooking) {
+    const trip = s.trips.find((t) => t.id === choice[b.bookingId]);
+    if (!trip) return;
+    mutate((v) => {
+      v.tripId = trip.id;
+    });
+    go(7, bookingEventParams(b, trip));
+  }
+
+  async function undo(b: ForwardedBooking) {
+    setError("");
+    try {
+      await setBookingTrip(b.bookingId, null);
+      setItems((current) => current && current.map((x) => (x.bookingId === b.bookingId ? { ...x, tripId: null } : x)));
+    } catch {
+      setError("We could not move that booking back. Try again.");
+    }
+  }
+
   async function remove(id: string) {
     if (removing) return;
     setRemoving(id);
@@ -90,6 +122,45 @@ export function ImportedBookings() {
       setCopyError("Copy isn’t available here. Select the address above and copy it manually.");
     }
   }
+
+  const waiting = (items ?? []).filter((b) => !b.tripId);
+  const added = (items ?? []).filter((b) => !!b.tripId);
+
+  const card = (b: ForwardedBooking) => {
+    const Icon = ICONS[b.kind];
+    const dates = dateRange(b);
+    return (
+      <>
+        <Icon size={20} aria-hidden="true" />
+        <div>
+          <span className="muted">{KIND_LABELS[b.kind]}</span>
+          <h3>{b.title}</h3>
+          {dates && (
+            <p>
+              <Calendar size={14} aria-hidden="true" /> {dates}
+            </p>
+          )}
+          {b.location && (
+            <p>
+              <MapPin size={14} aria-hidden="true" /> {b.location}
+            </p>
+          )}
+          {b.confirmationCode && <p>Confirmation: {b.confirmationCode}</p>}
+        </div>
+      </>
+    );
+  };
+  const removeButton = (b: ForwardedBooking) => (
+    <button
+      type="button"
+      className="icon-btn"
+      aria-label={removing === b.bookingId ? `Removing ${b.title}` : `Remove ${b.title}`}
+      disabled={removing !== null}
+      onClick={() => { setError(""); setConfirmRemoval(b); }}
+    >
+      <Trash2 size={16} />
+    </button>
+  );
 
   return (
     <section className="forwarded-bookings" aria-labelledby="forwarded-bookings-title">
@@ -124,45 +195,66 @@ export function ImportedBookings() {
         <p role="alert">{loadError}</p>
         <Button variant="outline" onClick={() => setLoadAttempt(value => value + 1)}>Retry bookings</Button>
       </div>}
-      {items && items.length === 0 && !error && (
-        <p className="muted">Nothing forwarded yet. Bookings usually appear within a minute.</p>
+      {items && waiting.length === 0 && !error && (
+        <p className="muted">
+          {items.length === 0
+            ? "Nothing forwarded yet. Bookings usually appear within a minute."
+            : "Everything forwarded so far has been added to a trip."}
+        </p>
       )}
-      {items && items.length > 0 && (
+      {waiting.length > 0 && (
         <ul className="booking-list">
-          {items.map((b) => {
-            const Icon = ICONS[b.kind];
-            const dates = dateRange(b);
+          {waiting.map((b) => {
+            const trips = tripsFor(b);
             return (
               <li className="card booking-item" key={b.bookingId}>
-                <Icon size={20} aria-hidden="true" />
-                <div>
-                  <span className="muted">{KIND_LABELS[b.kind]}</span>
-                  <h3>{b.title}</h3>
-                  {dates && (
-                    <p>
-                      <Calendar size={14} aria-hidden="true" /> {dates}
-                    </p>
+                {card(b)}
+                <div className="booking-sort">
+                  {trips.length > 0 ? (
+                    <>
+                      <select
+                        aria-label={`Trip for ${b.title}`}
+                        value={choice[b.bookingId] ?? ""}
+                        onChange={(e) => setChoice((c) => ({ ...c, [b.bookingId]: e.target.value }))}
+                      >
+                        <option value="">Choose a trip</option>
+                        {trips.map((t) => (
+                          <option key={t.id} value={t.id}>{t.title}</option>
+                        ))}
+                      </select>
+                      <Button variant="outline" disabled={!choice[b.bookingId]} onClick={() => review(b)}>
+                        Review and add
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="muted">Create a trip, or ask for edit access to one, to add this.</span>
                   )}
-                  {b.location && (
-                    <p>
-                      <MapPin size={14} aria-hidden="true" /> {b.location}
-                    </p>
-                  )}
-                  {b.confirmationCode && <p>Confirmation: {b.confirmationCode}</p>}
+                  {removeButton(b)}
                 </div>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label={removing === b.bookingId ? `Removing ${b.title}` : `Remove ${b.title}`}
-                  disabled={removing !== null}
-                  onClick={() => { setError(""); setConfirmRemoval(b); }}
-                >
-                  <Trash2 size={16} />
-                </button>
               </li>
             );
           })}
         </ul>
+      )}
+      {added.length > 0 && (
+        <>
+          <h3 className="booking-group-title">Added to trips</h3>
+          <ul className="booking-list">
+            {added.map((b) => {
+              const trip = s.trips.find((t) => t.id === b.tripId);
+              return (
+                <li className="card booking-item booking-added" key={b.bookingId}>
+                  {card(b)}
+                  <div className="booking-sort">
+                    <span className="muted">Added to {trip ? trip.title : "a trip"}</span>
+                    <Button variant="text" onClick={() => undo(b)}>Move back</Button>
+                    {removeButton(b)}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
       {confirmRemoval && <Modal title="Remove this booking?" onClose={() => { if (!removing) setConfirmRemoval(null); }}>
         <p><strong>{confirmRemoval.title}</strong></p>

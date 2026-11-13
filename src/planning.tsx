@@ -31,6 +31,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useApp } from "./state";
+import { setBookingTrip } from "./bookings";
 import {
   Avatar,
   Badge,
@@ -451,7 +452,7 @@ export function EventForm() {
       original?.attendees ||
         t.members.filter((m) => m.status === "accepted").map((m) => m.id),
     ),
-    [notes, setNotes] = useState(original?.notes || ""),
+    [notes, setNotes] = useState(original?.notes || route.params.get("notes") || ""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [scan, setScan] = useState(""),
@@ -674,6 +675,12 @@ export function EventForm() {
             && current.place === event.place && !current.point && !current.googlePlaceId) current.googlePlaceId = placeId;
         });
       });
+    }
+    // A forwarded booking leaves the waiting list once its event is on the trip. This only records
+    // which trip it went to; the event itself is saved and shared by the normal trip save above.
+    const fromBooking = route.params.get("booking");
+    if (!original && fromBooking) {
+      void setBookingTrip(fromBooking, t.id).catch(() => toast("The event was added, but the booking is still in your forwarded list."));
     }
     toast(
       original
