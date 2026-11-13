@@ -63,13 +63,14 @@ async function signIn(page: Page) {
   await page.goto("./#/19");
 }
 
-test("an approved admin sees the Admin link beside Style and can manage the access list", async ({ page }) => {
+test("an approved admin sees the Admin link beside Style and manages the access list from the Admin menu", async ({ page }) => {
   const log = await mockSupabase(page, { admin: true });
   await signIn(page);
   const more = page.locator(".menu-links");
   await expect(more.getByRole("button", { name: "Style", exact: true })).toBeVisible();
   await more.getByRole("button", { name: "Admin", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Admin", exact: true, level: 1 })).toBeVisible();
+  await page.getByRole("button", { name: "Manage admin access" }).click();
+  await expect(page.getByRole("heading", { name: "Admin access", exact: true, level: 1 })).toBeVisible();
   const list = page.getByRole("list", { name: "Emails with admin access" });
   await expect(list.getByRole("listitem")).toHaveCount(4);
   // The signed-in admin cannot remove themselves; everyone else has a Remove button.
@@ -87,7 +88,7 @@ test("an approved admin sees the Admin link beside Style and can manage the acce
   expect(log.inserts).toEqual([]);
   await field.fill("  New.Teammate@Example.com ");
   await page.getByRole("button", { name: "Add email", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "new.teammate@example.com can now open the Admin page." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "new.teammate@example.com can now open the Admin pages." })).toBeVisible();
   await expect(list.getByRole("listitem")).toHaveCount(5);
   expect(log.inserts).toEqual(["new.teammate@example.com"]);
 
@@ -106,10 +107,35 @@ test("an approved admin sees the Admin link beside Style and can manage the acce
   await page.screenshot({ path: test.info().outputPath("admin-page.png"), fullPage: true });
 });
 
+test("the Admin page is a menu of four OKR tracker pages, each with its own placeholder", async ({ page }) => {
+  await mockSupabase(page, { admin: true });
+  await signIn(page);
+  await page.locator(".menu-links").getByRole("button", { name: "Admin", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Admin", exact: true, level: 1 })).toBeVisible();
+  const owners = ["Daniel", "Ivy", "Seth", "Drew"];
+  const menu = page.locator(".admin-page .menu-links");
+  await expect(menu.getByRole("button")).toHaveText(owners.map((owner) => `${owner}’s OKR tracker`));
+  // The access list is a secondary page now, not the main content here.
+  await expect(page.getByLabel("Add an email")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Manage admin access" })).toBeVisible();
+  for (const owner of owners) {
+    await menu.getByRole("button", { name: `${owner}’s OKR tracker`, exact: true }).click();
+    await expect(page.getByRole("heading", { name: `${owner}’s OKR tracker`, exact: true, level: 1 })).toBeVisible();
+    await expect(page.getByText("Nothing here yet.")).toBeVisible();
+    const trail = page.getByRole("navigation", { name: "Breadcrumb" });
+    await expect(trail.locator('[aria-current="page"]')).toHaveText(`${owner}’s OKR tracker`);
+    await expect(trail.getByRole("link", { name: "Account", exact: true })).toBeVisible();
+    await trail.getByRole("link", { name: "Admin", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Admin", exact: true, level: 1 })).toBeVisible();
+  }
+  await page.screenshot({ path: test.info().outputPath("admin-menu.png"), fullPage: true });
+});
+
 test("the database refusing to empty the list is reported, not shown as success", async ({ page }) => {
   await mockSupabase(page, { admin: true, lastAdminGuard: true });
   await signIn(page);
   await page.locator(".menu-links").getByRole("button", { name: "Admin", exact: true }).click();
+  await page.getByRole("button", { name: "Manage admin access" }).click();
   await page.getByRole("button", { name: "Remove danieljuntsao@gmail.com" }).click();
   await page.getByRole("button", { name: "Yes, remove", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("at least one admin email");
@@ -122,9 +148,12 @@ test("a signed-in account that is not an admin gets no link and a plain no-acces
   await signIn(page);
   await expect(page.getByRole("button", { name: "Style", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Admin", exact: true })).toHaveCount(0);
-  await page.goto("./#/20");
-  await expect(page.getByRole("heading", { name: "You do not have access to this page." })).toBeVisible();
-  await expect(page.getByLabel("Add an email")).toHaveCount(0);
+  for (const route of [20, 21, 22, 23, 24, 25]) {
+    await page.goto(`./#/${route}`);
+    await expect(page.getByRole("heading", { name: "You do not have access to this page." })).toBeVisible();
+    await expect(page.getByLabel("Add an email")).toHaveCount(0);
+    await expect(page.getByText("Nothing here yet.")).toHaveCount(0);
+  }
   await page.getByRole("button", { name: "Back to account", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Account", exact: true, level: 1 })).toBeVisible();
 });
@@ -136,7 +165,9 @@ test("demo accounts never see Admin and never ask the database", async ({ page }
   await page.goto("./#/19");
   await expect(page.getByRole("button", { name: "Style", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Admin", exact: true })).toHaveCount(0);
-  await page.goto("./#/20");
-  await expect(page.getByRole("heading", { name: "You do not have access to this page." })).toBeVisible();
+  for (const route of [20, 22, 25]) {
+    await page.goto(`./#/${route}`);
+    await expect(page.getByRole("heading", { name: "You do not have access to this page." })).toBeVisible();
+  }
   expect(log.rpc).toBe(0);
 });

@@ -20,6 +20,11 @@ import { MapPage } from "./travelmap";
 import { Overlays } from "./overlays";
 import { StylePage } from "./style-page";
 import { AdminPage } from "./admin-page";
+import { AdminAccessPage } from "./admin-access-page";
+import { DanielOkrTracker } from "./okr/daniel-tracker";
+import { IvyOkrTracker } from "./okr/ivy-tracker";
+import { SethOkrTracker } from "./okr/seth-tracker";
+import { DrewOkrTracker } from "./okr/drew-tracker";
 import { AccountPage } from "./account-page";
 import { Shell, Empty, Button } from "./ui";
 import { PAGES } from "./data";
@@ -106,6 +111,11 @@ export function PrototypeApp() {
       18: <StylePage />,
       19: <AccountPage />,
       20: <AdminPage />,
+      21: <DanielOkrTracker />,
+      22: <IvyOkrTracker />,
+      23: <SethOkrTracker />,
+      24: <DrewOkrTracker />,
+      25: <AdminAccessPage />,
     };
     content = (
       <Shell>

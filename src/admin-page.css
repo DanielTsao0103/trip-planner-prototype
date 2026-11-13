@@ -19,3 +19,7 @@
   :root .admin-row-actions { justify-content: flex-start; }
 }
 :root .admin-page .account-section > .account-note { margin: 0 0 12px; }
+/* OKR tracker pages use the full content width; the page grid owns spacing, so the heading adds none. */
+:root .okr-page { display: grid; gap: 20px; }
+:root .okr-page > .page-head { margin-bottom: 0; }
+:root .admin-page .btn.text > svg { margin-right: 8px; }

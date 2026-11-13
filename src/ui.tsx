@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useApp } from "./state";
 import { BrandLogo } from "./brand-logo";
+import { ADMIN_ACCESS_PAGE, OKR_TRACKERS, okrLabel } from "./okr-trackers";
 import { dateText, isActive, itineraryDay, member, timeText, type Event } from "./domain";
 export const icons = {
   home: House,
@@ -532,9 +533,12 @@ function Breadcrumbs() {
 
   if (page === 19) {
     add("Account", 19);
-  } else if (page === 20) {
+  } else if (page >= 20 && page <= 25) {
     add("Account", 19);
     add("Admin", 20);
+    const tracker = OKR_TRACKERS.find((entry) => entry.page === page);
+    if (tracker) add(okrLabel(tracker.owner), page);
+    else if (page === ADMIN_ACCESS_PAGE) add("Admin access", page);
   } else if (page === 2 || page === 3) {
     add("Connected accounts", 2);
     if (page === 3) add(route.params.get("service") || "Connect provider", 3);
