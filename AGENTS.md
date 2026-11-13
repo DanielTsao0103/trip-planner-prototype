@@ -8,6 +8,8 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 ## Corrections & Lessons Learned
 
+- Planning consistency correction (November 13, 2026): Day & map must reuse the itinerary List view with the list on the left and map on the right, rather than a separate daily-card page. Calendar, List and Day & map share the same navigation bar. Home should be compact on mobile with fewer words, no repeated trip actions, and smaller supporting sections.
+
 - Receipt automation clarification (November 2, 2026): travelers must email receipts to a dedicated Gmail inbox. Model the planned workflow as emailed receipt ingestion, not scanning a traveler's connected personal inbox. The admin portal and automation remain planned.
 - Architecture diagram clarification (November 2, 2026): show the receipt sequence as connected visual steps inside the diagram: email receipt, AI extraction, admin review, Supabase save, and customer display. A footer sentence alone is not enough.
 

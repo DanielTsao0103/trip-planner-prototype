@@ -18,6 +18,7 @@ import {
   Check,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Pause,
   Play,
   Link2,
@@ -556,31 +557,17 @@ export function Home() {
   };
   return (
     <>
-      <PageHead title="Home" action={<Button variant="text" onClick={() => go(4, {section:"templates"})}>Browse trip ideas <ArrowRight size={16}/></Button>} />
-      {recentTrips.length > 0 && <section className="continue-planning" aria-label="Continue planning">
-        <div className="section-title"><div><span className="eyebrow">YOUR NEXT CHAPTER</span><h2>Pick up where you left off</h2></div><Button variant="text" onClick={() => go(5)}>All trips <ArrowRight size={16}/></Button></div>
-        <div className="recent-trip-grid">{recentTrips.map(trip => <button type="button" key={trip.id} className="recent-trip-card" onClick={() => {mutate(store => {store.tripId=trip.id;}); go(8);}}>
-          <Photo src={trip.image} alt=""/><span className="recent-trip-copy"><span>{tripDateRange(trip.start,trip.end)}</span><strong>{trip.title}</strong><span>{trip.destinations.join(" · ")}</span><span className="resume-label">Continue planning <ArrowUpRight size={16}/></span></span>
-        </button>)}</div>
-      </section>}
-      <div className="home-actions">
-        <Button onClick={() => go(6)}>
-          <Plus size={20} />
-          New Trip
-          <ArrowRight className="push" size={18} />
-        </Button>
-        <Button variant="outline" onClick={() => go(5)}>
-          Open existing trip
-          <ArrowRight className="push" size={18} />
-        </Button>
-      </div>
-      {accountTrips && <details className="home-bookings"><summary><Mail size={18}/> Forwarded bookings <span>Import your travel confirmations</span></summary><ImportedBookings /></details>}
-      <div className="section-title">
-        <div>
-          <h2 id="preplanned-trips" ref={templateHeading} tabIndex={-1}>Pre-planned trips</h2>
-          <p>Choose a starting point. You can adjust the plan and dates when you add it.</p>
-        </div>
-        <span className="muted">Illustrative estimates per person</span>
+      <div className="home-workspace">
+      <PageHead title="Home" action={<Button onClick={() => go(6)}><Plus size={18}/>New trip</Button>} />
+      <section className="continue-planning" aria-label="Continue planning">
+        <div className="section-title"><h2>Your trips</h2><Button variant="text" onClick={() => go(5)}>All trips <ArrowRight size={16}/></Button></div>
+        {recentTrips.length > 0 ? <div className="recent-trip-grid">{recentTrips.map(trip => <button type="button" key={trip.id} className="recent-trip-card" aria-label={`Continue planning ${trip.title}`} onClick={() => {mutate(store => {store.tripId=trip.id;}); go(8);}}>
+          <Photo src={trip.image} alt=""/><span className="recent-trip-copy"><strong>{trip.title}</strong><span>{tripDateRange(trip.start,trip.end)}</span></span><ArrowUpRight size={18}/>
+        </button>)}</div> : <div className="home-empty"><p>No trips yet. Start with a new trip or an idea below.</p></div>}
+      </section>
+      <div className="section-title home-ideas-heading">
+        <h2 id="preplanned-trips" ref={templateHeading} tabIndex={-1}>Pre-planned trips</h2>
+        <span className="muted">Estimated per person</span>
       </div>
       <div className="planned-carousel" role="region" aria-roledescription="carousel" aria-label="Pre-planned trip carousel">
         <div className="planned-carousel-controls">
@@ -590,7 +577,7 @@ export function Home() {
             <button type="button" className="icon-btn" aria-label="Next trips" onClick={() => moveCarousel(1)}><ChevronRight size={19} /></button>
             <button type="button" className="carousel-pause" aria-pressed={carouselPaused} onClick={() => setCarouselPaused(paused => !paused)}>
               {carouselPaused ? <Play size={15} /> : <Pause size={15} />}
-              {carouselPaused ? "Play" : "Pause"} rotation
+              <span className="sr-only">{carouselPaused ? "Play" : "Pause"} rotation</span>
             </button>
           </div>
         </div>
@@ -624,18 +611,10 @@ export function Home() {
           </div>
         </div>
       </div>
-      <div className="sample-feature">
-        <div>
-          <Badge tone="green">Sample trip</Badge>
-          <h2>Seattle & Bainbridge Island</h2>
-          <p>
-            Preview a sample itinerary, budget, and traveler preferences.
-          </p>
-          <Button variant="light" aria-label="Open the sample trip" onClick={explore}>
-            Open sample trip <ArrowUpRight size={16} />
-          </Button>
-        </div>
-        <Photo src={IMAGES.seattle} alt="Seattle skyline" />
+      <div className="home-utilities">
+        {accountTrips && <details className="home-bookings"><summary><Mail size={18}/> Forwarded bookings <ChevronDown size={16}/></summary><ImportedBookings /></details>}
+        <Button variant="text" aria-label="Open the sample trip" onClick={explore}>Explore sample trip <ArrowUpRight size={16}/></Button>
+      </div>
       </div>
     </>
   );

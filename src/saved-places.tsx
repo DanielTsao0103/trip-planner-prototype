@@ -7,7 +7,7 @@ import { Button, ConfirmDialog, ErrorBox, Field, Modal } from "./ui";
 import { EventLocationInput } from "./event-location-input";
 
 /** Unscheduled ideas use the existing trip transaction and recovery journal. */
-export function SavedPlaces({ date }: { date: string }) {
+export function SavedPlaces({ date, view = "list" }: { date: string; view?: "calendar" | "list" | "map" }) {
   const { trip, s, updateTrip, go } = useApp();
   const [discarding, setDiscarding] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -87,7 +87,7 @@ export function SavedPlaces({ date }: { date: string }) {
                 <Button
                   variant="outline"
                   onClick={() =>
-                    go(7, { savedPlace: item.id, date, view: "list" })
+                    go(7, { savedPlace: item.id, date, ...(view === "map" ? {return:"11"} : {view}) })
                   }
                 >
                   Schedule <ArrowRight size={15} />

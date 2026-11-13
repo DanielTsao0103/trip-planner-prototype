@@ -57,7 +57,7 @@ export const PAGES: Record<number, string> = {
   8: "Itinerary",
   9: "Suggestions",
   10: "Active trip",
-  11: "Day detail / Calendar",
+  11: "Day & map",
   12: "Budget",
   13: "Collaborators",
   14: "Reserved — no source page",

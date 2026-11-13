@@ -98,7 +98,7 @@ Nearby entry points use a shared popup and prepared Supabase Edge Function with 
 
 ## November 13 planning workspace
 
-The daily screen reuses `TravelMap` with its date filter and controlled stop selection. Desktop shows list and map together; phone/tablet retain a selected-day toggle. Compact cards use optional thumbnails, expandable notes, and direct editing/directions. Home shows accessible saved trips before templates; forwarded-booking controls remain inside a disclosure.
+Page 11 now renders the same `Itinerary` list used by Page 8, with the shared Calendar/List/Day & map navigation bar. The date-filtered `TravelMap` sits on the right on desktop and above the list on smaller screens. Stop selection reveals notes, editing and directions while preserving the existing event-link and collaborator-focus behavior. Saved-place scheduling returns to the originating view. Home shows compact accessible-trip rows before a concise template carousel; duplicate trip actions and the large sample banner are removed, while bookings and sample entry remain available.
 
 `Trip.savedPlaces` is an optional, recovery-validated collection of unscheduled places. Account bundles persist it in `trip.saved_places` through the existing revision/idempotency transaction. The server validates nested keys, lengths, coordinates, duplicate IDs, and the 200-place limit. Owner/Editor changes are allowed; Viewer/Day Editor changes are rejected. Older clients that omit the field preserve it. Scheduling removes an idea and adds an event atomically; stale ideas cannot be scheduled over newer changes.
 

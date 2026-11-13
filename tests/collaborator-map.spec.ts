@@ -70,7 +70,7 @@ test("a viewer follows a shared pin, receives itinerary changes, and loses acces
   trip.revision++;
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(event).toContainText("Meet at the south door");
-  await expect(page.getByRole("heading", { name: /Sunday/ })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Map of selected day" }).getByRole("heading", { name: /Sunday/ })).toBeVisible();
   await expect(page).toHaveURL(/date=2027-05-02/);
   await expect(nextDay).toBeFocused();
   await page.goBack();
@@ -87,7 +87,7 @@ test("a viewer follows a shared pin, receives itinerary changes, and loses acces
   await page.reload();
   await page.getByRole("button", { name: "View day", exact: true }).click();
   await expect(page).toHaveURL(/date=2027-05-02/);
-  await expect(page.getByRole("heading", { name: /Sunday/ })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Map of selected day" }).getByRole("heading", { name: /Sunday/ })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("moved-then-removed-day.png") });
   trip.content.events = [movedEvent];
   trip.revision++;

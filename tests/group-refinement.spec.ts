@@ -156,7 +156,7 @@ test('ordinary account preferences keep their scoped draft through a permission 
   await page.getByLabel('Email', { exact: true }).fill(account.email);
   await page.getByLabel('Password', { exact: true }).fill('fixture-password');
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
-  await page.getByRole('button', { name: 'Open existing trip', exact: true }).click();
+  await page.getByRole('button', { name: 'All trips', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Fixture trip', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Fixture trip', exact: true }).click();
   await page.goto('./#/15');

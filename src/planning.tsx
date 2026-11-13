@@ -70,9 +70,20 @@ import {
   type Event,
 } from "./domain";
 import { TravelMap } from "./travelmap";
-export function Itinerary() {
+/** One navigation control for all itinerary presentations, preserving the day. */
+function ItineraryViews({ view, date }: { view: "calendar" | "list" | "map"; date: string }) {
+  const { go } = useApp();
+  return <div className="itinerary-view-switch" role="group" aria-label="Itinerary view">
+    <button type="button" aria-pressed={view === "calendar"} onClick={() => go(8, {view:"calendar",date})}>Calendar</button>
+    <button type="button" aria-pressed={view === "list"} onClick={() => go(8, {view:"list",date})}>List</button>
+    <button type="button" aria-pressed={view === "map"} onClick={() => go(11, {date})}>Day &amp; map</button>
+  </div>;
+}
+
+export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
   const { trip: t, s, go, open, route } = useApp();
-  const view = route.params.get("view") === "list" ? "list" : "calendar";
+  const view = mapMode ? "map" : route.params.get("view") === "list" ? "list" : "calendar";
+  const [mapEvent, setMapEvent] = useState(route.params.get("event") || "");
   const [dayPage, setDayPage] = useState(0);
   const pageSizeAnchor = useRef<{ tripId: string; date: string; origin: Element | null } | null>(null);
   const pendingReveal = useRef<{ date: string; event: string | null; origin: Element | null } | null>(null);
@@ -91,8 +102,9 @@ export function Itinerary() {
     try { localStorage.setItem("trip-planner-list-days", String(value)); } catch { /* Keep the current view usable. */ }
   };
   const [activeDay, setActiveDay] = useState(t?.start || "");
-  const requestedDate = route.params.get("date");
+  const requestedDate = mapMode && t ? itineraryDay(t, route.params.get("event"), route.params.get("date"), s.date) : route.params.get("date");
   const requestedEvent = route.params.get("event");
+  useEffect(() => { setMapEvent(requestedEvent || ""); }, [requestedEvent, requestedDate, t?.id]);
   useLayoutEffect(() => {
     const dates = t ? days(t.start, t.end) : [];
     const anchor = pageSizeAnchor.current?.tripId === t?.id ? pageSizeAnchor.current : null;
@@ -101,7 +113,10 @@ export function Itinerary() {
     const index = focusedDate ? dates.indexOf(focusedDate) : -1;
     setDayPage(index < 0 ? 0 : Math.floor(index / daysPerPage));
     setActiveDay(index < 0 ? dates[0] || "" : focusedDate!);
-    pendingReveal.current = view === "list" && index >= 0 ? {
+    // Existing daily-item focus restoration owns visible event links. Only
+    // defer their reveal here when pagination has not mounted the target yet.
+    const needsReveal = view === "list" || (mapMode && (!requestedEvent || !document.getElementById(`day-event-${requestedEvent}`)));
+    pendingReveal.current = needsReveal && index >= 0 ? {
       date: focusedDate!, event: focusedDate === requestedDate ? requestedEvent : null,
       origin: anchor ? anchor.origin : document.activeElement,
     } : null;
@@ -111,7 +126,7 @@ export function Itinerary() {
   useLayoutEffect(() => {
     const pending = pendingReveal.current;
     if (!pending) return;
-    const target = (pending.event && document.getElementById(`itinerary-event-${pending.event}`)) || document.getElementById(`day-${pending.date}`);
+    const target = (pending.event && document.getElementById(`${mapMode ? "day" : "itinerary"}-event-${pending.event}`)) || document.getElementById(`day-${pending.date}`);
     if (!target) return;
     const frame = requestAnimationFrame(() => {
       if (pendingReveal.current !== pending || !target.isConnected) return;
@@ -134,9 +149,14 @@ export function Itinerary() {
   const pageEnd = Math.min(pageStart + daysPerPage, allDays.length);
   const visibleDays = allDays.slice(pageStart, pageEnd);
   const dayRange = `Days ${allDays.length ? pageStart + 1 : 0}–${pageEnd} of ${allDays.length}`;
+  const changeDayPage = (nextPage: number) => {
+    setDayPage(nextPage);
+    setActiveDay(allDays[nextPage * daysPerPage]);
+    setMapEvent("");
+  };
   const pageFromBottom = (nextPage: number) => {
     pendingReveal.current = { date: allDays[nextPage * daysPerPage], event: null, origin: document.activeElement };
-    setDayPage(nextPage);
+    changeDayPage(nextPage);
   };
   const renderDayPager = () => (
     <div className="day-page-controls" role="navigation" aria-label="Itinerary day pages">
@@ -149,15 +169,20 @@ export function Itinerary() {
         </select>
       </label>
       <div className="day-page-navigation">
-        {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage - 1)} disabled={currentPage === 0} aria-label="Previous days"><ChevronLeft size={16} /></button>}
+        {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => changeDayPage(currentPage - 1)} disabled={currentPage === 0} aria-label="Previous days"><ChevronLeft size={16} /></button>}
         <span aria-live="polite">{dayRange}</span>
-        {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => setDayPage(currentPage + 1)} disabled={currentPage >= pageCount - 1} aria-label="Next days"><ChevronRight size={16} /></button>}
+        {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => changeDayPage(currentPage + 1)} disabled={currentPage >= pageCount - 1} aria-label="Next days"><ChevronRight size={16} /></button>}
       </div>
     </div>
   );
   const personalBudget = t.budgetMode === "individual";
   const budget = personalBudget ? (t.individual[traveler.id] ?? null) : t.budget;
   const totalSpent = spent(t, personalBudget ? traveler.id : undefined);
+  const mapDate = activeDay || requestedDate || t.start;
+  const selectStop = (event: Event) => {
+    setActiveDay(event.date);
+    setMapEvent(event.id);
+  };
   return (
     <>
       <div className={`trip-hero ${view === "calendar" ? "calendar-trip-hero" : "list-trip-hero"}`}>
@@ -211,11 +236,11 @@ export function Itinerary() {
         {role !== "Viewer" && <Button
           onClick={() =>
             go(7, {
-              view,
+              ...(mapMode ? {return: "11"} : {view}),
               date:
                 role === "Day Editor"
                   ? traveler.days[0] || t.start
-                  : t.start,
+                  : activeDay || t.start,
             })
           }
         >
@@ -223,17 +248,13 @@ export function Itinerary() {
           Add event
         </Button>}
       </div>
-      <div className="itinerary-view-switch" role="group" aria-label="Itinerary view">
-        <button type="button" aria-pressed={view === "calendar"} onClick={() => go(8, { view: "calendar", date: activeDay || t.start })}>Calendar</button>
-        <button type="button" aria-pressed={view === "list"} onClick={() => go(8, { view: "list", date: activeDay || t.start })}>List</button>
-        <button type="button" onClick={() => go(11, {date: activeDay || t.start})}>Day & map</button>
+      <ItineraryViews view={view} date={activeDay || t.start} />
       </div>
-      </div>
-      {view === "list" && <SavedPlaces date={activeDay || t.start} />}
+      {view !== "calendar" && <SavedPlaces date={activeDay || t.start} view={view} />}
       {role === "Viewer" && <ReadOnly />}
       {role === "Day Editor" && <ReadOnly day />}
-      {view === "calendar" ? <><WeeklyCalendar key={t.id} /><SavedPlaces date={activeDay || t.start} /></> : <div className="itinerary-layout">
-        <div>
+      {view === "calendar" ? <><WeeklyCalendar key={t.id} /><SavedPlaces date={activeDay || t.start} view="calendar" /></> : <div className={`itinerary-layout${mapMode ? " itinerary-map-layout" : ""}`}>
+        <div className="itinerary-day-list">
           <div className="day-chips" hidden={pageCount > 1}>
             {visibleDays.map((date, pageIndex) => (
               <a
@@ -243,6 +264,7 @@ export function Itinerary() {
                 onClick={(e) => {
                   e.preventDefault();
                   setActiveDay(date);
+                  setMapEvent("");
                   document
                     .getElementById(`day-${date}`)
                     ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -255,7 +277,7 @@ export function Itinerary() {
           </div>
           {allDays.length > 7 && <div className="day-navigation-tools">
           {pageCount > 1 && <div className="day-jump"><label htmlFor="itinerary-day-jump">Jump to day</label><select id="itinerary-day-jump" value="" onChange={event => {
-            const date=event.target.value; setDayPage(Math.floor(allDays.indexOf(date) / daysPerPage));
+            const date=event.target.value; setDayPage(Math.floor(allDays.indexOf(date) / daysPerPage)); setActiveDay(date); setMapEvent("");
             requestAnimationFrame(() => document.getElementById(`day-${date}`)?.scrollIntoView({block:"start"}));
           }}><option value="" disabled>Choose a date</option>{allDays.map((date,index)=><option key={date} value={date}>Day {index+1} · {dateText(date)}</option>)}</select></div>}
           {renderDayPager()}
@@ -270,7 +292,7 @@ export function Itinerary() {
             <Button
               onClick={() =>
                 go(7, {
-                  view: "list",
+                  ...(mapMode ? {return:"11"} : {view:"list"}),
                   date:
                     role === "Day Editor"
                       ? traveler.days[0] || t.start
@@ -310,7 +332,7 @@ export function Itinerary() {
                   {canEdit(t, s.userId, date) && <button
                     className="text-link"
                     aria-label="Add event to this day"
-                    onClick={() => go(7, { date, view: "list" })}
+                    onClick={() => go(7, { date, ...(mapMode ? {return:"11"} : {view:"list"}) })}
                   ><Plus size={15} />Add event</button>}
                 </div>
               </section>
@@ -331,14 +353,25 @@ export function Itinerary() {
                 </div>
                 <button
                   className="text-link push"
-                  onClick={() => go(11, { date })}
+                  onClick={() => mapMode ? (setActiveDay(date), setMapEvent("")) : go(11, { date })}
                 >
-                  View day <ArrowUpRight size={15} />
+                  {mapMode ? "Show on map" : "View day"} <ArrowUpRight size={15} />
                 </button>
               </div>
                 <div className="events-list">
                   {events.map((e) => (
-                    <EventCard key={e.id} id={`itinerary-event-${e.id}`} event={e} />
+                    mapMode ? <article key={e.id} id={`day-event-${e.id}`} tabIndex={-1} aria-label={e.name} className={`map-list-stop ${mapEvent === e.id ? "focused" : ""}`}>
+                      <EventCard event={e} selected={mapEvent === e.id} onSelect={() => selectStop(e)} />
+                      {mapEvent === e.id && <div className="map-stop-details">
+                        <div className="row">
+                          <span>{e.attendees.length} travelers · {e.cost ? `${money(e.cost)} estimated` : "No cost planned"}</span>
+                          {canEdit(t,s.userId,e.date) && <Button variant="text" onClick={() => go(7,{event:e.id,date:e.date,return:"11"})}><Pencil size={16}/>Edit event</Button>}
+                        </div>
+                        {e.notes && <EventNotes key={e.id} notes={e.notes}/>}
+                        <div className="row"><button type="button" className="text-link" onClick={() => {selectStop(e); document.getElementById("itinerary-day-map")?.scrollIntoView({block:"nearest",behavior:"smooth"});}}><MapPin size={14}/>{e.place}</button>
+                        <a className="text-link" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(e.point ? `${e.point.lat},${e.point.lng}` : e.place)}`} target="_blank" rel="noreferrer">Directions <ArrowUpRight size={14}/></a></div>
+                      </div>}
+                    </article> : <EventCard key={e.id} id={`itinerary-event-${e.id}`} event={e} />
                   ))}
                 </div>
             </section>
@@ -350,7 +383,16 @@ export function Itinerary() {
             {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => pageFromBottom(currentPage + 1)} disabled={currentPage >= pageCount - 1} aria-label="Next days"><ChevronRight size={16} /></button>}
           </div>}
         </div>
-        <aside className="itinerary-aside">
+        {mapMode ? <aside id="itinerary-day-map" className="day-map-panel" aria-label="Map of selected day">
+          <div className="day-map-heading"><h2>{new Date(mapDate + "T12:00:00").toLocaleDateString("en-US", {weekday:"long"})}, {dateText(mapDate,true)}</h2><Button variant="text" onClick={() => go(17,mapEvent ? {event:mapEvent} : {})}>Full map <ArrowUpRight size={15}/></Button></div>
+          <div className="day-control">
+            <Button variant="outline" aria-label="Previous day" disabled={mapDate===t.start} onClick={() => go(11,{date:allDays[allDays.indexOf(mapDate)-1]})}><ChevronLeft size={16}/></Button>
+            <DatePicker label="Choose a day" value={mapDate} min={t.start} max={t.end} onChange={date => {if(date >= t.start && date <= t.end) go(11,{date});}}/>
+            <Button variant="outline" aria-label="Next day" disabled={mapDate===t.end} onClick={() => go(11,{date:allDays[allDays.indexOf(mapDate)+1]})}><ChevronRight size={16}/></Button>
+          </div>
+          <TravelMap key={`${t.id}:${mapDate}`} compact date={mapDate} selectedEvent={mapEvent} onSelectEvent={id => {setMapEvent(id); if(id) requestAnimationFrame(() => document.getElementById(`day-event-${id}`)?.scrollIntoView({block:"nearest",behavior:"smooth"}));}}/>
+          <Button variant="text" onClick={() => open("nearby",{date:mapDate})}><Sparkles size={16}/>Find something nearby</Button>
+        </aside> : <aside className="itinerary-aside">
           <div className="card inspiration-card">
             <span className="little-icon">
               <Sparkles size={22} />
@@ -395,7 +437,7 @@ export function Itinerary() {
               Your travel preferences <ArrowRight size={15} />
             </button>
           </div>
-        </aside>
+        </aside>}
       </div>}
     </>
   );
@@ -1420,156 +1462,20 @@ function EventNotes({ notes }: { notes: string }) {
   </div>;
 }
 
+/** Keep existing day/event links valid while rendering the shared itinerary. */
 export function DayDetail() {
-  const { trip: t, s, route, go, open } = useApp();
+  const { trip: t, s, route, go } = useApp();
   const selectedEvent = route.params.get("event");
-  const [mapEvent, setMapEvent] = useState(selectedEvent || "");
-  const [dayView, setDayView] = useState<"list" | "map">("list");
-  useEffect(() => { setMapEvent(selectedEvent || ""); }, [selectedEvent, route.params.get("date"), t?.id]);
   const requested = route.params.get("date");
   const selectedDate = t?.events.find(event => event.id === selectedEvent)?.date;
   useEffect(() => {
-    if (selectedEvent && selectedDate && selectedDate !== requested) {
-      // Keep the displayed shared event's day in this history entry. If it is
-      // later removed, recovery and reload still return to the day just viewed.
+    if (selectedEvent && selectedDate && selectedDate !== requested)
       go(11, { ...Object.fromEntries(route.params), date: selectedDate }, true);
-    }
   }, [selectedEvent, selectedDate, requested, route.params, go]);
   if (!t) return null;
-  const date = itineraryDay(t, selectedEvent, requested, s.date);
-  if (selectedEvent && !t.events.some((event) => event.id === selectedEvent)) {
+  if (selectedEvent && !t.events.some(event => event.id === selectedEvent)) {
+    const date = itineraryDay(t, selectedEvent, requested, s.date);
     return <UnavailableItineraryItem label="View day" onReturn={() => go(11, { date })} />;
   }
-  const list = days(t.start, t.end),
-    index = list.indexOf(date),
-    events = orderedEvents(t, date),
-    allowed = canEdit(t, s.userId, date);
-  return (
-    <>
-      <PageHead
-        eyebrow={`DAY ${index + 1} OF ${list.length}`}
-        title={
-          new Date(date + "T12:00:00").toLocaleDateString("en-US", {
-            weekday: "long",
-          }) +
-          ", " +
-          dateText(date, true)
-        }
-        description={zoneText(t.zone)}
-        action={allowed && events.length > 0 &&
-          <Button onClick={() => go(7, { date, return: "11" })}>
-            <Plus size={17} />
-            Add event
-          </Button>
-        }
-      />
-      <div className="day-planner-controls">
-      <div className="day-control">
-        <Button
-          variant="outline"
-          aria-label="Previous day"
-          disabled={index === 0}
-          onClick={() => go(11, { date: list[index - 1] })}
-        >
-          <ChevronLeft size={18} />
-        </Button>
-        <DatePicker
-          label="Choose a day"
-          min={t.start}
-          max={t.end}
-          value={date}
-          onChange={(next) => {
-            if (next >= t.start && next <= t.end) go(11, { date: next });
-          }}
-        />
-        <Button
-          variant="outline"
-          aria-label="Next day"
-          disabled={index === list.length - 1}
-          onClick={() => go(11, { date: list[index + 1] })}
-        >
-          <ChevronRight size={18} />
-        </Button>
-      </div>
-      {!allowed && (
-        <ReadOnly day={member(t, s.userId)?.role === "Day Editor"} />
-      )}
-      <div className="planner-viewbar" aria-label="Planning views">
-        <div className="itinerary-view-switch day-view-switch" role="group" aria-label="Day view">
-          <button type="button" aria-pressed={dayView === "list"} onClick={() => setDayView("list")}>Day plan</button>
-          <button type="button" aria-pressed={dayView === "map"} onClick={() => setDayView("map")}>Day map</button>
-        </div>
-        <Button variant="text" onClick={() => go(8, {date, view:"calendar"})}><CalendarDays size={16}/> Calendar</Button>
-        <Button variant="text" onClick={() => go(8, {date, view:"list"})}>Whole itinerary <ArrowUpRight size={16}/></Button>
-        <Button variant="text" onClick={() => open("nearby", {date})}><Sparkles size={16}/> Find something nearby</Button>
-      </div>
-      </div>
-      <div className={`day-detail-layout planning-workspace day-view-${dayView}`}>
-        <div className="timeline">
-          {events.map((e, i) => (
-            <div className="timeline-item" key={e.id}>
-              <div className="timeline-hour">
-                <small>Start</small>
-                <span>{timeText(e.start)}</span>
-                <small>End</small>
-                <span>{timeText(e.end)}</span>
-                {durationText(e.start, e.end) && (
-                  <span className="duration">
-                    {durationText(e.start, e.end)}
-                  </span>
-                )}
-              </div>
-              <div className="timeline-dot"><span>{i + 1}</span></div>
-              <article
-                id={`day-event-${e.id}`}
-                tabIndex={selectedEvent === e.id ? -1 : undefined}
-                aria-labelledby={`event-title-${e.id}`}
-                className={`card detail-event compact-stop ${mapEvent === e.id ? "focused" : ""}`}
-              >
-                <Photo src={e.image} alt={e.place} optional />
-                <div>
-                  <div className="stop-title">
-                    <h2 id={`event-title-${e.id}`}>{e.name}</h2>
-                    {canEdit(t, s.userId, e.date) && <button type="button" className="icon-btn" aria-label="Edit event" title="Edit event" onClick={() => go(7, {event:e.id,date,return:"11"})}><Pencil size={16}/></button>}
-                  </div>
-                  <button
-                    className="text-link"
-                    title={`Show ${e.name} on day map`}
-                    onClick={() => { setMapEvent(e.id); setDayView("map"); }}
-                  >
-                    <MapPin size={14} />
-                    {e.place}
-                  </button>
-                  <div className="stop-meta"><span>{e.attendees.length} {e.attendees.length === 1 ? "traveler" : "travelers"}</span><span>{e.cost ? `${money(e.cost)} estimated` : "No cost planned"}</span></div>
-                  <div className="stop-secondary">{e.notes && <details className="stop-notes" open={selectedEvent === e.id || undefined}><summary>Notes</summary><EventNotes key={e.id} notes={e.notes} /></details>}
-                  <a className="text-link stop-directions" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(e.point ? `${e.point.lat},${e.point.lng}` : e.place)}`} target="_blank" rel="noreferrer">Directions <ArrowUpRight size={14}/></a></div>
-                </div>
-              </article>
-            </div>
-          ))}
-          {!events.length && (
-            <Empty
-              title="No events scheduled"
-              action={
-                allowed ? (
-                  <Button onClick={() => go(7, { date, return: "11" })}>
-                    Add the first event
-                  </Button>
-                ) : undefined
-              }
-            />
-          )}
-        </div>
-        <aside className="day-map-panel" aria-label="Map of selected day">
-          <div className="day-map-heading"><div><span className="eyebrow">EXPLORE YOUR DAY</span><h2>{dateText(date, true)} · {events.length} {events.length === 1 ? "stop" : "stops"}</h2></div>
-            <Button variant="text" onClick={() => go(17, mapEvent ? {event:mapEvent} : {})}>Full map <ArrowUpRight size={15}/></Button></div>
-          <TravelMap key={`${t.id}:${date}`} compact date={date} selectedEvent={mapEvent} onSelectEvent={id => {
-            setMapEvent(id);
-            if (id && window.matchMedia("(min-width:1200px)").matches) requestAnimationFrame(() => document.getElementById(`day-event-${id}`)?.scrollIntoView({block:"nearest",behavior:"smooth"}));
-          }}/>
-
-        </aside>
-      </div>
-    </>
-  );
+  return <Itinerary mapMode />;
 }

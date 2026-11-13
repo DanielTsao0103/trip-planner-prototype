@@ -271,7 +271,7 @@ Nearby research includes a targeted public Yelp search alongside venue/official-
 
 ## Planning workspace update (November 13, 2026)
 
-Complete: compact numbered daily stops, notes disclosures, a synchronized selected-day map, phone Day plan/Day map switching, date-preserving Calendar/List navigation, and returning-user trip cards on Home. Existing calendar gestures, event entry, full-map tools, budgets, and group controls remain available.
+Complete: one Calendar/List/Day & map navigation bar; the same paginated list in List and Day & map, with a synchronized map beside it on desktop and stacked on small screens; expandable selected-stop details; date-preserving navigation; compact returning-trip rows and simplified Home actions. Existing calendar gestures, event entry, full-map tools, budgets, and group controls remain available.
 
 Complete: Saved places collects name, location, coordinates/place ID, and notes without requiring a schedule. Owners and Editors can save/remove ideas or schedule one through the existing event form; scheduling removes the idea and creates the event in one trip transaction. Viewer and Day Editor grants cannot alter unscheduled ideas. Migration `20261113223634_saved_places.sql` was applied to the configured project after rollback validation; omitted fields from older clients preserve existing ideas.
 

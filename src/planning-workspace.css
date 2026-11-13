@@ -1,126 +1,4 @@
-/* Wanderlog-inspired planning density, using Stir Crazy's chosen theme tokens. */
-:root .planner-viewbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 0 24px;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 16px;
-}
-:root .planning-workspace {
-  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 1fr);
-  gap: 28px;
-}
-:root .planning-workspace .timeline:before {
-  left: 87px;
-  background: var(--line);
-}
-:root .planning-workspace .timeline-item {
-  grid-template-columns: 64px 28px minmax(0, 1fr);
-  gap: 10px;
-  margin-bottom: 16px;
-}
-:root .planning-workspace .timeline-hour {
-  padding-top: 12px;
-}
-:root .planning-workspace .timeline-hour small {
-  font-size: 10px;
-}
-:root .planning-workspace .timeline-hour > span {
-  font-size: 12px;
-  margin-top: 2px;
-}
-:root .planning-workspace .timeline-dot {
-  width: 28px;
-  height: 28px;
-  top: 12px;
-  left: 0;
-  border: 0;
-  display: grid;
-  place-items: center;
-  background: var(--green);
-  color: var(--on-primary);
-  font-size: 13px;
-  font-weight: 700;
-}
-:root .compact-stop {
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: flex-start;
-  padding: 16px;
-  gap: 14px;
-  border: 1px solid var(--line);
-  background: var(--paper);
-  border-radius: var(--ui-radius-card);
-}
-:root .compact-stop > img {
-  width: 76px;
-  height: 76px;
-  flex: 0 0 76px;
-  object-fit: cover;
-  border-radius: var(--ui-radius-control);
-}
-:root .compact-stop > div {
-  min-width: 0;
-  padding: 0;
-  flex: 1;
-}
-:root .compact-stop h2 {
-  font-size: 19px;
-  line-height: 1.3;
-  letter-spacing: -0.3px;
-  margin: 4px 0;
-  overflow-wrap: anywhere;
-}
-:root .compact-stop .eyebrow {
-  font-size: 10px;
-  margin: 0;
-}
-:root .compact-stop .text-link {
-  font-size: 13px;
-  text-align: left;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  line-height: 1.45;
-}
-:root .compact-stop .row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-:root .compact-stop .badge {
-  font-size: 12px;
-}
-:root .compact-stop p {
-  font-size: 14px;
-  margin: 8px 0;
-}
-:root .stop-notes {
-  margin-top: 8px;
-}
-:root .stop-notes summary {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  font-size: 13px;
-  cursor: pointer;
-  color: var(--green);
-}
-:root .stop-notes summary:before {
-  content: "+";
-  margin-right: 8px;
-}
-:root .stop-notes[open] summary:before {
-  content: "−";
-}
-:root .stop-directions {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
+/* Shared itinerary presentations and compact Home use the existing theme. */
 :root .day-map-panel {
   position: sticky;
   top: calc(90px + var(--recovery-clearance, 0px));
@@ -155,28 +33,6 @@
   display: block;
   margin: 0;
 }
-:root .day-map-footer {
-  padding: 12px 18px;
-}
-:root .day-map-footer button {
-  min-height: 44px;
-}
-:root .trip-hero {
-  border-radius: var(--ui-radius-card);
-}
-:root .list-trip-hero {
-  min-height: 210px;
-}
-:root .calendar-trip-hero {
-  min-height: 155px;
-}
-:root .trip-summary {
-  padding: 18px 0;
-  gap: 18px;
-}
-:root .itinerary-controls {
-  padding-top: 8px;
-}
 :root .events-list .event-card {
   border-radius: var(--ui-radius-card);
   background: var(--paper);
@@ -184,66 +40,6 @@
 :root .day-number {
   background: var(--green);
   color: var(--on-primary);
-}
-:root .recent-trip-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
-}
-:root .recent-trip-card {
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--line);
-  border-radius: var(--ui-radius-card);
-  background: var(--paper);
-  color: var(--ink);
-  overflow: hidden;
-}
-:root .recent-trip-card > img {
-  width: 100%;
-  height: 150px;
-  object-fit: cover;
-}
-:root .recent-trip-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 20px;
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-:root .recent-trip-copy strong {
-  font: 600 23px/1.25 var(--font-heading);
-}
-:root .resume-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--green);
-  min-height: 44px;
-  font-weight: 700;
-}
-:root .continue-planning {
-  margin-bottom: 24px;
-}
-:root .home-bookings {
-  border-block: 1px solid var(--line);
-  margin: 28px 0;
-}
-:root .home-bookings > summary {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  min-height: 64px;
-  cursor: pointer;
-  font-weight: 600;
-}
-:root .home-bookings > summary span {
-  font-weight: 400;
-  color: var(--muted);
-  font-size: 13px;
 }
 :root .saved-places {
   margin: 28px 0;
@@ -279,149 +75,6 @@
   display: grid;
   gap: 16px;
 }
-@media (min-width: 1200px) {
-  :root .day-map-panel {
-    align-self: start;
-  }
-}
-@media (max-width: 1199px) {
-  :root .planning-workspace {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  :root .planning-workspace.day-view-list .day-map-panel {
-    display: none;
-  }
-  :root .planning-workspace.day-view-map .timeline {
-    display: none;
-  }
-  :root .day-map-panel {
-    position: relative;
-    top: auto;
-  }
-  :root .recent-trip-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-@media (max-width: 600px) {
-  :root .planner-viewbar {
-    gap: 4px;
-    margin-bottom: 16px;
-  }
-  :root .planning-workspace .timeline-item {
-    grid-template-columns: 28px minmax(0, 1fr);
-    gap: 8px;
-  }
-  :root .planning-workspace .timeline-hour {
-    grid-column: 2;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 0;
-    align-items: center;
-  }
-  :root .planning-workspace .timeline-hour small {
-    display: none;
-  }
-  :root .planning-workspace .timeline-hour > span {
-    font-size: 13px;
-    margin: 0;
-  }
-  :root .planning-workspace .timeline-hour > span:first-of-type:after {
-    content: " –";
-  }
-  :root .planning-workspace .timeline-hour .duration {
-    margin-left: auto;
-  }
-  :root .planning-workspace .timeline-dot {
-    grid-column: 1;
-    grid-row: 2;
-    top: 12px;
-  }
-  :root .planning-workspace .timeline:before {
-    left: 13px;
-    top: 34px;
-  }
-  :root .compact-stop {
-    grid-column: 2;
-    padding: 14px;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  :root .compact-stop > img {
-    width: 56px;
-    height: 56px;
-    flex-basis: 56px;
-  }
-  :root .compact-stop > div {
-    flex-basis: 150px;
-  }
-  :root .compact-stop h2 {
-    font-size: 18px;
-  }
-  :root .recent-trip-grid {
-    grid-template-columns: 1fr;
-  }
-  :root .recent-trip-card {
-    flex-direction: row;
-  }
-  :root .recent-trip-card > img {
-    width: 100px;
-    height: auto;
-    min-height: 160px;
-  }
-  :root .recent-trip-copy {
-    padding: 14px;
-  }
-  :root .recent-trip-copy strong {
-    font-size: 20px;
-  }
-  :root .saved-places {
-    padding: 16px;
-  }
-  :root .saved-place-row {
-    flex-wrap: wrap;
-  }
-  :root .saved-place-row > div:first-child {
-    flex-basis: 100%;
-  }
-  :root .day-map-panel .trip-map.compact .map-canvas {
-    height: 420px;
-  }
-}
-
-/* Keep actions together and eliminate the original full-card framing. */
-:root .page-11 .page-head {
-  margin-bottom: 20px;
-}
-:root .page-11 .day-control {
-  margin-bottom: 12px;
-}
-:root .planner-viewbar .btn {
-  min-height: 44px;
-}
-:root .compact-stop .stop-secondary {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  margin-top: 4px;
-}
-:root .compact-stop .stop-notes {
-  margin: 0;
-}
-:root .compact-stop .stop-notes[open] {
-  flex: 1 0 100%;
-  order: 1;
-}
-:root .compact-stop .stop-notes p {
-  margin: 0 0 8px;
-}
-:root .compact-stop .row {
-  margin: 8px 0 0;
-}
-:root .compact-stop .text-link {
-  min-height: 44px;
-}
 :root .saved-places {
   margin: 16px 0;
   padding: 16px 20px;
@@ -440,90 +93,431 @@
   margin: 4px 0 0;
   font-size: 13px;
 }
-@media (min-width: 1200px) {
-  :root .day-view-switch {
-    display: none;
+@media (max-width: 600px) {
+  :root .saved-places {
+    padding: 16px;
+  }
+  :root .saved-place-row {
+    flex-wrap: wrap;
+  }
+  :root .saved-place-row > div:first-child {
+    flex-basis: 100%;
   }
 }
 
-@media (max-width: 760px) {
-  :root main.page-11 > [data-ui="page-heading"] {
-    display: flex;
-    align-items: center;
-    flex-wrap: nowrap;
-    gap: 12px;
+/* The map is a companion to the same itinerary list, not another page design. */
+:root .list-trip-hero {
+  min-height: 155px;
+}
+:root .itinerary-map-layout {
+  grid-template-columns: minmax(0, 1.05fr) minmax(330px, 1fr);
+  gap: 24px;
+}
+:root .itinerary-map-layout > .day-map-panel {
+  position: sticky;
+  top: 92px;
+  min-width: 0;
+}
+:root .itinerary-map-layout .day-control {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 0 16px 16px;
+  margin: 0;
+}
+:root .itinerary-map-layout .day-control > .field {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+:root .itinerary-map-layout .day-control > .btn {
+  padding: 0;
+  width: 44px;
+  flex: 0 0 44px;
+}
+:root .map-list-stop {
+  min-width: 0;
+  scroll-margin-top: 100px;
+  border-radius: var(--ui-radius-card);
+}
+:root .map-list-stop.focused {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+:root .map-stop-details {
+  padding: 0 16px 16px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 var(--ui-radius-card) var(--ui-radius-card);
+}
+:root .map-stop-details .row {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+}
+:root .map-stop-details .row > span {
+  font-size: 13px;
+  color: var(--muted);
+  flex: 1;
+}
+:root .map-stop-details p {
+  font-size: 14px;
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+:root .map-stop-details .text-link {
+  min-height: 44px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+:root .map-list-stop.focused .event-card {
+  border-radius: var(--ui-radius-card) var(--ui-radius-card) 0 0;
+  border-bottom: 0;
+}
+:root .itinerary-map-layout .day-chips {
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+}
+:root .day-map-panel > .btn {
+  margin: 8px 16px;
+}
+
+/* Home puts one useful action beside each short section, without repeated cards. */
+:root .home-workspace {
+  max-width: 1100px;
+  margin-inline: auto;
+}
+:root .home-workspace > .page-head {
+  margin-bottom: 24px;
+}
+:root .home-workspace .section-title {
+  margin: 0 0 12px;
+  gap: 8px;
+  align-items: center;
+}
+:root .home-workspace .section-title h2 {
+  font-size: 22px;
+}
+:root .home-workspace .recent-trip-grid {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+:root .home-workspace .recent-trip-card {
+  flex-direction: row;
+  align-items: center;
+  padding: 12px;
+  gap: 16px;
+}
+:root .home-workspace .recent-trip-card > img {
+  width: 88px;
+  height: 64px;
+  min-height: 0;
+  border-radius: var(--ui-radius-control);
+}
+:root .home-workspace .recent-trip-copy {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  gap: 6px;
+}
+:root .home-workspace .recent-trip-copy strong {
+  font-size: 20px;
+}
+:root .home-workspace .recent-trip-card > svg {
+  flex-shrink: 0;
+  color: var(--green);
+}
+:root .home-workspace .continue-planning {
+  margin-bottom: 28px;
+}
+:root .home-empty {
+  border-block: 1px solid var(--line);
+  padding: 16px 0;
+}
+:root .home-empty p {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+}
+:root .home-workspace .home-ideas-heading {
+  margin-bottom: 0;
+}
+:root .home-ideas-heading > span {
+  font-size: 12px;
+}
+:root .home-workspace .planned-carousel-controls {
+  margin: 4px 0 8px;
+}
+:root .home-workspace .carousel-pause {
+  min-width: 44px;
+  width: 44px;
+  padding: 0;
+  justify-content: center;
+}
+:root .home-workspace .planned-trip-card > img {
+  height: 145px;
+}
+:root .home-workspace .planned-trip-card .planned-card-copy {
+  height: auto;
+  min-height: 112px;
+  padding: 14px 16px;
+}
+:root .home-workspace .planned-card-title {
+  font-size: 21px;
+  min-height: 2.3em;
+  margin-bottom: 8px;
+}
+:root .home-workspace .planned-card-destination {
+  display: none;
+}
+:root .home-workspace .planned-card-meta {
+  font-size: 13px;
+}
+:root .home-utilities {
+  margin-top: 24px;
+  border-top: 1px solid var(--line);
+}
+:root .home-workspace .home-bookings {
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+:root .home-workspace .home-bookings > summary {
+  min-height: 52px;
+  font-size: 14px;
+}
+:root .home-bookings > summary > svg:last-child {
+  margin-left: auto;
+}
+:root .home-workspace .home-utilities > .btn {
+  padding-left: 0;
+  margin-top: 4px;
+}
+@media (max-width: 1099px) {
+  :root .itinerary-map-layout {
+    grid-template-columns: minmax(0, 1fr);
   }
-  :root main.page-11 > [data-ui="page-heading"] > div:first-child {
+  :root .itinerary-map-layout > .day-map-panel {
+    position: static;
+    grid-row: 1;
+  }
+  :root .itinerary-map-layout > .itinerary-day-list {
+    grid-row: 2;
+  }
+  :root .itinerary-map-layout .trip-map.compact .map-canvas {
+    height: 280px;
+    min-height: 240px;
+  }
+}
+@media (max-width: 760px) {
+  :root .home-workspace > .page-head {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  :root .home-workspace > .page-head > div:first-child {
     flex: 1;
-    flex-basis: auto;
     min-width: 0;
   }
-  :root main.page-11 > [data-ui="page-heading"] h1 {
-    font-size: 26px;
-    line-height: 1.2;
-  }
-  :root main.page-11 > [data-ui="page-heading"] .head-action {
+  :root .home-workspace > .page-head .head-action {
     flex-shrink: 0;
     margin: 0;
   }
-  :root .page-11 .planner-viewbar {
-    padding-bottom: 8px;
+  :root .home-workspace .section-title h2 {
+    font-size: 20px;
+  }
+  :root .home-workspace .recent-trip-card {
+    padding: 10px;
+    gap: 12px;
+  }
+  :root .home-workspace .recent-trip-card > img {
+    width: 64px;
+    height: 60px;
+  }
+  :root .home-workspace .recent-trip-copy strong {
+    font-size: 18px;
+  }
+  :root .home-workspace .continue-planning {
+    margin-bottom: 20px;
+  }
+  :root .home-workspace .planned-trip-card > img {
+    height: 125px;
+  }
+  :root .home-workspace .planned-trip-card .planned-card-copy {
+    min-height: 100px;
+    padding: 12px 14px;
+  }
+  :root .home-workspace .planned-card-title {
+    font-size: 20px;
+    min-height: 2.3em;
+  }
+  :root .home-workspace .home-ideas-heading {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+  :root .home-workspace .home-utilities {
+    margin-top: 16px;
+  }
+  :root .itinerary-map-layout .day-map-heading {
+    padding: 12px 16px 4px;
+  }
+  :root .itinerary-map-layout .day-map-heading h2 {
+    font-size: 18px;
   }
 }
 
-:root .compact-stop {
-  padding: 12px 16px;
+/* Keep the title and three-view toolbar in the same place on every view. */
+:root :is(.page-8, .page-11) .trip-hero,
+:root :is(.page-8, .page-11) .trip-hero-content {
+  min-height: 155px;
 }
-:root .compact-stop .stop-title {
-  display: flex;
+:root :is(.page-8, .page-11) .trip-hero-content {
+  padding: 24px;
+  justify-content: center;
+}
+:root :is(.page-8, .page-11) .trip-hero-content > .row {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  left: auto;
+  width: auto;
+  margin: 0;
+}
+:root :is(.page-8, .page-11) .trip-hero-content > .row .badge {
+  display: none;
+}
+:root :is(.page-8, .page-11) .trip-hero h1 {
+  font-size: 30px;
+  line-height: 1.2;
+  margin: 0;
+  padding-right: 135px;
+}
+:root :is(.page-8, .page-11) .trip-summary {
+  padding-block: 12px;
+  margin-block: 0 12px;
+}
+:root :is(.page-8, .page-11) .itinerary-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
+  margin-block: 12px;
 }
-:root .compact-stop .stop-title h2 {
-  flex: 1;
+:root :is(.page-8, .page-11) .itinerary-heading {
+  grid-column: 2;
+  grid-row: 1;
   margin: 0;
 }
-:root .compact-stop .stop-title .icon-btn {
-  flex: 0 0 44px;
-  width: 44px;
-  height: 44px;
+:root :is(.page-8, .page-11) .itinerary-heading > div {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
-:root .compact-stop .stop-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
-  margin: 0;
+:root .home-workspace .planned-trip-card {
+  height: auto;
 }
-:root .compact-stop .stop-secondary {
-  margin: 0;
+:root .home-workspace .planned-carousel-controls {
+  flex-direction: row;
 }
-
-:root .day-planner-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px 24px;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 16px;
-  margin-bottom: 20px;
+:root .home-workspace .planned-carousel-controls > .muted {
+  flex-basis: auto;
 }
-:root .page-11 .day-planner-controls .day-control {
-  margin: 0;
+:root .home-workspace .home-utilities > .btn {
+  color: var(--green);
 }
-:root .day-planner-controls .planner-viewbar {
-  flex: 1;
-  border: 0;
-  padding: 0;
-  margin: 0;
-}
-:root .day-planner-controls .permission {
-  flex-basis: 100%;
-}
-@media (max-width: 1199px) {
-  :root .day-planner-controls .planner-viewbar {
-    flex-basis: 100%;
+@media (max-width: 760px) {
+  :root :is(.page-8, .page-11) .trip-hero,
+  :root :is(.page-8, .page-11) .trip-hero-content {
+    min-height: 145px;
   }
+  :root :is(.page-8, .page-11) .trip-hero-content {
+    padding: 52px 16px 16px;
+  }
+  :root :is(.page-8, .page-11) .trip-hero h1 {
+    font-size: 25px;
+    padding-right: 0;
+  }
+  :root :is(.page-8, .page-11) .trip-summary {
+    gap: 8px 12px;
+  }
+  :root :is(.page-8, .page-11) .itinerary-controls {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  :root :is(.page-8, .page-11) .itinerary-view-switch {
+    order: 0;
+    flex: 1 0 auto;
+  }
+  :root :is(.page-8, .page-11) .itinerary-heading {
+    order: 1;
+    margin-left: auto;
+  }
+}
+:root .home-workspace .head-action .btn {
+  min-width: 112px;
+  padding-inline: 14px;
+}
+:root .home-workspace .recent-trip-grid {
+  display: grid;
+}
+:root .home-workspace .recent-trip-card {
+  display: flex;
+  text-align: left;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius-card);
+  overflow: hidden;
+}
+:root .home-workspace .recent-trip-copy {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+:root .home-workspace .recent-trip-copy strong {
+  color: var(--ink);
+  font-family: var(--font-heading);
+  line-height: 1.3;
+}
+:root .home-workspace .home-bookings > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+@media (max-width: 760px) {
+  :root .app-shell:has(.page-4) .breadcrumbs {
+    display: none;
+  }
+  :root .home-workspace .recent-trip-card > img {
+    flex: 0 0 64px;
+    object-fit: cover;
+  }
+  :root :is(.page-8, .page-11) .itinerary-view-switch {
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+  }
+  :root :is(.page-8, .page-11) .itinerary-view-switch button {
+    padding-inline: 12px;
+  }
+}
+:root .home-workspace .planned-carousel-controls {
+  flex-wrap: nowrap;
+}
+:root .home-workspace .planned-carousel-controls > .muted {
+  width: auto;
+}
+:root :is(.page-8, .page-11) .itinerary-view-switch {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
 }
