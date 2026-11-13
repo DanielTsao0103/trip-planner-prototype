@@ -120,19 +120,52 @@ export function meetingPlacesFromResponse(data: unknown, focus?: SearchFocus | n
   }).sort((a,b)=>focus?(a.match-b.match || a.distance-b.distance || a.order-b.order):a.order-b.order).slice(0,6).map(result=>result.place);
 }
 
+// Photon indexes this chain under its Japanese name. Query the mapped venues
+// so the results still carry each branch's own address and coordinates.
+const restaurantAliases = [
+  { english: 'Haneda Ichiba', local: '羽田市場' },
+];
+
+function diningSearch(query: string) {
+  const name = normalized(query);
+  const alias = restaurantAliases.find(({ english, local }) =>
+    name === local || (name.length >= 7 && normalized(english).startsWith(name)),
+  );
+  if (alias) return { query: alias.local, tag: 'amenity:restaurant', alias };
+  if (/^restaurants?(?: near me)?$/i.test(query) || /^(?:resta|restau|restaur|restaura|restauran)$/i.test(query)) {
+    return { query: 'restaurant', tag: 'amenity:restaurant' };
+  }
+  if (/^(?:sushi|ramen|pizza|seafood|steakhouse)$/i.test(query)) {
+    return { query, tag: 'amenity:restaurant' };
+  }
+  if (/^caf[eé]s?$/i.test(query) || /^coffee(?: shops?)?$/i.test(query)) {
+    return { query, tag: 'amenity:cafe' };
+  }
+  return { query };
+}
+
 export async function searchMeetingPlaces(value: string, signal: AbortSignal, focus?: SearchFocus | null): Promise<MeetingPlace[]> {
   const query = locationQuery(value);
   if (query.length < 2) return [];
   const url = new URL('https://photon.komoot.io/api/');
-  url.searchParams.set('q', query);
+  const dining = diningSearch(query);
+  url.searchParams.set('q', dining.query);
+  if (dining.tag) url.searchParams.set('osm_tag', dining.tag);
   url.searchParams.set('lang', 'en');
   url.searchParams.set('limit', focus ? '12' : '8');
   if(focus){
     url.searchParams.set('lat',String(focus.latitude));url.searchParams.set('lon',String(focus.longitude));
     url.searchParams.set('zoom',String(focus.zoom));url.searchParams.set('location_bias_scale','0.1');
   }
-  // No country, bounding box or layer filters: include venues, landmarks and street addresses worldwide.
+  // Dining searches filter by category. All searches keep a soft geographic bias.
   const response = await fetch(url, {signal, referrerPolicy:'no-referrer'});
   if (!response.ok) throw new Error('Location search is unavailable');
-  return meetingPlacesFromResponse(await response.json(),focus,query);
+  const places = meetingPlacesFromResponse(await response.json(), focus, dining.query);
+  const alias = dining.alias;
+  if (!alias) return places;
+  return places.map(place => {
+    if (!place.name.includes(alias.local)) return place;
+    const name = `${alias.english} (${place.name})`;
+    return { ...place, name, label: parts(name, place.address) };
+  });
 }

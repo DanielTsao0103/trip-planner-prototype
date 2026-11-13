@@ -93,7 +93,7 @@ export function EventLocationInput({value,onChange,destinations=[],itinerary}: {
     <input id={`${id}-input`} required value={value} role="combobox" aria-label="Where"
       aria-autocomplete="list" aria-expanded={expanded} aria-controls={`${id}-list`}
       aria-activedescendant={expanded && active>=0 ? `${id}-${active}` : undefined}
-      autoComplete="off" placeholder="Search a place, address, or meeting point"
+      autoComplete="off" placeholder="Search a restaurant, place, or address"
       onFocus={()=>setOpen(true)} onChange={e=>{onChange(e.target.value);setOpen(true);setActive(-1);setResults([]);}}
       onKeyDown={e=>{
         if(e.nativeEvent.isComposing)return;

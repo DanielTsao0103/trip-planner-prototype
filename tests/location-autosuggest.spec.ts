@@ -194,3 +194,27 @@ test('country context survives exhausted demo area-lookup quota without restrict
  await page.getByRole('combobox',{name:'Prioritize locations near'}).selectOption('');
  await expect.poll(()=>calls.at(-1)?.regionCode).toBeUndefined();
 });
+
+test('Japanese restaurant names remain searchable when Google returns no predictions', async ({ page, isMobile }) => {
+  await demoFixture(page, 'addresses');
+  await page.route('https://photon.komoot.io/api/**', route => {
+    const params = new URL(route.request().url()).searchParams;
+    if (params.has('layer')) return route.fulfill({ json: { features: [] } });
+    expect(params.get('osm_tag')).toBe('amenity:restaurant');
+    expect(['restaurant', '羽田市場']).toContain(params.get('q'));
+    return route.fulfill({ json: { features: [{
+      properties: { name: '羽田市場', city: 'Tokyo', country: 'Japan', osm_id: 10312201784 },
+      geometry: { coordinates: [139.767, 35.681] },
+    }] } });
+  });
+
+  await page.goto('./#/7');
+  const input = page.getByRole('combobox', { name: 'Where', exact: true });
+  await input.fill('restaurants');
+  await expect(page.getByRole('option', { name: /羽田市場/ })).toBeVisible();
+  await input.fill('Haneda Ichi');
+  const restaurant = page.getByRole('option', { name: /Haneda Ichiba.*Tokyo/ });
+  if (isMobile) await restaurant.tap();
+  else await restaurant.click();
+  await expect(input).toHaveValue('Haneda Ichiba (羽田市場), Tokyo, Japan');
+});
