@@ -38,7 +38,7 @@ Invitations require configured email delivery. Existing-account invitations are 
 
 ### Itinerary, maps and photos
 
-- Calendar moves use the event's top edge and round to the nearest minute. The Move dialog supports keyboard and touch use. Trip dates, overlaps and edit permissions are checked before saving.
+- Calendar moves use the event's top edge and snap to 15-minute boundaries, preserving duration. Click an empty slot for a one-hour draft or drag a range to open Create event with its date and times filled in. Edit and Move accept exact typed minutes; Add and Move remain available for keyboard and touch use. Trip dates, overlaps and edit permissions are checked before saving.
 - Event locations use Google Places Autocomplete (New) with the no-payment demo key, with Photon/OpenStreetMap as a fallback. Destination search uses the bundled index and Photon with the existing Google fallback. Searches can favor a selected trip stop or use worldwide results; manual entry remains available. Open-Meteo helps resolve destination time zones from coordinates.
 - Google Maps resolves typed itinerary locations and unpinned existing events. Saved manual positions take priority. Named areas can show a center pin; unresolved locations are edited in the itinerary.
 - Account screens refresh shared trip data every five seconds while visible and on focus/reconnect, while preserving pending local edits. This uses foreground polling, not a Supabase Realtime subscription. Device location and map viewport stay local.

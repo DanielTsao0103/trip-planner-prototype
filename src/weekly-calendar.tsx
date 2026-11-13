@@ -6,9 +6,15 @@ import { ArrowLeftRight, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react
 import { useApp } from './state';
 import { Button, ErrorBox, Field } from './ui';
 import { canEdit, dateText, orderedEvents, timeText, EVENT_PERMISSION_MESSAGE } from './domain';
-import { addCalendarDays, clock, minutes, rescheduleEvent, calendarLanes } from './calendar';
+import { addCalendarDays, clock, minutes, rescheduleEvent, calendarLanes, snapCalendarMinute, calendarSelection } from './calendar';
 
 const HOUR_HEIGHT = 72;
+
+type CalendarSelectionGesture = {
+  date: string; anchor: number; start: number; end: number; pointerId: number;
+  originY: number; clientY: number; moved: boolean; node: HTMLDivElement;
+  first: number; last: number;
+};
 
 type EventPreviewTarget = { event: TripEvent; anchor: HTMLButtonElement };
 
@@ -151,7 +157,9 @@ export function WeeklyCalendar() {
   const [moveDate, setMoveDate] = useState('');
   const [moveStart, setMoveStart] = useState('');
   const [dragging, setDragging] = useState<string | null>(null);
-  const eventPreview = useEventPreview(Boolean(dragging || moving));
+  const [selection, setSelection] = useState<{ date: string; start: number; end: number } | null>(null);
+  const selectionGesture = useRef<CalendarSelectionGesture | null>(null);
+  const eventPreview = useEventPreview(Boolean(dragging || moving || selection));
   const eventPreviewId = useId();
   const grabOffset = useRef(0);
   const scrollRegion = useRef<HTMLDivElement>(null);
@@ -164,6 +172,44 @@ export function WeeklyCalendar() {
   const [movedFocus, setMovedFocus] = useState<string | null>(null);
   const requestedDate = route.params.get('date');
   const requestedEvent = route.params.get('event');
+  function cancelSelection() {
+    const gesture = selectionGesture.current;
+    selectionGesture.current = null;
+    if (gesture?.node.hasPointerCapture(gesture.pointerId)) gesture.node.releasePointerCapture(gesture.pointerId);
+    setSelection(null);
+  }
+  function updateSelection(gesture: CalendarSelectionGesture) {
+    const minute = gesture.first + (gesture.clientY - gesture.node.getBoundingClientRect().top) * 60 / HOUR_HEIGHT;
+    const range = calendarSelection(gesture.anchor, minute, gesture.first, gesture.last);
+    gesture.start = range.start; gesture.end = range.end;
+    setSelection({ date: gesture.date, ...range });
+  }
+  useEffect(() => {
+    if (!selection) return;
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); cancelSelection(); }
+    };
+    // Scroll the time grid at its edges while maintaining the selected time range.
+    let frame = 0;
+    const scroll = () => {
+      const gesture = selectionGesture.current, region = scrollRegion.current;
+      if (gesture?.moved && region) {
+        const rect = region.getBoundingClientRect();
+        const top = Math.max(0, rect.top) + 90, bottom = Math.min(innerHeight, rect.bottom) - 36;
+        const delta = gesture.clientY < top ? -8 : gesture.clientY > bottom ? 8 : 0;
+        if (delta) {
+          const before = region.scrollTop;
+          region.scrollTop += delta;
+          if (region.scrollTop !== before) updateSelection(gesture);
+        }
+      }
+      frame = requestAnimationFrame(scroll);
+    };
+    frame = requestAnimationFrame(scroll);
+    document.addEventListener('keydown', escape);
+    return () => { cancelAnimationFrame(frame); document.removeEventListener('keydown', escape); };
+  }, [Boolean(selection)]);
+  useEffect(() => { cancelSelection(); }, [page, mobileGrid, desktopAgenda, trip?.id]);
   useLayoutEffect(() => {
     const region = scrollRegion.current;
     const grid = region?.firstElementChild;
@@ -321,8 +367,38 @@ export function WeeklyCalendar() {
     // The card's top edge sets its start, even when grabbed near the bottom.
     const dayTop = event.currentTarget.getBoundingClientRect().top;
     const top = event.clientY - dayTop - grabOffset.current;
-    const minute = firstHour * 60 + Math.round(top * 60 / HOUR_HEIGHT);
-    return Math.max(firstHour * 60, Math.min(lastHour * 60 - 1, minute));
+    const minute = snapCalendarMinute(firstHour * 60 + top * 60 / HOUR_HEIGHT);
+    return Math.max(firstHour * 60, Math.min(lastHour * 60 - 15, 1425, minute));
+  }
+  function beginSelection(event: React.PointerEvent<HTMLDivElement>, date: string) {
+    // Leave touch swipes available for scrolling; Add remains the touch/keyboard path.
+    if (event.pointerType === 'touch' || event.button !== 0 || !event.isPrimary
+      || (event.target as HTMLElement).closest('.itcal-event') || !canEdit(trip!, s.userId, date)) return;
+    event.preventDefault();
+    eventPreview.dismiss();
+    const first = firstHour * 60, last = lastHour * 60;
+    const raw = first + (event.clientY - event.currentTarget.getBoundingClientRect().top) * 60 / HOUR_HEIGHT;
+    const anchor = Math.max(first, Math.min(last - 15, 1410, snapCalendarMinute(raw)));
+    const range = calendarSelection(anchor, anchor + 60, first, last);
+    selectionGesture.current = { date, anchor, ...range, pointerId: event.pointerId,
+      originY: event.clientY, clientY: event.clientY, moved: false, node: event.currentTarget, first, last };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setSelection({ date, ...range });
+  }
+  function extendSelection(event: React.PointerEvent<HTMLDivElement>) {
+    const gesture = selectionGesture.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    gesture.clientY = event.clientY;
+    gesture.moved ||= Math.abs(event.clientY - gesture.originY) >= 4;
+    if (gesture.moved) updateSelection(gesture);
+  }
+  function finishSelection(event: React.PointerEvent<HTMLDivElement>) {
+    const gesture = selectionGesture.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    extendSelection(event);
+    cancelSelection();
+    if (!canEdit(trip!, s.userId, gesture.date)) { denyEdit(); return; }
+    go(7, { date: gesture.date, start: clock(gesture.start), end: clock(gesture.end), view: 'calendar' });
   }
   function dragOver(event: React.DragEvent<HTMLDivElement>, date: string) {
     if (!dragging || date > trip!.end) return;
@@ -351,7 +427,7 @@ export function WeeklyCalendar() {
       <Button variant="outline calendar-desktop-view" onClick={() => setDesktopAgenda(value => !value)}>{desktopAgenda ? "Show time grid" : "Show agenda"}</Button>
       <Button variant="text small calendar-mobile-view" aria-label={mobileGrid ? "Show agenda" : "Show time grid"} onClick={() => setMobileGrid(value => !value)}>{mobileGrid ? "Agenda" : "Time grid"}</Button>
     </div>
-    {canEditVisibleDays && <p className="calendar-help calendar-grid-help">Drag an event to the minute, or use its Move control to choose an exact time.</p>}
+    {canEditVisibleDays && <p className="calendar-help calendar-grid-help">Click or drag an empty time slot to create an event. Dragging snaps to 15 minutes; type a time in Edit or Move for exact minutes.</p>}
     {!moving && <ErrorBox text={error}/>}
     <p className="sr-only" role="status" aria-live="polite">{notice}</p>
     {gridOverflows && <p id={overflowHintId} className="calendar-overflow-hint"><ArrowLeftRight size={16} aria-hidden="true"/> Scroll horizontally to see more plans.</p>}
@@ -370,8 +446,10 @@ export function WeeklyCalendar() {
           {hours.map(hour => <span key={hour} style={{top:(hour-firstHour)*HOUR_HEIGHT}}>{timeText(clock(hour*60))}</span>)}
         </div>
         {dates.map(date => <div key={date} data-calendar-date={date}
-          className={`itcal-day ${date > trip.end ? 'outside-trip' : ''} ${dragging && canEdit(trip,s.userId,date) ? 'can-drop' : ''}`}
+          className={`itcal-day ${date > trip.end ? 'outside-trip' : ''} ${canEdit(trip,s.userId,date) ? 'can-create' : ''} ${dragging && canEdit(trip,s.userId,date) ? 'can-drop' : ''}`}
           style={{height}} onDragOver={event => dragOver(event, date)}
+          onPointerDown={event => beginSelection(event, date)} onPointerMove={extendSelection}
+          onPointerUp={finishSelection} onPointerCancel={cancelSelection} onLostPointerCapture={cancelSelection}
           onDragLeave={event => {
             if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
               setPreview(current => current?.date === date ? null : current);
@@ -379,6 +457,10 @@ export function WeeklyCalendar() {
           }}
           onDrop={event => drop(event,date)} aria-label={`Events on ${date}`}>
           {hours.map(hour => <div key={hour} className="itcal-hour-line" style={{top:(hour-firstHour)*HOUR_HEIGHT}} aria-hidden="true"/>)}
+          {selection?.date === date && <div className="itcal-selection" aria-hidden="true" style={{
+            top: (selection.start - firstHour * 60) * HOUR_HEIGHT / 60,
+            height: (selection.end - selection.start) * HOUR_HEIGHT / 60,
+          }}><span>{timeText(clock(selection.start))} – {timeText(clock(selection.end))}</span></div>}
           {preview?.date === date && <div className="itcal-drop-preview" aria-hidden="true"
             style={{ top: (preview.minute - firstHour * 60) * HOUR_HEIGHT / 60 }}>
             <span>{timeText(clock(preview.minute))}</span>

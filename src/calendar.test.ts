@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addCalendarDays, rescheduleEvent, calendarLanes } from './calendar.ts';
+import { addCalendarDays, rescheduleEvent, calendarLanes, snapCalendarMinute, calendarSelection } from './calendar.ts';
 import type { Trip, Event } from './domain.ts';
 const event: Event = {id:'event',name:'Museum',place:'Museum',date:'2027-06-01',start:'10:00',end:'11:30',cost:1250,attendees:['owner'],notes:'Tickets',image:''};
 const trip = (): Trip => ({id:'trip',title:'Calendar test',destinations:['Seattle'],start:'2027-06-01',end:'2027-06-20',zone:'America/Los_Angeles',image:'',members:[{id:'owner',name:'Owner',email:'owner@example.com',role:'Owner',days:[],status:'accepted'},{id:'viewer',name:'Viewer',email:'viewer@example.com',role:'Viewer',days:[],status:'accepted'},{id:'limited',name:'Limited',email:'limited@example.com',role:'Day Editor',days:['2027-06-01'],status:'accepted'}],events:[structuredClone(event)],prefs:{},expenses:[],budget:null,budgetMode:'group',individual:{},todos:[],dismissed:[]});
@@ -45,4 +45,23 @@ test('overlapping and short visual cards remain in separate lanes without mutati
  assert.notEqual(lanes.get('d')!.column,lanes.get('e')!.column);
  assert.equal(lanes.get('f')!.columns,1);
  assert.deepEqual(items,before);
+});
+
+
+test('pointer ranges snap both directions and stay valid at day boundaries', () => {
+ assert.equal(snapCalendarMinute(607), 600);
+ assert.equal(snapCalendarMinute(608), 615);
+ assert.deepEqual(calendarSelection(600, 653, 420, 1320), {start:600,end:660});
+ assert.deepEqual(calendarSelection(660, 607, 420, 1320), {start:600,end:660});
+ assert.deepEqual(calendarSelection(600, 600, 420, 1320), {start:600,end:615});
+ assert.deepEqual(calendarSelection(420, -100, 420, 1320), {start:420,end:435});
+ assert.deepEqual(calendarSelection(1410, 1500, 420, 1440), {start:1410,end:1425});
+ assert.deepEqual(calendarSelection(1305, 1500, 420, 1320), {start:1305,end:1320});
+});
+
+test('typed rescheduling preserves individual minutes and duration', () => {
+ const result = rescheduleEvent(trip(), 'owner', 'event', '2027-06-02', '10:07');
+ assert.equal(result.error, '');
+ assert.equal(result.event?.start, '10:07');
+ assert.equal(result.event?.end, '11:37');
 });

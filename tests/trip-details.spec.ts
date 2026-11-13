@@ -471,9 +471,9 @@ test('weekly calendar reschedules through the save API, reloads, and recovers fa
     await expect.poll(() => api.rows[0].content.events[0]).toMatchObject({
       date: '2027-06-03', start: '10:00', end: '11:30',
     });
-    await card.dragTo(day, { sourcePosition, targetPosition: { x: 50, y: 3 * 72 + 39 + 8 } });
+    await card.dragTo(day, { sourcePosition, targetPosition: { x: 50, y: 3 * 72 + 39 + 11 } });
     await expect.poll(() => api.rows[0].content.events[0]).toMatchObject({
-      date: '2027-06-03', start: '10:07', end: '11:37',
+      date: '2027-06-03', start: '10:15', end: '11:45',
     });
   }
   api.setFail(true);

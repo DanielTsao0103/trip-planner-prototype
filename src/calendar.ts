@@ -11,6 +11,16 @@ export const minutes = (time: string) => {
 };
 export const clock = (minute: number) => `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
 
+/** Snap pointer gestures only; typed times retain their exact minutes. */
+export const snapCalendarMinute = (minute: number): number => Math.round(minute / 15) * 15;
+
+/** Keep a selection on its day, with at least one quarter-hour slot. */
+export function calendarSelection(anchor: number, current: number, first: number, last: number): { start: number; end: number } {
+  const ceiling = Math.min(last, 1425);
+  const start = Math.max(first, Math.min(ceiling - 15, snapCalendarMinute(Math.min(anchor, current))));
+  return { start, end: Math.min(ceiling, Math.max(start + 15, snapCalendarMinute(Math.max(anchor, current)))) };
+}
+
 /** Preserve identity, duration, attendees, notes and costs when rescheduling. */
 export function rescheduleEvent(trip: Trip, user: string | null, eventId: string, date: string, start: string): { event?: Event; error: string } {
   const original = trip.events.find(event => event.id === eventId);

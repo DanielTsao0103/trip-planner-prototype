@@ -311,7 +311,7 @@ test('unresolved destination keeps its unknown status after calendar time zone i
   await expect(page.getByText(/Times in Taipei/)).toBeVisible();
 });
 
-test('simultaneous calendar events have separate readable lanes and retain exact-minute drag', async ({ page }, testInfo) => {
+test('simultaneous calendar events have separate readable lanes and snap dragged times to quarter hours', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Desktop time-grid interaction');
   await page.goto('./#/8?view=calendar');
   await page.waitForFunction(()=>!!localStorage.getItem('trip-planner-demo-v1:demo-maya'));
@@ -348,10 +348,10 @@ test('simultaneous calendar events have separate readable lanes and retain exact
   await page.mouse.move(targetBox.x + 50, targetBox.y + 3*72+39+8);
   await page.mouse.up();
   await page.reload();
-  await expect(page.locator('[data-calendar-date="2026-10-18"] [data-event-id="museum"]')).toHaveAttribute('aria-label', /10:07 AM/);
+  await expect(page.locator('[data-calendar-date="2026-10-18"] [data-event-id="museum"]')).toHaveAttribute('aria-label', /10:00 AM/);
 });
 
-test('a horizontal calendar drag after overlap rejection preserves the original minutes', async ({page}, info) => {
+test('a horizontal calendar drag after overlap rejection snaps typed minutes', async ({page}, info) => {
   test.skip(info.project.name!=='desktop','Native desktop drag geometry');
   await page.setViewportSize({width:1440,height:900});
   await page.goto('./#/8?view=calendar');
@@ -370,14 +370,15 @@ test('a horizontal calendar drag after overlap rejection preserves the original 
     // A second target move dispatches dragover in WebKit too.
     await page.mouse.move(box.x+80+dx,box.y+70+dy);await page.mouse.up();
   };
-  await drag(0,72);
+  // Move far enough past 11:00 that quarter-hour snapping still overlaps the 13:00 plan.
+  await drag(0,90);
   await expect(page.getByRole('alert')).toContainText('This overlaps with Wander through Pike Place');
   await expect(event).toHaveAttribute('aria-label',/10:07 AM to 12:07 PM/);
   await drag(530,0);
-  await expect(page.locator('[data-calendar-date="2026-10-18"] [data-event-id="museum"]')).toHaveAttribute('aria-label',/10:07 AM to 12:07 PM/);
+  await expect(page.locator('[data-calendar-date="2026-10-18"] [data-event-id="museum"]')).toHaveAttribute('aria-label',/10:00 AM to 12:00 PM/);
   await expect(page.getByRole('alert')).toHaveCount(0);
   await page.reload();
-  await expect(page.locator('[data-calendar-date="2026-10-18"] [data-event-id="museum"]')).toHaveAttribute('aria-label',/10:07 AM to 12:07 PM/);
+  await expect(page.locator('[data-calendar-date="2026-10-18"] [data-event-id="museum"]')).toHaveAttribute('aria-label',/10:00 AM to 12:00 PM/);
 });
 
 test('phone Today week controls change visible dates and selected-day plans', async ({ page }) => {

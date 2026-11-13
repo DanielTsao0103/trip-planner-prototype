@@ -291,3 +291,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Today map correction (November 13, 2026): the compact Today map must only look up and display events for Today’s displayed date, including completed stops. All pins and overlapping-stop choices must remain inside that day; the full Map tab retains its trip-wide day controls.
 
 - CI timing isolation (November 13, 2026): static recovery contrast/keyboard audits use a rejected write rather than a transient error whose automatic retry replaces the controls mid-scan; keep retry/backoff coverage in persistence tests. Install a known clock time and pause at a future time, not the current host time, to avoid clock-pause races.
+
+- Calendar gesture correction (November 13, 2026): pointer moves and empty-grid selections snap to 15-minute boundaries. This supersedes earlier minute-specific dragging instructions. Typed Edit/Move times remain minute-specific; preserve the grabbed-card top-edge offset and original duration. Empty-grid click/drag opens the existing event form with the chosen date/start/end and calendar return context.

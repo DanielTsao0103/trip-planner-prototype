@@ -46,7 +46,7 @@ Source and live database audit: October 28, 2026. Full account-trip persistence 
 
 ## Seven-day itinerary calendar
 
-The itinerary can display a list or a seven-day time grid. Calendar drag/drop and the keyboard/touch Move dialog change the same event date/start/end fields through `updateTrip`, the existing save queue, and Supabase `save_trip_bundle`. Duration and event metadata are preserved. Existing trip date limits, source/target edit permissions, overlap validation, database ownership and revision conflict checks remain enforced. Failed account writes retain the recovery controls; sample trips stay browser-local. No parallel calendar data store or schema migration is needed.
+The itinerary can display a list or a seven-day time grid. Calendar drag/drop and the keyboard/touch Move dialog change the same event date/start/end fields through `updateTrip`, the existing save queue, and Supabase `save_trip_bundle`. Pointer moves snap to quarter hours; typed Edit/Move times retain exact minutes. Clicking or dragging empty time-grid space opens the existing event form with a prefilled date and range, with upward selection, Escape cancellation and edge scrolling. Touch swipes keep scrolling; the Add control remains available for touch and keyboard creation. Duration and event metadata are preserved. Existing trip date limits, source/target edit permissions, overlap validation, database ownership and revision conflict checks remain enforced. Failed account writes retain the recovery controls; sample trips stay browser-local. No parallel calendar data store or schema migration is needed.
 
 ## Event location search
 
