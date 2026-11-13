@@ -492,7 +492,9 @@ export function ConnectProvider() {
   );
 }
 export function Home() {
-  const { go, explore, open, overlay, accountTrips, route } = useApp();
+  const { go, explore, open, overlay, accountTrips, route, s, mutate } = useApp();
+  const recentTrips = s.trips.filter(trip => !trip.sample && member(trip, s.userId))
+    .sort((a,b) => Number(b.id === s.tripId) - Number(a.id === s.tripId) || b.start.localeCompare(a.start)).slice(0,3);
   const templateHeading = useRef<HTMLHeadingElement>(null);
   const section = route.params.get("section");
   useEffect(() => {
@@ -555,6 +557,12 @@ export function Home() {
   return (
     <>
       <PageHead title="Home" action={<Button variant="text" onClick={() => go(4, {section:"templates"})}>Browse trip ideas <ArrowRight size={16}/></Button>} />
+      {recentTrips.length > 0 && <section className="continue-planning" aria-label="Continue planning">
+        <div className="section-title"><div><span className="eyebrow">YOUR NEXT CHAPTER</span><h2>Pick up where you left off</h2></div><Button variant="text" onClick={() => go(5)}>All trips <ArrowRight size={16}/></Button></div>
+        <div className="recent-trip-grid">{recentTrips.map(trip => <button type="button" key={trip.id} className="recent-trip-card" onClick={() => {mutate(store => {store.tripId=trip.id;}); go(8);}}>
+          <Photo src={trip.image} alt=""/><span className="recent-trip-copy"><span>{tripDateRange(trip.start,trip.end)}</span><strong>{trip.title}</strong><span>{trip.destinations.join(" · ")}</span><span className="resume-label">Continue planning <ArrowUpRight size={16}/></span></span>
+        </button>)}</div>
+      </section>}
       <div className="home-actions">
         <Button onClick={() => go(6)}>
           <Plus size={20} />
@@ -566,7 +574,7 @@ export function Home() {
           <ArrowRight className="push" size={18} />
         </Button>
       </div>
-      {accountTrips && <ImportedBookings />}
+      {accountTrips && <details className="home-bookings"><summary><Mail size={18}/> Forwarded bookings <span>Import your travel confirmations</span></summary><ImportedBookings /></details>}
       <div className="section-title">
         <div>
           <h2 id="preplanned-trips" ref={templateHeading} tabIndex={-1}>Pre-planned trips</h2>

@@ -268,3 +268,11 @@ The final design review did **not** reach 9.7 in both UI and UX across every are
 Nearby buttons open a shared research popup. Required behavior: use current sources and every accepted traveler's preferences; consider plans and budgets; show uncertainty; return up to 3 candidates without automatically scheduling. The free Groq + Tavily integration enforces 5 generations/user/day plus shared limits of 1/minute, 24/day and 500/month. There is no paid fallback. The backend and quota migration are deployed, and a real browser research journey passed. Frontend publication uses the existing GitHub Pages workflow. Independent route, availability and critical suitability verification remain incomplete. See [NEARBY_AI.md](NEARBY_AI.md).
 
 Nearby research includes a targeted public Yelp search alongside venue/official-tourism-oriented research, explains unavailable Yelp coverage, and provides Google Maps and Yelp viewing links. It uses the existing free two-search allowance; a direct Yelp business link requires a cited source.
+
+## Planning workspace update (November 13, 2026)
+
+Complete: compact numbered daily stops, notes disclosures, a synchronized selected-day map, phone Day plan/Day map switching, date-preserving Calendar/List navigation, and returning-user trip cards on Home. Existing calendar gestures, event entry, full-map tools, budgets, and group controls remain available.
+
+Complete: Saved places collects name, location, coordinates/place ID, and notes without requiring a schedule. Owners and Editors can save/remove ideas or schedule one through the existing event form; scheduling removes the idea and creates the event in one trip transaction. Viewer and Day Editor grants cannot alter unscheduled ideas. Migration `20261113223634_saved_places.sql` was applied to the configured project after rollback validation; omitted fields from older clients preserve existing ideas.
+
+Not included: travel-time estimates, route optimization, unscheduled calendar events, and a new drawer-based editor. Scheduled events retain required start/end times, and external provider availability remains outside the app's control. No paid API was added.

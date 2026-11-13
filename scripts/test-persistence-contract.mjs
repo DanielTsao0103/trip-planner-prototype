@@ -103,6 +103,7 @@ try {
       photoUrl: credit("a").photo_url,
     },
     persistence: "account",
+    savedPlaces: [{id: "qa-idea", name: "Museum idea", place: "Taipei", notes: "Choose a day later", point: {lat:25.09,lng:121.55}, googlePlaceId: "qa-place-id"}],
     budget: 10000,
     budgetMode: "group",
     members: [
@@ -192,6 +193,7 @@ try {
   verify("actual app writer confirms all current planning collections", () => {
     for (const key of [
       "events",
+      "savedPlaces",
       "expenses",
       "prefs",
       "individual",
@@ -208,6 +210,13 @@ try {
     assert.equal(retry.revision, saved.revision),
   );
 
+  const oldClient = payload(row);
+  delete oldClient.savedPlaces;
+  row = check(await save(oldClient, row.revision));
+  verify("older clients preserve unscheduled places when the field is omitted", () => assert.deepEqual(row.content.savedPlaces, original.savedPlaces));
+  const direct = await owner.client.from("trip").update({saved_places: []}).eq("tripID", row.tripID);
+  verify("saved places cannot bypass the validated transaction", () => assert.ok(direct.error));
+
   const rejected = async (label, mutate, photo = null) => {
     const before = await read(saved.id),
       proposed = payload(before);
@@ -223,6 +232,11 @@ try {
     console.log("PASS " + label + " rejects without changing data");
   };
   for (const [label, mutate] of [
+    ["unknown saved-place field", d => { d.savedPlaces[0].unexpected = true; }],
+    ["invalid saved-place coordinates", d => { d.savedPlaces[0].point.lat = 91; }],
+    ["duplicate saved-place IDs", d => { d.savedPlaces.push({...d.savedPlaces[0]}); }],
+    ["oversized saved-place list", d => { d.savedPlaces = Array.from({length:201}, (_,i) => ({...d.savedPlaces[0],id:String(i)})); }],
+    ["invalid event with changed saved places", d => { d.savedPlaces=[]; d.events[0].date="invalid"; }],
     [
       "unknown trip field",
       (d) => {
@@ -475,11 +489,13 @@ try {
   row = check(await save(grant, row.revision));
   const guestTrip = tripFromRow(row, editor);
   guestTrip.events[0].notes = "Independent Editor saved";
+  guestTrip.savedPlaces[0].notes = "Editor updated the idea";
   const guestSaved = await saveAccountTrip(editor.client, editor, guestTrip);
   verify(
     "actual collaborator writer preserves owner root and photo metadata",
     () => {
       assert.equal(guestSaved.events[0].notes, "Independent Editor saved");
+      assert.equal(guestSaved.savedPlaces[0].notes, "Editor updated the idea");
       assert.deepEqual(
         guestSaved.destinationTimezones,
         row.content.destinationTimezones,
@@ -508,6 +524,22 @@ try {
   verify("atomic owner endpoint rejects collaborators", () =>
     assert.equal(guestOwnerRoute.error?.code, "42501"),
   );
+  for (const role of ["Viewer", "Day Editor"]) {
+    row = await read(row.tripID);
+    const grant = payload(row);
+    const traveler = grant.members.find(member => member.accountId === editor.id);
+    traveler.role = role;
+    traveler.days = role === "Day Editor" ? [grant.start] : [];
+    row = check(await save(grant, row.revision));
+    const proposed = payload(row);
+    proposed.savedPlaces = [];
+    const denied = await editor.client.rpc("save_shared_trip_changes", {
+      p_trip_id: row.tripID, p_expected_revision: row.revision,
+      p_request_id: randomUUID(), p_data: proposed,
+    });
+    verify(role + " cannot modify unscheduled places", () => assert.equal(denied.error?.code, "42501"));
+    assert.deepEqual(await read(row.tripID), row);
+  }
   const anonymous = await client().rpc("save_account_trip", {
     p_trip_id: row.tripID,
     p_expected_revision: row.revision,

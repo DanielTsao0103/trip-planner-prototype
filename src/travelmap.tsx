@@ -60,11 +60,14 @@ export function TravelMap({
   date,
   selectedEvent,
   selectedPlace,
+  onSelectEvent,
 }: {
   compact?: boolean;
   date?: string;
   selectedEvent?: string;
   selectedPlace?: string;
+  /** Controlled selection lets a day list and its map share one active stop. */
+  onSelectEvent?: (id: string) => void;
 }) {
   const { trip, s, go, updateTrip, mapSyncOffline } = useApp();
   const { isDark } = usePalette();
@@ -87,9 +90,10 @@ export function TravelMap({
   const [compactSelection, setCompactSelection] = useState<string>();
   const [hiddenMapDays, setHiddenMapDays] = useState<string[]>([]);
   const requestedId = selectedEvent || trip?.events.find((e) => e.place === selectedPlace)?.id || "";
-  const selectedId = compact ? compactSelection ?? requestedId : requestedId;
+  const selectedId = compact && !onSelectEvent ? compactSelection ?? requestedId : requestedId;
   function select(id: string) {
-    if (compact) setCompactSelection(id);
+    if (onSelectEvent) onSelectEvent(id);
+    else if (compact) setCompactSelection(id);
     else go(17, id ? { event: id } : {}, true);
   }
   const [nearbyIds, setNearbyIds] = useState<string[]>([]);
@@ -735,7 +739,7 @@ export function TravelMap({
           >
             <Navigation />
             <span>
-              <small>{selection.id === selectedEvent ? (selection.date === s.date && selection.start <= s.time && selection.end > s.time ? "HAPPENING NOW" : "UP NEXT") : "VIEW ON MAP"}</small>
+              <small>{onSelectEvent ? "SELECTED STOP" : selection.id === selectedEvent ? (selection.date === s.date && selection.start <= s.time && selection.end > s.time ? "HAPPENING NOW" : "UP NEXT") : "VIEW ON MAP"}</small>
               <strong>{selection.place}</strong>
             </span>
             <ArrowUpRight />

@@ -69,3 +69,7 @@ The Budget’s approved panel result does not automatically certify other pages.
 - Carousel cards and their movement step use the actual available width. In a clipped track, draw the complete focus ring inside the card.
 - Reveal both asynchronous errors and their recovery actions above sticky controls. Preserve a known failure reason rather than replacing it with a later loading timeout.
 - Suggested times use upcoming, editable gaps; manual historical editing remains available. A sample idea hidden for the group stays hidden when the same venue appears in Nearby.
+
+## Planning direction (November 13, 2026)
+
+Dan requested Wanderlog-inspired planning while retaining Stir Crazy's identity and working features. Daily stops use numbered compact rows alongside a date-filtered map; selecting either representation preserves the day. Phones switch between list and map. Optional notes expand in place, and saved ideas remain separate from timed events. Returning travelers see their accessible trips before inspiration. Continue using the selected color, appearance, typeface, and corner tokens; no Wanderlog assets or branding are copied.

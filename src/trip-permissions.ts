@@ -43,8 +43,10 @@ export function sharedChangeError(before: Trip, after: Trip, actor: string | nul
       (before.budgetMode !== "individual" && !same(before.individual, after.individual)) ||
       (traveler.role !== "Editor" && !same(before.dismissed, after.dismissed)))
     return "You do not have permission to make this change.";
+  if (traveler.role !== "Editor" && !same(before.savedPlaces ?? [], after.savedPlaces ?? []))
+    return "Only the owner and editors can change saved places.";
   const protectedFields = (trip: Trip) => {
-    const { events, todos, expenses, prefs, individual, dismissed, revision, ...protectedValues } = trip;
+    const { events, savedPlaces, todos, expenses, prefs, individual, dismissed, revision, ...protectedValues } = trip;
     return protectedValues;
   };
   return same(protectedFields(before), protectedFields(after)) ? "" : "Only the trip owner can change trip settings or permissions.";

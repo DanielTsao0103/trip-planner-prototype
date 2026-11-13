@@ -674,6 +674,7 @@ test('forwarded booking removal is deliberate and a failed request can be retrie
     return route.fulfill({json:deleted?[]:[booking]});
   });
   await login(page);
+  await page.locator(".home-bookings > summary").click();
   const remove=page.getByRole('button',{name:'Remove Harbor stay',exact:true});
   await remove.click();
   const dialog=page.getByRole('dialog',{name:'Remove this booking?',exact:true});

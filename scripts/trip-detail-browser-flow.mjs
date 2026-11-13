@@ -30,6 +30,15 @@ export async function detailJourney(page, base, travelerEmail) {
   await button("Full detail browser QA").click();
   await expect(button("Calendar")).toHaveAttribute("aria-pressed", "true");
   await saved(page);
+  await button("Save a place").click();
+  await field("Place name").fill("Museum visit");
+  await field("Where").fill("National museum");
+  await field("Notes (optional)").fill("Bring tickets");
+  await button("Save place").click();
+  await saved(page);
+  await page.reload();
+  await button("Show places").click();
+  await expect(page.locator(".saved-place-row")).toContainText("Museum visit");
   await goto("13");
   await button("Invite someone").click();
   await field("Email addresses").fill(travelerEmail);
@@ -38,7 +47,11 @@ export async function detailJourney(page, base, travelerEmail) {
   await button("Send invitations").click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await saved(page);
-  await goto("7");
+  await goto("8?view=list");
+  await button("Show places").click();
+  await page.locator(".saved-place-row").getByRole("button", {name:"Schedule",exact:true}).click();
+  await expect(field("Event name")).toHaveValue("Museum visit");
+  await expect(field("Where")).toHaveValue("National museum");
   await field("Event name").fill("Museum visit");
   await field("Where").fill("National museum");
   await field("Day").selectOption(today);

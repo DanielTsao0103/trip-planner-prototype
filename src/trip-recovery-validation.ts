@@ -2,6 +2,7 @@ import type {
   Event,
   Expense,
   RepaymentEntry,
+  SavedPlace,
   MapPoint,
   Member,
   Preference,
@@ -95,6 +96,10 @@ const event = shape({
   point: optional(nullable(point)),
   googlePlaceId: optional(nullable(text)),
 } satisfies Schema<Event>);
+const savedPlace = shape({
+  id, name: text, place: text, notes: text,
+  point: optional(nullable(point)), googlePlaceId: optional(nullable(text)),
+} satisfies Schema<SavedPlace>);
 const repaymentEntry = shape({
   id, debtor: id, status: oneOf("paid", "unpaid"), reason: text, actor: id,
   recordedAt: optional(value => typeof value === "string" && Number.isFinite(Date.parse(value))),
@@ -145,6 +150,7 @@ const tripShape = shape({
   sample: optional(bool),
   members: list(member),
   events: list(event),
+  savedPlaces: optional(list(savedPlace)),
   prefs: record(preference),
   expenses: list(expense),
   budget: nullable(integer),

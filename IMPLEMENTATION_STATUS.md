@@ -95,3 +95,11 @@ Country fallback: the bundled destination index supplies a soft country hint whe
 ## Nearby research integration (November 13, 2026)
 
 Nearby entry points use a shared popup and prepared Supabase Edge Function with authoritative trip reads, Tavily basic search, Groq structured ranking, excerpt-backed source quotes and free quota enforcement (5 generations/user/day, up to 3 candidates, shared 1/minute, 24/day and 500/month). Both provider secrets are confirmed saved by the user. The quota migration and function are deployed/enabled. Real browser-to-provider QA returned venue-sourced evidence, rejected unauthorized/cross-trip callers and blocked an immediate repeat; temporary QA data was removed. Frontend publication uses the existing GitHub Pages workflow. This does not establish production recommendation quality. All candidates require review; route/access/dietary safety and date-specific hours are not independently verified. Existing Suggestions cards remain labeled sample ideas. See [NEARBY_AI.md](NEARBY_AI.md).
+
+## November 13 planning workspace
+
+The daily screen reuses `TravelMap` with its date filter and controlled stop selection. Desktop shows list and map together; phone/tablet retain a selected-day toggle. Compact cards use optional thumbnails, expandable notes, and direct editing/directions. Home shows accessible saved trips before templates; forwarded-booking controls remain inside a disclosure.
+
+`Trip.savedPlaces` is an optional, recovery-validated collection of unscheduled places. Account bundles persist it in `trip.saved_places` through the existing revision/idempotency transaction. The server validates nested keys, lengths, coordinates, duplicate IDs, and the 200-place limit. Owner/Editor changes are allowed; Viewer/Day Editor changes are rejected. Older clients that omit the field preserve it. Scheduling removes an idea and adds an event atomically; stale ideas cannot be scheduled over newer changes.
+
+Verification distinguishes deterministic map fixtures from real provider rendering. The extended live contract and browser persistence journeys use disposable accounts and clean up all records; invitation email delivery is simulated, as before.

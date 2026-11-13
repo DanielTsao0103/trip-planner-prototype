@@ -1,6 +1,6 @@
 import { TEXT_LIMITS, MAX_DESTINATIONS, textError } from "./limits.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isOwner, type Trip } from "./domain.ts";
+import { isOwner, savedPlaceVersion, type Trip } from "./domain.ts";
 import type { DemoAccount } from "./demo-store.ts";
 import { IMAGES } from "./data.ts";
 import { validRecoveryTrip } from "./trip-recovery-validation.ts";
@@ -25,6 +25,7 @@ export type TripRow = {
     | "image"
     | "members"
     | "events"
+    | "savedPlaces"
     | "prefs"
     | "expenses"
     | "budget"
@@ -117,6 +118,7 @@ export function tripFromRow(
       ...(local?.members.filter((m) => m.id !== account.id) ?? []),
     ],
     events: local?.events ?? [],
+    savedPlaces: local?.savedPlaces,
     prefs: local?.prefs ?? {},
     expenses: local?.expenses ?? [],
     budget: local?.budget ?? null,
@@ -261,7 +263,8 @@ export async function saveAccountTrip(
   catch {
     throw Object.assign(new Error("The database returned an incompatible trip. Your save could not be confirmed."), { retryOriginal: true });
   }
-  if (!validRecoveryTrip(saved, account.id))
+  if (!validRecoveryTrip(saved, account.id) || (trip.savedPlaces !== undefined &&
+      JSON.stringify(saved.savedPlaces?.map(savedPlaceVersion)) !== JSON.stringify(trip.savedPlaces.map(savedPlaceVersion))))
     throw Object.assign(new Error("The database returned an incompatible trip. Your save could not be confirmed."), { retryOriginal: true });
   return saved;
 }

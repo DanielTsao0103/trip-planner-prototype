@@ -39,6 +39,20 @@ export type Event = {
   point?: MapPoint | null;
   googlePlaceId?: string | null;
 };
+/** A researched place can be collected before choosing a day or time. */
+export type SavedPlace = {
+  id: string;
+  name: string;
+  place: string;
+  notes: string;
+  point?: MapPoint | null;
+  googlePlaceId?: string | null;
+};
+/** Compare content without depending on PostgreSQL JSONB object-key order. */
+export function savedPlaceVersion(place?: SavedPlace): string {
+  return place ? JSON.stringify([place.id, place.name, place.place, place.notes,
+    place.point?.lat ?? null, place.point?.lng ?? null, place.googlePlaceId ?? null]) : "";
+}
 export type RepaymentEntry = {
   id: string;
   debtor: string;
@@ -80,6 +94,7 @@ export type Trip = {
   sample?: boolean;
   members: Member[];
   events: Event[];
+  savedPlaces?: SavedPlace[];
   prefs: Record<string, Preference>;
   expenses: Expense[];
   budget: number | null;

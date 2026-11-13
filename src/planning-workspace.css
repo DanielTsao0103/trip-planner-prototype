@@ -1,0 +1,529 @@
+/* Wanderlog-inspired planning density, using Stir Crazy's chosen theme tokens. */
+:root .planner-viewbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 24px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+}
+:root .planning-workspace {
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 1fr);
+  gap: 28px;
+}
+:root .planning-workspace .timeline:before {
+  left: 87px;
+  background: var(--line);
+}
+:root .planning-workspace .timeline-item {
+  grid-template-columns: 64px 28px minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+:root .planning-workspace .timeline-hour {
+  padding-top: 12px;
+}
+:root .planning-workspace .timeline-hour small {
+  font-size: 10px;
+}
+:root .planning-workspace .timeline-hour > span {
+  font-size: 12px;
+  margin-top: 2px;
+}
+:root .planning-workspace .timeline-dot {
+  width: 28px;
+  height: 28px;
+  top: 12px;
+  left: 0;
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: var(--green);
+  color: var(--on-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+:root .compact-stop {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  padding: 16px;
+  gap: 14px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: var(--ui-radius-card);
+}
+:root .compact-stop > img {
+  width: 76px;
+  height: 76px;
+  flex: 0 0 76px;
+  object-fit: cover;
+  border-radius: var(--ui-radius-control);
+}
+:root .compact-stop > div {
+  min-width: 0;
+  padding: 0;
+  flex: 1;
+}
+:root .compact-stop h2 {
+  font-size: 19px;
+  line-height: 1.3;
+  letter-spacing: -0.3px;
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+:root .compact-stop .eyebrow {
+  font-size: 10px;
+  margin: 0;
+}
+:root .compact-stop .text-link {
+  font-size: 13px;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+:root .compact-stop .row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+:root .compact-stop .badge {
+  font-size: 12px;
+}
+:root .compact-stop p {
+  font-size: 14px;
+  margin: 8px 0;
+}
+:root .stop-notes {
+  margin-top: 8px;
+}
+:root .stop-notes summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--green);
+}
+:root .stop-notes summary:before {
+  content: "+";
+  margin-right: 8px;
+}
+:root .stop-notes[open] summary:before {
+  content: "−";
+}
+:root .stop-directions {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+:root .day-map-panel {
+  position: sticky;
+  top: calc(90px + var(--recovery-clearance, 0px));
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius-card);
+  background: var(--paper);
+  overflow: hidden;
+}
+:root .day-map-heading {
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+:root .day-map-heading h2 {
+  font-size: 19px;
+  margin-top: 5px;
+}
+:root .day-map-heading .eyebrow {
+  font-size: 10px;
+}
+:root .day-map-panel .trip-map.compact .map-canvas {
+  height: 440px;
+  min-height: 320px;
+  border: 0;
+  border-radius: 0;
+}
+:root .day-map-panel .map-layout {
+  display: block;
+  margin: 0;
+}
+:root .day-map-footer {
+  padding: 12px 18px;
+}
+:root .day-map-footer button {
+  min-height: 44px;
+}
+:root .trip-hero {
+  border-radius: var(--ui-radius-card);
+}
+:root .list-trip-hero {
+  min-height: 210px;
+}
+:root .calendar-trip-hero {
+  min-height: 155px;
+}
+:root .trip-summary {
+  padding: 18px 0;
+  gap: 18px;
+}
+:root .itinerary-controls {
+  padding-top: 8px;
+}
+:root .events-list .event-card {
+  border-radius: var(--ui-radius-card);
+  background: var(--paper);
+}
+:root .day-number {
+  background: var(--green);
+  color: var(--on-primary);
+}
+:root .recent-trip-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+:root .recent-trip-card {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius-card);
+  background: var(--paper);
+  color: var(--ink);
+  overflow: hidden;
+}
+:root .recent-trip-card > img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+}
+:root .recent-trip-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+:root .recent-trip-copy strong {
+  font: 600 23px/1.25 var(--font-heading);
+}
+:root .resume-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--green);
+  min-height: 44px;
+  font-weight: 700;
+}
+:root .continue-planning {
+  margin-bottom: 24px;
+}
+:root .home-bookings {
+  border-block: 1px solid var(--line);
+  margin: 28px 0;
+}
+:root .home-bookings > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 64px;
+  cursor: pointer;
+  font-weight: 600;
+}
+:root .home-bookings > summary span {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 13px;
+}
+:root .saved-places {
+  margin: 28px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius-card);
+  background: var(--paper);
+  padding: 24px;
+}
+:root .saved-places .section-title {
+  margin: 0 0 12px;
+}
+:root .saved-place-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+:root .saved-place-row > div:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+:root .saved-place-row h3 {
+  font-size: 17px;
+  margin-bottom: 4px;
+}
+:root .saved-place-row p {
+  font-size: 13px;
+  color: var(--muted);
+}
+:root .saved-place-form {
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 1200px) {
+  :root .day-map-panel {
+    align-self: start;
+  }
+}
+@media (max-width: 1199px) {
+  :root .planning-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  :root .planning-workspace.day-view-list .day-map-panel {
+    display: none;
+  }
+  :root .planning-workspace.day-view-map .timeline {
+    display: none;
+  }
+  :root .day-map-panel {
+    position: relative;
+    top: auto;
+  }
+  :root .recent-trip-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  :root .planner-viewbar {
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+  :root .planning-workspace .timeline-item {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 8px;
+  }
+  :root .planning-workspace .timeline-hour {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0;
+    align-items: center;
+  }
+  :root .planning-workspace .timeline-hour small {
+    display: none;
+  }
+  :root .planning-workspace .timeline-hour > span {
+    font-size: 13px;
+    margin: 0;
+  }
+  :root .planning-workspace .timeline-hour > span:first-of-type:after {
+    content: " –";
+  }
+  :root .planning-workspace .timeline-hour .duration {
+    margin-left: auto;
+  }
+  :root .planning-workspace .timeline-dot {
+    grid-column: 1;
+    grid-row: 2;
+    top: 12px;
+  }
+  :root .planning-workspace .timeline:before {
+    left: 13px;
+    top: 34px;
+  }
+  :root .compact-stop {
+    grid-column: 2;
+    padding: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  :root .compact-stop > img {
+    width: 56px;
+    height: 56px;
+    flex-basis: 56px;
+  }
+  :root .compact-stop > div {
+    flex-basis: 150px;
+  }
+  :root .compact-stop h2 {
+    font-size: 18px;
+  }
+  :root .recent-trip-grid {
+    grid-template-columns: 1fr;
+  }
+  :root .recent-trip-card {
+    flex-direction: row;
+  }
+  :root .recent-trip-card > img {
+    width: 100px;
+    height: auto;
+    min-height: 160px;
+  }
+  :root .recent-trip-copy {
+    padding: 14px;
+  }
+  :root .recent-trip-copy strong {
+    font-size: 20px;
+  }
+  :root .saved-places {
+    padding: 16px;
+  }
+  :root .saved-place-row {
+    flex-wrap: wrap;
+  }
+  :root .saved-place-row > div:first-child {
+    flex-basis: 100%;
+  }
+  :root .day-map-panel .trip-map.compact .map-canvas {
+    height: 420px;
+  }
+}
+
+/* Keep actions together and eliminate the original full-card framing. */
+:root .page-11 .page-head {
+  margin-bottom: 20px;
+}
+:root .page-11 .day-control {
+  margin-bottom: 12px;
+}
+:root .planner-viewbar .btn {
+  min-height: 44px;
+}
+:root .compact-stop .stop-secondary {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+:root .compact-stop .stop-notes {
+  margin: 0;
+}
+:root .compact-stop .stop-notes[open] {
+  flex: 1 0 100%;
+  order: 1;
+}
+:root .compact-stop .stop-notes p {
+  margin: 0 0 8px;
+}
+:root .compact-stop .row {
+  margin: 8px 0 0;
+}
+:root .compact-stop .text-link {
+  min-height: 44px;
+}
+:root .saved-places {
+  margin: 16px 0;
+  padding: 16px 20px;
+}
+:root .saved-places .section-title {
+  margin: 0;
+  gap: 12px;
+}
+:root .saved-places .section-title h2 {
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+:root .saved-places .section-title p {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+@media (min-width: 1200px) {
+  :root .day-view-switch {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  :root main.page-11 > [data-ui="page-heading"] {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+  :root main.page-11 > [data-ui="page-heading"] > div:first-child {
+    flex: 1;
+    flex-basis: auto;
+    min-width: 0;
+  }
+  :root main.page-11 > [data-ui="page-heading"] h1 {
+    font-size: 26px;
+    line-height: 1.2;
+  }
+  :root main.page-11 > [data-ui="page-heading"] .head-action {
+    flex-shrink: 0;
+    margin: 0;
+  }
+  :root .page-11 .planner-viewbar {
+    padding-bottom: 8px;
+  }
+}
+
+:root .compact-stop {
+  padding: 12px 16px;
+}
+:root .compact-stop .stop-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+:root .compact-stop .stop-title h2 {
+  flex: 1;
+  margin: 0;
+}
+:root .compact-stop .stop-title .icon-btn {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+}
+:root .compact-stop .stop-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+}
+:root .compact-stop .stop-secondary {
+  margin: 0;
+}
+
+:root .day-planner-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 24px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+:root .page-11 .day-planner-controls .day-control {
+  margin: 0;
+}
+:root .day-planner-controls .planner-viewbar {
+  flex: 1;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+:root .day-planner-controls .permission {
+  flex-basis: 100%;
+}
+@media (max-width: 1199px) {
+  :root .day-planner-controls .planner-viewbar {
+    flex-basis: 100%;
+  }
+}

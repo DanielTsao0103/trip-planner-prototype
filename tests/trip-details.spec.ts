@@ -2,7 +2,7 @@ import { installGoogleMapFixture } from "./google-map-fixture";
 import { expectUnderInput } from './popup-alignment';
 import { test, expect, type Page } from "@playwright/test";
 
-test.beforeEach(async ({page}) => { await page.route('https://places.googleapis.com/**', route => route.abort()); });
+test.beforeEach(async ({page}) => { await page.route('https://places.googleapis.com/**', route => route.abort()); await installGoogleMapFixture(page); });
 import { detailJourney, saved } from "../scripts/trip-detail-browser-flow.mjs";
 const owner = {
   id: "22222222-2222-4222-8222-222222222222",
@@ -110,6 +110,7 @@ async function backend(page: Page) {
           destinationTimezones: timezones ?? d.destinationTimezones,
           members: d.members,
           events: d.events,
+          savedPlaces: d.savedPlaces ?? old?.content?.savedPlaces ?? [],
           expenses: d.expenses,
           prefs: d.prefs,
           budget: d.budget,

@@ -215,7 +215,8 @@ test("a blocked Google SDK offers recovery and keeps saved directions available"
   await expect(item).toBeInViewport();
   await expect(item).toContainText("Tickets are in our sample confirmations");
   await item.getByRole("button", { name: "Seattle Art Museum" }).click();
-  await expect(page).toHaveURL(/#\/17\?event=museum$/);
+  await expect(page).toHaveURL(/#\/11/);
+  await expect(page.getByRole("complementary", {name:"Map of selected day"})).toBeVisible();
 });
 
 test("a viewer can collapse a stop, return to it with Back, and follow a rescheduled event", async ({page}) => {

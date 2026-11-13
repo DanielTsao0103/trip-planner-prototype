@@ -7,6 +7,7 @@ import "./design-system.css";
 import "./recovery-refinement.css";
 import "./theme-compatibility.css";
 import "./budget.css";
+import "./planning-workspace.css";
 import { ReleaseNotice } from "./release-notice";
 import { StyleSync } from "./style-sync-mount";
 import { startSiteStyle } from "./theme";
