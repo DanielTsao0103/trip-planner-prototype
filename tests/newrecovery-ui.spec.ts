@@ -6,7 +6,7 @@ const user = { id: "11111111-1111-4111-8111-111111111111", aud: "authenticated",
 const draft = { id: "33333333-3333-4333-8333-333333333333", title: "Recovery weekend", destinations: ["Seattle"], start: "2027-05-01", end: "2027-05-04", zone: "America/Los_Angeles", destinationTimezones: ["America/Los_Angeles"], image: "", members: [{ id: user.id, name: "Returning Traveler", email: user.email, role: "Owner", status: "accepted", days: [] }], events: [], expenses: [], prefs: {}, budget: null, budgetMode: "group", individual: {}, todos: [], dismissed: [] };
 
 /** All account traffic is mocked: this suite never writes to a real account. */
-async function setup(page: Page) {
+async function setup(page: Page, retryableFailure = true) {
   // Recovery assertions must not race a real geocoder enriching the saved event.
   await page.route("https://places.googleapis.com/**", route => route.abort());
   await page.route("https://maps.googleapis.com/**", route => route.abort());
@@ -23,7 +23,7 @@ async function setup(page: Page) {
     const tripRow = () => ({ tripID: savedDraft.id, owner_id: user.id, created_by: user.id, trip_name: savedDraft.title, destinations: savedDraft.destinations, start_date: savedDraft.start, end_date: savedDraft.end, timezone: savedDraft.zone, revision: 1, content_version: 1, content: savedDraft });
     if (endpoint.endsWith("/load_trip_bundles")) return route.fulfill({ json: [tripRow()] });
     if (endpoint.endsWith("/save_account_trip")) {
-      if (saveFails) return route.fulfill({ status: 503, json: { message: "Unavailable" } });
+      if (saveFails) return route.fulfill({ status: retryableFailure ? 503 : 400, json: { message: "Unavailable" } });
       savedDraft = request.postDataJSON().p_data;
       return route.fulfill({ json: tripRow() });
     }
@@ -196,7 +196,9 @@ test("expanded account password fields retain values, labels and comfortable com
 
 test("compact failed-save banner keeps retry visible and discloses export and confirmed discard by keyboard", async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await setup(page);
+  // Keep the contrast/keyboard audit stable with a rejected write. Transient
+  // failures and automatic retry/backoff are covered by the persistence suites.
+  await setup(page, false);
   await page.goto("./#/5");
   await page.getByRole("button", { name: "Open itinerary", exact: true }).click();
   await page.goto("./#/7");

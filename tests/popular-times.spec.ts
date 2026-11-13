@@ -121,8 +121,9 @@ test("each location edit starts its replacement request without waiting for a ty
   await page.locator(".place-popular-times summary").click();
   await expect.poll(() => requests(page)).toHaveLength(1);
   // A paused clock catches even a small debounce: refresh must work without advancing time.
-  await page.clock.install();
-  await page.clock.pauseAt(new Date());
+  const clockStart = new Date("2027-01-01T00:00:00Z");
+  await page.clock.install({ time: clockStart });
+  await page.clock.pauseAt(new Date(clockStart.getTime() + 5000));
   const input = page.getByRole("combobox", { name: "Where", exact: true });
   for (const place of ["Space Need, Seattle", "Space Needle, Seattle", "Seattle Public Library, Seattle"]) {
     await input.fill(place);
