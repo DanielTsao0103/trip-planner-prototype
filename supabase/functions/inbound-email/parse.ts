@@ -11,6 +11,8 @@ export type ParsedBooking = {
   title: string;
   startDate: string | null; // YYYY-MM-DD
   endDate: string | null;
+  /** 24 hour HH:MM when the email states a time next to the booking date. */
+  startTime: string | null;
   location: string | null;
   confirmationCode: string | null;
   originalSender: string | null;
@@ -128,6 +130,53 @@ function splitForwarded(text: string): Split {
   return { lines, originalFrom, originalSubject };
 }
 
+const TIME_AFTER = /^\s*(?:at|@|from|,|-|·|\|)?\s*(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\b/i;
+
+/** A date with a clock time right after it, like "Friday, July 3, 2026 at 5:30 pm". */
+function findTimedDate(lines: string[], win: Window): { date: string; time: string } | null {
+  for (const line of lines) {
+    for (const found of findDates(line, win)) {
+      const m = TIME_AFTER.exec(line.slice(found.end));
+      if (!m) continue;
+      let hour = +m[1] % 12;
+      const minute = m[2] ? +m[2] : 0;
+      if (m[3].toLowerCase() === "p") hour += 12;
+      if (+m[1] < 1 || +m[1] > 12 || minute > 59) continue;
+      return { date: found.iso, time: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}` };
+    }
+  }
+  return null;
+}
+
+const STREET =
+  /^\s*(\d{1,6}\s+[A-Za-z0-9.'\- ]{2,60}?\s(?:Road|Rd|Street|St|Avenue|Ave|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Parkway|Pkwy|Highway|Hwy|Court|Ct|Place|Pl|Circle|Cir|Square|Sq)\b\.?(?:[ ,]+(?:Suite|Ste|Unit|#)\s*\w+)?)\s*(?:,\s*(.+))?$/i;
+const CITY_LINE = /^\s*[A-Za-z][A-Za-z .'-]{1,40},\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\s*$/;
+
+/** A street address on its own line, joined with a following "City, ST 12345" line when there is one. */
+function findAddress(lines: string[]): string | null {
+  for (let i = 0; i < lines.length; i++) {
+    const m = STREET.exec(lines[i]);
+    if (!m) continue;
+    if (m[2]) return clip(`${m[1]}, ${m[2]}`, 300);
+    for (let j = i + 1; j < Math.min(lines.length, i + 4); j++) {
+      if (!lines[j].trim()) continue;
+      if (CITY_LINE.test(lines[j])) return clip(`${m[1]}, ${lines[j].trim()}`, 300);
+      break;
+    }
+    return clip(m[1], 300);
+  }
+  return null;
+}
+
+const FOR_TITLE = /\b(?:confirm\w*|reservation|booking|order|tickets?|itinerary)\b[^:]{0,40}?\bfor\s+(.{3,160})$/i;
+const GENERIC_START = /^(?:your|you|my|the|this|a|an|our)\b/i;
+
+/** "Your reservation confirmation for Benihana" becomes "Benihana". */
+function titleFromSubject(subject: string): string | null {
+  const m = FOR_TITLE.exec(subject);
+  return m && !GENERIC_START.test(m[1].trim()) ? clip(m[1], 200) : null;
+}
+
 const CODE_LABEL =
   /\b(?:confirmation|reservation|booking|itinerary|reference|record\s+locator|order)\s*(?:number|no\.?|code|#|id|ref)?\s*(?:is)?\s*[:#-]?/gi;
 const CODE_STOPWORDS = new Set([
@@ -150,10 +199,10 @@ function findConfirmationCode(text: string): string | null {
 
 const KIND_WORDS: [Exclude<BookingKind, "other">, RegExp][] = [
   ["flight", /\b(flights?|boarding pass|airlines?|departs?|departure|gate|terminal)\b/gi],
-  ["lodging", /\b(hotel|check[- ]?in|check[- ]?out|airbnb|vrbo|resort|lodging|nights?|room)\b/gi],
+  ["lodging", /\b(hotel|check[- ]?in|check[- ]?out|airbnb|vrbo|lodging|nights?|room)\b/gi],
   ["rental_car", /\b(rental car|car rental|hertz|avis|enterprise|turo|vehicle|pick[- ]?up location)\b/gi],
   ["train", /\b(train|amtrak|railway|rail)\b/gi],
-  ["restaurant", /\b(table for|party of|opentable|resy|restaurant|dinner|brunch)\b/gi],
+  ["restaurant", /\b(table for|party of|opentable|resy|restaurant|dinner|brunch|seating|menu)\b/gi],
   ["event", /\b(tickets?|admission|concert|venue|showtime)\b/gi],
 ];
 
@@ -285,11 +334,15 @@ export function parseBooking(input: EmailInput, now: Date = new Date()): ParsedB
   const rawText = input.text ?? (input.html ? htmlToText(input.html) : "");
   const { lines, originalFrom, originalSubject } = splitForwarded(rawText.slice(0, 60000));
   const body = lines.join("\n");
-  const title = cleanTitle(originalSubject || input.subject) || "Forwarded booking";
+  const fullSubject = cleanTitle(originalSubject || input.subject);
+  const title = titleFromSubject(fullSubject) || fullSubject || "Forwarded booking";
 
   // Dates: next to a label first; otherwise only when the email mentions one or two dates in total.
   let { start, end } = labelledDates(lines, win);
-  if (!start && !end) {
+  // A date with a time right after it is the booking itself, not a send or order date.
+  const timed = findTimedDate(lines, win);
+  if (!start && timed) start = timed.date;
+  if (!start && !end && !timed) {
     const all = [...new Set(lines.flatMap((line) => findDates(line, win).map((d) => d.iso)))].sort();
     if (all.length === 1) start = all[0];
     else if (all.length === 2) [start, end] = all;
@@ -300,7 +353,9 @@ export function parseBooking(input: EmailInput, now: Date = new Date()): ParsedB
     kind: detectKind(input.subject, body.slice(0, 5000)),
     startDate: start,
     endDate: end,
-    location: clip(lines.map((l) => LOCATION_LINE.exec(l)?.[1] ?? "").find(Boolean) ?? "", 300) || null,
+    startTime: timed && timed.date === start ? timed.time : null,
+    location:
+      clip(lines.map((l) => LOCATION_LINE.exec(l)?.[1] ?? "").find(Boolean) ?? "", 300) || findAddress(lines),
     confirmationCode: findConfirmationCode(`${body}\n${input.subject}`),
   };
   const fromData = structured(input.html, win);
@@ -310,6 +365,7 @@ export function parseBooking(input: EmailInput, now: Date = new Date()): ParsedB
     title: fromData?.title || title,
     startDate: fromData?.startDate ?? fromText.startDate,
     endDate: fromData?.endDate ?? fromText.endDate,
+    startTime: fromData?.startDate ? null : fromText.startTime,
     location: fromData?.location ?? fromText.location,
     confirmationCode: fromData?.confirmationCode ?? fromText.confirmationCode,
     originalSender: originalFrom ? clip(originalFrom, 200) : null,

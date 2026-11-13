@@ -5,6 +5,7 @@ import { useApp } from "./state";
 import { canEdit } from "./domain";
 import {
   bookingEventParams,
+  tripForBooking,
   bookingsInboxAddress,
   setBookingTrip,
   formatBookingDate,
@@ -75,8 +76,13 @@ export function ImportedBookings() {
     );
   }
 
+  // Preselect the one trip whose dates contain the booking, unless the person picked another.
+  function selectedTrip(b: ForwardedBooking): string {
+    return choice[b.bookingId] ?? tripForBooking(b, tripsFor(b)) ?? "";
+  }
+
   function review(b: ForwardedBooking) {
-    const trip = s.trips.find((t) => t.id === choice[b.bookingId]);
+    const trip = s.trips.find((t) => t.id === selectedTrip(b));
     if (!trip) return;
     mutate((v) => {
       v.tripId = trip.id;
@@ -214,7 +220,7 @@ export function ImportedBookings() {
                     <>
                       <select
                         aria-label={`Trip for ${b.title}`}
-                        value={choice[b.bookingId] ?? ""}
+                        value={selectedTrip(b)}
                         onChange={(e) => setChoice((c) => ({ ...c, [b.bookingId]: e.target.value }))}
                       >
                         <option value="">Choose a trip</option>
@@ -222,7 +228,7 @@ export function ImportedBookings() {
                           <option key={t.id} value={t.id}>{t.title}</option>
                         ))}
                       </select>
-                      <Button variant="outline" disabled={!choice[b.bookingId]} onClick={() => review(b)}>
+                      <Button variant="outline" disabled={!selectedTrip(b)} onClick={() => review(b)}>
                         Review and add
                       </Button>
                     </>

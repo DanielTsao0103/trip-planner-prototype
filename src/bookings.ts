@@ -1,6 +1,6 @@
 import { getSupabase } from "./supabase";
 import type { BookingKind, ForwardedBooking } from "./booking-event.ts";
-export { KIND_LABELS, bookingEventParams, type BookingKind, type ForwardedBooking } from "./booking-event.ts";
+export { KIND_LABELS, bookingEventParams, tripForBooking, type BookingKind, type ForwardedBooking } from "./booking-event.ts";
 
 
 /** The address people forward confirmations to. Empty until the inbox is set up. */
@@ -17,6 +17,7 @@ type Row = {
   sender: string;
   received_at: string;
   trip_id: string | null;
+  details: { startTime?: unknown } | null;
 };
 
 /** Formats a stored YYYY-MM-DD without time zone shifting. */
@@ -35,7 +36,7 @@ export function formatBookingDate(value: string | null): string {
 export async function loadForwardedBookings(): Promise<ForwardedBooking[]> {
   const { data, error } = await getSupabase()
     .from("forwarded_booking")
-    .select("booking_id,kind,title,start_date,end_date,location,confirmation_code,sender,received_at,trip_id")
+    .select("booking_id,kind,title,start_date,end_date,location,confirmation_code,sender,received_at,trip_id,details")
     .order("received_at", { ascending: false })
     .limit(50);
   if (error) throw new Error(error.message);
@@ -50,6 +51,7 @@ export async function loadForwardedBookings(): Promise<ForwardedBooking[]> {
     sender: r.sender,
     receivedAt: r.received_at,
     tripId: r.trip_id,
+    startTime: typeof r.details?.startTime === "string" && /^\d{2}:\d{2}$/.test(r.details.startTime) ? r.details.startTime : null,
   }));
 }
 

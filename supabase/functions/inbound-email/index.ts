@@ -146,7 +146,7 @@ Deno.serve(async (request) => {
         end_date: parsed.endDate,
         location: parsed.location,
         confirmation_code: parsed.confirmationCode,
-        details: { source: parsed.source, originalSender: parsed.originalSender },
+        details: { source: parsed.source, originalSender: parsed.originalSender, startTime: parsed.startTime },
         received_at: new Date(Number.isNaN(received) ? Date.now() : received).toISOString(),
       }),
     });

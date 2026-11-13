@@ -118,3 +118,49 @@ test("senderEmail extracts and lowercases the address", () => {
   assert.equal(senderEmail("ivy@example.com"), "ivy@example.com");
   assert.equal(senderEmail("not an address"), null);
 });
+
+test("a restaurant confirmation gets its name, day, time, address and code", () => {
+  const text = [
+    "---------- Forwarded message ---------",
+    "From: OpenTable <reservations@opentable.com>",
+    "Date: Thu, Jul 2, 2026 at 3:10 PM",
+    "Subject: Your reservation confirmation for Benihana - Westgate Las Vegas Resort & Casino, NV",
+    "",
+    "Reservation confirmed",
+    "Thanks for using OpenTable!",
+    "Benihana - Westgate Las Vegas Resort & Casino, NV",
+    "Teppan Community Seating \u2022 Table for 2 on",
+    "Friday, July 3, 2026 at 5:30 pm",
+    "Name: Ivy Sanford",
+    "Confirmation #: 2110283772",
+    "3000 Paradise Road",
+    "Las Vegas, NV 89109",
+    "Phone: (702) 732-5755",
+  ].join("\n");
+  const r = parseBooking(
+    { subject: "Fwd: Your reservation confirmation for Benihana - Westgate Las Vegas Resort & Casino, NV", text, html: null },
+    new Date("2026-07-02T12:00:00Z"),
+  );
+  assert.equal(r.title, "Benihana - Westgate Las Vegas Resort & Casino, NV");
+  assert.equal(r.kind, "restaurant");
+  assert.equal(r.startDate, "2026-07-03");
+  assert.equal(r.endDate, null);
+  assert.equal(r.startTime, "17:30");
+  assert.equal(r.location, "3000 Paradise Road, Las Vegas, NV 89109");
+  assert.equal(r.confirmationCode, "2110283772");
+});
+
+test("times convert correctly around noon and midnight, and a date without a time has none", () => {
+  const at = (when: string) =>
+    parseBooking({ subject: "Booking", text: `Check-in: December 20, 2026 at ${when}`, html: null }, NOW).startTime;
+  assert.equal(at("12:00 pm"), "12:00");
+  assert.equal(at("12:15 am"), "00:15");
+  assert.equal(at("9 am"), "09:00");
+  assert.equal(at("11:59 PM"), "23:59");
+  assert.equal(parseBooking({ subject: "Booking", text: "Check-in: December 20, 2026", html: null }, NOW).startTime, null);
+});
+
+test("generic subjects keep the whole subject as the title", () => {
+  const r = parseBooking({ subject: "Your booking confirmation for your stay", text: "", html: null }, NOW);
+  assert.equal(r.title, "Your booking confirmation for your stay");
+});
