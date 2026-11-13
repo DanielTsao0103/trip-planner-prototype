@@ -127,7 +127,17 @@ function splitForwarded(text: string): Split {
     if (raw.trimStart().startsWith(">") || REPLY_INTRO.test(raw)) continue;
     lines.push(line);
   }
-  return { lines, originalFrom, originalSubject };
+  return { lines: lines.map(stripSentStamp).filter((l) => l !== null) as string[], originalFrom, originalSubject };
+}
+
+// "Date: Thu, Jul 2, 2026 at 11:05 AM" or "Sent: ..." is when a message was sent, never when the booking is,
+// even if the forwarded header was reshaped and the marker above was not recognised.
+const SENT_STAMP = /\b(?:date|sent|received)\s*:[^\n]*$/i;
+function stripSentStamp(line: string): string | null {
+  const m = SENT_STAMP.exec(line);
+  if (!m) return line;
+  const kept = line.slice(0, m.index).trim();
+  return kept === "" ? null : kept;
 }
 
 const TIME_AFTER = /^\s*(?:at|@|from|,|-|·|\|)?\s*(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\b/i;

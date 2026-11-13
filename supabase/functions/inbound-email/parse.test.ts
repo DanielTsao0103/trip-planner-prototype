@@ -164,3 +164,29 @@ test("generic subjects keep the whole subject as the title", () => {
   const r = parseBooking({ subject: "Your booking confirmation for your stay", text: "", html: null }, NOW);
   assert.equal(r.title, "Your booking confirmation for your stay");
 });
+
+test("a sent-date stamp is never taken as the booking day, even without a forward marker", () => {
+  const text = [
+    "From: OpenTable <reservations@opentable.com>",
+    "Date: Thu, Jul 2, 2026 at 11:05 AM",
+    "Subject: Your reservation confirmation for Benihana",
+    "",
+    "Benihana",
+    "Table for 2 on",
+    "Friday, July 3, 2026 at 5:30 pm",
+    "Confirmation #: 2110283772",
+  ].join("\n");
+  const r = parseBooking({ subject: "Fwd: Your reservation confirmation for Benihana", text, html: null }, new Date("2026-07-02T12:00:00Z"));
+  assert.equal(r.startDate, "2026-07-03");
+  assert.equal(r.startTime, "17:30");
+  assert.equal(r.endDate, null);
+});
+
+test("a header stamp glued onto one line is cut off too", () => {
+  const r = parseBooking(
+    { subject: "Booking", text: "From: a@b.com Date: Thu, Jul 2, 2026 at 11:05 AM\nFriday, July 3, 2026 at 5:30 pm", html: null },
+    new Date("2026-07-02T12:00:00Z"),
+  );
+  assert.equal(r.startDate, "2026-07-03");
+  assert.equal(r.startTime, "17:30");
+});
