@@ -78,6 +78,7 @@ test("daily planning keeps dates across views and synchronizes stop selection wi
   await expect(map.locator(".next-place-card")).toContainText("SELECTED STOP");
   await expect(article).toHaveClass(/focused/);
   const navigation = page.getByRole('group', {name:'Itinerary view',exact:true});
+  await expect(navigation).toBeInViewport({ratio:1});
   await expect(navigation.getByRole('button', {name:'Day & map',exact:true})).toHaveAttribute('aria-pressed','true');
   const stopNames = await page.locator('.itinerary-day-list .event-info h3').allTextContents();
   if (info.project.name === 'desktop') {
@@ -137,6 +138,7 @@ test('a later-day map link reveals its paginated stop and saved-place cancellati
   const stop=page.getByRole('article',{name:'A morning of art',exact:true});
   await expect(stop).toBeFocused();
   await expect(stop).toBeInViewport();
+  await expect(page.getByRole('group',{name:'Itinerary view',exact:true})).toBeInViewport({ratio:1});
   await expect(page.getByLabel('Choose a day',{exact:true})).toHaveValue('November 4, 2026');
   await page.getByRole('button',{name:'Show places',exact:true}).click();
   await page.getByRole('button',{name:'Schedule',exact:true}).click();

@@ -521,3 +521,20 @@
   grid-row: 1;
   margin: 0;
 }
+
+/* Day/event links may scroll into a long list; keep its view switch reachable. */
+:root :is(.page-8, .page-11) .itinerary-controls {
+  position: sticky;
+  top: var(--release-notice-height, 0px);
+  z-index: 20;
+  padding-block: 8px;
+  background: var(--page);
+  border-bottom: 1px solid var(--line);
+}
+/* Recovery controls take precedence over a convenience navigation bar. */
+:root
+  body:has(.trip-recovery-banner)
+  :is(.page-8, .page-11)
+  .itinerary-controls {
+  position: static;
+}
