@@ -10,7 +10,7 @@ const source = { url: "https://venue.example/menu", title: "Official venue menu"
 const candidate = { name: "Venue", address: "Seattle", reason: "Lunch option", durationMinutes: 60, pricePerPersonCents: null, currency: null, concerns: [], conflicts: [], facts: [{ topic: "Menu", detail: "Vegetarian dishes on the lunch menu", sourceUrl: source.url, quote: "Our lunch menu includes vegetarian dishes." }] };
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 
-test("free provider flow uses three basic searches then one structured Groq call with bounded input", async () => {
+test("free provider flow uses three basic searches and bounded structured Groq passes", async () => {
   const calls: { url: string; body: any }[] = [];
   const fetcher: typeof fetch = async (url, init) => {
     const body = JSON.parse(init!.body as string); calls.push({ url: String(url), body });
@@ -30,7 +30,7 @@ test("Yelp sources are included alongside primary sources and remain restricted 
   let searches = 0;
   const yelp = { url: "https://www.yelp.com/biz/venue-seattle", title: "Venue - Yelp", content: "Guests mention a vegetarian lunch menu." };
   const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async (url, init) => {
-    if (String(url).includes("tavily")) return json({ results: ++searches === 1 ? [source] : [yelp, { ...yelp, url: "https://yelp.com.evil.example/biz/a" }] });
+    if (String(url).includes("tavily")) return json({ results: ++searches === 2 ? [yelp, { ...yelp, url: "https://yelp.com.evil.example/biz/a" }] : [source] });
     const prompt = JSON.parse(init!.body as string).messages[1].content;
     assert.ok(prompt.includes(yelp.url)); assert.equal(prompt.includes("evil.example"), false);
     return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [{ ...candidate, facts: [{ ...candidate.facts[0], sourceUrl: yelp.url, quote: yelp.content }] }] }) } }] });
@@ -42,7 +42,7 @@ test("unavailable supplemental Yelp search preserves primary evidence and contin
   const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async url => {
     calls++;
     if (String(url).includes("tavily")) return calls === 1 || calls === 3 ? json({ results: [source] }) : json({}, 403);
-    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [candidate] }) } }] });
+    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: calls === 4 ? [candidate] : [] }) } }] });
   });
   assert.equal(calls, 5); assert.equal(result.yelpStatus, "unavailable"); assert.equal(result.candidates.length, 1);
 });
@@ -68,9 +68,9 @@ test("search rate limits stop the pipeline without retries or model calls", asyn
 test("empty search results skip the AI; oversized context uses neither provider", async () => {
   let calls = 0;
   const fetcher: typeof fetch = async () => { calls++; return json({ results: [] }); };
-  assert.deepEqual((await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, fetcher)).candidates, []); assert.equal(calls, 2);
+  assert.deepEqual((await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, fetcher)).candidates, []); assert.equal(calls, 3);
   const c = context(); c.area = "x".repeat(20000);
-  await assert.rejects(researchWithFreeProviders(c, { groq: "fixture", tavily: "fixture" }, fetcher), (e: unknown) => e instanceof ResearchError && e.status === 422); assert.equal(calls, 2);
+  await assert.rejects(researchWithFreeProviders(c, { groq: "fixture", tavily: "fixture" }, fetcher), (e: unknown) => e instanceof ResearchError && e.status === 422); assert.equal(calls, 3);
 });
 test("identical group answers compact without losing their vote count or requester distinction", () => {
   const c = context();
