@@ -876,7 +876,7 @@ test('event autocomplete follows itinerary cities, date changes, and explicit ov
  await page.screenshot({path:test.info().outputPath('itinerary-location-context.png'),fullPage:true});
 });
 
-test("receipt photo is uploaded privately and its reviewed amount counts once", async ({ page, isMobile }) => {
+test("receipt saves using scanned details and its amount counts once", async ({ page, isMobile }) => {
   const api = await backend(page);
   const tripId = "99999999-9999-4999-8999-999999999999";
   api.rows.push({
@@ -896,8 +896,15 @@ test("receipt photo is uploaded privately and its reviewed amount counts once", 
     uploads.push(new URL(route.request().url()).pathname);
     return route.fulfill({ json: { Key: uploads.at(-1) } });
   });
-  // Exercise the manual review path when the OCR worker cannot download its assets.
-  await page.route("https://cdn.jsdelivr.net/**", route => route.abort());
+  // Keep the browser test independent of OCR model downloads.
+  let readable = false;
+  await page.route(/\/worker\.min[^/]*\.js(?:\?.*)?$/, route => route.fulfill({
+    contentType: "application/javascript",
+    body: `self.onmessage = ({data}) => self.postMessage({
+      ...data, status: 'resolve', data: data.action === 'recognize'
+        ? {text: ${JSON.stringify(readable ? "Cedar Cafe\nGrand Total USD 24.95" : "")}} : {}
+    });`,
+  }));
   await page.goto("./#/5");
   await page.reload();
   await page.getByRole("button", { name: "Receipt test trip", exact: true }).click();
@@ -915,17 +922,23 @@ test("receipt photo is uploaded privately and its reviewed amount counts once", 
   }
   await expect(page.getByRole("img", { name: "Receipt photo" })).toBeVisible();
   expect(uploads).toHaveLength(0);
-  await page.getByLabel("What was it for?", { exact: true }).fill("Lunch receipt");
-  await page.getByLabel("Amount (USD)", { exact: true }).fill("24.95");
+  await expect(page.getByLabel("What was it for?", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Amount (USD)", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Category", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Save expense", exact: true }).click();
+  await expect(page.getByText("Couldn’t read the total. Retake the photo with the full total visible.")).toBeVisible();
+  expect(uploads).toHaveLength(0);
+  expect(api.rows[0].content.expenses).toHaveLength(0);
+  readable = true;
   await page.getByRole("button", { name: "Save expense", exact: true }).click();
   await expect.poll(() => api.rows[0].content.expenses).toHaveLength(1);
   const [expense] = api.rows[0].content.expenses;
-  expect(expense).toMatchObject({ amount: 2495, purpose: "Lunch receipt", source: "Receipt photo" });
+  expect(expense).toMatchObject({ amount: 2495, purpose: "Cedar Cafe", category: "Food", source: "Receipt photo" });
   expect(uploads).toEqual([`/storage/v1/object/expense-receipts/${owner.id}/${tripId}/${expense.id}`]);
   await page.reload();
-  await expect(page.locator(".expense-row").filter({ hasText: "Lunch receipt" })).toContainText("$24.95");
+  await expect(page.locator(".expense-row").filter({ hasText: "Cedar Cafe" })).toContainText("$24.95");
   await expect(page.getByText("$75.05", { exact: true }).first()).toBeVisible();
-  await page.locator(".expense-row").filter({ hasText: "Lunch receipt" })
+  await page.locator(".expense-row").filter({ hasText: "Cedar Cafe" })
     .getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("button", { name: "View receipt", exact: true }).click();
   await expect(page.getByRole("img", { name: "Receipt photo" })).toBeVisible();

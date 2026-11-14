@@ -799,12 +799,10 @@ export function ExpenseForm() {
   if (!t) return null;
   const travelerId = member(t, s.userId)!.id;
   const original = t.expenses.find((e) => e.id === overlay?.data?.id);
-  const [purpose, setPurpose] = useState(original?.purpose || ""),
-    [amount, setAmount] = useState(
-      original ? String(original.amount / 100) : "",
-    ),
-    [category, setCategory] = useState(original?.category || "Food"),
-    [shared, setShared] = useState(
+  const [purpose, setPurpose] = useState(original?.purpose ?? "");
+  const [amount, setAmount] = useState(original ? String(original.amount / 100) : "");
+  const [category, setCategory] = useState(original?.category ?? "Food");
+  const [shared, setShared] = useState(
       original ? Object.keys(original.shares).length > 1 : false,
     ),
     [people, setPeople] = useState(
@@ -822,18 +820,17 @@ export function ExpenseForm() {
   const selectReceiptPhoto = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (file) void choosePhoto(file);
+    if (file) choosePhoto(file);
   };
   const [photoStatus, setPhotoStatus] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const draftId = useRef<string>(undefined);
   const savingPhoto = useRef(false);
-  const photoRequest = useRef(0);
   const active = useRef(true);
   useEffect(() => {
     active.current = true;
-    return () => { active.current = false; photoRequest.current++; };
+    return () => { active.current = false; };
   }, []);
   useEffect(() => {
     if (!photo) return;
@@ -852,26 +849,14 @@ export function ExpenseForm() {
   useEffect(() => () => {
     if (photoUrl) URL.revokeObjectURL(photoUrl);
   }, [photoUrl]);
-  const choosePhoto = async (file: File) => {
+  const choosePhoto = (file: File) => {
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10485760 || !file.size) {
       setError("Choose a JPEG, PNG, or WebP image up to 10 MB.");
       return;
     }
-    const request = ++photoRequest.current;
     setError("");
     setScan("");
     setPhoto(file);
-    setPhotoStatus("Reading receipt…");
-    try {
-      const result = await scanReceiptPhoto(file);
-      if (request !== photoRequest.current) return;
-      if (result.purpose) setPurpose(current => current || result.purpose.slice(0, TEXT_LIMITS.expense));
-      const total = result.amount && !moneyError(result.amount, MONEY_LIMITS.expense) ? result.amount : "";
-      if (total) setAmount(current => current || total);
-      setPhotoStatus(total ? "Check the description and confirm the total is in USD before saving." : "Enter the total in USD.");
-    } catch {
-      if (request === photoRequest.current) setPhotoStatus("Could not read the photo. Enter the expense details below.");
-    }
   };
   const purposeRef = useRef<HTMLTextAreaElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -960,16 +945,41 @@ export function ExpenseForm() {
           }
           setSubmitted(true);
           setError("");
-          if (purposeProblem || amountProblem) {
+          let expensePurpose = purpose;
+          let expenseCategory = category;
+          let expenseAmount = amount;
+          if (photo) {
+            savingPhoto.current = true;
+            setUploading(true);
+            setPhotoStatus("Reading receipt…");
+            try {
+              const fields = await scanReceiptPhoto(photo);
+              if (!active.current) return;
+              if (!fields.amount || moneyError(fields.amount, MONEY_LIMITS.expense)) {
+                setError(fields.needsManualAmount
+                  ? "Couldn’t identify a single USD total. Try another receipt photo."
+                  : "Couldn’t read the total. Retake the photo with the full total visible.");
+                return;
+              }
+              expenseAmount = fields.amount;
+              expensePurpose = fields.purpose.slice(0, TEXT_LIMITS.expense) || "Receipt expense";
+              expenseCategory = fields.category ?? "Other";
+            } catch {
+              if (active.current) setError("Couldn’t read the receipt. Try taking another photo.");
+              return;
+            } finally {
+              savingPhoto.current = false;
+              if (active.current) {
+                setUploading(false);
+                setPhotoStatus("");
+              }
+            }
+          } else if (purposeProblem || amountProblem) {
             revealInvalidField(purposeProblem ? purposeRef.current : amountRef.current);
             return;
           }
-          const cents = Math.round(Number(amount) * 100);
-          if (!Number.isFinite(cents) || cents <= 0) {
-            setError("Enter an amount greater than zero.");
-            return;
-          }
-          if (shared && !people.length) {
+          const cents = Math.round(Number(expenseAmount) * 100);
+          if (!photo && shared && !people.length) {
             setError("Choose at least one participant.");
             return;
           }
@@ -981,11 +991,11 @@ export function ExpenseForm() {
           }
           const record: Expense = {
             id: original?.id || (draftId.current ??= uid()),
-            purpose: purpose.trim(),
+            purpose: expensePurpose.trim(),
             amount: cents,
-            category,
+            category: expenseCategory,
             payer: travelerId,
-            shares: splitCents(cents, shared ? people : [travelerId]),
+            shares: splitCents(cents, !photo && shared ? people : [travelerId]),
             date: original?.date || s.date,
             source: photo ? (t.persistence === "account" ? receiptSource : "Receipt scan") : source,
             settled: [],
@@ -1023,7 +1033,7 @@ export function ExpenseForm() {
           } else updateTrip(saveExpense);
           // Saving a demo split should not open a pretend-message dialog.
           toast(
-            shared && t.persistence !== "account"
+            !photo && shared && t.persistence !== "account"
               ? "Expense recorded. Shares updated; no message sent."
               : "Expense recorded. Your totals are up to date.",
             "budget",
@@ -1101,8 +1111,8 @@ export function ExpenseForm() {
                 Take photo
               </Button>
               {photo && <Button variant="text" disabled={uploading} onClick={() => {
-                photoRequest.current++;
                 setPhoto(undefined);
+                setError("");
                 setPhotoUrl("");
                 setPhotoStatus("");
               }}>Remove photo</Button>}
@@ -1113,6 +1123,7 @@ export function ExpenseForm() {
             <Button variant="text" onClick={() => void viewPhoto()}>View receipt</Button>
           )}
           {photoUrl && <img src={photoUrl} alt="Receipt photo" className="expense-receipt-photo" />}
+          {!photo && <>
           <p className="expense-date-context">Expense date: {dateText(original?.date || s.date)}{t.persistence !== "account" && " · Demo date"}</p>
           <div className="expense-validated-field">
           <Field label="What was it for?">
@@ -1207,13 +1218,14 @@ export function ExpenseForm() {
                 ))}
             </fieldset>
           )}
+          </>}
           <ErrorBox text={error} />
         </div>
         <div className="form-actions">
           <Button variant="text" onClick={close}>
             Cancel
           </Button>
-          <Button type="submit" disabled={uploading}>{uploading ? "Attaching receipt…" : "Save expense"}</Button>
+          <Button type="submit" disabled={uploading}>{uploading ? (photoStatus || "Attaching receipt…") : "Save expense"}</Button>
         </div>
       </form>
     </Modal>

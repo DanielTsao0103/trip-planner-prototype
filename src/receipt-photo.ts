@@ -1,3 +1,4 @@
+import { parseReceiptFields } from "./receipt-fields";
 import { getSupabase } from "./supabase";
 import workerPath from "tesseract.js/dist/worker.min.js?url";
 import type { Worker } from "tesseract.js";
@@ -25,7 +26,7 @@ export async function removeReceipt(path: string) {
 }
 
 export async function scanReceiptPhoto(photo: File) {
-  const { createWorker } = await import("tesseract.js");
+  const { createWorker, PSM } = await import("tesseract.js");
   let worker: Worker | undefined;
   let ended = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -38,22 +39,26 @@ export async function scanReceiptPhoto(photo: File) {
       throw new Error("Receipt reading timed out.");
     }
     worker = instance;
-    return instance.recognize(photo);
+    const primary = parseReceiptFields((await instance.recognize(photo)).data.text);
+    if (primary.amount && primary.purpose) return primary;
+
+    // A scattered receipt layout can fall outside the default text block.
+    await instance.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
+    const alternate = parseReceiptFields((await instance.recognize(photo)).data.text);
+    return {
+      purpose: primary.purpose || alternate.purpose,
+      category: primary.category ?? alternate.category,
+      amount: primary.amount || (primary.needsManualAmount ? "" : alternate.amount),
+      needsManualAmount: primary.needsManualAmount || alternate.needsManualAmount,
+    };
   };
   try {
-    const { data } = await Promise.race([
+    return await Promise.race([
       recognize(),
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error("Receipt reading timed out.")), 25000);
+        timer = setTimeout(() => reject(new Error("Receipt reading timed out.")), 40000);
       }),
     ]);
-    const lines = data.text.split("\n").map(line => line.trim()).filter(Boolean);
-    const amounts = new Set<string>();
-    for (const line of lines) {
-      const match = line.match(/^(?:grand\s+total|total(?:\s+(?:paid|due|amount))?|amount\s+(?:due|paid))\s*[:=]?\s*(?:USD\s*|US\$\s*|\$\s*)?(\d{1,3}(?:,\d{3})+\.\d{2}|\d+\.\d{2})(?:\s+USD)?\s*$/i);
-      if (match) amounts.add(match[1].replaceAll(",", ""));
-    }
-    return { purpose: lines.find(line => /[a-z]{3}/i.test(line)) ?? "", amount: amounts.size === 1 ? [...amounts][0] : "" };
   } finally {
     ended = true;
     clearTimeout(timer);
