@@ -67,8 +67,13 @@ export async function scanReceiptPhoto(photo: File) {
     const alternate = parseReceiptFields((await instance.recognize(image)).data.text);
     const conflict = !!(primary.amount && alternate.amount && primary.amount !== alternate.amount);
     const needsManualAmount = alternate.needsManualAmount || conflict;
+    // Prefer the clean name when a second pass omits a stray logo character.
+    const suffix = primary.purpose.slice(alternate.purpose.length);
+    const cleanMerchant = alternate.purpose
+      && primary.purpose.startsWith(alternate.purpose)
+      && /^\s+\d$/.test(suffix);
     return {
-      purpose: primary.purpose || alternate.purpose,
+      purpose: cleanMerchant ? alternate.purpose : primary.purpose || alternate.purpose,
       category: primary.category ?? alternate.category,
       amount: needsManualAmount ? "" : primary.amount || alternate.amount,
       needsManualAmount,

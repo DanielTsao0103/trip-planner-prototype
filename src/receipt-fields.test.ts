@@ -28,3 +28,18 @@ test("receipt totals can appear under the label or contain OCR spacing", () => {
   assert.equal(parseReceiptFields("Cedar Cafe\nTotal items 3\n24.95").amount, "");
   assert.equal(parseReceiptFields("Cedar Cafe\nCAD\nTotal\n24.95").needsManualAmount, true);
 });
+
+test("USD totals survive unrelated currency-like text and a settled balance", () => {
+  assert.equal(parseReceiptFields("CAD Design Shop\nTOTAL SALE $24.95\nBALANCE DUE $0.00").amount, "24.95");
+  assert.equal(parseReceiptFields("Cafe\nTotal 20.00\nTip 4.95\nFinal Total $24.95").amount, "24.95");
+  assert.equal(parseReceiptFields("Total $024.95\nTotal $24.95").amount, "24.95");
+  assert.equal(parseReceiptFields("Total CA$24.95").amount, "");
+  assert.equal(parseReceiptFields("Total 24.95 CAD").amount, "");
+});
+
+test("skips promotional headers and uses the printed sale total over tender lines", () => {
+  assert.deepEqual(parseReceiptFields(
+    "See back of receipt for your chance\nto win $1000\nID # ABC\nWalmart\n"
+      + "SUBTOTAL $69.00\nTAX $5.52\nTOTAL $74.52\nDEBIT TEND 74.05\n74.05 TOTAL PURCHASE",
+  ), { purpose: "Walmart", amount: "74.52", category: undefined, needsManualAmount: false });
+});
