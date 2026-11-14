@@ -444,3 +444,20 @@ gmp-advanced-marker:focus-visible .trip-pin-face {
   font-size: 14px;
 }
 .map-itinerary-card small { color: var(--muted); font-size: 12px; }
+
+/* On narrow map panels, give the day disclosure and event rows the full list width. */
+@media (max-width: 420px) {
+  .map-day-group {
+    display: flex;
+    flex-direction: column;
+  }
+  .map-day-disclosure,
+  .map-day-events,
+  .place-row,
+  .place-select {
+    width: 100%;
+  }
+  .map-day-toggle {
+    align-self: flex-end;
+  }
+}
