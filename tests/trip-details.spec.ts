@@ -888,10 +888,14 @@ test("receipt saves using scanned details and its amount counts once", async ({ 
       members: [{ id: owner.id, name: owner.user_metadata.name, email: owner.email, role: "Owner", status: "accepted", days: [] }] },
   });
   const uploads: string[] = [];
+  let receiptBucketAvailable = true;
   const image = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jB6kAAAAASUVORK5CYII=", "base64");
   await page.route("https://*.supabase.co/storage/v1/object/expense-receipts/**", route => {
     if (route.request().method() === "GET") {
       return route.fulfill({ contentType: "image/png", body: image });
+    }
+    if (!receiptBucketAvailable) {
+      return route.fulfill({ status: 404, json: { message: "Bucket not found" } });
     }
     uploads.push(new URL(route.request().url()).pathname);
     return route.fulfill({ json: { Key: uploads.at(-1) } });
@@ -942,4 +946,14 @@ test("receipt saves using scanned details and its amount counts once", async ({ 
     .getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("button", { name: "View receipt", exact: true }).click();
   await expect(page.getByRole("img", { name: "Receipt photo" })).toBeVisible();
+  await page.reload();
+  receiptBucketAvailable = false;
+  await page.getByRole("button", { name: "Add expense", exact: true }).first().click();
+  await page.getByLabel("Receipt photo", { exact: true }).setInputFiles(file);
+  await page.getByRole("button", { name: "Save expense", exact: true }).click();
+  await expect(page.getByText("Receipt scan (photo unavailable)", { exact: true })).toBeVisible();
+  await expect.poll(() => api.rows[0].content.expenses).toHaveLength(2);
+  expect(api.rows[0].content.expenses.find((item: { id: string }) => item.id !== expense.id))
+    .toMatchObject({ amount: 2495, source: "Receipt scan (photo unavailable)" });
+  expect(uploads).toHaveLength(1);
 });

@@ -997,7 +997,7 @@ export function ExpenseForm() {
             payer: travelerId,
             shares: splitCents(cents, !photo && shared ? people : [travelerId]),
             date: original?.date || s.date,
-            source: photo ? (t.persistence === "account" ? receiptSource : "Receipt scan") : source,
+            source: photo ? "Receipt scan" : source,
             settled: [],
           };
           if (photo && t.persistence === "account") {
@@ -1010,12 +1010,10 @@ export function ExpenseForm() {
                 await removeReceipt(path);
                 return;
               }
-            } catch (issue) {
-              if (active.current) {
-                setError(issue instanceof Error ? issue.message : "Could not attach the receipt.");
-                setUploading(false);
-              }
-              return;
+              record.source = receiptSource;
+            } catch {
+              if (!active.current) return;
+              record.source = "Receipt scan (photo unavailable)";
             } finally {
               savingPhoto.current = false;
             }
@@ -1033,9 +1031,11 @@ export function ExpenseForm() {
           } else updateTrip(saveExpense);
           // Saving a demo split should not open a pretend-message dialog.
           toast(
-            !photo && shared && t.persistence !== "account"
-              ? "Expense recorded. Shares updated; no message sent."
-              : "Expense recorded. Your totals are up to date.",
+            photo && t.persistence === "account" && record.source !== receiptSource
+              ? "Expense recorded. The receipt photo could not be attached."
+              : !photo && shared && t.persistence !== "account"
+                ? "Expense recorded. Shares updated; no message sent."
+                : "Expense recorded. Your totals are up to date.",
             "budget",
           );
           close();
