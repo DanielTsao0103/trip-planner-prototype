@@ -8,9 +8,9 @@ const account = {
 const seeded = ["ivysanford13@gmail.com", "danieljuntsao@gmail.com", "thefergusondrew@gmail.com", "sethshireman@gmail.com"];
 
 /** Mocked Supabase with an in-memory admin list. `admin: false` mimics a signed-in account that is not listed. */
-async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuard?: boolean }) {
+async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuard?: boolean; stats?: { total_trips: number; shared_trips: number }[] }) {
   let rows = seeded.map((email, index) => ({ email, added_at: `2026-11-12T15:00:0${index}Z` }));
-  const log = { rpc: 0, inserts: [] as string[], deletes: [] as string[] };
+  const log = { rpc: 0, statsCalls: 0, inserts: [] as string[], deletes: [] as string[] };
   await page.route("https://*.supabase.co/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -18,6 +18,12 @@ async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuar
     if (path === "/rest/v1/rpc/is_admin") {
       log.rpc += 1;
       return route.fulfill({ json: options.admin });
+    }
+    if (path === "/rest/v1/rpc/okr2_sharing_stats") {
+      const sequence = options.stats ?? [{ total_trips: 0, shared_trips: 0 }];
+      const row = sequence[Math.min(log.statsCalls, sequence.length - 1)];
+      log.statsCalls += 1;
+      return route.fulfill({ json: [row] });
     }
     if (path === "/rest/v1/admin_email") {
       if (!options.admin) return route.fulfill({ json: [] });
@@ -121,7 +127,7 @@ test("the Admin page is a menu of four OKR tracker pages, each with its own plac
   for (const owner of owners) {
     await menu.getByRole("button", { name: `${owner}’s OKR tracker`, exact: true }).click();
     await expect(page.getByRole("heading", { name: `${owner}’s OKR tracker`, exact: true, level: 1 })).toBeVisible();
-    await expect(page.getByText("Nothing here yet.")).toBeVisible();
+    if (owner !== "Ivy") await expect(page.getByText("Nothing here yet.")).toBeVisible();
     const trail = page.getByRole("navigation", { name: "Breadcrumb" });
     await expect(trail.locator('[aria-current="page"]')).toHaveText(`${owner}’s OKR tracker`);
     await expect(trail.getByRole("link", { name: "Account", exact: true })).toBeVisible();
@@ -170,4 +176,25 @@ test("demo accounts never see Admin and never ask the database", async ({ page }
     await expect(page.getByRole("heading", { name: "You do not have access to this page." })).toBeVisible();
   }
   expect(log.rpc).toBe(0);
+});
+
+test("Ivy's tracker shows OKR #2 and updates on its own", async ({ page }) => {
+  const log = await mockSupabase(page, { admin: true, stats: [{ total_trips: 20, shared_trips: 9 }, { total_trips: 20, shared_trips: 15 }] });
+  await signIn(page);
+  await page.clock.install();
+  await page.goto("./#/22");
+  const tracker = page.getByTestId("okr2");
+  await expect(tracker.getByText("Help trip planners save and share trips with friends")).toBeVisible();
+  await expect(tracker.getByText("75% of all trips have more than 1 account")).toBeVisible();
+  await expect(page.getByTestId("okr2-percent")).toHaveText("45%");
+  await expect(page.getByTestId("okr2-gap")).toHaveText("6 more shared");
+  await expect(tracker.getByText("Below target")).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("okr2-below.png"), fullPage: true });
+  // No click: the next refresh arrives by itself.
+  await page.clock.runFor(16000);
+  await expect(page.getByTestId("okr2-percent")).toHaveText("75%");
+  await expect(page.getByTestId("okr2-gap")).toHaveText("None");
+  await expect(tracker.getByText("Target met")).toBeVisible();
+  expect(log.statsCalls).toBeGreaterThanOrEqual(2);
+  await page.screenshot({ path: test.info().outputPath("okr2-met.png"), fullPage: true });
 });
