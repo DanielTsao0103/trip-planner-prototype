@@ -287,12 +287,14 @@ export function EventCard({
   edit = false,
   onSelect,
   selected,
+  selectionLabel,
 }: {
   event: Event;
   id?: string;
   edit?: boolean;
   onSelect?: () => void;
   selected?: boolean;
+  selectionLabel?: string;
 }) {
   const { go, open } = useApp();
   return (
@@ -300,7 +302,7 @@ export function EventCard({
       className="event-card"
       id={id}
       aria-expanded={onSelect ? !!selected : undefined}
-      aria-label={onSelect ? `Show ${event.name} on map` : undefined}
+      aria-label={onSelect ? selectionLabel || `Show ${event.name} on map` : undefined}
       onClick={() =>
         onSelect ? onSelect() : edit
           ? go(7, { event: event.id, date: event.date, return: "11" })

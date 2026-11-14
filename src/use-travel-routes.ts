@@ -31,7 +31,7 @@ export function useTravelRoutes(origin: RouteLocation | undefined, destination: 
           const estimate = parseEstimate(await response.json(), mode);
           result = { estimate, error: estimate ? "" : "No route estimate available for this option." };
         } catch (error) {
-          result = { estimate: null, error: controller.signal.aborted ? "Route estimates took too long. Open directions or try again." : error instanceof Error ? error.message : "Route estimates couldn't load." };
+          result = { estimate: null, error: controller.signal.aborted ? "Route estimates took too long. Open directions or try again." : error instanceof TypeError ? "Couldn't connect for route estimates. Open directions or try again." : error instanceof Error ? error.message : "Route estimates couldn't load." };
         }
         return [mode, result] as const;
       }));

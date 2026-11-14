@@ -40,12 +40,13 @@ Route-aware detour recommendations and weather are follow-up work, as proposed i
 
 Implemented in the files described in `IMPLEMENTATION_STATUS.md`.
 
-- Unit checks: 187 passed.
+- Unit checks: 190 passed after merging the concurrent OKR release.
 - Live Google Routes: walking, transit, and driving returned HTTP 200 both directly and in the browser using the no-payment demo key.
 - Responsive checks: 320, 390, 768, 1024, and 1440px; no horizontal overflow. Axe WCAG A/AA checks found no violations in Today at those widths and in phone dark mode.
 - Live Supabase/browser integration: 93 persistence, validation, rollback, isolation, concurrency, and cascade checks passed; disposable accounts/trips were removed. Invitation delivery was intercepted, not sent.
 - Regression checks cover old links, selected-stop focus, map collapse/reload/editing, reminder permissions and persistence, stale routing responses, quota failure, explicit location permission, and timeouts.
 - Full browser regression: 663 passed, 8 existing skips before integration of the concurrent OKR release; an additional selected-stop/map-collapse test is included for the release gate.
-- Deployed revision: pending release verification.
+- After integration, 54 focused route, map-collapse/editing, and OKR checks passed across the configured browsers.
+- The hosted Pages workflow runs the full suite again before deployment; its resulting revision and run URL are recorded outside the published repository in `outputs/today-redesign-2026-11-14/release-verification.json`.
 
 QA logs and screenshots are kept outside the published repository under `outputs/today-redesign-2026-11-14/`.

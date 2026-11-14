@@ -394,7 +394,7 @@ export function Itinerary({ mapMode: explicitMapMode = false }: { mapMode?: bool
                 <div className="events-list">
                   {events.map((e) => (
                     mapMode ? <article key={e.id} id={`day-event-${e.id}`} tabIndex={-1} aria-label={e.name} className={`map-list-stop ${mapEvent === e.id ? "focused" : ""}`}>
-                      <EventCard event={e} selected={mapEvent === e.id} onSelect={() => selectStop(e)} />
+                      <EventCard event={e} selected={mapEvent === e.id} selectionLabel={mapHidden ? `Show details for ${e.name}` : undefined} onSelect={() => selectStop(e)} />
                       {mapEvent === e.id && <div className="map-stop-details">
                         <div className="row">
                           <span>{e.attendees.length} travelers · {e.cost ? `${money(e.cost)} estimated` : "No cost planned"}</span>

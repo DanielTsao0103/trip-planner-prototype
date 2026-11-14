@@ -37,7 +37,7 @@
 :root .today-support .card { margin: 0; min-width: 0; }
 :root .today-rest summary span { display: inline; }
 :root .today-rest summary .muted { display: block; margin: 6px 0 0 18px; }
-:root .today-rest summary span:first-child { font-family: var(--heading-font, inherit); font-size: 20px; font-weight: 600; }
+:root .today-rest summary span:first-child { font-family: var(--font-heading, inherit); font-size: 20px; font-weight: 600; }
 :root .today-rest summary .muted { font-size: 13px; }
 :root .today-rest ol { list-style: none; padding: 0; }
 :root .today-rest li { display: grid; grid-template-columns: 78px 1fr; border-top: 1px solid var(--line); padding: 10px 0; align-items: start; gap: 8px; }
