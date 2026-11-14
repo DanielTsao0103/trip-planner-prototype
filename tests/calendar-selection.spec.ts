@@ -7,6 +7,8 @@ async function emptyDay(page: Page) {
   const grid = page.locator('.itcal-scroll');
   await grid.evaluate(el => { el.scrollIntoView({ block: 'start' }); el.scrollTop = 0; });
   const day = page.locator('[data-calendar-date="2026-10-15"]');
+  // Wait for the resized calendar to be actionable before measuring pointer coordinates.
+  await day.hover({ position: { x: 80, y: 150 } });
   const box = (await day.boundingBox())!;
   return { day, x: box.x + 80, y: box.y };
 }

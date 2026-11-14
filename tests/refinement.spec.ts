@@ -410,7 +410,7 @@ test('Today keeps the full itinerary behind a deliberate action', async ({ page 
   await page.reload(); await page.goto('./#/10');
   await expect(page.locator('.week-card')).toHaveCount(0);
   await expect(page.locator('.trip-map')).toHaveCount(0);
-  await expect(page.locator('.today-rest details')).not.toHaveAttribute('open','');
+  await expect(page.locator('.today-rest-disclosure')).not.toHaveAttribute('open','');
   await page.getByRole('button',{name:'Open itinerary',exact:true}).click();
   await expect(page).toHaveURL(/date=2026-10-16/);
   await expect(page.getByRole('group',{name:'Itinerary view'}).getByRole('button')).toHaveCount(2);

@@ -851,6 +851,8 @@ test('event autocomplete follows itinerary cities, date changes, and explicit ov
   return route.fulfill({json:{suggestions:[{placePrediction:{placeId:city,text:{text:`Coffee, ${city}`},structuredFormat:{mainText:{text:'Coffee'},secondaryText:{text:city}}}}]}});
  });
  await page.goto('./#/5');
+ // Navigation can finish before the demo persistence effect on a busy Safari runner.
+ await expect.poll(() => page.evaluate(() => Boolean(localStorage.getItem('trip-planner-demo-v1:demo-maya')))).toBe(true);
  await page.evaluate(()=>{
   const key='trip-planner-demo-v1:demo-maya',store=JSON.parse(localStorage.getItem(key)!);
   const trip=store.trips.find((t:any)=>t.id===store.tripId),base=trip.events[0];
