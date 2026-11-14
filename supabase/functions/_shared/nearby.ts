@@ -82,7 +82,7 @@ export const NEARBY_EMPTY_MESSAGES = {
   missing_area: { title: "Add a search location", message: "No destination or event location is saved for this search.", action: "Add a trip destination or an event address, then try again." },
   no_time: { title: "No planning time is available", message: "This day has no upcoming free hour in the selected category’s time window, including the provisional travel buffers.", action: "Choose another day or category, or review the existing plans." },
   no_sources: { title: "No usable sources found", message: "The web search returned no usable source excerpts for this location and category.", action: "Check the location shown above. Add the venue’s full address or choose another category." },
-  no_candidates: { title: "Sources found, but no candidates returned", message: "The AI did not propose any places from the retrieved sources for this trip context.", action: "Check the location and group preferences, or try another category." },
+  no_candidates: { title: "No source-backed options found", message: "The search looked across the requested category and official tourism activity sources, but found no option that passed the evidence and trip checks.", action: "Check the location, choose another category or day, or add a more precise event address." },
   evidence: { title: "Not enough supporting evidence", message: "Candidates were returned, but none retained a matching source quote and venue reference after the evidence checks.", action: "A more precise event address may improve the search. You can also try another category." },
   budget: { title: "Candidates exceeded a saved budget", message: "The returned candidates were removed because their supported USD estimates exceeded a remaining group or individual budget.", action: "Review the budget reservations or try another category." },
   conflicts: { title: "Candidates conflicted with group needs", message: "The AI flagged incompatibilities with the saved planning constraints, so those candidates were removed.", action: "Review the group preferences or search another category. Keep essential requirements in place." },
@@ -93,7 +93,7 @@ export const NEARBY_EMPTY_MESSAGES = {
 export type EmptyReason = keyof typeof NEARBY_EMPTY_MESSAGES;
 export type ReviewRejections = Partial<Record<"evidence" | "budget" | "conflicts" | "duplicates" | "invalid", number>>;
 export type Candidate = {
-  name: string; address: string; reason: string; durationMinutes: number;
+  name: string; address: string; reason: string; fitNote?: string; durationMinutes: number;
   pricePerPersonCents: number | null; currency: string | null;
   facts: { topic: string; detail: string; sourceUrl: string }[];
   concerns: string[]; conflicts: string[];
@@ -134,7 +134,7 @@ export function reviewCandidates(raw: unknown, context: PlanningContext, retriev
   return raw.slice(0, 3).flatMap((value: unknown) => {
     if (!value || typeof value !== "object") return reject("invalid");
     const c = value as Candidate;
-    if (typeof c.name !== "string" || !c.name.trim() || c.name.length > 160 || typeof c.address !== "string" || c.address.length > 500 || typeof c.reason !== "string" || c.reason.length > 1000 || !Number.isInteger(c.durationMinutes) || c.durationMinutes < 15 || c.durationMinutes > 240 || !Array.isArray(c.facts) || !Array.isArray(c.concerns) || !Array.isArray(c.conflicts) || !c.concerns.every(v => typeof v === "string" && v.length <= 500)) return reject("invalid");
+    if (typeof c.name !== "string" || !c.name.trim() || c.name.length > 160 || typeof c.address !== "string" || c.address.length > 500 || typeof c.reason !== "string" || c.reason.length > 1000 || (c.fitNote !== undefined && (typeof c.fitNote !== "string" || c.fitNote.length > 400)) || !Number.isInteger(c.durationMinutes) || c.durationMinutes < 15 || c.durationMinutes > 240 || !Array.isArray(c.facts) || !Array.isArray(c.concerns) || !Array.isArray(c.conflicts) || !c.concerns.every(v => typeof v === "string" && v.length <= 500)) return reject("invalid");
     if (c.conflicts.length) return reject("conflicts");
     if (c.pricePerPersonCents !== null && (!Number.isSafeInteger(c.pricePerPersonCents) || c.pricePerPersonCents < 0)) return reject("invalid");
     const facts = c.facts.filter(f => f && typeof f.topic === "string" && f.topic.length <= 100 && typeof f.detail === "string" && f.detail.length <= 1000 && sources.has(f.sourceUrl));
@@ -145,7 +145,7 @@ export function reviewCandidates(raw: unknown, context: PlanningContext, retriev
     if (usdPrice !== null && ((context.remainingGroupCents !== null && usdPrice * context.travelers > context.remainingGroupCents) || context.individualRemaining.some(v => v !== null && usdPrice > v))) return reject("budget");
     seen.add(c.name.toLowerCase());
     const gap = context.gaps.find(g => minutes(g.end) - minutes(g.start) >= c.durationMinutes);
-    return [{ ...c, reason: "Found during research for this trip day. Review the source excerpts and confirm suitability before scheduling.", facts, concerns: [...new Set([...c.concerns,
+    return [{ ...c, reason: "Found during research for this trip day. Review the source excerpts and confirm suitability before scheduling.", fitNote: c.fitNote?.trim() || "This option appears in the retrieved sources and may fit the available time on this day. Review its details and confirm suitability before scheduling.", facts, concerns: [...new Set([...c.concerns,
       "Sources were found by web research; suitability has not been independently verified.",
       "Confirm opening hours for the trip date, booking availability and the route before scheduling.",
       ...(context.diet.length ? ["Confirm every dietary restriction and cross-contact risk directly with the venue."] : []),

@@ -10,18 +10,19 @@ const source = { url: "https://venue.example/menu", title: "Official venue menu"
 const candidate = { name: "Venue", address: "Seattle", reason: "Lunch option", durationMinutes: 60, pricePerPersonCents: null, currency: null, concerns: [], conflicts: [], facts: [{ topic: "Menu", detail: "Vegetarian dishes on the lunch menu", sourceUrl: source.url, quote: "Our lunch menu includes vegetarian dishes." }] };
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 
-test("free provider flow uses exactly two basic searches then one structured Groq call with bounded input", async () => {
+test("free provider flow uses three basic searches then one structured Groq call with bounded input", async () => {
   const calls: { url: string; body: any }[] = [];
   const fetcher: typeof fetch = async (url, init) => {
     const body = JSON.parse(init!.body as string); calls.push({ url: String(url), body });
     return String(url).includes("tavily") ? json({ results: [source] }) : json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [candidate] }) } }] });
   };
   const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, fetcher);
-  assert.equal(calls.length, 3); assert.equal(calls.filter(c => c.url === "https://api.tavily.com/search").length, 2);
-  for (const call of calls.slice(0, 2)) { assert.equal(call.body.search_depth, "basic"); assert.equal(call.body.auto_parameters, false); assert.equal(call.body.include_raw_content, false); }
+  assert.equal(calls.length, 5); assert.equal(calls.filter(c => c.url === "https://api.tavily.com/search").length, 3);
+  for (const call of calls.slice(0, 3)) { assert.equal(call.body.search_depth, "basic"); assert.equal(call.body.auto_parameters, false); assert.equal(call.body.include_raw_content, false); }
   assert.equal(calls[0].body.include_domains, undefined);
   assert.deepEqual(calls[1].body.include_domains, ["yelp.com"]); assert.equal(calls[1].body.include_domains_mode, "restrict");
-  const last = calls[2]; assert.equal(last.url, "https://api.groq.com/openai/v1/chat/completions"); assert.equal(last.body.response_format.json_schema.strict, true);
+  assert.match(calls[2].body.query, /official tourism/);
+  const last = calls[4]; assert.equal(last.url, "https://api.groq.com/openai/v1/chat/completions"); assert.equal(last.body.response_format.json_schema.strict, true);
   assert.ok(new TextEncoder().encode(JSON.stringify({ model: last.body.model, messages: last.body.messages, response_format: last.body.response_format })).length + 1800 + 512 <= 8000);
   assert.equal(result.candidates[0].facts.length, 1);
 });
@@ -34,16 +35,16 @@ test("Yelp sources are included alongside primary sources and remain restricted 
     assert.ok(prompt.includes(yelp.url)); assert.equal(prompt.includes("evil.example"), false);
     return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [{ ...candidate, facts: [{ ...candidate.facts[0], sourceUrl: yelp.url, quote: yelp.content }] }] }) } }] });
   });
-  assert.equal(searches, 2); assert.equal(result.yelpStatus, "found"); assert.equal(result.yelpSourcesUsed, 1); assert.equal(result.candidates[0].facts[0].sourceUrl, yelp.url);
+  assert.equal(searches, 3); assert.equal(result.yelpStatus, "found"); assert.equal(result.yelpSourcesUsed, 1); assert.equal(result.candidates[0].facts[0].sourceUrl, yelp.url);
 });
-test("unavailable supplemental Yelp search preserves primary evidence without extra calls", async () => {
+test("unavailable supplemental Yelp search preserves primary evidence and continues through tourism fallback", async () => {
   let calls = 0;
   const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async url => {
     calls++;
-    if (String(url).includes("tavily")) return calls === 1 ? json({ results: [source] }) : json({}, 403);
+    if (String(url).includes("tavily")) return calls === 1 || calls === 3 ? json({ results: [source] }) : json({}, 403);
     return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [candidate] }) } }] });
   });
-  assert.equal(calls, 3); assert.equal(result.yelpStatus, "unavailable"); assert.equal(result.candidates.length, 1);
+  assert.equal(calls, 5); assert.equal(result.yelpStatus, "unavailable"); assert.equal(result.candidates.length, 1);
 });
 test("a quota response on supplemental Yelp search pauses research rather than retrying", async () => {
   let calls = 0;

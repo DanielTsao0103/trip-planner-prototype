@@ -1,25 +1,47 @@
 import { useEffect, useRef, useState } from "react";
 import { Clock, ExternalLink, MapPin, Search, ShieldCheck } from "lucide-react";
 import { useApp } from "./state";
-import { Button, Field, Modal } from "./ui";
+import { Button, ConfirmDialog, Field, Modal } from "./ui";
 import { days, dateText, member, money, timeText } from "./domain";
 import { getSupabase } from "./supabase";
+import { searchDestinationPhotos, trackUnsplashSelection, type UnsplashPhoto } from "./trip-photos";
 import { planningContext, safeSource, nearbyListingLinks, isYelpSource, YELP_SEARCH_MESSAGES, NEARBY_EMPTY_MESSAGES, type YelpSearchStatus, type EmptyReason, type ReviewRejections, type Intent, type NearbyResult } from "../supabase/functions/_shared/nearby.ts";
 import "./nearby-suggestions.css";
 
 export function NearbySuggestions() {
-  const { trip, s, overlay, pendingTripIds } = useApp();
+  const { trip, s, overlay, pendingTripIds, go } = useApp();
   const preferredDate = overlay?.data?.date;
   const [date, setDate] = useState(preferredDate && trip && preferredDate >= trip.start && preferredDate <= trip.end ? preferredDate : trip && s.date >= trip.start && s.date <= trip.end ? s.date : trip?.start || "");
   const [intent, setIntent] = useState<Intent>("lunch");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<NearbyResult[] | null>(null);
+  const [photos, setPhotos] = useState<Record<string, UnsplashPhoto>>({});
+  const [selected, setSelected] = useState<NearbyResult | null>(null);
+  const [addError, setAddError] = useState("");
   const [emptyReason, setEmptyReason] = useState<EmptyReason>("filtered");
   const [diagnostics, setDiagnostics] = useState<{ sourcesFound: number; sourcesUsed: number; candidatesReturned: number; recoveryAttempted?: boolean; rejected: ReviewRejections; yelpStatus?: YelpSearchStatus; yelpSourcesUsed?: number } | null>(null);
   const request = useRef<AbortController | null>(null);
   const contextKey = JSON.stringify([trip, date, intent, overlay?.data?.event]);
-  useEffect(() => { request.current?.abort(); setResults(null); setDiagnostics(null); setError(""); setLoading(false); return () => { request.current?.abort(); }; }, [contextKey]);
+  useEffect(() => { request.current?.abort(); setResults(null); setPhotos({}); setSelected(null); setDiagnostics(null); setError(""); setLoading(false); return () => { request.current?.abort(); }; }, [contextKey]);
+  useEffect(() => {
+    if (!results?.length || !trip) return;
+    const controller = new AbortController();
+    const photoArea = planningContext(trip, s.userId || "", date, intent, overlay?.data?.event).area;
+    void Promise.all(results.slice(0, 3).map(async result => {
+      try {
+        const found = await searchDestinationPhotos(result.name + " " + result.address + " " + photoArea, controller.signal);
+        return [result.name, found[0]] as const;
+      } catch { return [result.name, undefined] as const; }
+    })).then(entries => {
+      if (!controller.signal.aborted) {
+        const available: Record<string, UnsplashPhoto> = {};
+        for (const [name, photo] of entries) if (photo) available[name] = photo;
+        setPhotos(available);
+      }
+    });
+    return () => controller.abort();
+  }, [results, trip?.id, s.userId, date, intent, overlay?.data?.event]);
   if (!trip) return <Modal title="Nearby suggestions"><p>Choose a trip to research nearby places.</p></Modal>;
   const context = planningContext(trip, s.userId || "", date, intent, overlay?.data?.event);
   const isDemo = trip.persistence !== "account";
@@ -50,6 +72,28 @@ export function NearbySuggestions() {
       if (!controller.signal.aborted || controller.signal.reason === "timeout") setError(controller.signal.reason === "timeout" ? "Research took too long. Please try again." : e instanceof Error ? e.message : "Could not research nearby places.");
     } finally { clearTimeout(timeout); if (request.current === controller) setLoading(false); }
   }
+  async function continueToEvent() {
+    if (!selected || !trip) return;
+    const photo = photos[selected.name];
+    try {
+      if (photo) await trackUnsplashSelection(photo.downloadLocation);
+      const sourceNotes = selected.facts.map(fact => fact.topic + ": “" + fact.detail + "” — " + fact.sourceUrl).join("\n");
+      const photoNote = photo ? "\nPhoto by " + photo.credit.name + " on Unsplash: " + photo.credit.photoUrl : "";
+      const params: Record<string, string> = {
+        suggestion: selected.name,
+        place: selected.address === "Address needs confirmation from the venue" ? context.area : selected.address,
+        date,
+        notes: (selected.fitNote || selected.reason) + "\n" + sourceNotes + photoNote,
+        return: "16",
+      };
+      if (selected.proposedTime) { params.start = selected.proposedTime.start; params.end = selected.proposedTime.end; }
+      if (selected.pricePerPersonCents !== null && selected.currency === "USD") params.cost = (selected.pricePerPersonCents / 100).toFixed(2);
+      if (photo) params.image = photo.url;
+      go(7, params);
+    } catch (cause) {
+      setAddError(cause instanceof Error ? cause.message : "Could not prepare this itinerary item. Try again.");
+    }
+  }
   return <Modal title="Nearby suggestions" wide className="nearby-research-modal">
     <p className="nearby-intro">Find places around your plans, with your group’s needs in mind.</p>
     <p className="fine-print">Up to 3 ideas per generation · 5 generations per person each day · resets at midnight UTC.</p>
@@ -63,7 +107,7 @@ export function NearbySuggestions() {
       <p>{context.answered} of {context.travelers} travelers shared preferences. Your preferences and the group’s responses are considered together.</p>
       <details><summary>Planning details used</summary>
         <dl><dt>Dietary needs</dt><dd>{context.diet.join(", ") || "None shared"}</dd><dt>Accessibility</dt><dd>{context.access.join(", ") || "None shared"}</dd><dt>Walking limit</dt><dd>{context.walkMeters === null ? "Not shared" : `${context.walkMeters} m (most restrictive response)`}</dd><dt>Budget reservation</dt><dd>{context.remainingGroupCents === null ? context.individualRemaining.length ? "Individual budgets checked separately" : "No group budget set" : `${money(context.remainingGroupCents)} remaining for the group`}</dd></dl>
-        <p>{context.budgetNote}</p><p>Groq considers dining, spending, interests, destination requests, ticket preferences and shared notes. Account names, emails and payment records are excluded. Tavily searches use the area, category and general dietary or interest filters.</p>
+        <p>{context.budgetNote}</p><p>Recommendations are generated from live retrieved sources, not model training. Group constraints are checked against the trip snapshot; account names and emails are excluded from provider searches.</p>
       </details>
     </div>
     {isDemo && <p className="info-banner">Sample trip: you can explore the planning context here. Live research is available for saved account trips once the service is connected.</p>}
@@ -80,8 +124,11 @@ export function NearbySuggestions() {
         {diagnostics.yelpStatus && Object.hasOwn(YELP_SEARCH_MESSAGES, diagnostics.yelpStatus) && <p>{YELP_SEARCH_MESSAGES[diagnostics.yelpStatus]} {diagnostics.yelpSourcesUsed ?? 0} Yelp excerpt{diagnostics.yelpSourcesUsed === 1 ? "" : "s"} used.</p>}
         {Object.entries(diagnostics.rejected).length > 0 && <ul>{Object.entries(diagnostics.rejected).map(([reason, count]) => <li key={reason}>{count} removed: {reason === "evidence" ? "insufficient source evidence" : reason === "budget" ? "above a saved budget" : reason === "conflicts" ? "flagged constraint conflict" : reason === "duplicates" ? "duplicate place" : "incomplete or invalid details"}</li>)}</ul>}
       </details>}
-      {results.map((result, index) => { const links = nearbyListingLinks(result, context); return <article className="nearby-result" key={`${result.name}-${index}`}>
+      <div className="nearby-result-grid">{results.map((result, index) => { const links = nearbyListingLinks(result, context); const photo = photos[result.name]; return <article className="nearby-result" key={result.name + index}>
+        {photo && <img className="nearby-result-photo" src={photo.url} alt={photo.alt} loading="lazy" />}
         <h4>{result.name}</h4><p>{result.address}</p><p>{result.reason}</p>
+        <aside className="nearby-fit-note"><strong>A thought for your day</strong><p>{result.fitNote || result.reason}</p></aside>
+        {photo && <small className="nearby-photo-credit">Photo by <a href={photo.credit.profileUrl} target="_blank" rel="noreferrer">{photo.credit.name}</a> on <a href={photo.credit.photoUrl} target="_blank" rel="noreferrer">Unsplash</a></small>}
         <div className="nearby-listing-links">
           <a href={links.maps} target="_blank" rel="noopener noreferrer" title={`Search Google Maps for ${result.name}`}>View on Google Maps <ExternalLink size={14} aria-hidden="true" /></a>
           <a href={links.yelp} target="_blank" rel="noopener noreferrer" title={links.yelpIsListing ? `Open the sourced Yelp business page for ${result.name}` : `Search Yelp for ${result.name}`}>View on Yelp <ExternalLink size={14} aria-hidden="true" /></a>
@@ -90,8 +137,10 @@ export function NearbySuggestions() {
         <p>{result.pricePerPersonCents !== null && result.currency ? `${(result.pricePerPersonCents / 100).toFixed(2)} ${result.currency} per person · source estimate` : "Price not confirmed"}</p>
         <ul>{result.facts.filter(f => safeSource(f.sourceUrl)).map((fact, i) => <li key={i}><strong>{fact.topic}: </strong>{fact.detail} <a href={fact.sourceUrl} target="_blank" rel="noopener noreferrer">{isYelpSource(fact.sourceUrl) ? "Yelp source" : `Source ${i + 1}`}</a></li>)}</ul>
         <details><summary>What needs confirmation</summary><ul>{result.concerns.map((concern, i) => <li key={i}>{concern}</li>)}</ul></details>
-      </article>; })}
+        {trip.persistence === "account" && <Button variant="outline" disabled={pending || member(trip, s.userId)?.role === "Viewer"} onClick={() => { setSelected(result); setAddError(""); }}>Review and add to this day</Button>}
+      </article>; })}</div>
     </section>}
     {member(trip, s.userId)?.role === "Viewer" && <p className="fine-print">You can research ideas. A trip editor will need to schedule them.</p>}
+    {selected && <ConfirmDialog title="Review this itinerary idea?" cancelLabel="Keep exploring" confirmLabel="Continue to event editor" confirmVariant="" onCancel={() => setSelected(null)} onConfirm={() => void continueToEvent()}>{addError || "“" + selected.name + "” will open in the event editor for " + dateText(date) + ". Review the details there and save to add it to the trip."}</ConfirmDialog>}
   </Modal>;
 }

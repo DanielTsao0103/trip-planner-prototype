@@ -12,7 +12,14 @@
 .nearby-context-panel dt { font-weight: 600; }
 .nearby-context-panel dd { margin: 0; }
 .nearby-results { margin-top: 24px; }
-.nearby-result { padding: 20px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.nearby-result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 16px; }
+.nearby-result { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 14px; overflow-wrap: anywhere; background: var(--paper); }
+.nearby-result-photo { display: block; width: 100%; height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 12px; background: color-mix(in srgb, var(--green) 8%, var(--paper)); }
+.nearby-result:not(:has(.nearby-result-photo))::before { content: ""; display: block; height: 150px; margin-bottom: 12px; border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--green) 22%, var(--paper)), color-mix(in srgb, var(--accent) 12%, var(--paper))); }
+.nearby-photo-credit { display: block; color: var(--muted); margin: -8px 0 10px; }
+.nearby-fit-note { margin: 12px 0; padding: 12px 14px; border-left: 3px solid var(--green); border-radius: 0 12px 12px 0; background: color-mix(in srgb, var(--green) 7%, var(--paper)); }
+.nearby-fit-note strong { font-family: var(--font-heading); }
+.nearby-fit-note p { margin: 5px 0 0; }
 .nearby-result h4 { font-family: var(--font-heading); font-size: 23px; margin: 0; }
 .nearby-result ul { padding-left: 20px; }
 .nearby-result li + li { margin-top: 8px; }

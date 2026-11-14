@@ -473,17 +473,18 @@ export function Modal({
   );
 }
 /** Shared, non-submitting confirmation actions; closing always keeps the current work. */
-export function ConfirmDialog({ title, children, cancelLabel = "Keep editing", confirmLabel = "Discard changes", onCancel, onConfirm }: {
+export function ConfirmDialog({ title, children, cancelLabel = "Keep editing", confirmLabel = "Discard changes", confirmVariant = "danger", onCancel, onConfirm }: {
   title: string;
   children: ReactNode;
   cancelLabel?: string;
   confirmLabel?: string;
+  confirmVariant?: string;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
   return <Modal title={title} onClose={onCancel} footer={<div className="confirmation-actions">
     <Button type="button" variant="outline" onClick={onCancel}>{cancelLabel}</Button>
-    <Button type="button" variant="danger" onClick={onConfirm}>{confirmLabel}</Button>
+    <Button type="button" variant={confirmVariant} onClick={onConfirm}>{confirmLabel}</Button>
   </div>}>
     <p>{children}</p>
   </Modal>;

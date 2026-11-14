@@ -19,6 +19,8 @@ try {
     insert into auth.users values ('11111111-1111-4111-8111-111111111111'),('22222222-2222-4222-8222-222222222222');`);
   await db.exec(fs.readFileSync(new URL("../supabase/migrations/20261112234000_nearby_research.sql", import.meta.url), "utf8"));
   await db.exec(fs.readFileSync(new URL("../supabase/migrations/20261113182000_nearby_quota_retention.sql", import.meta.url), "utf8"));
+  await db.exec(fs.readFileSync(new URL("../supabase/migrations/20261113200000_nearby_recovery_quota.sql", import.meta.url), "utf8"));
+  await db.exec(fs.readFileSync(new URL("../supabase/migrations/20261114200000_nearby_fallback_search_quota.sql", import.meta.url), "utf8"));
   const actor = "11111111-1111-4111-8111-111111111111";
   const reserve = () => db.query("select public.reserve_nearby_generation($1::uuid) as id", [actor]);
   const first = await reserve(); assert.ok(first.rows[0].id);
@@ -43,9 +45,9 @@ try {
   await db.query("select public.finish_nearby_generation($1::uuid,'failed')", [permitted.rows[0].id]);
   await db.exec("reset role");
   const ledger = await db.query("select outcome,search_credits,model_tokens from private.nearby_research_usage");
-  assert.deepEqual(ledger.rows[0], { outcome: "failed", search_credits: 2, model_tokens: 16000 });
+  assert.deepEqual(ledger.rows[0], { outcome: "failed", search_credits: 3, model_tokens: 16000 });
   await db.query("delete from auth.users where id=$1::uuid", [actor]);
   const retained = await db.query("select actor,search_credits from private.nearby_research_usage");
-  assert.equal(retained.rows.length, 1); assert.equal(retained.rows[0].actor, null); assert.equal(retained.rows[0].search_credits, 2);
+  assert.equal(retained.rows.length, 1); assert.equal(retained.rows[0].actor, null); assert.equal(retained.rows[0].search_credits, 3);
   console.log("PASS: migration applies; minute/concurrent/user/day/month limits; role permissions; failure reservations.");
 } finally { await db.close(); }
