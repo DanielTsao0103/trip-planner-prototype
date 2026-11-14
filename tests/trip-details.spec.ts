@@ -251,12 +251,11 @@ test("all detail screens persist changes and preserve financial history", async 
   await page.locator(".delete-event-panel").getByRole("button", { name: "Delete event", exact: true }).click();
   await saved(page);
   expect(api.rows[0].content.events).toEqual([]);
-  await page.goto("./#/8?view=list");
-  await expect(
-    page.locator(".budget-peek").getByRole("heading", { name: /^(Your|Trip) budget$/ }),
-  ).toBeVisible();
+  // Budget remains available in its own workspace after the redundant List sidebar is removed.
+  await page.goto("./#/12");
+  await expect(page.locator(".budget-stats")).toBeVisible();
   const remaining = (60002 - c.expenses[0].shares[owner.id]) / 100;
-  await expect(page.locator(".budget-peek > strong")).toHaveText(
+  await expect(page.locator(".budget-stats > div").filter({ hasText: "REMAINING" }).locator("strong")).toHaveText(
     `$${remaining.toFixed(2)}`,
   );
   expect(

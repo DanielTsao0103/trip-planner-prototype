@@ -79,7 +79,7 @@ test("daily planning keeps dates across views and synchronizes stop selection wi
   await expect(article).toHaveClass(/focused/);
   const navigation = page.getByRole('group', {name:'Itinerary view',exact:true});
   await expect(navigation).toBeInViewport({ratio:1});
-  await expect(navigation.getByRole('button', {name:'Day & map',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(navigation.getByRole('button', {name:'Map & list',exact:true})).toHaveAttribute('aria-pressed','true');
   const stopNames = await page.locator('.itinerary-day-list .event-info h3').allTextContents();
   if (info.project.name === 'desktop') {
     const listBox = (await page.locator('.itinerary-day-list').boundingBox())!;
@@ -89,20 +89,24 @@ test("daily planning keeps dates across views and synchronizes stop selection wi
     const listBox = (await page.locator('.itinerary-day-list').boundingBox())!;
     const mapBox = (await map.boundingBox())!;
     expect(mapBox.y + mapBox.height).toBeLessThanOrEqual(listBox.y);
-    await page.getByRole('button', { name: 'Show map', exact: true }).click();
+    await page.getByRole('button', { name: 'Jump to map', exact: true }).click();
     await expect(map).toBeFocused();
     await map.getByRole('button', { name: 'View plans', exact: true }).click();
     await expect(page.locator('#day-2026-10-16')).toBeFocused();
   }
   await page.getByRole("button", { name: "Calendar", exact: true }).click();
   await expect(page).toHaveURL(/date=2026-10-16/);
-  await page.getByRole("button", { name: "List", exact: true }).click();
+  await page.getByRole("button", { name: "Map & list", exact: true }).click();
   await expect(page).toHaveURL(/date=2026-10-16/);
-  await expect(navigation.getByRole('button',{name:'List',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(navigation.getByRole('button',{name:'Map & list',exact:true})).toHaveAttribute('aria-pressed','true');
   expect(await page.locator('.itinerary-day-list .event-info h3').allTextContents()).toEqual(stopNames);
-  await navigation.getByRole('button',{name:'Day & map',exact:true}).click();
+  await page.getByRole('button',{name:'Hide map',exact:true}).click();
+  await expect(map).toHaveCount(0);
+  await page.reload();
+  await expect(map).toHaveCount(0);
+  await page.getByRole('button',{name:'Show map',exact:true}).click();
   await expect(page).toHaveURL(/#\/11\?date=2026-10-16/);
-  await expect(navigation.getByRole('button',{name:'Day & map',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(navigation.getByRole('button',{name:'Map & list',exact:true})).toHaveAttribute('aria-pressed','true');
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth + 1,
@@ -153,10 +157,10 @@ test('a later-day map link reveals its paginated stop and saved-place cancellati
   await expect(page.getByLabel('Event name',{exact:true})).toHaveValue('Garden');
   await page.getByRole('button',{name:'Cancel',exact:true}).click();
   await expect(page).toHaveURL(/#\/11\?date=2026-11-04$/);
-  await expect(page.getByRole('group',{name:'Itinerary view',exact:true}).getByRole('button',{name:'Day & map',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByRole('group',{name:'Itinerary view',exact:true}).getByRole('button',{name:'Map & list',exact:true})).toHaveAttribute('aria-pressed','true');
   await page.getByRole('navigation',{name:'Itinerary day pages',exact:true}).getByRole('button',{name:'Next days',exact:true}).click();
   await expect(page.getByLabel('Choose a day',{exact:true})).toHaveValue('November 5, 2026');
-  await page.getByRole('group',{name:'Itinerary view',exact:true}).getByRole('button',{name:'List',exact:true}).click();
+  await page.getByRole('group',{name:'Itinerary view',exact:true}).getByRole('button',{name:'Map & list',exact:true}).click();
   await expect(page).toHaveURL(/date=2026-11-05/);
 });
 
@@ -194,4 +198,23 @@ test("saved-place actions stay complete and reachable on a narrow phone", async 
     await page.keyboard.press('Escape');
     await expect(save).toBeFocused();
   }
+});
+
+test("collapsed map retains a selected stop through reload and editing, then Show on map restores it", async ({ page }) => {
+  await page.goto("./#/11?date=2026-10-16&event=museum");
+  const map = page.getByRole("complementary", { name: "Map of selected day", exact: true });
+  const stop = page.getByRole("article", { name: "A morning of art", exact: true });
+  await page.getByRole("button", { name: "Hide map", exact: true }).click();
+  await page.reload();
+  await expect(map).toHaveCount(0);
+  await expect(stop).toHaveClass(/focused/);
+  await stop.getByRole("button", { name: "Edit event", exact: true }).click();
+  await page.getByLabel("Notes (optional)", { exact: true }).fill("Meet at the north entrance.");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(page).toHaveURL(/map=hidden/);
+  await expect(map).toHaveCount(0);
+  await expect(stop).toContainText("Meet at the north entrance.");
+  await page.locator("#day-2026-10-16").getByRole("button", { name: "Show on map", exact: true }).click();
+  await expect(map).toBeVisible();
+  await expect(page).not.toHaveURL(/map=hidden/);
 });

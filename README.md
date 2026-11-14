@@ -278,3 +278,11 @@ Complete: Saved places collects name, location, coordinates/place ID, and notes 
 Not included: travel-time estimates, route optimization, unscheduled calendar events, and a new drawer-based editor. Scheduled events retain required start/end times, and external provider availability remains outside the app's control. No paid API was added.
 
 Cached-client compatibility: trip bundles expose `savedPlaces` only when the normal `X-Client-Info` header advertises `stir-crazy/saved-places-v1`. The current browser client opts in; existing cached clients retain their supported response shape and preserve the newer collection when saving other fields. This changes serialization only, never authorization. The live contract gate was also run with the actual previously shipped `731da4c` application writer.
+
+## Today travel guide (November 14, 2026)
+
+Complete: next-stop guidance, explicit origins, walking/transit/driving estimates, leave-by times with a ten-minute arrival buffer, next-transfer and overlapping-schedule warnings, event notes, persistent reminders, and a collapsed remaining-day preview. Account trips use a ticking trip-local clock; sample trips retain demo time. Calendar and Map & list replace the separate List tab, with an optional collapsed map and compatible old links.
+
+Routes use the existing no-payment Maps Demo Key with no paid fallback. Requests time out, ignore stale replies, and keep external navigation available if estimates fail. Driving estimates exclude traffic and parking; transit may include walking. Live route responses and deterministic tests are separate evidence.
+
+Not included: route-aware detour recommendations, live weather alerts, new booking/ticket ingestion, or production-service guarantees for the educational demo key. Implementation and verification: `TODAY_REDESIGN_PLAN.md`.

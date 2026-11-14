@@ -1,0 +1,83 @@
+/* The travel-day guide inherits the app's selected colors, fonts and corners. */
+:root .today-guide { max-width: 1080px; margin-inline: auto; }
+:root .today-next-guide { display: block; padding: 28px; }
+:root .today-stop-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+:root .today-stop-heading h2 { font-size: 30px; line-height: 1.2; margin: 10px 0 12px; overflow-wrap: anywhere; }
+:root .today-stop-heading > div { min-width: 0; }
+:root .today-stop-actions { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+:root .today-destination { display: flex; align-items: baseline; gap: 8px; overflow-wrap: anywhere; }
+:root .today-destination svg { flex-shrink: 0; }
+:root .today-transport { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 20px; }
+:root .today-origin { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+:root .today-origin p { margin: 5px 0; overflow-wrap: anywhere; }
+:root .today-origin small { color: var(--muted); font-size: 13px; }
+:root .today-origin-form { margin-top: 16px; max-width: 620px; }
+:root .today-origin-form label { display: block; margin-bottom: 8px; font-size: 14px; }
+:root .today-origin-form input { min-width: 0; width: 100%; }
+:root .today-origin-form .input-action { display: flex; gap: 8px; }
+:root .today-origin-form .input-action .btn { flex-shrink: 0; }
+:root .today-modes { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 20px 0; }
+:root .today-modes button { display: flex; flex-direction: column; gap: 10px; padding: 16px; min-height: 88px; text-align: left; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: var(--ui-radius-card); }
+:root .today-modes button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--paper)); }
+:root .today-modes button > span { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+:root .today-modes strong { font-size: 20px; }
+:root .today-departure { display: flex; gap: 12px; align-items: flex-start; margin: 8px 0 14px; }
+:root .today-departure > svg { flex-shrink: 0; margin-top: 3px; }
+:root .today-departure strong { font-size: 22px; line-height: 1.3; }
+:root .today-departure p { color: var(--muted); font-size: 14px; margin: 6px 0 0; }
+:root .today-route-detail, :root .today-route-error { font-size: 13px; line-height: 1.6; color: var(--muted); margin: 8px 0; }
+:root .today-route-error { color: var(--ink); }
+:root .today-navigation { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+:root .today-attribution { font-size: 12px; color: var(--muted); margin: 14px 0 0; }
+:root .today-attribution span { white-space: nowrap; font-size: 14px; color: var(--ink); font-weight: 400; }
+:root .today-event-notes { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 12px; }
+:root .today-event-notes summary, :root .today-rest summary { cursor: pointer; padding-block: 12px; min-height: 44px; }
+:root .today-event-notes p { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow-y: auto; line-height: 1.65; }
+:root .today-support { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 20px; margin-top: 20px; }
+:root .today-support .card { margin: 0; min-width: 0; }
+:root .today-rest summary span { display: inline; }
+:root .today-rest summary .muted { display: block; margin: 6px 0 0 18px; }
+:root .today-rest summary span:first-child { font-family: var(--heading-font, inherit); font-size: 20px; font-weight: 600; }
+:root .today-rest summary .muted { font-size: 13px; }
+:root .today-rest ol { list-style: none; padding: 0; }
+:root .today-rest li { display: grid; grid-template-columns: 78px 1fr; border-top: 1px solid var(--line); padding: 10px 0; align-items: start; gap: 8px; }
+:root .today-rest li > span { font-size: 13px; color: var(--muted); padding-top: 12px; }
+:root .today-rest li button { position: relative; border: 0; text-align: left; padding: 10px 20px 10px 0; min-height: 44px; background: none; color: var(--ink); }
+:root .today-rest li strong, :root .today-rest li small { display: block; overflow-wrap: anywhere; }
+:root .today-rest li small { color: var(--muted); font-size: 13px; margin-top: 5px; }
+:root .today-rest li svg { position: absolute; right: 0; top: 14px; }
+:root .today-attention { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--ui-radius-card); padding: 20px; margin-top: 20px; background: var(--paper); }
+:root .today-attention h2 { display: flex; align-items: center; gap: 8px; font-size: 20px; }
+:root .today-attention p { overflow-wrap: anywhere; }
+:root .today-happening { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 0 0 20px; }
+:root .today-happening button { min-height: 44px; text-align: left; }
+:root .today-finished h2 { margin-block: 12px; }
+:root .itinerary-layout.itinerary-map-collapsed { display: block; }
+:root .map-visibility-toggle { margin-left: auto; }
+@media (max-width: 760px) {
+  :root .today-support { grid-template-columns: 1fr; }
+  :root .today-next-guide { padding: 20px; }
+  :root .today-stop-heading { flex-direction: column; gap: 8px; }
+  :root .today-stop-heading h2 { font-size: 27px; }
+  :root .today-stop-actions { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; }
+  :root .today-modes { gap: 6px; }
+  :root .today-modes button { padding: 12px 8px; }
+  :root .today-modes button > span { gap: 5px; }
+  :root .today-modes strong { font-size: 16px; }
+  :root .today-departure strong { font-size: 20px; }
+  :root .today-origin-form .input-action { flex-wrap: wrap; }
+  :root .today-navigation > a { width: 100%; justify-content: center; }
+}
+@media (max-width: 360px) {
+  :root .today-next-guide { padding: 16px; }
+  :root .today-modes button > span { flex-direction: column; align-items: flex-start; }
+  :root .today-modes strong { font-size: 14px; }
+}
+
+@media (min-width: 1100px) {
+  :root .today-next-guide { display: grid; grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.4fr); gap: 24px; }
+  :root .today-stop-heading { flex-direction: column; justify-content: flex-start; gap: 16px; }
+  :root .today-stop-actions { align-items: flex-start; }
+  :root .today-transport { margin: 0; padding: 0 0 0 24px; border-top: 0; border-left: 1px solid var(--line); }
+  :root .today-event-notes { grid-column: 1 / -1; margin: 0; }
+}

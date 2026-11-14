@@ -276,10 +276,10 @@ test('a copied starter cannot create hidden plans outside a shortened trip', asy
   await expect(page.locator('.mobile-trip-preview')).toContainText('Jun 2 – Jun 5 · 4 days');
   await page.getByRole('button', { name: 'Create trip', exact: true }).click();
   await page.getByRole('button', { name: 'Template date boundary', exact: true }).click();
-  await page.getByRole('button', { name: 'List', exact: true }).click();
-  await expect(page.locator('[id^="itinerary-event-"]')).toHaveCount(7);
+  await page.getByRole('button', { name: 'Map & list', exact: true }).click();
+  await expect(page.locator('[id^="day-event-"]')).toHaveCount(7);
   await page.reload();
-  await expect(page.locator('[id^="itinerary-event-"]')).toHaveCount(7);
+  await expect(page.locator('[id^="day-event-"]')).toHaveCount(7);
   const saved = await page.evaluate(() => {
     const state = JSON.parse(localStorage.getItem('trip-planner-demo-v1:demo-maya')!);
     return state.trips.find((trip: { title: string }) => trip.title === 'Template date boundary');
@@ -400,23 +400,20 @@ test('a horizontal calendar drag after overlap rejection snaps typed minutes', a
   await expect(page.locator('[data-calendar-date="2026-10-18"] [data-event-id="museum"]')).toHaveAttribute('aria-label',/10:00 AM to 12:00 PM/);
 });
 
-test('phone Today week controls change visible dates and selected-day plans', async ({ page }) => {
+test('Today keeps the full itinerary behind a deliberate action', async ({ page }) => {
   await page.setViewportSize({width:390,height:844});
-  await page.goto('./#/10');
+  await page.goto('./#/8');
   await page.evaluate(() => {
-    const key='trip-planner-demo-v1:demo-maya';const state=JSON.parse(localStorage.getItem(key)!);
-    state.date='2026-10-16';state.trips[0].end='2026-11-03';
-    localStorage.setItem(key,JSON.stringify(state));
+    const key='trip-planner-demo-v1:demo-maya'; const state=JSON.parse(localStorage.getItem(key)!);
+    state.date='2026-10-16'; state.time='09:00'; localStorage.setItem(key,JSON.stringify(state));
   });
-  await page.reload();
-  const range=page.locator('.week-date-range');const before=await range.innerText();
-  await page.getByRole('button',{name:'Next week',exact:true}).click();
-  await expect(range).not.toHaveText(before);
-  await expect(page.locator('.mobile-agenda h3')).toContainText('Oct 18');
-  await page.getByRole('group',{name:'Choose a day this week'}).getByRole('button').nth(2).click();
-  await expect(page.locator('.mobile-agenda h3')).toContainText('Oct 20');
-  await page.getByRole('button',{name:'View day',exact:true}).click();
-  await expect(page).toHaveURL(/date=2026-10-20/);
+  await page.reload(); await page.goto('./#/10');
+  await expect(page.locator('.week-card')).toHaveCount(0);
+  await expect(page.locator('.trip-map')).toHaveCount(0);
+  await expect(page.locator('.today-rest details')).not.toHaveAttribute('open','');
+  await page.getByRole('button',{name:'Open itinerary',exact:true}).click();
+  await expect(page).toHaveURL(/date=2026-10-16/);
+  await expect(page.getByRole('group',{name:'Itinerary view'}).getByRole('button')).toHaveCount(2);
 });
 
 test('large budget values keep cents together and long group notes remain readable', async ({ page }) => {
@@ -814,7 +811,8 @@ test('suggested event puts scheduling first and Nearby recognizes an existing pl
   await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
   await page.evaluate(()=>{const key='trip-planner-demo-v1:demo-maya',s=JSON.parse(localStorage.getItem(key)!);s.date='2026-10-16';s.noticeDismissed=false;localStorage.setItem(key,JSON.stringify(s));});
   await page.reload();await page.goto('./#/10');
-  await page.getByRole('button',{name:'Discover nearby',exact:true}).click();
+  await page.getByRole('button',{name:'Open itinerary',exact:true}).click();
+  await page.getByRole('button',{name:'Find something nearby',exact:true}).click();
   const dialog=page.getByRole('dialog');
   await expect(dialog).toContainText('Sample trip: you can explore the planning context here.');
   await expect(dialog.getByRole('button',{name:'Find nearby suggestions',exact:true})).toBeDisabled();
@@ -922,10 +920,10 @@ test('saving later-day plans returns to the exact event across itinerary pages',
     await page.getByLabel('End time',{exact:true}).fill('10:00');
     await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
     await expect(page).toHaveURL(new RegExp(`#/8\\?date=${date}&event=[^&]+&view=list$`));
-    const event=page.locator('[id^="itinerary-event-"]').filter({hasText:`Plan on ${date}`});
+    const event=page.locator('[id^="day-event-"]').filter({hasText:`Plan on ${date}`});
     await expect(event).toBeFocused();
     await expect(event).toBeInViewport();
-    await expect(page.getByRole('button',{name:'List',exact:true})).toHaveAttribute('aria-pressed','true');
+    await expect(page.getByRole('button',{name:'Map & list',exact:true})).toHaveAttribute('aria-pressed','true');
     await expect(page.getByLabel('Days to show',{exact:true})).toHaveValue('7');
     await expect(page.getByRole('navigation',{name:'Itinerary day pages',exact:true})).toContainText(date==='2026-10-23'?'Days 8–12 of 12':'Days 1–7 of 12');
     // Changing the page size must keep the route's exact saved event in view.
@@ -1045,7 +1043,7 @@ test('sample confirmation chooses a free slot instead of colliding with the hote
   await expect(page.getByLabel('Event name',{exact:true})).toHaveValue('A visit to the gallery');
   await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
   await expect(page).toHaveURL(/#\/8\?date=2026-10-15&event=[^&]+&view=list$/);
-  await expect(page.locator('[id^="itinerary-event-"]').filter({hasText:'A visit to the gallery'})).toBeFocused();
+  await expect(page.locator('[id^="day-event-"]').filter({hasText:'A visit to the gallery'})).toBeFocused();
 });
 
 test('phone location suggestions remain above the fixed editor actions', async ({page}) => {
@@ -1162,7 +1160,7 @@ test('compact empty dates keep direct view and add actions with viewer permissio
   await day.scrollIntoViewIfNeeded();
   await page.screenshot({path:test.info().outputPath('compact-empty-days.png')});
   await day.getByRole('button',{name:/Day 2/}).click();
-  await expect(page).toHaveURL(/#\/11\?date=2026-10-16$/);
+  await expect(page).toHaveURL(/#\/11\?date=2026-10-16(?:&map=hidden)?$/);
   await page.goto('./#/8?view=list');
   await day.getByRole('button',{name:'Add event to this day',exact:true}).click();
   await expect(page.getByLabel('Day',{exact:true})).toHaveValue('2026-10-16');
@@ -1181,5 +1179,5 @@ test('compact empty dates keep direct view and add actions with viewer permissio
   const empty=page.locator('#day-2026-10-17');
   await expect(empty.getByRole('button',{name:'Add event to this day',exact:true})).toHaveCount(0);
   await empty.getByRole('button',{name:/Day 3/}).click();
-  await expect(page).toHaveURL(/#\/11\?date=2026-10-17$/);
+  await expect(page).toHaveURL(/#\/11\?date=2026-10-17(?:&map=hidden)?$/);
 });

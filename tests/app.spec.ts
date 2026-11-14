@@ -283,7 +283,7 @@ test('itinerary defaults to Calendar and List pages through 7, 10, or 20 days', 
   await demo(page);
   await page.goto('./#/8');
   await expect(page.getByRole('button', { name: 'Calendar', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await page.getByRole('button', { name: 'Map & list', exact: true }).click();
   await expect(page.locator('.day-page-controls')).toHaveCount(0);
   await expect(page.locator('.day-chips a')).toHaveCount(4);
   await expect(page.locator('.day-section')).toHaveCount(4);
@@ -297,7 +297,7 @@ test('itinerary defaults to Calendar and List pages through 7, 10, or 20 days', 
   await page.getByLabel('End date', { exact: true }).fill('2027-05-23');
   await page.getByRole('button', { name: 'Create trip', exact: true }).click();
   await page.getByRole('button', { name: 'Paging QA', exact: true }).click();
-  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await page.getByRole('button', { name: 'Map & list', exact: true }).click();
 
   const pages = page.getByRole('navigation', { name: 'Itinerary day pages', exact: true });
   const bottomPages = page.locator('.day-page-controls-bottom');
