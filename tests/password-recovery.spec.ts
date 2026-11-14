@@ -54,6 +54,7 @@ async function recoveryApi(page: Page) {
     }
     if (path.endsWith("/accept_trip_invite")) { accepts++; return route.fulfill({ status: 204 }); }
     if (path.startsWith("/rest/v1/")) return route.fulfill({ json: [] });
+    if (new URL(route.request().url()).pathname.endsWith("/record_trip_plan_access")) return route.fulfill({ json: null });
     throw new Error("Unexpected recovery request: " + path);
   });
   const send = async () => {

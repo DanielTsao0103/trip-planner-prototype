@@ -131,6 +131,7 @@ test("account saves recover from lost responses without duplicate trips, reload,
         json: deleted.map((r) => ({ tripID: r.tripID })),
       });
     }
+    if (new URL(route.request().url()).pathname.endsWith("/record_trip_plan_access")) return route.fulfill({ json: null });
     throw new Error(`Unexpected request ${request.method()} ${url.pathname}`);
   });
   await login(page);
@@ -258,6 +259,7 @@ test("failed account load offers retry and never pretends the account is empty",
         return route.fulfill({ status: 400, json: { message: "Unavailable" } });
       return route.fulfill({ json: [] });
     }
+    if (new URL(route.request().url()).pathname.endsWith("/record_trip_plan_access")) return route.fulfill({ json: null });
     throw new Error(`Unexpected request ${url.pathname}`);
   });
   await login(page);

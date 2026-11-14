@@ -1,5 +1,6 @@
 import { sharedChangeError } from "./trip-permissions";
 import { useAccountTripSync } from "./account-trip-sync";
+import { canTrackTripPlan, useTripPlanTracking } from "./use-trip-plan-tracking";
 import { useRecoveryClearance } from "./use-recovery-clearance";
 import { ConfirmDialog } from "./ui";
 import React, {
@@ -398,6 +399,10 @@ export function Provider({
   };
   const user = s.users.find((u) => u.id === s.userId);
   const trip = s.trips.find((t) => t.id === s.tripId && member(t, s.userId));
+  useTripPlanTracking(
+    loadState === "ready" && s.userId === account.id && canTrackTripPlan(cloud, trip?.persistence, trip?.sample, route.page),
+    account.id, trip?.id, route.page,
+  );
   const mapSyncOffline = useAccountTripSync(
     cloud && loadState === "ready" && s.userId === account.id,
     account, stateRef, queue, commit);

@@ -99,6 +99,7 @@ async function invitation(page: Page, registered: boolean, alternateIdentity: Id
     if (path.endsWith("/save_invited_preferences"))
       return route.fulfill({ json: row(tripId, "Invited Osaka trip") });
     if (path.startsWith("/rest/v1/")) return route.fulfill({ json: [] });
+    if (new URL(route.request().url()).pathname.endsWith("/record_trip_plan_access")) return route.fulfill({ json: null });
     throw Error("Unexpected request: " + path);
   });
   const open = () => registered

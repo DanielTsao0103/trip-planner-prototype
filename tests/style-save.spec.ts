@@ -57,6 +57,7 @@ test("account style failure stays visible through navigation and retries the sel
     if (request.method() === "GET" || path.endsWith("/load_trip_bundles") || path.endsWith("/trip_companion_pictures")) {
       return route.fulfill({ json: [] });
     }
+    if (new URL(route.request().url()).pathname.endsWith("/record_trip_plan_access")) return route.fulfill({ json: null });
     throw Error(`Unexpected mocked request: ${request.method()} ${path}`);
   });
   await page.goto("./");

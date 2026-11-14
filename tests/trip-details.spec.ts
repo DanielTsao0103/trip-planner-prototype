@@ -124,6 +124,7 @@ async function backend(page: Page) {
       else rows.push(row);
       return route.fulfill({ json: row });
     }
+    if (path.endsWith("/record_trip_plan_access")) return route.fulfill({ json: true });
     throw new Error(`Unexpected API ${path}`);
   });
   await page.goto("./");

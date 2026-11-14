@@ -15,6 +15,7 @@ async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuar
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname;
+    if (path === "/rest/v1/rpc/get_daniel_okr_metrics") return route.fulfill({ status: 503, json: { message: "Metrics fixture is unavailable" } });
     if (path === "/rest/v1/rpc/is_admin") {
       log.rpc += 1;
       return route.fulfill({ json: options.admin });
@@ -55,6 +56,7 @@ async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuar
     if (request.method() === "GET" || path.endsWith("/load_trip_bundles") || path.endsWith("/trip_companion_pictures")) {
       return route.fulfill({ json: [] });
     }
+    if (new URL(route.request().url()).pathname.endsWith("/record_trip_plan_access")) return route.fulfill({ json: null });
     throw Error(`Unexpected mocked request: ${request.method()} ${path}`);
   });
   return log;
@@ -113,7 +115,7 @@ test("an approved admin sees the Admin link beside Style and manages the access 
   await page.screenshot({ path: test.info().outputPath("admin-page.png"), fullPage: true });
 });
 
-test("the Admin page is a menu of four OKR tracker pages, each with its own placeholder", async ({ page }) => {
+test("the Admin page is a menu of four OKR tracker pages, with live trackers and planned placeholders", async ({ page }) => {
   await mockSupabase(page, { admin: true });
   await signIn(page);
   await page.locator(".menu-links").getByRole("button", { name: "Admin", exact: true }).click();
@@ -127,7 +129,8 @@ test("the Admin page is a menu of four OKR tracker pages, each with its own plac
   for (const owner of owners) {
     await menu.getByRole("button", { name: `${owner}’s OKR tracker`, exact: true }).click();
     await expect(page.getByRole("heading", { name: `${owner}’s OKR tracker`, exact: true, level: 1 })).toBeVisible();
-    if (owner !== "Ivy") await expect(page.getByText("Nothing here yet.")).toBeVisible();
+    if (owner === "Daniel") await expect(page.getByText("Dashboard unavailable")).toBeVisible();
+    else if (owner !== "Ivy") await expect(page.getByText("Nothing here yet.")).toBeVisible();
     const trail = page.getByRole("navigation", { name: "Breadcrumb" });
     await expect(trail.locator('[aria-current="page"]')).toHaveText(`${owner}’s OKR tracker`);
     await expect(trail.getByRole("link", { name: "Account", exact: true })).toBeVisible();
