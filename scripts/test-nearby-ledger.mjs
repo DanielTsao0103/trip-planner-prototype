@@ -43,7 +43,7 @@ try {
   await db.query("select public.finish_nearby_generation($1::uuid,'failed')", [permitted.rows[0].id]);
   await db.exec("reset role");
   const ledger = await db.query("select outcome,search_credits,model_tokens from private.nearby_research_usage");
-  assert.deepEqual(ledger.rows[0], { outcome: "failed", search_credits: 2, model_tokens: 8000 });
+  assert.deepEqual(ledger.rows[0], { outcome: "failed", search_credits: 2, model_tokens: 16000 });
   await db.query("delete from auth.users where id=$1::uuid", [actor]);
   const retained = await db.query("select actor,search_credits from private.nearby_research_usage");
   assert.equal(retained.rows.length, 1); assert.equal(retained.rows[0].actor, null); assert.equal(retained.rows[0].search_credits, 2);

@@ -16,7 +16,7 @@ export function NearbySuggestions() {
   const [error, setError] = useState("");
   const [results, setResults] = useState<NearbyResult[] | null>(null);
   const [emptyReason, setEmptyReason] = useState<EmptyReason>("filtered");
-  const [diagnostics, setDiagnostics] = useState<{ sourcesFound: number; sourcesUsed: number; candidatesReturned: number; rejected: ReviewRejections; yelpStatus?: YelpSearchStatus; yelpSourcesUsed?: number } | null>(null);
+  const [diagnostics, setDiagnostics] = useState<{ sourcesFound: number; sourcesUsed: number; candidatesReturned: number; recoveryAttempted?: boolean; rejected: ReviewRejections; yelpStatus?: YelpSearchStatus; yelpSourcesUsed?: number } | null>(null);
   const request = useRef<AbortController | null>(null);
   const contextKey = JSON.stringify([trip, date, intent, overlay?.data?.event]);
   useEffect(() => { request.current?.abort(); setResults(null); setDiagnostics(null); setError(""); setLoading(false); return () => { request.current?.abort(); }; }, [contextKey]);
@@ -75,8 +75,8 @@ export function NearbySuggestions() {
     {error && <p role="alert" className="error-box">{error}</p>}
     {results !== null && <section className="nearby-results" aria-label="Research results" aria-live="polite">
       <h3>Options to review</h3><p><ShieldCheck size={17} aria-hidden="true" /> These are researched candidates, not confirmed bookings or verified suitability.</p>
-      {!results.length && <div className="nearby-empty-explanation"><h4>{NEARBY_EMPTY_MESSAGES[emptyReason].title}</h4><p>{NEARBY_EMPTY_MESSAGES[emptyReason].message}</p><p>{NEARBY_EMPTY_MESSAGES[emptyReason].action}</p></div>}
-      {diagnostics && <details className="nearby-search-details"><summary>Search details</summary><p>{diagnostics.sourcesFound} sources found; {diagnostics.sourcesUsed} source excerpts used; {diagnostics.candidatesReturned} candidates returned.</p>
+      {!results.length && <div className="nearby-empty-explanation"><h4>{NEARBY_EMPTY_MESSAGES[emptyReason].title}</h4><p>{NEARBY_EMPTY_MESSAGES[emptyReason].message}</p>{diagnostics?.recoveryAttempted && <p>The AI made one follow-up pass using the same sources and trip constraints; it still found no supportable candidate.</p>}<p>{NEARBY_EMPTY_MESSAGES[emptyReason].action}</p></div>}
+      {diagnostics && <details className="nearby-search-details"><summary>Search details</summary><p>{diagnostics.sourcesFound} sources found; {diagnostics.sourcesUsed} source excerpts used; {diagnostics.candidatesReturned} candidates returned{diagnostics.recoveryAttempted ? " after one follow-up pass" : ""}.</p>
         {diagnostics.yelpStatus && Object.hasOwn(YELP_SEARCH_MESSAGES, diagnostics.yelpStatus) && <p>{YELP_SEARCH_MESSAGES[diagnostics.yelpStatus]} {diagnostics.yelpSourcesUsed ?? 0} Yelp excerpt{diagnostics.yelpSourcesUsed === 1 ? "" : "s"} used.</p>}
         {Object.entries(diagnostics.rejected).length > 0 && <ul>{Object.entries(diagnostics.rejected).map(([reason, count]) => <li key={reason}>{count} removed: {reason === "evidence" ? "insufficient source evidence" : reason === "budget" ? "above a saved budget" : reason === "conflicts" ? "flagged constraint conflict" : reason === "duplicates" ? "duplicate place" : "incomplete or invalid details"}</li>)}</ul>}
       </details>}

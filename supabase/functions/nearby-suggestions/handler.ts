@@ -39,7 +39,7 @@ export function createNearbyHandler(config: { enabled: boolean; groq?: string; t
       const reasons = Object.keys(rejected) as (keyof ReviewRejections)[];
       const emptyReason: EmptyReason | undefined = results.length ? undefined : !research.sourceCount ? "no_sources" : !research.candidateCount ? "no_candidates" : reasons.length === 1 ? reasons[0] : "filtered";
       await service.finish(reservation, "complete");
-      return reply({ results, emptyReason, diagnostics: { sourcesFound: research.sourceCount, sourcesUsed: research.sources.length, candidatesReturned: research.candidateCount, rejected, yelpStatus: research.yelpStatus, yelpSourcesUsed: research.yelpSourcesUsed }, checkedAt: new Date().toISOString(), revision: row.revision });
+      return reply({ results, emptyReason, diagnostics: { sourcesFound: research.sourceCount, sourcesUsed: research.sources.length, candidatesReturned: research.candidateCount, recoveryAttempted: research.recoveryAttempted, rejected, yelpStatus: research.yelpStatus, yelpSourcesUsed: research.yelpSourcesUsed }, checkedAt: new Date().toISOString(), revision: row.revision });
     } catch (error) {
       if (reservation && service) await service.finish(reservation, "failed").catch(() => undefined);
       return reply({ message: error instanceof ResearchError ? error.message : "Research could not be completed with reliable sources. Please try later.", ...(reservation ? { attemptUsed: true } : {}) }, error instanceof ResearchError ? error.status : 502);
