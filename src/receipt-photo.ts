@@ -25,6 +25,26 @@ export async function removeReceipt(path: string) {
   await bucket().remove([path]);
 }
 
+async function prepareReceiptImage(photo: File) {
+  const bitmap = await createImageBitmap(photo);
+  try {
+    const scale = Math.min(2, 2400 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) return photo;
+
+    context.fillStyle = "white";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.filter = "grayscale(1) contrast(1.45)";
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    return canvas;
+  } finally {
+    bitmap.close();
+  }
+}
+
 export async function scanReceiptPhoto(photo: File) {
   const { createWorker, PSM } = await import("tesseract.js");
   let worker: Worker | undefined;
@@ -39,17 +59,19 @@ export async function scanReceiptPhoto(photo: File) {
       throw new Error("Receipt reading timed out.");
     }
     worker = instance;
-    const primary = parseReceiptFields((await instance.recognize(photo)).data.text);
-    if (primary.amount && primary.purpose) return primary;
+    const image = await prepareReceiptImage(photo).catch(() => photo);
+    const primary = parseReceiptFields((await instance.recognize(image, { rotateAuto: true })).data.text);
+    if (primary.needsManualAmount || (primary.amount && primary.purpose && primary.category)) return primary;
 
-    // A scattered receipt layout can fall outside the default text block.
     await instance.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
-    const alternate = parseReceiptFields((await instance.recognize(photo)).data.text);
+    const alternate = parseReceiptFields((await instance.recognize(image)).data.text);
+    const conflict = !!(primary.amount && alternate.amount && primary.amount !== alternate.amount);
+    const needsManualAmount = alternate.needsManualAmount || conflict;
     return {
       purpose: primary.purpose || alternate.purpose,
       category: primary.category ?? alternate.category,
-      amount: primary.amount || (primary.needsManualAmount ? "" : alternate.amount),
-      needsManualAmount: primary.needsManualAmount || alternate.needsManualAmount,
+      amount: needsManualAmount ? "" : primary.amount || alternate.amount,
+      needsManualAmount,
     };
   };
   try {
