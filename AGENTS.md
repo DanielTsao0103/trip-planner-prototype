@@ -8,6 +8,8 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 ## Corrections & Lessons Learned
 
+- Dashboard hierarchy correction (November 14, 2026): Dan wants visualizations first, then percentages, then supporting numbers. Lead Daniel's OKR with percentage rings and time-series charts; move raw counts into supporting detail. Show live saving/sharing percentages immediately, distinguish today's partial activity, and never invent return-rate history while collecting a baseline.
+
 - Modal autofocus lesson (November 14, 2026): capture the opener during render, before React commits an autofocus child. Capturing activeElement in an effect can record the soon-to-be-removed input instead of the opener and drop focus to the document when closing. Verify actual Escape focus restoration, not merely dialog removal.
 
 - November 14 QA lessons: date and stop selection in Day & map must replace URL state so reload retains the visible selection. Clear stale page-size anchors before navigation. Keep day visibility controls beside map day headings, not in a column that narrows every stop. Recheck calendar-specific CSS selectors when consolidating responsive controls, and isolate concurrent Playwright output folders.

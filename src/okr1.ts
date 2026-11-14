@@ -27,11 +27,13 @@ export interface Okr1Metrics {
   newPlanners: number;
   lastActivityAt: string | null;
   daily: { date: string; activeUsers: number }[];
+  trend: { date: string; percent: number | null; allUserPercent: number | null }[];
 }
 
 const counts = ["observedDays", "windowDays", "registeredUsers", "planners", "currentPlanners", "savedTrips", "sharedTrips", "sharingOwners", "acceptedCollaborators", "eligiblePlanners", "consistentPlanners", "eligibleUsers", "consistentUsers", "activeToday", "activeYesterday", "activeInWindow", "newPlanners"] as const;
 const isCount = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
 const isDate = (value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value));
+const isRate = (value: unknown): boolean => value === null || (typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100);
 
 /** Fail closed on malformed data instead of presenting a misleading KPI. */
 export function parseOkr1Metrics(raw: unknown): Okr1Metrics {
@@ -43,7 +45,8 @@ export function parseOkr1Metrics(raw: unknown): Okr1Metrics {
     || typeof value.trackingStartedAt !== "string" || !Number.isFinite(Date.parse(value.trackingStartedAt))
     || (value.lastActivityAt !== null && (typeof value.lastActivityAt !== "string" || !Number.isFinite(Date.parse(value.lastActivityAt))))
     || value.consistentPlanners > value.eligiblePlanners || value.consistentUsers > value.eligibleUsers
-    || !Array.isArray(value.daily) || value.daily.some(day => !isDate(day.date) || !isCount(day.activeUsers))) {
+    || !Array.isArray(value.daily) || value.daily.some(day => !isDate(day.date) || !isCount(day.activeUsers))
+    || !Array.isArray(value.trend) || value.trend.some(day => !isDate(day.date) || !isRate(day.percent) || !isRate(day.allUserPercent))) {
     throw new Error("The dashboard returned incomplete data.");
   }
   for (const rate of [value.retentionPercent, value.allUserRetentionPercent]) {

@@ -2,6 +2,8 @@
 
 Objective: help trip planners save and share trips with friends. Target: **85% of enrolled planners access a saved plan at least every other day** over the last **14 completed UTC days**. The admin dashboard lives at `#/21` under Daniel's OKR. Its 7/30-day options and all-account comparison are secondary views; 14 days and planners are the confirmed default.
 
+The dashboard prioritizes visualizations: percentage rings for return rate, planner adoption (`planners / registeredUsers`) and shared trips (`sharedTrips / savedTrips`), a rolling return-rate chart with an 85% reference line, and a daily activity bar chart with keyboard/touch day inspection. Today is shown separately as provisional activity and never enters the completed-day return calculation. Empty denominators show an unavailable percentage; genuine zero rates show 0%. Missing history is not drawn as zero. Supporting counts and accessible chart tables expand on demand below the charts.
+
 ## Metric definition
 
 A planner enrolls on their first real account-owned trip or accepted shared-account membership. Existing planners were enrolled when collection began. Enrollment persists after trip deletion, membership removal, or inactivity; removing inactive people would inflate the rate. `currentPlanners` separately counts accounts that currently own or can access a trip. Account deletion cascades all of that account's telemetry and enrollment.

@@ -6,7 +6,7 @@ import axe from 'axe-core';
 
 const user={id:'11111111-1111-4111-8111-111111111111',aud:'authenticated',role:'authenticated',email:'metrics@example.test',app_metadata:{provider:'google'},user_metadata:{name:'Metrics QA'},created_at:'2026-01-01T00:00:00Z'};
 const tripId='22222222-2222-4222-8222-222222222222';
-const fixture:Okr1Metrics={trackingStartedAt:'2026-10-01T12:00:00Z',windowStart:'2026-11-01',windowEnd:'2026-11-14',observedDays:14,windowDays:14,targetPercent:85,registeredUsers:120,planners:100,currentPlanners:98,savedTrips:150,sharedTrips:62,sharingOwners:48,acceptedCollaborators:50,eligiblePlanners:100,consistentPlanners:85,eligibleUsers:120,consistentUsers:85,retentionPercent:85,allUserRetentionPercent:70.833333,activeToday:42,activeYesterday:46,activeInWindow:92,newPlanners:0,lastActivityAt:'2026-11-15T10:00:00Z',daily:Array.from({length:14},(_,i)=>({date:`2026-11-${String(i+1).padStart(2,'0')}`,activeUsers:30+i}))};
+const fixture:Okr1Metrics={trackingStartedAt:'2026-10-01T12:00:00Z',windowStart:'2026-11-01',windowEnd:'2026-11-14',observedDays:14,windowDays:14,targetPercent:85,registeredUsers:120,planners:100,currentPlanners:98,savedTrips:150,sharedTrips:62,sharingOwners:48,acceptedCollaborators:50,eligiblePlanners:100,consistentPlanners:85,eligibleUsers:120,consistentUsers:85,retentionPercent:85,allUserRetentionPercent:70.833333,activeToday:42,activeYesterday:46,activeInWindow:92,newPlanners:0,lastActivityAt:'2026-11-15T10:00:00Z',daily:Array.from({length:14},(_,i)=>({date:`2026-11-${String(i+1).padStart(2,'0')}`,activeUsers:30+i})),trend:Array.from({length:14},(_,i)=>({date:`2026-11-${String(i+1).padStart(2,'0')}`,percent:59+i*2,allUserPercent:49+i*1.5}))};
 
 async function api(page:Page,{admin=true,savedTrip=false}={}){
  const state={metrics:structuredClone(fixture),fail:false,metricCalls:0,accessCalls:[] as unknown[],days:[] as number[]};
@@ -34,11 +34,20 @@ test('admin sees real metrics, denominator definitions and responsive chart tabl
  await expect(page.getByTestId('okr1-percent')).toHaveText('85%');
  await expect(page.getByText('Target met',{exact:true})).toBeVisible();
  await expect(page.getByText('85 of 100',{exact:true})).toBeVisible();
+ await expect(page.getByRole('img',{name:'of all accounts: 83.3%',exact:true})).toBeVisible();
+ await expect(page.getByRole('img',{name:'of saved trips: 41.3%',exact:true})).toBeVisible();
+ const plannerPath=await page.getByTestId('okr1-trend-line').getAttribute('d');
+ await page.getByRole('slider',{name:'Inspect day'}).fill('0');
+ await expect(page.locator('.okr1-chart-readout')).toContainText('30 people · Nov 1');
+ await page.getByRole('slider',{name:'Inspect day'}).focus();await page.keyboard.press('ArrowRight');
+ await expect(page.locator('.okr1-chart-readout')).toContainText('31 people · Nov 2');
  await page.getByText('View daily numbers',{exact:true}).click();
  await expect(page.getByRole('table')).toContainText('Nov 14');
+ await page.getByText('View daily numbers',{exact:true}).click();
  await page.getByLabel('Measure among').selectOption('all');
  await expect(page.getByTestId('okr1-percent')).toHaveText('70.8%');
  await expect(page.getByText('Below target',{exact:true})).toBeVisible();
+ expect(await page.getByTestId('okr1-trend-line').getAttribute('d')).not.toBe(plannerPath);
  await page.getByLabel('Measure among').selectOption('planners');
  for(const width of info.project.name==='mobile'?[390,320]:[1440,1024,768]){
   await page.setViewportSize({width,height:900});
@@ -47,11 +56,14 @@ test('admin sees real metrics, denominator definitions and responsive chart tabl
  }
 });
 
-test('new tracking never invents retention or historical activity and can recover from denial',async({page})=>{
- const state=await api(page);state.metrics={...fixture,observedDays:0,eligiblePlanners:0,consistentPlanners:0,eligibleUsers:0,consistentUsers:0,retentionPercent:null,allUserRetentionPercent:null,daily:[],lastActivityAt:null};
+test('new tracking never invents retention or historical activity and can recover from denial',async({page},info)=>{
+ const state=await api(page);state.metrics={...fixture,observedDays:0,eligiblePlanners:0,consistentPlanners:0,eligibleUsers:0,consistentUsers:0,retentionPercent:null,allUserRetentionPercent:null,daily:[],trend:[],lastActivityAt:null};
  await login(page);await page.goto('./#/21');await expect(page.getByTestId('okr1-percent')).toHaveText('—');
  await expect(page.getByText('Collecting baseline',{exact:true})).toBeVisible();
  await expect(page.getByText('Activity starts here',{exact:true})).toBeVisible();
+ await expect(page.getByTestId('okr1-trend-line')).toHaveCount(0);
+ await expect(page.getByRole('img',{name:'of saved trips: 41.3%',exact:true})).toBeVisible();
+ await page.screenshot({path:info.outputPath('dashboard-baseline.png'),fullPage:true});
  state.fail=true;await page.getByRole('button',{name:'Refresh data',exact:true}).click();
  await expect(page.getByRole('alert')).toContainText('Dashboard unavailable');
  await expect(page.getByTestId('okr1-percent')).toHaveCount(0);
@@ -59,6 +71,18 @@ test('new tracking never invents retention or historical activity and can recove
  await expect(page.getByTestId('okr1-percent')).toHaveText('—');
  await page.getByLabel('Measurement period').selectOption('7');await expect.poll(()=>state.days.at(-1)).toBe(7);
  await expect(page.getByText('0 of 7 complete tracking days available.',{exact:false})).toBeVisible();
+});
+
+test('percentage rings distinguish empty denominators from genuine zero rates',async({page})=>{
+ const state=await api(page);state.metrics={...fixture,planners:0,registeredUsers:0,currentPlanners:0,savedTrips:0,sharedTrips:0,sharingOwners:0,acceptedCollaborators:0,eligiblePlanners:0,consistentPlanners:0,eligibleUsers:0,consistentUsers:0,retentionPercent:null,allUserRetentionPercent:null,activeToday:0,activeYesterday:0,activeInWindow:0,daily:[],trend:[]};
+ await login(page);await page.goto('./#/21');
+ await expect(page.getByRole('img',{name:'of all accounts: not yet available',exact:true})).toBeVisible();
+ await expect(page.getByRole('img',{name:'of saved trips: not yet available',exact:true})).toBeVisible();
+ state.metrics={...fixture,consistentPlanners:0,retentionPercent:0,sharedTrips:0,trend:[]};
+ await page.getByRole('button',{name:'Refresh data',exact:true}).click();
+ await expect(page.getByTestId('okr1-percent')).toHaveText('0%');
+ await expect(page.getByRole('img',{name:'of saved trips: 0%',exact:true})).toBeVisible();
+ await expect(page.getByText('Below target',{exact:true})).toBeVisible();
 });
 
 test('ordinary and demo accounts cannot request the aggregate dashboard',async({page})=>{

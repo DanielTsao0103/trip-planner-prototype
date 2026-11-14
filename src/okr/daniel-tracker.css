@@ -1,61 +1,101 @@
-/* Daniel's aggregate KPI dashboard uses the site's existing theme and type tokens. */
+/* Chart-first reporting, using the shared light/dark theme tokens. */
 :root .daniel-dashboard { display: grid; gap: 24px; min-width: 0; }
 :root .okr1-controls, :root .okr1-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; }
 :root .okr1-controls { justify-content: space-between; }
 :root .okr1-filters label { display: grid; gap: 7px; font-size: 13px; font-weight: 600; }
 :root .okr1-filters select { min-height: 46px; max-width: 100%; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: var(--ui-radius-control); padding: 10px 32px 10px 12px; font-size: 16px; }
 :root .okr1-controls .btn { gap: 8px; }
-:root .okr1-objective { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, 1fr); padding: 32px; gap: 36px; }
-:root .okr1-objective-copy h2 { font-size: clamp(24px, 3vw, 34px); line-height: 1.15; letter-spacing: -.025em; margin: 14px 0 16px; max-width: 24ch; }
-:root .okr1-objective-copy > p { font-size: 16px; line-height: 1.6; max-width: 48ch; }
+:root .okr1-objective-copy h2 { font-size: clamp(22px, 2.4vw, 30px); line-height: 1.25; letter-spacing: -.025em; margin: 8px 0 12px; max-width: 45ch; }
 :root .okr1-period { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; line-height: 1.6; }
-:root .okr1-objective-copy .okr1-period { margin-top: 28px; }
-:root .okr1-result { border-left: 1px solid var(--line); padding-left: 32px; display: flex; flex-direction: column; align-items: start; }
-:root .okr1-result > span:first-child { font-size: 14px; color: var(--muted); }
-:root .okr1-percent { font-size: clamp(48px, 6vw, 76px); letter-spacing: -.06em; line-height: 1.1; margin: 8px 0 12px; font-variant-numeric: tabular-nums; }
-:root .okr1-result .okr-meter { width: 100%; margin: 20px 0 4px; }
-:root .okr1-result p { margin: 10px 0 0; line-height: 1.6; }
-:root .okr1-support { font-size: 13px; color: var(--muted); }
-:root .okr1-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-:root .okr1-kpi { padding: 22px; }
-:root .okr1-kpi h2 { font-family: var(--ui-font-body); font-size: 14px; font-weight: 500; letter-spacing: normal; line-height: 1.4; margin: 0 0 12px; color: var(--muted); }
-:root .okr1-kpi > strong { font-size: 36px; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
-:root .okr1-kpi p { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 10px 0 0; }
-:root .okr1-detail-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1fr); gap: 24px; }
-:root :is(.okr1-activity, .okr1-cohort, .okr1-method, .okr1-error) { padding: 24px; min-width: 0; }
+:root .okr1-visual-overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+:root .okr1-visual-card { padding: 24px; min-width: 0; text-align: center; }
+:root .okr1-visual-card h2 { font-family: var(--ui-font-body); font-size: 17px; line-height: 1.4; letter-spacing: normal; margin: 0; font-weight: 600; }
+:root .okr1-visual-card .okr1-section-head { justify-content: center; gap: 8px; }
+:root .okr1-primary-chart { border-color: var(--control-border); }
+:root .okr1-ring { position: relative; width: min(100%, 220px); margin: 16px auto 20px; aspect-ratio: 1; }
+:root .okr1-ring svg { display: block; width: 100%; height: 100%; overflow: visible; }
+:root .okr1-ring-track, :root .okr1-ring-value { fill: none; stroke-width: 16; }
+:root .okr1-ring-track { stroke: var(--line); }
+:root .okr1-ring-value { stroke: var(--green); }
+:root .okr1-ring-target { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
+:root .okr1-ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+:root .okr1-ring-center strong { font-size: clamp(32px, 3.4vw, 46px); letter-spacing: -.055em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+:root .okr1-ring-center span { font-size: 12px; color: var(--muted); margin-top: 6px; }
+:root .okr1-visual-card > p { font-size: 14px; line-height: 1.6; margin: 14px 0 0; }
+:root .okr1-support, :root .okr1-visual-card > p.okr1-support { font-size: 13px; color: var(--muted); line-height: 1.6; }
+:root .okr1-chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+:root :is(.okr1-chart-card, .okr1-method, .okr1-error) { padding: 24px; min-width: 0; }
 :root .okr1-section-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: start; }
-:root .okr1-section-head h2, :root .okr1-cohort h2 { font-size: 22px; margin: 0 0 8px; }
-:root .okr1-section-head p { color: var(--muted); font-size: 13px; margin: 0; }
-:root .okr1-bars { height: 180px; display: flex; gap: clamp(3px, .7vw, 10px); margin-top: 32px; border-bottom: 1px solid var(--line); align-items: end; }
-:root .okr1-bar-column { flex: 1; height: 100%; display: flex; align-items: end; min-width: 0; }
-:root .okr1-bar-column > span { width: 100%; background: var(--green); border-radius: 4px 4px 0 0; }
-:root .okr1-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; padding-top: 8px; }
-:root .okr1-table-details { margin-top: 18px; }
+:root .okr1-chart-card h2 { font-size: 22px; margin: 0 0 8px; }
+:root .okr1-section-head p { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0; }
+:root .okr1-target-key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 12px; color: var(--muted); }
+:root .okr1-target-key::before { content: ''; width: 18px; border-top: 2px dashed var(--muted); }
+:root .okr1-plot { position: relative; margin-top: 24px; }
+:root .okr1-plot svg { display: block; width: 100%; overflow: visible; }
+/* HTML axis labels remain readable at phone widths instead of shrinking with SVG. */
+:root .okr1-chart-label { display: none; }
+:root .okr1-y-labels { position: absolute; inset: 0; font-size: 12px; color: var(--muted); pointer-events: none; }
+:root .okr1-y-labels span { position: absolute; left: 0; transform: translateY(-50%); }
+:root .okr1-y-labels span:nth-child(1) { top: 12.73%; }
+:root .okr1-y-labels span:nth-child(2) { top: 49.09%; }
+:root .okr1-y-labels span:nth-child(3) { top: 85.45%; }
+:root .okr1-axis { display: flex; justify-content: space-between; padding-left: 11.67%; color: var(--muted); font-size: 12px; margin-top: -8px; }
+:root .okr1-gridline { stroke: var(--line); stroke-width: 1; }
+:root .okr1-target-line { stroke: var(--muted); stroke-width: 2; stroke-dasharray: 7 6; }
+:root .okr1-trend-line { fill: none; stroke: var(--green); stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+:root .okr1-trend-dot { fill: var(--green); stroke: var(--paper); stroke-width: 2; }
+:root .okr1-plot-empty { position: absolute; inset: 35% 4% 15% 13%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; background: var(--paper); }
+:root .okr1-plot-empty strong { font-size: 14px; font-weight: 500; }
+:root .okr1-plot-empty span { font-size: 12px; color: var(--muted); }
+:root .okr1-baseline { margin-top: 28px; }
+:root .okr1-baseline-days { display: flex; gap: 4px; }
+:root .okr1-baseline-days i { flex: 1; height: 8px; border-radius: 3px; background: var(--line); }
+:root .okr1-baseline-days .is-complete { background: var(--green); }
+:root .okr1-baseline p { font-size: 12px; color: var(--muted); margin-bottom: 0; }
+:root .okr1-chart-readout { font-size: 13px; color: var(--muted); margin: 12px 0 -12px; }
+:root .okr1-chart-readout strong { font-size: 28px; color: var(--ink); font-variant-numeric: tabular-nums; margin-right: 4px; }
+:root .okr1-bar-hit { fill: transparent; cursor: pointer; }
+:root .okr1-day-bar { fill: var(--green); opacity: .55; cursor: pointer; }
+:root .okr1-day-bar.is-selected { opacity: 1; }
+:root .okr1-day-bar.is-today { fill: var(--paper); stroke: var(--green); stroke-width: 2; stroke-dasharray: 5 3; }
+:root .okr1-day-slider { display: flex; align-items: center; gap: 16px; font-size: 12px; color: var(--muted); margin-top: 16px; }
+:root .okr1-day-slider input { flex: 1; min-width: 0; min-height: 44px; accent-color: var(--green); cursor: pointer; padding: 0; }
+:root .okr1-table-details { margin-top: 16px; }
 :root :is(.okr1-table-details, .okr1-method) > summary { min-height: 44px; display: list-item; align-content: center; cursor: pointer; font-weight: 600; }
 :root .okr1-table-details table { width: 100%; border-collapse: collapse; font-size: 14px; }
 :root .okr1-table-details caption { text-align: left; color: var(--muted); padding: 10px 0; }
 :root .okr1-table-details :is(th, td) { text-align: left; padding: 10px 0; border-bottom: 1px solid var(--line); }
 :root .okr1-table-details :is(th, td):last-child { text-align: right; }
-:root .okr1-chart-empty { min-height: 220px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-:root .okr1-chart-empty h3 { margin: 14px 0 8px; }
-:root .okr1-chart-empty p { max-width: 38ch; color: var(--muted); margin: 0; }
-:root .okr1-cohort dl { margin: 24px 0; }
-:root .okr1-cohort dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
-:root .okr1-cohort dd { margin: 0; font-weight: 600; }
-:root .okr1-cohort p, :root .okr1-method p { font-size: 13px; color: var(--muted); line-height: 1.65; }
+:root .okr1-count-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin: 24px 0; }
+:root .okr1-count-grid dt { font-size: 13px; color: var(--muted); }
+:root .okr1-count-grid dd { font-size: 24px; margin: 8px 0 0; }
+:root .okr1-method p { font-size: 13px; color: var(--muted); line-height: 1.65; }
 :root .okr1-method h3 { margin: 20px 0 6px; font-size: 17px; }
 :root .okr1-method > div { max-width: 80ch; }
 :root .okr1-updated { font-size: 12px; color: var(--muted); line-height: 1.6; margin: 0; }
-@media (max-width: 1100px) {
-  :root .okr1-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  :root .okr1-detail-grid { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 1200px) {
+  :root .okr1-visual-overview { gap: 12px; }
+  :root .okr1-visual-card { padding: 20px 16px; }
+  :root .okr1-chart-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 800px) {
+  :root .okr1-visual-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :root .okr1-visual-card { padding: 20px 12px; }
+  :root .okr1-visual-card h2 { font-size: 15px; min-height: 42px; }
+  :root .okr1-visual-card .okr1-ring { max-width: 165px; }
+  :root .okr1-ring-center strong { font-size: clamp(24px, 7vw, 36px); }
+  :root .okr1-visual-card:not(.okr1-primary-chart) .okr1-ring-center span { display: none; }
+  :root .okr1-visual-card:not(.okr1-primary-chart) > .okr1-support { display: none; }
+  :root .okr1-primary-chart { grid-column: 1 / -1; padding: 24px; }
+  :root .okr1-primary-chart h2 { min-height: 0; font-size: 17px; }
+  :root .okr1-primary-chart .okr1-ring { max-width: 220px; }
+  :root .okr1-primary-chart .okr1-ring-center strong { font-size: 46px; }
+  :root .okr1-count-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
-  :root .okr1-objective { grid-template-columns: minmax(0, 1fr); padding: 22px; gap: 24px; }
-  :root .okr1-result { border-left: 0; border-top: 1px solid var(--line); padding: 24px 0 0; }
   :root .okr1-filters, :root .okr1-filters label { width: 100%; }
-  :root .okr1-kpi { padding: 16px; }
-  :root .okr1-kpi > strong { font-size: 30px; }
-  :root :is(.okr1-activity, .okr1-cohort, .okr1-method) { padding: 20px; }
-  :root .okr1-objective-copy .okr1-period { margin-top: 18px; }
+  :root :is(.okr1-chart-card, .okr1-method) { padding: 20px; }
+  :root .okr1-plot-empty { gap: 4px; }
+  :root .okr1-plot-empty strong { font-size: 13px; }
+  :root .okr1-plot-empty span { display: none; }
 }
