@@ -7,7 +7,7 @@ import { contextFocus, prepareDemoLocationFocus, prepareDemoLocationRegion, type
 import { destinationContext, inferLocationContext, type LocationItinerary } from './event-location-context';
 
 const cache = new Map<string, {result:LocationSuggestions; expires:number}>();
-export function EventLocationInput({value,onChange,destinations=[],itinerary}: {value:string;onChange:(value:string,point?:MeetingPlace["point"],googlePlaceId?:string)=>void;destinations?:string[];itinerary?:LocationItinerary}) {
+export function EventLocationInput({value,onChange,destinations=[],itinerary,label="Where",required=true,maxLength}: {label?:string;required?:boolean;maxLength?:number;value:string;onChange:(value:string,point?:MeetingPlace["point"],googlePlaceId?:string)=>void;destinations?:string[];itinerary?:LocationItinerary}) {
   const id=useId(), list=useRef<HTMLDivElement>(null), menu=useRef<HTMLDivElement>(null);
   const [open,setOpen]=useState(false), [active,setActive]=useState(-1);
   const [results,setResults]=useState<MeetingPlace[]>([]);
@@ -78,7 +78,7 @@ export function EventLocationInput({value,onChange,destinations=[],itinerary}: {
   }, [expanded, status, results]);
   return <div className="field event-location-field">
     <div className="event-location-heading">
-    <label htmlFor={`${id}-input`}>Where</label>
+    <label htmlFor={`${id}-input`}>{label}</label>
     <div className="event-location-bias">
       <label htmlFor={`${id}-near`}>Near</label>
       <select id={`${id}-near`} aria-label="Prioritize locations near" value={near===null?'__auto':near} onChange={e=>{setNear(e.target.value==='__auto'?null:e.target.value);setActive(-1);setResults([]);setOpen(true);}}>
@@ -90,7 +90,7 @@ export function EventLocationInput({value,onChange,destinations=[],itinerary}: {
     </div>
     {near===null && destination && <small className="event-location-context">Near {destination} · {context.reason.toLowerCase()}</small>}
     <div className="field-popup-anchor" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setOpen(false);}}>
-    <input id={`${id}-input`} required value={value} role="combobox" aria-label="Where"
+    <input id={`${id}-input`} required={required} maxLength={maxLength} value={value} role="combobox" aria-label={label}
       aria-autocomplete="list" aria-expanded={expanded} aria-controls={`${id}-list`}
       aria-activedescendant={expanded && active>=0 ? `${id}-${active}` : undefined}
       autoComplete="off" placeholder="Search a restaurant, place, or address"

@@ -10,6 +10,8 @@ async function setup(page: Page, time = "09:00", change?: (store: ReturnType<typ
     sessionStorage.setItem("trip-planner-demo-session", "active");
   }, store);
   await installGoogleMapFixture(page);
+  await page.route("https://places.googleapis.com/**", route => route.fulfill({ json: { suggestions: [], places: [] } }));
+  await page.route("https://photon.komoot.io/**", route => route.fulfill({ json: { features: [] } }));
   await page.route("https://routes.googleapis.com/**", route => {
     const { travelMode } = route.request().postDataJSON();
     return route.fulfill({ json: { routes: [{ duration: { WALK: "1200s", TRANSIT: "600s", DRIVE: "300s" }[travelMode as string], distanceMeters: 1200 }] } });
@@ -139,4 +141,35 @@ test("a stalled route times out and leaves directions usable", async ({ page }) 
   await expect(page.locator(".today-route-error")).toContainText("took too long");
   await expect(page.locator(".today-departure")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Open walk directions" })).toBeVisible();
+});
+
+
+test("Today reuses event autocomplete and routes from the selected place, clearing it after typing", async ({ page }) => {
+  await setup(page);
+  const origins: unknown[] = [];
+  await page.route("https://routes.googleapis.com/**", route => {
+    origins.push(route.request().postDataJSON().origin);
+    return route.fulfill({ json: { routes: [{ duration: "600s", distanceMeters: 500 }] } });
+  });
+  await page.route("https://places.googleapis.com/v1/places:autocomplete", route => route.fulfill({ json: {
+    suggestions: [{ placePrediction: { placeId: "hotel-seattle", text: { text: "Hyatt Regency Seattle, Seattle, WA" }, structuredFormat: { mainText: { text: "Hyatt Regency Seattle" }, secondaryText: { text: "Seattle, WA" } } } }],
+  } }));
+  const input = page.getByRole("combobox", { name: "Starting address or place", exact: true });
+  await input.fill("Hyatt");
+  await expect(page.getByRole("option", { name: "Hyatt Regency Seattle Seattle, WA" })).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("today-autocomplete.png"), fullPage: true });
+  await input.press("ArrowDown"); await input.press("Enter");
+  await expect(input).toHaveValue("Hyatt Regency Seattle, Seattle, WA");
+  expect(origins).toHaveLength(0); // Enter selects a suggestion; it must not submit the form.
+  await page.getByRole("button", { name: "Use start", exact: true }).click();
+  await expect(page.locator(".today-departure")).toBeVisible();
+  expect(origins).toEqual([{ placeId: "hotel-seattle" }, { placeId: "hotel-seattle" }, { placeId: "hotel-seattle" }]);
+  const url = new URL((await page.getByRole("link", { name: "Open walk directions" }).getAttribute("href"))!);
+  expect(url.searchParams.get("origin_place_id")).toBe("hotel-seattle");
+  await page.getByRole("button", { name: "Change", exact: true }).click();
+  await expect(input).toHaveValue("Hyatt Regency Seattle, Seattle, WA");
+  await input.fill("A different meeting point"); await input.press("Escape");
+  await page.getByRole("button", { name: "Use start", exact: true }).click();
+  await expect.poll(() => origins.length).toBe(6);
+  expect(origins.slice(3)).toEqual(Array(3).fill({ address: "A different meeting point" }));
 });

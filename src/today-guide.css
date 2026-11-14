@@ -12,7 +12,7 @@
 :root .today-origin p { margin: 5px 0; overflow-wrap: anywhere; }
 :root .today-origin small { color: var(--muted); font-size: 13px; }
 :root .today-origin-form { margin-top: 16px; max-width: 620px; }
-:root .today-origin-form label { display: block; margin-bottom: 8px; font-size: 14px; }
+:root .today-origin-form > label { display: block; margin-bottom: 8px; font-size: 14px; }
 :root .today-origin-form input { min-width: 0; width: 100%; }
 :root .today-origin-form .input-action { display: flex; gap: 8px; }
 :root .today-origin-form .input-action .btn { flex-shrink: 0; }
@@ -81,3 +81,7 @@
   :root .today-transport { margin: 0; padding: 0 0 0 24px; border-top: 0; border-left: 1px solid var(--line); }
   :root .today-event-notes { grid-column: 1 / -1; margin: 0; }
 }
+
+:root .today-origin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+/* Keep the suggestion list in the small form's flow so it cannot cover Use start. */
+:root .today-origin-form .event-location-menu { position: relative; top: auto; margin-top: 6px; }

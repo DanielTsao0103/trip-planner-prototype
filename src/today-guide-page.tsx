@@ -1,3 +1,4 @@
+import { EventLocationInput } from "./event-location-input";
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Clock, Footprints, TrainFront, Car, Navigation, MapPin, Plus, AlertCircle, ChevronRight } from "lucide-react";
 import { useApp } from "./state";
@@ -148,6 +149,7 @@ function NextStop({ trip, event, previous, ongoing, reminderJump }: { trip: Trip
   const [originKind, setOriginKind] = useState<"planned" | "custom" | "location">("planned");
   const [editingOrigin, setEditingOrigin] = useState(!plannedOrigin);
   const [address, setAddress] = useState("");
+  const [selectedStart, setSelectedStart] = useState<RouteLocation>();
   const [originError, setOriginError] = useState("");
   const [locating, setLocating] = useState(false);
   const locationRequest = useRef(0);
@@ -182,12 +184,24 @@ function NextStop({ trip, event, previous, ongoing, reminderJump }: { trip: Trip
   return <section className="card today-next-guide" aria-label={ongoing ? "Current stop" : "Next stop"}>
     <div className="today-stop-heading"><div><span className="eyebrow">{ongoing ? "HAPPENING NOW" : "UP NEXT"} · {timeText(event.start)}</span><h2>{event.name}</h2><p className="today-destination"><MapPin size={17} />{event.place || "Location not set"}</p></div><div className="today-stop-actions"><Button variant="text" onClick={() => go(11, { date: event.date, event: event.id })}>Open event <ArrowUpRight size={16} /></Button>{reminderJump}</div></div>
     {destination ? <div className="today-transport">
-      <div className="today-origin"><div><span className="eyebrow">STARTING POINT</span><p>{origin?.label || "Where are you leaving from?"}</p>{originKind === "planned" && origin && <small>Previous itinerary stop · planned departure after {timeText(previous!.end)}</small>}</div>{origin && <Button variant="text" onClick={() => { locationRequest.current++; setLocating(false); setEditingOrigin(value => !value); }}>{editingOrigin ? "Close" : "Change"}</Button>}</div>
+      <div className="today-origin"><div><span className="eyebrow">STARTING POINT</span><p>{origin?.label || "Where are you leaving from?"}</p>{originKind === "planned" && origin && <small>Previous itinerary stop · planned departure after {timeText(previous!.end)}</small>}</div>{origin && <Button variant="text" onClick={() => { locationRequest.current++; setLocating(false);
+        if (!editingOrigin) { setAddress(originKind === "location" ? "" : origin?.place || origin?.label || ""); setSelectedStart(originKind === "location" ? undefined : origin); }
+        setEditingOrigin(value => !value); }}>{editingOrigin ? "Close" : "Change"}</Button>}</div>
       {editingOrigin && <form className="today-origin-form" onSubmit={e => {
         e.preventDefault();
         if (!address.trim()) { setOriginError("Enter a starting point or use your location."); return; }
-        locationRequest.current++; setLocating(false); setOriginKind("custom"); setOrigin({ label: address.trim(), place: address.trim() }); setEditingOrigin(false); setOriginError(""); setRequestedAt(new Date());
-      }}><label htmlFor="today-start">Starting address or place</label><div className="input-action"><input id="today-start" value={address} maxLength={2048} placeholder="Hotel name and city, or address" onChange={e => setAddress(e.target.value)} /><Button type="submit" variant="outline">Use start</Button></div><Button variant="text" disabled={locating} onClick={useLocation}><Navigation size={15} />{locating ? "Finding location…" : "Use my location"}</Button><ErrorBox text={originError} /></form>}
+        locationRequest.current++; setLocating(false); setOriginKind("custom"); setOrigin(selectedStart ?? { label: address.trim(), place: address.trim() }); setEditingOrigin(false); setOriginError(""); setRequestedAt(new Date());
+      }}>
+        <EventLocationInput label="Starting address or place" required={false} maxLength={2048} value={address}
+          destinations={trip.destinations} itinerary={{events: trip.events, date: s.date, start: s.time}}
+          onChange={(label, point, googlePlaceId) => {
+            setAddress(label); setOriginError("");
+            // Typing after a selection clears its old identity, just as in the event editor.
+            setSelectedStart(point || googlePlaceId ? { label, place: label, point, googlePlaceId } : undefined);
+          }} />
+        {/* Keep pointer focus in the input until the action fires; closing its inline
+            suggestions on mousedown would move these buttons before mouseup. */}
+        <div className="today-origin-actions"><Button type="submit" variant="outline" onMouseDown={(e: React.MouseEvent) => e.preventDefault()}>Use start</Button><Button variant="text" onMouseDown={(e: React.MouseEvent) => e.preventDefault()} disabled={locating} onClick={useLocation}><Navigation size={15} />{locating ? "Finding location…" : "Use my location"}</Button></div><ErrorBox text={originError} /></form>}
       <div className="today-modes" role="group" aria-label="Transportation">
         {TRAVEL_MODES.map(value => { const Icon = icons[value]; const result = routes.results[value]; return <button type="button" key={value} aria-pressed={mode === value} onClick={() => setMode(value)}><span><Icon size={19} />{MODE_LABELS[value]}</span><strong>{!origin ? "Choose start" : routes.loading ? "Checking…" : result?.estimate ? `${result.estimate.minutes} min` : "Unavailable"}</strong></button>; })}
       </div>
