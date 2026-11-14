@@ -24,7 +24,7 @@ export function AdminPage() {
           </div>
         </section>
         <div>
-          <Button variant="text small" onClick={() => go(ADMIN_ACCESS_PAGE)}>
+          <Button variant="outline" onClick={() => go(ADMIN_ACCESS_PAGE)}>
             <ShieldCheck size={16} aria-hidden="true" /> Manage admin access
           </Button>
         </div>

@@ -1,6 +1,6 @@
 /* App-wide foundations derived from the approved Budget design. See DESIGN.md. */
 :root {
-  --ui-font-body: "DM Sans", sans-serif;
+  --ui-font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --ui-text-body: 14px;
   --ui-text-support: 13px;
   --ui-text-caption: 12px;
@@ -1371,3 +1371,47 @@ body:has([role="dialog"]) .toast { display: none; }
 }
 
 :root .event-location-context { display:block; margin:6px 0 8px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }
+
+/* November 2026: a quieter shared workspace. Keep selected heading families,
+   theme hues and corner preferences; navigation chrome stays subordinate. */
+:root { font-family: var(--ui-font-body); }
+:root .sidebar {
+  background: color-mix(in srgb, var(--page) 88%, var(--sage));
+  border-right-color: color-mix(in srgb, var(--ink) 10%, transparent);
+}
+:root .sidebar nav button,
+:root .home-link { font-size: 14px; min-height: 44px; }
+:root .sidebar nav button.active,
+:root .home-link.active {
+  color: var(--action-ink);
+  background: color-mix(in srgb, var(--green) 10%, var(--paper));
+}
+:root .trip-switch {
+  background: var(--paper);
+  border-color: color-mix(in srgb, var(--ink) 12%, transparent);
+}
+:root .trip-switch .eyebrow { font-size: 10px; letter-spacing: .08em; }
+:root .trip-switch > span:last-child,
+:root .profile small { font-size: 12px; }
+:root .profile strong { font-size: 13px; }
+:root .topbar {
+  background: color-mix(in srgb, var(--page) 90%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--ink) 10%, transparent);
+  backdrop-filter: blur(16px);
+}
+:root .breadcrumbs { font-size: 13px; }
+:root .sample-context-label { font-size: inherit; color: var(--muted); }
+:root .btn:active:not(:disabled),
+:root .icon-btn:active:not(:disabled) { transform: scale(.98); }
+:root .field[data-ui="field"] > span { font-weight: 600; }
+:root .page-head h1 { letter-spacing: -.025em; }
+:root .trip-editor-form { max-width: 900px; grid-template-columns: minmax(0, 1fr); }
+:root .trip-editor-form .trip-form-intro { display: block; }
+:root .trip-editor-form > .form-aside { display: none; }
+@media (prefers-reduced-transparency: reduce) {
+  :root .topbar { background: var(--page); backdrop-filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root .btn:active:not(:disabled),
+  :root .icon-btn:active:not(:disabled) { transform: none; }
+}

@@ -451,10 +451,10 @@ export function ConnectProvider() {
               }
             />
             <span>
-              {p}
+              {p} <Badge>Preview</Badge>
               <small>
                 {service === "Gmail"
-                  ? "Fictional receipt matching. No sending or deleting email."
+                  ? "Preview only. No email is read, sent, or deleted."
                   : p === "Basic profile" ? "Preview your display name and profile picture."
                     : `Preview trip ideas from travel ${service === "TikTok" ? "videos" : "posts"} you choose.`}
               </small>
@@ -526,10 +526,12 @@ export function Home() {
     const element = carouselWindow.current;
     if (!element) return;
     const updateVisibleCount = () => {
-      // Keep the complete card inside narrow phones and use that same width for movement.
-      const cardWidth = Math.min(PREPLANNED_CARD_WIDTH, element.clientWidth);
+      // Fit whole cards instead of leaving a non-keyboard-accessible partial
+      // card at the edge. Use the identical measured width for translation.
+      const count = Math.max(1, Math.min(3, Math.floor((element.clientWidth + PREPLANNED_CARD_GAP) / (280 + PREPLANNED_CARD_GAP))));
+      const cardWidth = (element.clientWidth - (count - 1) * PREPLANNED_CARD_GAP) / count;
       setCarouselCardWidth(cardWidth);
-      setVisibleCardCount(Math.max(1, Math.min(3, Math.floor((element.clientWidth + PREPLANNED_CARD_GAP) / (cardWidth + PREPLANNED_CARD_GAP)))));
+      setVisibleCardCount(count);
     };
     updateVisibleCount();
     const observer = new ResizeObserver(updateVisibleCount);
@@ -563,7 +565,7 @@ export function Home() {
         <div className="section-title"><h2>Your trips</h2><Button variant="text" onClick={() => go(5)}>All trips <ArrowRight size={16}/></Button></div>
         {recentTrips.length > 0 ? <div className="recent-trip-grid">{recentTrips.map(trip => <button type="button" key={trip.id} className="recent-trip-card" aria-label={`Continue planning ${trip.title}`} onClick={() => {mutate(store => {store.tripId=trip.id;}); go(8);}}>
           <Photo src={trip.image} alt=""/><span className="recent-trip-copy"><strong>{trip.title}</strong><span>{tripDateRange(trip.start,trip.end)}</span></span><ArrowUpRight size={18}/>
-        </button>)}</div> : <div className="home-empty"><p>No trips yet. Start with a new trip or an idea below.</p></div>}
+        </button>)}</div> : <div className="home-empty"><p>{s.trips.find(trip => trip.id === s.tripId)?.sample ? "No personal trips yet. You’re currently exploring the sample." : "No trips yet. Start with a new trip or an idea below."}</p></div>}
       </section>
       <div className="section-title home-ideas-heading">
         <h2 id="preplanned-trips" ref={templateHeading} tabIndex={-1}>Pre-planned trips</h2>

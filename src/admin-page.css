@@ -23,3 +23,5 @@
 :root .okr-page { display: grid; gap: 20px; }
 :root .okr-page > .page-head { margin-bottom: 0; }
 :root .admin-page .btn.text > svg { margin-right: 8px; }
+/* Give long access-list emails the same working width as other focused forms. */
+:root .account-page.admin-page { max-width: 900px; }

@@ -8,6 +8,12 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 ## Corrections & Lessons Learned
 
+- Modal autofocus lesson (November 14, 2026): capture the opener during render, before React commits an autofocus child. Capturing activeElement in an effect can record the soon-to-be-removed input instead of the opener and drop focus to the document when closing. Verify actual Escape focus restoration, not merely dialog removal.
+
+- November 14 QA lessons: date and stop selection in Day & map must replace URL state so reload retains the visible selection. Clear stale page-size anchors before navigation. Keep day visibility controls beside map day headings, not in a column that narrows every stop. Recheck calendar-specific CSS selectors when consolidating responsive controls, and isolate concurrent Playwright output folders.
+
+- November 14, 2026 redesign direction supersedes the prior stop-rounds note: Dan requested independent Luna designer reviews and an Astra-led UX feedback loop toward 9/10 per screen. Keep scores tied to observed interactions, preserve lower results, and distinguish simulated reviews from human research and service readiness. Label active sample trips explicitly so Home does not imply the fictional trip is a saved personal trip.
+
 - Planning consistency correction (November 13, 2026): Day & map must reuse the itinerary List view with the list on the left and map on the right, rather than a separate daily-card page. Calendar, List and Day & map share the same navigation bar. Home should be compact on mobile with fewer words, no repeated trip actions, and smaller supporting sections.
 
 - Receipt automation clarification (November 2, 2026): travelers must email receipts to a dedicated Gmail inbox. Model the planned workflow as emailed receipt ingestion, not scanning a traveler's connected personal inbox. The admin portal and automation remain planned.
@@ -303,3 +309,5 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 - Wanderlog-inspired planning direction (November 13, 2026): Dan authorized implementing the UX audit while preserving working features. Keep theme choices, calendar gestures, full map, budgeting and permissions. Unscheduled saved places use the existing trip write/recovery path; scheduling is atomic, and older clients must preserve omitted saved-place content. Map fixtures are deterministic interaction tests, not proof of real Google imagery.
 
 - Persistence compatibility lesson (November 13, 2026): additive response fields can break previously shipped clients whose recovery/save validators reject unknown keys. Test the actual old writer as well as omitted-field server behavior. Negotiate new bundle fields through the existing CORS-allowed client-info header while preserving newer data on old-client writes.
+
+- Focused setup lesson (November 14, 2026): optional Connections and consent screens use their own Skip, Continue, and Cancel paths; suppress the fixed trip navigation there, matching focused editors. Test button hit targets on short phones, since a visible element can still be covered by a fixed bar.

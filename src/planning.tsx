@@ -87,6 +87,7 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
   const [dayPage, setDayPage] = useState(0);
   const pageSizeAnchor = useRef<{ tripId: string; date: string; origin: Element | null } | null>(null);
   const pendingReveal = useRef<{ date: string; event: string | null; origin: Element | null } | null>(null);
+  const revealMap = useRef(false);
   const [daysPerPage, setDaysPerPage] = useState(() => {
     try {
       const saved = Number(localStorage.getItem("trip-planner-list-days"));
@@ -94,6 +95,7 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
     } catch { return 7; }
   });
   const changeDaysPerPage = (value: number) => {
+    if (value === daysPerPage) return;
     // Regroup around the current day rather than returning to the trip's beginning.
     const date = requestedDate && visibleDays.includes(requestedDate) ? requestedDate : visibleDays[0];
     pageSizeAnchor.current = t && date ? { tripId: t.id, date, origin: document.activeElement } : null;
@@ -115,7 +117,7 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
     setActiveDay(index < 0 ? dates[0] || "" : focusedDate!);
     // Existing daily-item focus restoration owns visible event links. Only
     // defer their reveal here when pagination has not mounted the target yet.
-    const needsReveal = view === "list" || (mapMode && (!requestedEvent || !document.getElementById(`day-event-${requestedEvent}`)));
+    const needsReveal = !revealMap.current && (view === "list" || (mapMode && (!requestedEvent || !document.getElementById(`day-event-${requestedEvent}`))));
     pendingReveal.current = needsReveal && index >= 0 ? {
       date: focusedDate!, event: focusedDate === requestedDate ? requestedEvent : null,
       origin: anchor ? anchor.origin : document.activeElement,
@@ -124,6 +126,17 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
   // A frame count cannot prove React committed the regrouped page. Wait until
   // the actual target exists, then let the route's main-focus effect finish.
   useLayoutEffect(() => {
+    if (revealMap.current) {
+      const map = document.getElementById("itinerary-day-map");
+      if (map) {
+        const frame = requestAnimationFrame(() => {
+          revealMap.current = false;
+          map.focus({ preventScroll: true });
+          map.scrollIntoView({ block: "start", behavior: "smooth" });
+        });
+        return () => cancelAnimationFrame(frame);
+      }
+    }
     const pending = pendingReveal.current;
     if (!pending) return;
     const target = (pending.event && document.getElementById(`${mapMode ? "day" : "itinerary"}-event-${pending.event}`)) || document.getElementById(`day-${pending.date}`);
@@ -149,10 +162,17 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
   const pageEnd = Math.min(pageStart + daysPerPage, allDays.length);
   const visibleDays = allDays.slice(pageStart, pageEnd);
   const dayRange = `Days ${allDays.length ? pageStart + 1 : 0}–${pageEnd} of ${allDays.length}`;
+  const selectDay = (date: string) => {
+    pageSizeAnchor.current = null;
+    setActiveDay(date);
+    setMapEvent("");
+    // A selected day is shareable view state, including selections made from
+    // the list. Replace the URL so refresh retains it without extra Back steps.
+    go(mapMode ? 11 : 8, mapMode ? { date } : { view: "list", date }, true);
+  };
   const changeDayPage = (nextPage: number) => {
     setDayPage(nextPage);
-    setActiveDay(allDays[nextPage * daysPerPage]);
-    setMapEvent("");
+    selectDay(allDays[nextPage * daysPerPage]);
   };
   const pageFromBottom = (nextPage: number) => {
     pendingReveal.current = { date: allDays[nextPage * daysPerPage], event: null, origin: document.activeElement };
@@ -182,6 +202,7 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
   const selectStop = (event: Event) => {
     setActiveDay(event.date);
     setMapEvent(event.id);
+    go(11, { date: event.date, event: event.id }, true);
   };
   return (
     <>
@@ -215,24 +236,26 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
           {dateText(t.start, true)} – {dateText(t.end, true)},{" "}
           {t.start.slice(0, 4)}
         </span>
-        <span>
+        <button className="trip-member-summary" aria-label="Meet your group" onClick={() => go(13)}>
           <Users size={18} />
           {t.members.filter((m) => m.status === "accepted").length} {t.members.filter((m) => m.status === "accepted").length === 1 ? "traveler" : "travelers"}
-        </span>
+        </button>
         <span>
           <Route size={18} />
           {allDays.length} {allDays.length === 1 ? "day" : "days"}, {t.events.length} {t.events.length === 1 ? "plan" : "plans"}
         </span>
-        <button onClick={() => go(13)}>
-          Meet your group <ArrowRight size={15} />
-        </button>
       </div>
-      {view === "calendar" && <div className="form-actions"><Button variant="outline" onClick={() => open("nearby", { date: activeDay })}><Sparkles size={17} />Nearby suggestions</Button></div>}
       <div className="itinerary-controls">
       <div className="section-title itinerary-heading">
         <div>
           <h2>Your itinerary</h2>
         </div>
+        {view === "calendar" && <Button variant="text" onClick={() => open("nearby", { date: activeDay })}><Sparkles size={17} />Nearby suggestions</Button>}
+        {mapMode && <Button variant="text" className="day-map-jump" onClick={() => {
+          const panel = document.getElementById("itinerary-day-map");
+          panel?.focus({ preventScroll: true });
+          panel?.scrollIntoView({ block: "start", behavior: "smooth" });
+        }}><MapPin size={17} />Show map</Button>}
         {role !== "Viewer" && <Button
           onClick={() =>
             go(7, {
@@ -263,8 +286,7 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
                 key={date}
                 onClick={(e) => {
                   e.preventDefault();
-                  setActiveDay(date);
-                  setMapEvent("");
+                  selectDay(date);
                   document
                     .getElementById(`day-${date}`)
                     ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -277,7 +299,7 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
           </div>
           {allDays.length > 7 && <div className="day-navigation-tools">
           {pageCount > 1 && <div className="day-jump"><label htmlFor="itinerary-day-jump">Jump to day</label><select id="itinerary-day-jump" value="" onChange={event => {
-            const date=event.target.value; setDayPage(Math.floor(allDays.indexOf(date) / daysPerPage)); setActiveDay(date); setMapEvent("");
+            const date=event.target.value; setDayPage(Math.floor(allDays.indexOf(date) / daysPerPage)); selectDay(date);
             requestAnimationFrame(() => document.getElementById(`day-${date}`)?.scrollIntoView({block:"start"}));
           }}><option value="" disabled>Choose a date</option>{allDays.map((date,index)=><option key={date} value={date}>Day {index+1} · {dateText(date)}</option>)}</select></div>}
           {renderDayPager()}
@@ -353,7 +375,11 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
                 </div>
                 <button
                   className="text-link push"
-                  onClick={() => mapMode ? (setActiveDay(date), setMapEvent("")) : go(11, { date })}
+                  onClick={() => {
+                    if (!mapMode) { go(11, { date }); return; }
+                    revealMap.current = true;
+                    selectDay(date);
+                  }}
                 >
                   {mapMode ? "Show on map" : "View day"} <ArrowUpRight size={15} />
                 </button>
@@ -383,15 +409,20 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
             {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => pageFromBottom(currentPage + 1)} disabled={currentPage >= pageCount - 1} aria-label="Next days"><ChevronRight size={16} /></button>}
           </div>}
         </div>
-        {mapMode ? <aside id="itinerary-day-map" className="day-map-panel" aria-label="Map of selected day">
+        {mapMode ? <aside id="itinerary-day-map" tabIndex={-1} className="day-map-panel" aria-label="Map of selected day">
           <div className="day-map-heading"><h2>{new Date(mapDate + "T12:00:00").toLocaleDateString("en-US", {weekday:"long"})}, {dateText(mapDate,true)}</h2><Button variant="text" onClick={() => go(17,mapEvent ? {event:mapEvent} : {})}>Full map <ArrowUpRight size={15}/></Button></div>
           <div className="day-control">
             <Button variant="outline" aria-label="Previous day" disabled={mapDate===t.start} onClick={() => go(11,{date:allDays[allDays.indexOf(mapDate)-1]})}><ChevronLeft size={16}/></Button>
             <DatePicker label="Choose a day" value={mapDate} min={t.start} max={t.end} onChange={date => {if(date >= t.start && date <= t.end) go(11,{date});}}/>
             <Button variant="outline" aria-label="Next day" disabled={mapDate===t.end} onClick={() => go(11,{date:allDays[allDays.indexOf(mapDate)+1]})}><ChevronRight size={16}/></Button>
           </div>
-          <TravelMap key={`${t.id}:${mapDate}`} compact date={mapDate} selectedEvent={mapEvent} onSelectEvent={id => {setMapEvent(id); if(id) requestAnimationFrame(() => document.getElementById(`day-event-${id}`)?.scrollIntoView({block:"nearest",behavior:"smooth"}));}}/>
-          <Button variant="text" onClick={() => open("nearby",{date:mapDate})}><Sparkles size={16}/>Find something nearby</Button>
+          <TravelMap key={`${t.id}:${mapDate}`} compact date={mapDate} selectedEvent={mapEvent} onSelectEvent={id => {const event=t.events.find(event => event.id===id); if(event) selectStop(event); else setMapEvent(""); if(id) requestAnimationFrame(() => document.getElementById(`day-event-${id}`)?.scrollIntoView({block:"nearest",behavior:"smooth"}));}}/>
+          <div className="day-map-actions"><Button variant="text" onClick={() => open("nearby",{date:mapDate})}><Sparkles size={16}/>Find something nearby</Button>
+          <Button variant="text" className="day-map-jump" onClick={() => {
+            const day = document.getElementById(`day-${mapDate}`);
+            day?.focus({ preventScroll: true });
+            day?.scrollIntoView({ block: "start", behavior: "smooth" });
+          }}>View plans <ArrowRight size={16}/></Button></div>
         </aside> : <aside className="itinerary-aside">
           <div className="card inspiration-card">
             <span className="little-icon">
@@ -1019,10 +1050,10 @@ export function EventForm() {
         </form>
         <aside className="form-aside">
           <div className="card">
-            <span className="eyebrow">ALREADY ON THIS DAY</span>
+            <span className="eyebrow">{original ? "OTHER PLANS THIS DAY" : "ALREADY ON THIS DAY"}</span>
             <h2>{dateText(date, true)}</h2>
-            {orderedEvents(t, date).length ? (
-              orderedEvents(t, date).map((e) => (
+            {orderedEvents(t, date).some(event => event.id !== original?.id) ? (
+              orderedEvents(t, date).filter(event => event.id !== original?.id).map((e) => (
                 <div className="mini-event" key={e.id}>
                   <span>{timeText(e.start)}</span>
                   <strong>{e.name}</strong>
@@ -1030,7 +1061,7 @@ export function EventForm() {
                 </div>
               ))
             ) : (
-              <p>An open day. Make it your own.</p>
+              <p>{original ? "No other plans this day." : "An open day. Make it your own."}</p>
             )}
           </div>
           <div className="note">
@@ -1110,7 +1141,7 @@ export function Suggestions() {
     <>
       <PageHead
         title="Suggestions"
-        description="Sample ideas for your trip. Check venue details before you go."
+        description="Personalize a sample idea, or find researched places nearby."
         action={
           <Button
             variant="outline suggestion-refresh"
@@ -1157,7 +1188,7 @@ export function Suggestions() {
               return <article className="suggestion-card" key={i.id}>
                 <Photo src={i.image} alt={i.title} />
                 <div className="suggestion-body">
-                  <div className="eyebrow">{i.tag}</div>
+                  <div className="suggestion-source"><span className="eyebrow">{i.tag}</span><Badge>Sample idea</Badge></div>
                   <h2>{i.title}</h2>
                   <p className="suggestion-place"><MapPin size={14} aria-hidden="true" />{i.place}</p>
                   <p>{i.reason}</p>
@@ -1293,7 +1324,7 @@ export function Dashboard() {
       />
       {next && <section className="card today-next-stop" aria-label="Next stop">
         <div><span className="eyebrow">{next.start <= s.time ? "Happening now" : "Next stop"} · {timeText(next.start)}</span><h2>{next.name}</h2><p>{next.place}</p></div>
-        <div className="today-next-actions"><Button onClick={() => go(17, {event:next.id})}>View on map <ArrowUpRight size={16}/></Button>{reminderJump}</div>
+        <div className="today-next-actions"><Button onClick={() => go(11, {date:next.date, event:next.id})}>Open event <ArrowUpRight size={16}/></Button>{reminderJump}</div>
       </section>}
       {!next && <section className="card today-next-stop" aria-label="Today’s plans">
         <div><h2>{todays.length ? "No more plans today" : "No events today"}</h2><p>{todays.length ? "Your scheduled events have finished." : "Add a plan or enjoy the open time."}</p></div>
@@ -1321,12 +1352,6 @@ export function Dashboard() {
                 <ChevronRight size={15} />
               </button>
             </div>
-            <button
-              className="text-link"
-              onClick={() => go(11, { date: s.date })}
-            >
-              View today <ArrowUpRight size={16} />
-            </button>
           </div>
           <p className="week-date-range" aria-live="polite">{dateText(week[0], true)} – {dateText(week[6], true)}</p>
           <div className="mobile-agenda">

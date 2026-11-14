@@ -21,6 +21,7 @@ export function SavedPlaces({ date, view = "list" }: { date: string; view?: "cal
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);
+  const addButton = useRef<HTMLButtonElement>(null);
   const restoreHeading = useRef(false);
   useEffect(() => {
     if (removing || !restoreHeading.current) return;
@@ -57,8 +58,10 @@ export function SavedPlaces({ date, view = "list" }: { date: string; view?: "cal
           )}
           {allowed && (
             <Button
+              ref={addButton}
               variant="outline"
               onClick={() => {
+                addButton.current?.focus({ preventScroll: true });
                 setName("");
                 setPlace("");
                 setPoint(null);

@@ -538,3 +538,46 @@
   .itinerary-controls {
   position: static;
 }
+
+/* Keep planning controls in one toolbar; group access lives on its own count. */
+:root :is(.page-8, .page-11) .trip-summary .trip-member-summary {
+  margin: 0;
+  padding: 0;
+  min-height: 44px;
+  color: var(--action-ink);
+  gap: 8px;
+}
+:root :is(.page-8, .page-11) .itinerary-heading { gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+:root :is(.page-8, .page-11) .trip-summary { padding-block: 4px; }
+:root .suggestion-source { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+:root .suggestion-source .badge { font-weight: 500; background: var(--page); color: var(--muted); }
+@media (min-width: 761px) {
+  :root :is(.page-8, .page-11) .trip-hero,
+  :root :is(.page-8, .page-11) .trip-hero-content { min-height: 128px; }
+  :root .home-workspace .home-ideas-heading h2 { font-size: 20px; }
+  :root .home-workspace .planned-trip-card > img { height: 150px; }
+}
+@media (max-width: 760px) {
+  :root :is(.page-8, .page-11) .itinerary-heading { width: 100%; justify-content: space-between; }
+  :root :is(.page-8, .page-11) .itinerary-heading > .btn:only-of-type { margin-left: auto; }
+}
+:root .day-map-panel { scroll-margin-top: 148px; }
+@media (max-width: 760px) {
+  /* Override the older calendar-only grid too: two complete rows beat narrow,
+     overlapping view labels when the toolbar also includes nearby discovery. */
+  :root .app-shell :is(.page-8, .page-11) .itinerary-controls { display: flex; flex-wrap: wrap; }
+  :root .app-shell :is(.page-8, .page-11) .itinerary-view-switch { flex: 1 0 100%; width: 100%; }
+  :root .app-shell :is(.page-8, .page-11) .itinerary-view-switch button { flex: 1; white-space: nowrap; }
+}
+/* Saved-place tools wrap as complete controls before their labels can shrink. */
+:root .saved-places .section-title { flex-wrap: wrap; align-items: flex-start; }
+:root .saved-places .section-title > div:first-child { flex: 1 1 220px; min-width: 0; }
+:root .saved-places .section-title > .row { flex: 0 1 auto; flex-wrap: wrap; gap: 8px; margin: 0; }
+:root .saved-places .section-title .btn { flex-shrink: 0; white-space: nowrap; }
+:root .day-map-jump { display: none; }
+:root .day-map-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px; padding: 8px 12px; }
+@media (max-width: 1099px) {
+  /* The legacy phone list uses flex; make the shared map ordering explicit. */
+  :root .itinerary-map-layout { display: grid; }
+  :root .day-map-jump { display: inline-flex; }
+}

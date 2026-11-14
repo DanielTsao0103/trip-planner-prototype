@@ -12,7 +12,7 @@ Calm, readable travel planning. Put the traveler’s current task first, use cle
 
 | Role | Standard |
 |---|---|
-| Body and control labels | DM Sans, 14px; 1.5 line height for prose |
+| Body and control labels | Platform system sans, 14px; 1.5 line height for prose |
 | Supporting information | 13px; 12px only for short captions and badges |
 | Editable text | 16px, including mobile inputs |
 | Page heading | Selected heading family; 36px desktop, 30px phone |
@@ -72,4 +72,8 @@ The Budget’s approved panel result does not automatically certify other pages.
 
 ## Planning direction (November 13, 2026)
 
-Dan requested Wanderlog-inspired planning while retaining Stir Crazy's identity and working features. Calendar, List, and Day & map use the same navigation component. Day & map reuses the complete paginated itinerary list on the left with a sticky date-filtered map on the right; smaller screens stack the map above the list. Selecting a stop opens its notes, editing and directions without replacing the list. Existing day/event links remain valid. Home uses compact returning-trip rows, one New trip action, a concise template carousel, and small booking/sample controls. Continue using the selected color, appearance, typeface, and corner tokens; no Wanderlog assets or branding are copied.
+Dan requested Wanderlog-inspired planning while retaining Stir Crazy's identity and working features. Calendar, List, and Day & map use the same navigation component. Day & map reuses the complete paginated itinerary list on the left with a sticky date-filtered map on the right; smaller screens stack the map above the list and keep Show map / View plans jumps within reach. Selecting a stop opens its notes, editing and directions without replacing the list. Existing day/event links remain valid. Home uses compact returning-trip rows, one New trip action, a concise template carousel, and small booking/sample controls. Continue using the selected color, appearance, typeface, and corner tokens; no Wanderlog assets or branding are copied.
+
+## November 14 refinement
+
+Use calm, legible system controls with the existing selected heading fonts, brand artwork, theme colors, and corners. Shared navigation uses restrained theme-aware surfaces and clear 14px labels. Keep sample context explicit. Group trip instructions with the form; Today offers one event detail action and one map action, with selected-day navigation beside its agenda. The current requested review threshold is 9/10 UI and UX per page; retain the fixed rubric and independent evidence, and do not use scores to certify external providers or unverified production behavior.

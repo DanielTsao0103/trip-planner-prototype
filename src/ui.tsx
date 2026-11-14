@@ -343,10 +343,13 @@ export function Modal({
   const { close: closeOverlay } = useApp();
   const close = onClose ?? closeOverlay;
   const ref = useRef<HTMLDivElement>(null);
+  // React autoFocus runs during the DOM commit, before effects. Capture the
+  // opener while rendering so an autofocus field cannot become its own return target.
+  const opener = useRef(document.activeElement as HTMLElement);
   const closeRef = useRef(close);
   closeRef.current = close;
   useEffect(() => {
-    const previous = document.activeElement as HTMLElement;
+    const previous = opener.current;
     const openedOnRoute = location.hash;
     const el = ref.current!;
     // Include notices outside the shell, while preserving any existing inert state.
@@ -632,7 +635,7 @@ export function Shell({ children }: { children: ReactNode }) {
           className="trip-switch"
           onClick={() => open("tripPicker", { target: tripContextTarget, activeOnly: tripContextTarget === 10 })}
         >
-          <span className="eyebrow">YOUR TRIP</span>
+          <span className="eyebrow">{trip?.sample ? "SAMPLE TRIP" : "YOUR TRIP"}</span>
           <strong title={trip?.title}>{trip?.title || "Choose a trip"}</strong>
           <span>
             {trip
@@ -695,7 +698,7 @@ export function Shell({ children }: { children: ReactNode }) {
           >
             <span>
               <MapPin size={14} />
-              <strong>{trip.title}</strong>
+              <strong>{trip.sample && <span className="sample-context-label">Sample · </span>}{trip.title}</strong>
             </span>
             <ChevronRight size={16} />
           </button>
@@ -750,7 +753,7 @@ export function Shell({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
-      {trip && ![6, 18].includes(route.page) && (
+      {trip && ![2, 3, 6, 18].includes(route.page) && (
         <nav className="mobile-nav" aria-label="Mobile navigation">
           <button
             aria-current={[8, 7, 11].includes(route.page) ? "page" : undefined}

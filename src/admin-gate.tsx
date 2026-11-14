@@ -34,7 +34,9 @@ export function AdminGate({ children }: { children: ReactNode }) {
     return (
       <Empty
         title="You do not have access to this page."
-        body="Admin access is limited to approved Google accounts."
+        body={cloud
+          ? `Admin access requires an approved Google account. You’re signed in as ${accountInfo.email || "this account"}. Ask an existing admin to approve that email.`
+          : "Sign in with an approved Google account to open Admin. The sample account does not have admin access."}
         action={<Button onClick={() => go(19)}>Back to account</Button>}
       />
     );

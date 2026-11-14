@@ -461,3 +461,12 @@ gmp-advanced-marker:focus-visible .trip-pin-face {
     align-self: flex-end;
   }
 }
+
+/* The visibility toggle belongs to the day header, not a column beside every
+   stop. Reserve its space only in the summary so place names regain full width. */
+.map-day-group { display: block; position: relative; }
+.map-day-disclosure { width: 100%; }
+.map-day-disclosure summary { padding-right: 116px; flex-wrap: wrap; gap: 5px; }
+.map-day-disclosure summary > small { margin-left: 0; }
+.map-day-toggle { position: absolute; top: 4px; right: 0; margin: 0; }
+.map-day-events { width: 100%; }

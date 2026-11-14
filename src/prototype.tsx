@@ -56,7 +56,7 @@ export function PrototypeApp() {
       target.focus({ preventScroll: true });
       target.scrollIntoView({ block: "center" });
     } else if (!sameDailyItem && previousRoute.current !== routeKey && route.page !== 16 &&
-        !(route.page === 17 && previousRoute.current.startsWith("17?"))) {
+        !([11, 17].includes(route.page) && previousRoute.current.startsWith(`${route.page}?`))) {
       document.getElementById("main-content")?.focus({ preventScroll: true });
     }
     previousDailyItem.current = itemKey;

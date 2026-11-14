@@ -85,6 +85,14 @@ test("daily planning keeps dates across views and synchronizes stop selection wi
     const listBox = (await page.locator('.itinerary-day-list').boundingBox())!;
     const mapBox = (await map.boundingBox())!;
     expect(mapBox.x).toBeGreaterThanOrEqual(listBox.x + listBox.width);
+  } else {
+    const listBox = (await page.locator('.itinerary-day-list').boundingBox())!;
+    const mapBox = (await map.boundingBox())!;
+    expect(mapBox.y + mapBox.height).toBeLessThanOrEqual(listBox.y);
+    await page.getByRole('button', { name: 'Show map', exact: true }).click();
+    await expect(map).toBeFocused();
+    await map.getByRole('button', { name: 'View plans', exact: true }).click();
+    await expect(page.locator('#day-2026-10-16')).toBeFocused();
   }
   await page.getByRole("button", { name: "Calendar", exact: true }).click();
   await expect(page).toHaveURL(/date=2026-10-16/);
@@ -150,4 +158,40 @@ test('a later-day map link reveals its paginated stop and saved-place cancellati
   await expect(page.getByLabel('Choose a day',{exact:true})).toHaveValue('November 5, 2026');
   await page.getByRole('group',{name:'Itinerary view',exact:true}).getByRole('button',{name:'List',exact:true}).click();
   await expect(page).toHaveURL(/date=2026-11-05/);
+});
+
+test("day and stop selections survive reload and Show on map reveals the selected day", async ({ page }) => {
+  await page.goto("./#/11?date=2026-10-15");
+  await page.locator('.day-chips a').filter({ hasText: 'Day 2' }).click();
+  await expect(page).toHaveURL(/#\/11\?date=2026-10-16$/);
+  await page.reload();
+  const map = page.getByRole('complementary', { name: 'Map of selected day', exact: true });
+  await expect(map.locator('.day-map-heading')).toContainText('Oct 16');
+  const event = page.getByRole('article', { name: 'A morning of art', exact: true });
+  await event.locator('.event-card').click();
+  await expect(page).toHaveURL(/date=2026-10-16&event=museum/);
+  await page.reload();
+  await expect(event).toHaveClass(/focused/);
+  await page.locator('#day-2026-10-17').getByRole('button', { name: 'Show on map', exact: true }).click();
+  await expect(page).toHaveURL(/#\/11\?date=2026-10-17$/);
+  await expect(map.locator('.day-map-heading')).toContainText('Oct 17');
+  await expect(map.locator('.day-map-heading')).toBeInViewport({ ratio: 1 });
+});
+
+test("saved-place actions stay complete and reachable on a narrow phone", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 600 });
+  for (const route of ['8?view=list', '11?date=2026-10-16']) {
+    await page.goto(`./#/${route}`);
+    const save = page.getByRole('region', { name: 'Saved places', exact: true })
+      .getByRole('button', { name: 'Save a place', exact: true });
+    await save.scrollIntoViewIfNeeded();
+    const bounds = (await save.boundingBox())!;
+    expect(bounds.height).toBeGreaterThanOrEqual(44);
+    expect(bounds.height).toBeLessThanOrEqual(60);
+    expect(bounds.width).toBeGreaterThan(120);
+    await save.click();
+    await expect(page.getByRole('dialog', { name: 'Save a place', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(save).toBeFocused();
+  }
 });

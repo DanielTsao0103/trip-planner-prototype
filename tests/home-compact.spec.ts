@@ -79,7 +79,7 @@ test("an empty Home retains creation, templates and the sample without duplicate
     page.getByRole("button", { name: "New trip", exact: true }),
   ).toHaveCount(1);
   await expect(
-    page.getByText("No trips yet. Start with a new trip or an idea below.", {
+    page.getByText("No personal trips yet. You’re currently exploring the sample.", {
       exact: true,
     }),
   ).toBeVisible();

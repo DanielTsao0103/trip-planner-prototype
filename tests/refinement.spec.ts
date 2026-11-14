@@ -7,6 +7,25 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://maps.googleapis.com/maps/api/js?**', route => route.abort());
 });
 
+test('optional connection setup keeps consent actions clear of trip navigation', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 664 });
+  await page.goto('./#/2');
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: /^(Connect|Review) Gmail$/ }).click();
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation', exact: true })).toHaveCount(0);
+  const save = page.getByRole('button', { name: /^(Save permissions|Allow selected access|Continue without access)$/ });
+  await save.scrollIntoViewIfNeeded();
+  // Hit testing catches a fixed layer covering a button even when it is visible.
+  await expect.poll(() => save.evaluate(button => {
+    const bounds = button.getBoundingClientRect();
+    return button.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
+  })).toBe(true);
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page).toHaveURL(/#\/2$/);
+  await page.getByRole('button', { name: 'Skip for now', exact: true }).click();
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation', exact: true })).toBeVisible();
+});
+
 test('suggestion cancellation and preferences preserve their originating page', async ({ page }) => {
   await page.goto('./#/9');
   await page.getByRole('button', {name: 'Choose a time'}).first().click();
@@ -644,7 +663,8 @@ test('long reminders stay readable beside visible actions and preserve check and
 
 test('added sample ideas link to their saved event and survive reload', async ({ page }) => {
   await page.goto('./#/9');
-  await expect(page.getByText('Sample ideas for your trip. Check venue details before you go.')).toBeVisible();
+  await expect(page.getByText('Personalize a sample idea, or find researched places nearby.')).toBeVisible();
+  await expect(page.locator('.suggestion-card').first().getByText('Sample idea', {exact:true})).toBeVisible();
   await page.getByRole('button', {name:'Choose a time'}).first().click();
   await page.getByRole('button', {name:'Add to itinerary',exact:true}).click();
   await expect(page).toHaveURL(/#\/9$/);
