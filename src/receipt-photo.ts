@@ -45,7 +45,18 @@ async function prepareReceiptImage(photo: File) {
   }
 }
 
-export async function scanReceiptPhoto(photo: File) {
+export async function scanReceiptPhoto(photo: File, useVision = false) {
+  if (useVision) {
+    const { data, error } = await getSupabase().functions.invoke<{
+      purpose: string;
+      category: string;
+      amount: string;
+      needsManualAmount: boolean;
+    }>("read-receipt", { body: photo, headers: { "Content-Type": photo.type } });
+    // Accounts outside the pilot continue to use the on-device scanner.
+    if (!error && data) return data;
+    if (error?.context?.status !== 403) throw new Error("AI receipt scan unavailable.");
+  }
   const { createWorker, PSM } = await import("tesseract.js");
   let worker: Worker | undefined;
   let ended = false;

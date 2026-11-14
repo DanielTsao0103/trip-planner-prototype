@@ -953,7 +953,7 @@ export function ExpenseForm() {
             setUploading(true);
             setPhotoStatus("Reading receipt…");
             try {
-              const fields = await scanReceiptPhoto(photo);
+              const fields = await scanReceiptPhoto(photo, t.persistence === "account" && import.meta.env.VITE_RECEIPT_VISION === "true");
               if (!active.current) return;
               if (!fields.amount || moneyError(fields.amount, MONEY_LIMITS.expense)) {
                 setError(fields.needsManualAmount

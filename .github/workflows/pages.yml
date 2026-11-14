@@ -20,6 +20,7 @@ jobs:
       options: --ipc=host
     timeout-minutes: 18
     env:
+      VITE_RECEIPT_VISION: ${{ vars.VITE_RECEIPT_VISION }}
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
       VITE_GOOGLE_MAPS_API_KEY: ${{ vars.VITE_GOOGLE_MAPS_API_KEY }}
