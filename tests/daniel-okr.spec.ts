@@ -96,13 +96,13 @@ test('foreground saved-plan access records only trip identity and is throttled a
  const state=await api(page,{savedTrip:true});await login(page);expect(state.accessCalls).toHaveLength(0);
  await page.goto('./#/5');await page.getByRole('button',{name:'Tracked trip',exact:true}).click();
  await expect.poll(()=>state.accessCalls.length).toBe(1);expect(state.accessCalls[0]).toEqual({p_trip:tripId});
- await page.getByRole('button',{name:'List',exact:true}).click();
- await page.getByRole('button',{name:'Day & map',exact:true}).click();
+ await page.getByRole('button',{name:'Map & list',exact:true}).click();
+ await page.getByRole('button',{name:'Hide map',exact:true}).click();
  await page.keyboard.press('Tab');expect(state.accessCalls).toHaveLength(1);
  // API errors must never block the independently usable trip UI.
  await page.route('**/rpc/record_trip_plan_access',route=>route.fulfill({status:503,json:{message:'Unavailable'}}));
  await page.reload();await expect(page.getByRole('group',{name:'Itinerary view'})).toBeVisible();
- await page.getByRole('button',{name:'List',exact:true}).click();
+ await page.getByRole('button',{name:'Map & list',exact:true}).click();
  await expect(page.getByRole('button',{name:'Save a place',exact:true})).toBeVisible();
 });
 

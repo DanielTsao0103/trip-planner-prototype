@@ -46,7 +46,7 @@ export function PrototypeApp() {
   const previousRoute = useRef(routeKey);
   const previousDailyItem = useRef<string | null>(null);
   useEffect(() => {
-    const eventId = route.page === 11 && route.params.get("event");
+    const eventId = (route.page === 11 || (route.page === 8 && route.params.get("view") === "list")) && route.params.get("event");
     const target = eventId && document.getElementById(`day-event-${eventId}`);
     const itemKey = target ? `${trip?.id}:${eventId}` : null;
     // Updating the date of the same shared item is not a new navigation task.

@@ -50,7 +50,7 @@ test("reloaded unsaved itinerary keeps the focused event below its sticky recove
   await expect(banner).toContainText('Not saved:');
   await page.reload();
   await expect(banner).toContainText('Not saved:');
-  const event=page.getByRole('button',{name:/Keep my visible plan/}).first();
+  const event=page.getByRole('article',{name:'Keep my visible plan',exact:true});
   await expect(event).toBeFocused();
   const clearance=async()=>{const a=await banner.boundingBox(),b=await event.boundingBox();return b!.y-a!.y-a!.height;};
   await expect.poll(clearance).toBeGreaterThanOrEqual(10);

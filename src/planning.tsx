@@ -75,14 +75,20 @@ function ItineraryViews({ view, date }: { view: "calendar" | "list" | "map"; dat
   const { go } = useApp();
   return <div className="itinerary-view-switch" role="group" aria-label="Itinerary view">
     <button type="button" aria-pressed={view === "calendar"} onClick={() => go(8, {view:"calendar",date})}>Calendar</button>
-    <button type="button" aria-pressed={view === "list"} onClick={() => go(8, {view:"list",date})}>List</button>
-    <button type="button" aria-pressed={view === "map"} onClick={() => go(11, {date})}>Day &amp; map</button>
+    <button type="button" aria-pressed={view === "map"} onClick={() => go(11, {date})}>Map &amp; list</button>
   </div>;
 }
 
-export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
-  const { trip: t, s, go, open, route } = useApp();
-  const view = mapMode ? "map" : route.params.get("view") === "list" ? "list" : "calendar";
+export function Itinerary({ mapMode: explicitMapMode = false }: { mapMode?: boolean }) {
+  const { trip: t, s, go: navigate, open, route } = useApp();
+  // Old list URLs open the same combined workspace with its map collapsed.
+  const legacyList = !explicitMapMode && route.params.get("view") === "list";
+  const mapMode = explicitMapMode || legacyList;
+  const mapHidden = mapMode && (route.params.get("map") === "hidden" || legacyList);
+  const view = mapMode ? "map" : "calendar";
+  const go: typeof navigate = (page, params = {}, replace) => navigate(page, {
+    ...params, ...((page === 11 || (page === 7 && params.return === "11")) && mapHidden ? { map: "hidden" } : {}),
+  }, replace);
   const [mapEvent, setMapEvent] = useState(route.params.get("event") || "");
   const [dayPage, setDayPage] = useState(0);
   const pageSizeAnchor = useRef<{ tripId: string; date: string; origin: Element | null } | null>(null);
@@ -117,7 +123,7 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
     setActiveDay(index < 0 ? dates[0] || "" : focusedDate!);
     // Existing daily-item focus restoration owns visible event links. Only
     // defer their reveal here when pagination has not mounted the target yet.
-    const needsReveal = !revealMap.current && (view === "list" || (mapMode && (!requestedEvent || !document.getElementById(`day-event-${requestedEvent}`))));
+    const needsReveal = !revealMap.current && mapMode && (Boolean(anchor) || mapHidden || !requestedEvent || !document.getElementById(`day-event-${requestedEvent}`));
     pendingReveal.current = needsReveal && index >= 0 ? {
       date: focusedDate!, event: focusedDate === requestedDate ? requestedEvent : null,
       origin: anchor ? anchor.origin : document.activeElement,
@@ -195,9 +201,6 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
       </div>
     </div>
   );
-  const personalBudget = t.budgetMode === "individual";
-  const budget = personalBudget ? (t.individual[traveler.id] ?? null) : t.budget;
-  const totalSpent = spent(t, personalBudget ? traveler.id : undefined);
   const mapDate = activeDay || requestedDate || t.start;
   const selectStop = (event: Event) => {
     setActiveDay(event.date);
@@ -251,11 +254,11 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
           <h2>Your itinerary</h2>
         </div>
         {view === "calendar" && <Button variant="text" onClick={() => open("nearby", { date: activeDay })}><Sparkles size={17} />Nearby suggestions</Button>}
-        {mapMode && <Button variant="text" className="day-map-jump" onClick={() => {
+        {mapMode && !mapHidden && <Button variant="text" className="day-map-jump" onClick={() => {
           const panel = document.getElementById("itinerary-day-map");
           panel?.focus({ preventScroll: true });
           panel?.scrollIntoView({ block: "start", behavior: "smooth" });
-        }}><MapPin size={17} />Show map</Button>}
+        }}><MapPin size={17} />Jump to map</Button>}
         {role !== "Viewer" && <Button
           onClick={() =>
             go(7, {
@@ -272,11 +275,14 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
         </Button>}
       </div>
       <ItineraryViews view={view} date={activeDay || t.start} />
+      {mapMode && <Button variant="text" className="map-visibility-toggle" aria-expanded={!mapHidden} aria-controls="itinerary-day-map" onClick={() => navigate(11, {
+        date: activeDay || t.start, ...(mapEvent ? { event: mapEvent } : {}), ...(!mapHidden ? { map: "hidden" } : {}),
+      }, true)}>{mapHidden ? "Show map" : "Hide map"}</Button>}
       </div>
       {view !== "calendar" && <SavedPlaces date={activeDay || t.start} view={view} />}
       {role === "Viewer" && <ReadOnly />}
       {role === "Day Editor" && <ReadOnly day />}
-      {view === "calendar" ? <><WeeklyCalendar key={t.id} /><SavedPlaces date={activeDay || t.start} view="calendar" /></> : <div className={`itinerary-layout${mapMode ? " itinerary-map-layout" : ""}`}>
+      {view === "calendar" ? <><WeeklyCalendar key={t.id} /><SavedPlaces date={activeDay || t.start} view="calendar" /></> : <div className={`itinerary-layout${mapMode ? " itinerary-map-layout" : ""}${mapHidden ? " itinerary-map-collapsed" : ""}`}>
         <div className="itinerary-day-list">
           <div className="day-chips" hidden={pageCount > 1}>
             {visibleDays.map((date, pageIndex) => (
@@ -378,7 +384,8 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
                   onClick={() => {
                     if (!mapMode) { go(11, { date }); return; }
                     revealMap.current = true;
-                    selectDay(date);
+                    setActiveDay(date); setMapEvent("");
+                    navigate(11, { date }, true);
                   }}
                 >
                   {mapMode ? "Show on map" : "View day"} <ArrowUpRight size={15} />
@@ -387,7 +394,7 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
                 <div className="events-list">
                   {events.map((e) => (
                     mapMode ? <article key={e.id} id={`day-event-${e.id}`} tabIndex={-1} aria-label={e.name} className={`map-list-stop ${mapEvent === e.id ? "focused" : ""}`}>
-                      <EventCard event={e} selected={mapEvent === e.id} onSelect={() => selectStop(e)} />
+                      <EventCard event={e} selected={mapEvent === e.id} selectionLabel={mapHidden ? `Show details for ${e.name}` : undefined} onSelect={() => selectStop(e)} />
                       {mapEvent === e.id && <div className="map-stop-details">
                         <div className="row">
                           <span>{e.attendees.length} travelers · {e.cost ? `${money(e.cost)} estimated` : "No cost planned"}</span>
@@ -409,7 +416,7 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
             {pageCount > 1 && <button type="button" className="day-page-arrow" onClick={() => pageFromBottom(currentPage + 1)} disabled={currentPage >= pageCount - 1} aria-label="Next days"><ChevronRight size={16} /></button>}
           </div>}
         </div>
-        {mapMode ? <aside id="itinerary-day-map" tabIndex={-1} className="day-map-panel" aria-label="Map of selected day">
+        {mapMode && !mapHidden ? <aside id="itinerary-day-map" tabIndex={-1} className="day-map-panel" aria-label="Map of selected day">
           <div className="day-map-heading"><h2>{new Date(mapDate + "T12:00:00").toLocaleDateString("en-US", {weekday:"long"})}, {dateText(mapDate,true)}</h2><Button variant="text" onClick={() => go(17,mapEvent ? {event:mapEvent} : {})}>Full map <ArrowUpRight size={15}/></Button></div>
           <div className="day-control">
             <Button variant="outline" aria-label="Previous day" disabled={mapDate===t.start} onClick={() => go(11,{date:allDays[allDays.indexOf(mapDate)-1]})}><ChevronLeft size={16}/></Button>
@@ -423,52 +430,7 @@ export function Itinerary({ mapMode = false }: { mapMode?: boolean }) {
             day?.focus({ preventScroll: true });
             day?.scrollIntoView({ block: "start", behavior: "smooth" });
           }}>View plans <ArrowRight size={16}/></Button></div>
-        </aside> : <aside className="itinerary-aside">
-          <div className="card inspiration-card">
-            <span className="little-icon">
-              <Sparkles size={22} />
-            </span>
-            <h3>Suggestions</h3>
-            <Button variant="outline full" onClick={() => open("nearby", { date: activeDay })}>
-              Nearby suggestions <ArrowRight size={16} />
-            </Button>
-          </div>
-          <div className="card budget-peek">
-            <div className="row">
-              <h3>{personalBudget ? "Your budget" : "Trip budget"}</h3>
-              <Wallet size={18} />
-            </div>
-            <strong>
-              {budget !== null ? money(budget - totalSpent) : "Not set yet"}
-            </strong>
-            {budget !== null && <p>Remaining</p>}
-            {budget !== null && (
-              <div className="progress">
-                <i
-                  style={{
-                    width: `${Math.min(100, (totalSpent / Math.max(budget, 1)) * 100)}%`,
-                  }}
-                />
-              </div>
-            )}
-            <button className="text-link" onClick={() => go(12)}>
-              View budget <ArrowUpRight size={15} />
-            </button>
-          </div>
-          <div className="card group-peek">
-            <div className="avatar-stack">
-              {t.members
-                .filter((m) => m.status === "accepted")
-                .map((m, i) => (
-                  <Avatar key={m.id} name={m.name} index={i} id={m.accountId || m.id} />
-                ))}
-            </div>
-            <h3>Travel preferences</h3>
-            <button className="text-link" onClick={() => go(15)}>
-              Your travel preferences <ArrowRight size={15} />
-            </button>
-          </div>
-        </aside>}
+        </aside> : null}
       </div>}
     </>
   );
@@ -671,7 +633,8 @@ export function EventForm() {
     if (returnTo === "17") go(17, eventId ? { event: eventId } : {});
     else if (returnTo === "9") go(9);
     else if (returnTo === "16") go(16);
-    else if (returnTo === "11") go(11, { date: day, ...(eventId ? { event: eventId } : {}) });
+    else if (returnTo === "10") go(10);
+    else if (returnTo === "11") go(11, { date: day, ...(eventId ? { event: eventId } : {}), ...(route.params.get("map") === "hidden" ? { map: "hidden" } : {}) });
     else go(8, { date: day, ...(eventId ? {event: eventId} : {}), view: route.params.get("view") === "calendar" ? "calendar" : "list" });
   };
   const draft = JSON.stringify([name, place, point, selectedGooglePlaceId, date, start, end, cost, attendees, notes, uploadedEventPhoto, selectedEventPhoto?.url]);
@@ -1267,205 +1230,7 @@ export function Suggestions() {
     </>
   );
 }
-export function Dashboard() {
-  const { trip: t, s, go, open, updateTrip } = useApp();
-  const [todoError, setTodoError] = useState("");
-  const remindersPanel = useRef<HTMLDivElement>(null);
-  const [agendaDate, setAgendaDate] = useState("");
-  const [todo, setTodo] = useState(""),
-    [weekOffset, setWeekOffset] = useState(0);
-  if (!t) return null;
-  if (!isActive(t, s.date))
-    return (
-      <Empty
-        title={s.date > t.end ? "This trip has wrapped up." : "This trip’s moment is still to come."}
-        body={`Today opens during ${dateText(t.start, true)}–${dateText(t.end, true)}. Change the demo date to preview it.`}
-        action={
-          <>
-            <Button onClick={() => open("demo", {section:"time"})}>Change demo date</Button>
-            <Button variant="outline" onClick={() => go(8)}>
-              See the itinerary
-            </Button>
-          </>
-        }
-      />
-    );
-  const todays = orderedEvents(t, s.date),
-    next = todays.find((e) => e.end > s.time);
-  const reminders = t.todos.filter(todo => todo.date === s.date);
-  const remainingReminders = reminders.filter(todo => !todo.done).length;
-  const reminderJump = reminders.length > 0 && <Button variant="text" onClick={() => {
-    remindersPanel.current?.scrollIntoView({block:"start"});
-    remindersPanel.current?.focus({preventScroll:true});
-  }}>{remainingReminders ? `${remainingReminders} reminder${remainingReminders === 1 ? "" : "s"} left` : "Reminders complete"}</Button>;
-  const start = new Date(s.date + "T12:00:00Z");
-  start.setUTCDate(start.getUTCDate() - start.getUTCDay() + weekOffset * 7);
-  const last = new Date(start);
-  last.setUTCDate(last.getUTCDate() + 6);
-  const week = days(
-    start.toISOString().slice(0, 10),
-    last.toISOString().slice(0, 10),
-  );
-  const visibleAgendaDate = week.includes(agendaDate) ? agendaDate : week.includes(s.date) ? s.date : week.find(day => day >= t.start && day <= t.end) || week[0];
-  const agendaEvents = orderedEvents(t, visibleAgendaDate);
-  const mapEvent = (visibleAgendaDate === s.date ? next : undefined) ?? agendaEvents[0];
-  return (
-    <>
-      <PageHead
-        eyebrow={`${dateText(s.date)} · ${timeText(s.time)} · DEMO TIME`}
-        title="Today"
-        description={t.title}
-        action={
-          <Button variant="outline" onClick={() => open("nearby")}>
-            <Sparkles size={16} />
-            Discover nearby
-          </Button>
-        }
-      />
-      {next && <section className="card today-next-stop" aria-label="Next stop">
-        <div><span className="eyebrow">{next.start <= s.time ? "Happening now" : "Next stop"} · {timeText(next.start)}</span><h2>{next.name}</h2><p>{next.place}</p></div>
-        <div className="today-next-actions"><Button onClick={() => go(11, {date:next.date, event:next.id})}>Open event <ArrowUpRight size={16}/></Button>{reminderJump}</div>
-      </section>}
-      {!next && <section className="card today-next-stop" aria-label="Today’s plans">
-        <div><h2>{todays.length ? "No more plans today" : "No events today"}</h2><p>{todays.length ? "Your scheduled events have finished." : "Add a plan or enjoy the open time."}</p></div>
-        <div className="today-next-actions">{reminderJump}{!todays.length && <Button variant="outline" onClick={() => go(9)}>Find an idea</Button>}</div>
-      </section>}
-      <div className="dashboard-grid">
-        <div className="card week-card">
-          <div className="section-title">
-            <h2>This week, together.</h2>
-            <div className="week-arrows">
-              <button
-                className="icon-btn"
-                aria-label="Previous week"
-                disabled={week[0] <= t.start}
-                onClick={() => setWeekOffset(weekOffset - 1)}
-              >
-                <ChevronLeft size={15} />
-              </button>
-              <button
-                className="icon-btn"
-                aria-label="Next week"
-                disabled={week[6] >= t.end}
-                onClick={() => setWeekOffset(weekOffset + 1)}
-              >
-                <ChevronRight size={15} />
-              </button>
-            </div>
-          </div>
-          <p className="week-date-range" aria-live="polite">{dateText(week[0], true)} – {dateText(week[6], true)}</p>
-          <div className="mobile-agenda">
-            <div className="agenda-day-choices" role="group" aria-label="Choose a day this week">
-              {week.map(day => <button key={day} disabled={day < t.start || day > t.end} aria-pressed={day === visibleAgendaDate} aria-label={dateText(day)} onClick={() => setAgendaDate(day)}>
-                <span>{new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })}</span>
-                <strong>{Number(day.slice(8))}</strong>
-              </button>)}
-            </div>
-            <h3>{dateText(visibleAgendaDate, true)}</h3>
-            {agendaEvents.map(event => <EventCard key={event.id} event={event} />)}
-            {!agendaEvents.length && <p className="fine-print">No plans for this day.</p>}
-            <Button variant="text" onClick={() => go(11, {date:visibleAgendaDate})}>View day <ArrowUpRight size={16}/></Button>
-          </div>
-        </div>
-        <div className="card todo-card" ref={remindersPanel} tabIndex={-1}>
-          <span className="eyebrow">THE LITTLE THINGS</span>
-          <h2>Before you go.</h2>
-          <p className="reminder-date">Today’s reminders · {dateText(s.date, true)}</p>
-          {t.todos
-            .filter((x) => x.date === s.date)
-            .map((todo) => (
-              <div className="todo-item" key={todo.id}>
-                <input
-                  type="checkbox"
-                  id={`reminder-${todo.id}`}
-                  checked={todo.done}
-                  disabled={!canEdit(t, s.userId, todo.date)}
-                  onChange={() =>
-                    updateTrip((t) => {
-                      t.todos.find((x) => x.id === todo.id)!.done = !todo.done;
-                    })
-                  }
-                />
-                {canEdit(t, s.userId, todo.date) && (
-                  <button
-                    type="button"
-                    aria-label={`Delete reminder: ${todo.text}`}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      updateTrip((trip) => {
-                        trip.todos = trip.todos.filter(
-                          (item) => item.id !== todo.id,
-                        );
-                      });
-                    }}
-                  >
-                    Remove
-                  </button>
-                )}
-                <label htmlFor={`reminder-${todo.id}`} className={todo.done ? "done" : ""}>{todo.text}</label>
-              </div>
-            ))}
-          {!t.todos.some((x) => x.date === s.date) && (
-            <p>No little reminders for today.</p>
-          )}
-          {canEdit(t, s.userId, s.date) && (
-            <form
-              className="input-action"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const problem = textError(
-                  todo,
-                  "Reminder",
-                  TEXT_LIMITS.todo,
-                  true,
-                );
-                setTodoError(problem);
-                if (problem) return;
-                if (todo.trim()) {
-                  updateTrip((t) =>
-                    t.todos.push({
-                      id: uid(),
-                      text: todo.trim(),
-                      date: s.date,
-                      done: false,
-                    }),
-                  );
-                  setTodo("");
-                }
-              }}
-            >
-              <input
-                aria-label="New to-do"
-                maxLength={TEXT_LIMITS.todo}
-                value={todo}
-                onChange={(e) => setTodo(e.target.value)}
-                placeholder="Add a little reminder"
-              />
-              <button className="icon-btn" aria-label="Add to-do">
-                <Plus size={17} />
-              </button>
-            </form>
-          )}
-          <ErrorBox text={todoError} />
-          <div className="note">Shared with your group.</div>
-        </div>
-      </div>
-      <div className="section-title">
-        <div>
-          <h2>{visibleAgendaDate === s.date ? "Today’s map" : `Map for ${dateText(visibleAgendaDate, true)}`}</h2>
-        </div>
-        <Button
-          variant="outline"
-          onClick={() => go(17, mapEvent ? { event: mapEvent.id } : {})}
-        >
-          Open map <ArrowUpRight size={16} />
-        </Button>
-      </div>
-      <TravelMap key={`${t.id}:${visibleAgendaDate}`} compact date={visibleAgendaDate} selectedEvent={visibleAgendaDate === s.date ? next?.id : undefined} />
-
-    </>
-  );
-}
+export { TodayGuide as Dashboard } from "./today-guide-page";
 /** Keep long optional notes readable without hiding the day's later plans. */
 function EventNotes({ notes }: { notes: string }) {
   const [expanded, setExpanded] = useState(false);

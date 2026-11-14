@@ -77,3 +77,7 @@ Dan requested Wanderlog-inspired planning while retaining Stir Crazy's identity 
 ## November 14 refinement
 
 Use calm, legible system controls with the existing selected heading fonts, brand artwork, theme colors, and corners. Shared navigation uses restrained theme-aware surfaces and clear 14px labels. Keep sample context explicit. Group trip instructions with the form; Today offers one event detail action and one map action, with selected-day navigation beside its agenda. The current requested review threshold is 9/10 UI and UX per page; retain the fixed rubric and independent evidence, and do not use scores to certify external providers or unverified production behavior.
+
+## Today and itinerary consolidation (November 14, 2026)
+
+Today prioritizes the next stop, an explicit travel origin, transportation estimates, departure guidance, and existing notes/reminders. The week browser and duplicate map are removed. Keep the day preview collapsed. Calendar and Map & list are the two planning views; Hide map is a view preference inside the combined workspace. Preserve the theme, comfortable controls, old links, selected dates/events, and the full trip-wide map. Account clocks tick in the trip timezone; sample clocks remain explicit.

@@ -1,3 +1,4 @@
+import { tripClock } from "./today-guide";
 import { sharedChangeError } from "./trip-permissions";
 import { useAccountTripSync } from "./account-trip-sync";
 import { canTrackTripPlan, useTripPlanTracking } from "./use-trip-plan-tracking";
@@ -399,6 +400,20 @@ export function Provider({
   };
   const user = s.users.find((u) => u.id === s.userId);
   const trip = s.trips.find((t) => t.id === s.tripId && member(t, s.userId));
+  // Account trips follow their local day even across midnight or a sleeping tab.
+  // Sample trips retain the explicitly controlled demo clock.
+  useEffect(() => {
+    if (trip?.persistence !== "account") return;
+    const tick = () => {
+      const current = stateRef.current;
+      const local = tripClock(new Date(), trip.zone);
+      if (current.date !== local.date || current.time !== local.time) commit({ ...current, ...local });
+    };
+    tick();
+    const timer = window.setInterval(tick, 30000);
+    window.addEventListener("focus", tick);
+    return () => { clearInterval(timer); window.removeEventListener("focus", tick); };
+  }, [trip?.id, trip?.persistence, trip?.zone]);
   useTripPlanTracking(
     loadState === "ready" && s.userId === account.id && canTrackTripPlan(cloud, trip?.persistence, trip?.sample, route.page),
     account.id, trip?.id, route.page,

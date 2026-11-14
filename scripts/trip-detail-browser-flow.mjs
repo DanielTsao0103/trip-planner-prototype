@@ -11,8 +11,10 @@ export async function detailJourney(page, base, travelerEmail) {
   const button = (name) => page.getByRole("button", { name, exact: true });
   const field = (name) => page.getByLabel(name, { exact: true });
   const today = await page.evaluate(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    // The journey creates a Taipei trip; Today now follows that timezone.
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+    const get = name => parts.find(part => part.type === name).value;
+    return `${get("year")}-${get("month")}-${get("day")}`;
   });
   await goto("6");
   await field("Trip title").fill("Full detail browser QA");
@@ -63,8 +65,8 @@ export async function detailJourney(page, base, travelerEmail) {
   await page.getByRole("checkbox", { name: /Guest Traveler/ }).check();
   await button("Add to itinerary").click();
   await saved(page);
-  await expect(button("List")).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator('[id^="itinerary-event-"]').filter({ hasText: "Museum visit" })).toBeFocused();
+  await expect(button("Map & list")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('[id^="day-event-"]').filter({ hasText: "Museum visit" })).toBeFocused();
   // Edit via the actual itinerary card, then verify the form reloads saved values.
   await goto("8?view=list");
   await page
