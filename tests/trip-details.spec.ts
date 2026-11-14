@@ -875,3 +875,58 @@ test('event autocomplete follows itinerary cities, date changes, and explicit ov
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
  await page.screenshot({path:test.info().outputPath('itinerary-location-context.png'),fullPage:true});
 });
+
+test("receipt photo is uploaded privately and its reviewed amount counts once", async ({ page, isMobile }) => {
+  const api = await backend(page);
+  const tripId = "99999999-9999-4999-8999-999999999999";
+  api.rows.push({
+    tripID: tripId, owner_id: owner.id, created_by: owner.id,
+    trip_name: "Receipt test trip", destinations: ["Seattle"], timezone: "America/Los_Angeles",
+    start_date: "2027-05-01", end_date: "2027-05-04", revision: 1, content_version: 1,
+    content: { image: "", events: [], expenses: [], prefs: {}, todos: [], dismissed: [],
+      budget: 10000, budgetMode: "group", individual: {},
+      members: [{ id: owner.id, name: owner.user_metadata.name, email: owner.email, role: "Owner", status: "accepted", days: [] }] },
+  });
+  const uploads: string[] = [];
+  const image = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jB6kAAAAASUVORK5CYII=", "base64");
+  await page.route("https://*.supabase.co/storage/v1/object/expense-receipts/**", route => {
+    if (route.request().method() === "GET") {
+      return route.fulfill({ contentType: "image/png", body: image });
+    }
+    uploads.push(new URL(route.request().url()).pathname);
+    return route.fulfill({ json: { Key: uploads.at(-1) } });
+  });
+  // Exercise the manual review path when the OCR worker cannot download its assets.
+  await page.route("https://cdn.jsdelivr.net/**", route => route.abort());
+  await page.goto("./#/5");
+  await page.reload();
+  await page.getByRole("button", { name: "Receipt test trip", exact: true }).click();
+  await page.goto("./#/12");
+  await page.getByRole("button", { name: "Add expense", exact: true }).first().click();
+  const file = { name: "receipt.png", mimeType: "image/png", buffer: image };
+  if (isMobile) {
+    const chooser = page.waitForEvent("filechooser");
+    await page.getByRole("button", { name: "Take photo", exact: true }).click();
+    const camera = await chooser;
+    expect(await camera.element().getAttribute("capture")).toBe("environment");
+    await camera.setFiles(file);
+  } else {
+    await page.getByLabel("Receipt photo", { exact: true }).setInputFiles(file);
+  }
+  await expect(page.getByRole("img", { name: "Receipt photo" })).toBeVisible();
+  expect(uploads).toHaveLength(0);
+  await page.getByLabel("What was it for?", { exact: true }).fill("Lunch receipt");
+  await page.getByLabel("Amount (USD)", { exact: true }).fill("24.95");
+  await page.getByRole("button", { name: "Save expense", exact: true }).click();
+  await expect.poll(() => api.rows[0].content.expenses).toHaveLength(1);
+  const [expense] = api.rows[0].content.expenses;
+  expect(expense).toMatchObject({ amount: 2495, purpose: "Lunch receipt", source: "Receipt photo" });
+  expect(uploads).toEqual([`/storage/v1/object/expense-receipts/${owner.id}/${tripId}/${expense.id}`]);
+  await page.reload();
+  await expect(page.locator(".expense-row").filter({ hasText: "Lunch receipt" })).toContainText("$24.95");
+  await expect(page.getByText("$75.05", { exact: true }).first()).toBeVisible();
+  await page.locator(".expense-row").filter({ hasText: "Lunch receipt" })
+    .getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByRole("button", { name: "View receipt", exact: true }).click();
+  await expect(page.getByRole("img", { name: "Receipt photo" })).toBeVisible();
+});

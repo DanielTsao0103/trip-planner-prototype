@@ -7177,3 +7177,10 @@ legend {
 .booking-added {
   opacity: 0.8;
 }
+
+.expense-receipt-photo {
+  display: block;
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+}

@@ -1,4 +1,4 @@
-/** Implementation status: Account budgets, expenses, splits, and repayment markers save through updateTrip to Supabase. Sample trips stay local. Receipt scans/Gmail/bank actions remain fixtures; no messages or money are sent. See ../IMPLEMENTATION_STATUS.md. */
+/** Implementation status: Account budgets, expenses, splits, and repayment markers save through updateTrip to Supabase. Sample trips stay local. Receipt photos attach privately to expenses. Sample scans and Gmail/bank previews remain fixtures. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -25,6 +25,7 @@ import { Badge, Button, Empty, ErrorBox, Field, Modal, PageHead } from "./ui";
 import { repaymentPaid, recordRepayment } from "./repayments";
 import { CurrencyConverter } from "./currency-converter";
 import { useChartColors } from "./theme";
+import { readReceipt, receiptPath, receiptSource, removeReceipt, scanReceiptPhoto, uploadReceipt } from "./receipt-photo";
 import {
   money,
   spent,
@@ -794,7 +795,7 @@ export function BudgetSetup() {
   );
 }
 export function ExpenseForm() {
-  const { trip: t, s, overlay, updateTrip, close, open, toast } = useApp();
+  const { trip: t, s, overlay, updateTrip, mutate, close, open, toast } = useApp();
   if (!t) return null;
   const travelerId = member(t, s.userId)!.id;
   const original = t.expenses.find((e) => e.id === overlay?.data?.id);
@@ -816,6 +817,62 @@ export function ExpenseForm() {
     [source, setSource] = useState(original?.source || "Manual");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [photo, setPhoto] = useState<File>();
+  const receiptCamera = useRef<HTMLInputElement>(null);
+  const selectReceiptPhoto = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) void choosePhoto(file);
+  };
+  const [photoStatus, setPhotoStatus] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const draftId = useRef<string>(undefined);
+  const savingPhoto = useRef(false);
+  const photoRequest = useRef(0);
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => { active.current = false; photoRequest.current++; };
+  }, []);
+  useEffect(() => {
+    if (!photo) return;
+    const url = URL.createObjectURL(photo);
+    setPhotoUrl(url);
+  }, [photo]);
+  const photoPath = (id: string) => receiptPath(s.userId!, t.id, id);
+  const viewPhoto = async () => {
+    try {
+      const data = await readReceipt(photoPath(original!.id));
+      if (active.current) setPhotoUrl(URL.createObjectURL(data));
+    } catch {
+      if (active.current) setError("Could not open the receipt. Try again.");
+    }
+  };
+  useEffect(() => () => {
+    if (photoUrl) URL.revokeObjectURL(photoUrl);
+  }, [photoUrl]);
+  const choosePhoto = async (file: File) => {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10485760 || !file.size) {
+      setError("Choose a JPEG, PNG, or WebP image up to 10 MB.");
+      return;
+    }
+    const request = ++photoRequest.current;
+    setError("");
+    setScan("");
+    setPhoto(file);
+    setPhotoStatus("Reading receipt…");
+    try {
+      const result = await scanReceiptPhoto(file);
+      if (request !== photoRequest.current) return;
+      if (result.purpose) setPurpose(current => current || result.purpose.slice(0, TEXT_LIMITS.expense));
+      const total = result.amount && !moneyError(result.amount, MONEY_LIMITS.expense) ? result.amount : "";
+      if (total) setAmount(current => current || total);
+      setPhotoStatus(total ? "Check the description and confirm the total is in USD before saving." : "Enter the total in USD.");
+    } catch {
+      if (request === photoRequest.current) setPhotoStatus("Could not read the photo. Enter the expense details below.");
+    }
+  };
   const purposeRef = useRef<HTMLTextAreaElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const purposeProblem = textError(purpose, "Expense description", TEXT_LIMITS.expense, true);
@@ -856,6 +913,13 @@ export function ExpenseForm() {
     <div className="expense-history">
       <p className="note">{original.settled.length ? "This expense has repayment history and cannot be changed." : `Only the payer, ${t.members.find(person => person.id === original.payer)?.name || "the former traveler"}, can edit this expense.`}</p>
       <h3>{original.purpose}</h3>
+      {original.source === receiptSource && original.payer === travelerId && (
+        <>
+          {!photoUrl && <Button variant="text" onClick={() => void viewPhoto()}>View receipt</Button>}
+          {photoUrl && <img src={photoUrl} alt="Receipt photo" className="expense-receipt-photo" />}
+          <ErrorBox text={error} />
+        </>
+      )}
       <dl className="expense-history-facts">
         <div><dt>Total paid</dt><dd>{money(original.amount)}</dd></div>
         <div><dt>Paid by</dt><dd>{t.members.find((person) => person.id === original.payer)?.name || "Former traveler"}</dd></div>
@@ -887,8 +951,9 @@ export function ExpenseForm() {
       <form
         className="expense-form"
         noValidate
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
+          if (savingPhoto.current) return;
           if (original && original.payer !== travelerId) {
             setError("Only the payer can edit this expense.");
             return;
@@ -915,21 +980,47 @@ export function ExpenseForm() {
             return;
           }
           const record: Expense = {
-            id: original?.id || uid(),
+            id: original?.id || (draftId.current ??= uid()),
             purpose: purpose.trim(),
             amount: cents,
             category,
             payer: travelerId,
             shares: splitCents(cents, shared ? people : [travelerId]),
             date: original?.date || s.date,
-            source,
+            source: photo ? (t.persistence === "account" ? receiptSource : "Receipt scan") : source,
             settled: [],
           };
-          updateTrip((t) => {
-            const i = t.expenses.findIndex((x) => x.id === record.id);
-            if (i >= 0) t.expenses[i] = record;
-            else t.expenses.unshift(record);
-          });
+          if (photo && t.persistence === "account") {
+            const path = photoPath(record.id);
+            savingPhoto.current = true;
+            setUploading(true);
+            try {
+              await uploadReceipt(path, photo);
+              if (!active.current) {
+                await removeReceipt(path);
+                return;
+              }
+            } catch (issue) {
+              if (active.current) {
+                setError(issue instanceof Error ? issue.message : "Could not attach the receipt.");
+                setUploading(false);
+              }
+              return;
+            } finally {
+              savingPhoto.current = false;
+            }
+          }
+          const saveExpense = (trip: typeof t) => {
+            const index = trip.expenses.findIndex(expense => expense.id === record.id);
+            if (index >= 0) trip.expenses[index] = record;
+            else trip.expenses.unshift(record);
+          };
+          if (photo) {
+            mutate(store => {
+              const trip = store.trips.find(trip => trip.id === t.id);
+              if (trip) saveExpense(trip);
+            });
+          } else updateTrip(saveExpense);
           // Saving a demo split should not open a pretend-message dialog.
           toast(
             shared && t.persistence !== "account"
@@ -974,23 +1065,6 @@ export function ExpenseForm() {
                     : "Try a sample receipt"}
               </h3>
               <p>Simulated scanning fills details for you to review.</p>
-              <details className="receipt-image-options"><summary>Choose an image instead</summary>
-              <input
-                aria-label="Receipt image"
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) {
-                    if (!f.type.startsWith("image/") || f.size > 10000000) {
-                      setError("Choose an image under 10 MB.");
-                      return;
-                    }
-                    scanReceipt();
-                  }
-                }}
-              />
-              </details>
               <div className="receipt-scan-actions">
               <Button
                 variant="outline"
@@ -1014,6 +1088,31 @@ export function ExpenseForm() {
               )}
             </div>
           )}
+          {!original && !scan && (
+            <div className="scan-box">
+              <Field label="Receipt photo">
+                <input type="file" accept="image/png,image/jpeg,image/webp" disabled={uploading}
+                  onChange={selectReceiptPhoto} />
+              </Field>
+              <input ref={receiptCamera} type="file" accept="image/png,image/jpeg,image/webp"
+                capture="environment" hidden disabled={uploading} onChange={selectReceiptPhoto} />
+              <Button variant="outline" disabled={uploading} onClick={() => receiptCamera.current?.click()}>
+                <Camera size={16} aria-hidden="true" />
+                Take photo
+              </Button>
+              {photo && <Button variant="text" disabled={uploading} onClick={() => {
+                photoRequest.current++;
+                setPhoto(undefined);
+                setPhotoUrl("");
+                setPhotoStatus("");
+              }}>Remove photo</Button>}
+              {photoStatus && <p role="status">{photoStatus}</p>}
+            </div>
+          )}
+          {original?.source === receiptSource && original.payer === travelerId && !photoUrl && (
+            <Button variant="text" onClick={() => void viewPhoto()}>View receipt</Button>
+          )}
+          {photoUrl && <img src={photoUrl} alt="Receipt photo" className="expense-receipt-photo" />}
           <p className="expense-date-context">Expense date: {dateText(original?.date || s.date)}{t.persistence !== "account" && " · Demo date"}</p>
           <div className="expense-validated-field">
           <Field label="What was it for?">
@@ -1114,7 +1213,7 @@ export function ExpenseForm() {
           <Button variant="text" onClick={close}>
             Cancel
           </Button>
-          <Button type="submit">Save expense</Button>
+          <Button type="submit" disabled={uploading}>{uploading ? "Attaching receipt…" : "Save expense"}</Button>
         </div>
       </form>
     </Modal>
