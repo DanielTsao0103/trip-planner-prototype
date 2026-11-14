@@ -1,6 +1,7 @@
 import { tripClock } from "./today-guide";
 import { sharedChangeError } from "./trip-permissions";
 import { useAccountTripSync } from "./account-trip-sync";
+import { canTrackTripPlan, useTripPlanTracking } from "./use-trip-plan-tracking";
 import { useRecoveryClearance } from "./use-recovery-clearance";
 import { ConfirmDialog } from "./ui";
 import React, {
@@ -413,6 +414,10 @@ export function Provider({
     window.addEventListener("focus", tick);
     return () => { clearInterval(timer); window.removeEventListener("focus", tick); };
   }, [trip?.id, trip?.persistence, trip?.zone]);
+  useTripPlanTracking(
+    loadState === "ready" && s.userId === account.id && canTrackTripPlan(cloud, trip?.persistence, trip?.sample, route.page),
+    account.id, trip?.id, route.page,
+  );
   const mapSyncOffline = useAccountTripSync(
     cloud && loadState === "ready" && s.userId === account.id,
     account, stateRef, queue, commit);

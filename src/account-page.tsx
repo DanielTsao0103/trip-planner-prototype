@@ -94,6 +94,7 @@ export function AccountPage() {
           </button>
         </div>
       </section>
+      {cloud && <p className="account-note">To improve trip planning, we count the days you open a saved trip plan. Admin dashboards show aggregate activity, not the contents of your trips.</p>}
     </div>
   );
 }

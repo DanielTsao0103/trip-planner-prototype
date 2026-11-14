@@ -215,7 +215,7 @@ These are historical reports with explicit scope, revisions and verification bou
 | Banking and payments | Expense splits and repayment markers persist, but no bank connection or money movement occurs. |
 | Gmail/social connections and receipt OCR | Connection/receipt previews do not represent live inbox access or OCR. |
 | Forwarded bookings | Rule-based Mailtrap import. Each booking can be sorted into a trip through the prefilled event form, so it becomes a normal shared itinerary event; times and costs are entered by the person. The booking is marked added right after the event save, so a later failed trip save can leave it marked added without its event ("Move back" fixes that). The importer reads the booking name, day, start time (when written next to the date), street address and confirmation code; the form opens with those filled in and a one hour length, and the trip picker preselects the one trip whose dates contain the booking. Sender matching is unverified and parsing can be incomplete. Availability depends on deployed service configuration. |
-| Admin portal and AI receipt processing | Planned only; no deployed admin server, AWS database or automated receipt-review workflow. |
+| Automated receipt-review portal | Separate from the implemented admin allowlist and OKR dashboards; an automated admin receipt-review workflow and AWS database are not implemented. |
 
 The proposed receipt flow is: **traveler emails a receipt and trip reference to a dedicated Gmail inbox → automation/AI extracts a draft → admin reviews it → authorized server writes an approved expense to Supabase → traveler sees it in the app**. It does not scan a traveler's personal inbox. Proposed admin hosting is Express/Node.js on AWS Elastic Beanstalk, with RDS PostgreSQL for processing/review records; customer trip data stays in Supabase. Automation and AI/OCR providers remain undecided.
 
@@ -275,7 +275,7 @@ Complete: one Calendar/List/Day & map navigation bar; the same paginated list in
 
 Complete: Saved places collects name, location, coordinates/place ID, and notes without requiring a schedule. Owners and Editors can save/remove ideas or schedule one through the existing event form; scheduling removes the idea and creates the event in one trip transaction. Viewer and Day Editor grants cannot alter unscheduled ideas. Migration `20261113223634_saved_places.sql` was applied to the configured project after rollback validation; omitted fields from older clients preserve existing ideas.
 
-Not included: travel-time estimates, route optimization, unscheduled calendar events, and a new drawer-based editor. Scheduled events retain required start/end times, and external provider availability remains outside the app's control. No paid API was added.
+Not included in the initial November 13 release: travel-time estimates, route optimization, unscheduled calendar events, and a new drawer-based editor. Travel estimates were added in the Today release documented below. Scheduled events retain required start/end times, and external provider availability remains outside the app's control. No paid API was added.
 
 Cached-client compatibility: trip bundles expose `savedPlaces` only when the normal `X-Client-Info` header advertises `stir-crazy/saved-places-v1`. The current browser client opts in; existing cached clients retain their supported response shape and preserve the newer collection when saving other fields. This changes serialization only, never authorization. The live contract gate was also run with the actual previously shipped `731da4c` application writer.
 
@@ -286,3 +286,8 @@ Complete: next-stop guidance, explicit origins, walking/transit/driving estimate
 Routes use the existing no-payment Maps Demo Key with no paid fallback. Requests time out, ignore stale replies, and keep external navigation available if estimates fail. Driving estimates exclude traffic and parking; transit may include walking. Live route responses and deterministic tests are separate evidence.
 
 Not included: route-aware detour recommendations, live weather alerts, new booking/ticket ingestion, or production-service guarantees for the educational demo key. Implementation and verification: `TODAY_REDESIGN_PLAN.md`.
+### Daniel OKR #1: saved-plan engagement
+
+The admin dashboard under Daniel's OKR uses server-dated activity from real saved/shared plan views. Its default KPI is the percentage of enrolled planners with no two consecutive inactive days across the last 14 completed UTC days, targeting 85%. Inactive planners remain in the denominator. Collection began November 14, 2026 at 19:13 UTC; no historical visits are invented, so the first full launch-cohort result is available November 29 UTC. Current saved/sharing totals are available immediately.
+
+The backend migration is deployed, with 22 isolated PostgreSQL checks and 17 hosted authorization/metric checks; all disposable fixtures were cleaned up. Tables remain private, and only current approved admins receive aggregate results. See [DANIEL_OKR.md](DANIEL_OKR.md) for definitions, privacy boundaries, RPCs, verification commands and the project-wide advisor permission limitation. Ivy's OKR #2 remains intact.

@@ -30,6 +30,7 @@ test.beforeEach(async ({ page }) => {
         return route.fulfill({ json: session() });
       }
     }
+    if (url.pathname.endsWith("/record_trip_plan_access")) return route.fulfill({ json: true });
     throw new Error(`Unexpected Supabase operation: ${url.pathname}`);
   });
   const errors: string[] = [];
