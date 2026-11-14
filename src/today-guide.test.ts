@@ -39,3 +39,11 @@ test("trip clock and transit times handle timezone boundaries and daylight savin
   assert.equal(itineraryInstant("2026-11-14", "10:00", "America/Los_Angeles").toISOString(), "2026-11-14T18:00:00.000Z");
   assert.equal(itineraryInstant("2026-07-14", "10:00", "America/Los_Angeles").toISOString(), "2026-07-14T17:00:00.000Z");
 });
+
+test("an incoming journey keeps the same identity after its destination starts", async () => {
+  const { incomingJourneyId, previousStop } = await import('./today-guide.ts');
+  const first = event('museum', '10:00', '12:00'), last = event('lunch', '13:00', '14:00');
+  assert.equal(incomingJourneyId([first, last], last), '2026-11-14:museum:lunch');
+  assert.equal(previousStop([first, last], last)?.id, 'museum');
+  assert.equal(incomingJourneyId([first, last], first), '2026-11-14:start:museum');
+});

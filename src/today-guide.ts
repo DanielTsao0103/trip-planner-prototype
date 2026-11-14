@@ -34,6 +34,15 @@ export function itineraryInstant(date: string, time: string, zone: string): Date
   return new Date(instant);
 }
 
+/** Resolve the same incoming journey before and after a destination starts. */
+export function previousStop(events: Event[], target: Event): Event | undefined {
+  return events.filter(event => event.date === target.date && event.id !== target.id && event.start <= target.start)
+    .sort((a, b) => b.end.localeCompare(a.end))[0];
+}
+export function incomingJourneyId(events: Event[], target: Event): string {
+  return `${target.date}:${previousStop(events, target)?.id || "start"}:${target.id}`;
+}
+
 /** Ongoing events stay distinct from a future destination; no completed stop is revived. */
 export function dayProgress(events: Event[], date: string, time: string) {
   const today = events.filter(event => event.date === date).sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
