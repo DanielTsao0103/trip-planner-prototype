@@ -4,6 +4,8 @@ Objective: help trip planners save and share trips with friends. Target: **85% o
 
 The dashboard prioritizes visualizations: percentage rings for return rate, planner adoption (`planners / registeredUsers`) and shared trips (`sharedTrips / savedTrips`), a rolling return-rate chart with an 85% reference line, and a daily activity bar chart with keyboard/touch day inspection. Today is shown separately as provisional activity and never enters the completed-day return calculation. Empty denominators show an unavailable percentage; genuine zero rates show 0%. Missing history is not drawn as zero. Supporting counts and accessible chart tables expand on demand below the charts.
 
+Automatic refresh preserves the inspected date, expanded details, and keyboard focus. Changing the observation period clears the previous result, and failed or denied requests remove previously displayed metrics.
+
 ## Metric definition
 
 A planner enrolls on their first real account-owned trip or accepted shared-account membership. Existing planners were enrolled when collection began. Enrollment persists after trip deletion, membership removal, or inactivity; removing inactive people would inflate the rate. `currentPlanners` separately counts accounts that currently own or can access a trip. Account deletion cascades all of that account's telemetry and enrollment.

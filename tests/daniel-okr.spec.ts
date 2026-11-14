@@ -57,7 +57,7 @@ test('admin sees real metrics, denominator definitions and responsive chart tabl
 });
 
 test('new tracking never invents retention or historical activity and can recover from denial',async({page},info)=>{
- const state=await api(page);state.metrics={...fixture,observedDays:0,eligiblePlanners:0,consistentPlanners:0,eligibleUsers:0,consistentUsers:0,retentionPercent:null,allUserRetentionPercent:null,daily:[],trend:[],lastActivityAt:null};
+ const state=await api(page);state.metrics={...fixture,observedDays:0,eligiblePlanners:0,consistentPlanners:0,eligibleUsers:0,consistentUsers:0,retentionPercent:null,allUserRetentionPercent:null,daily:[],trend:[],activeToday:0,lastActivityAt:null};
  await login(page);await page.goto('./#/21');await expect(page.getByTestId('okr1-percent')).toHaveText('—');
  await expect(page.getByText('Collecting baseline',{exact:true})).toBeVisible();
  await expect(page.getByText('Activity starts here',{exact:true})).toBeVisible();
@@ -83,6 +83,24 @@ test('percentage rings distinguish empty denominators from genuine zero rates',a
  await expect(page.getByTestId('okr1-percent')).toHaveText('0%');
  await expect(page.getByRole('img',{name:'of saved trips: 0%',exact:true})).toBeVisible();
  await expect(page.getByText('Below target',{exact:true})).toBeVisible();
+});
+
+test('automatic refresh preserves chart inspection, expanded details and keyboard focus',async({page})=>{
+ const state=await api(page);await login(page);await page.goto('./#/21');
+ await expect(page.getByTestId('okr1-percent')).toHaveText('85%');
+ await page.getByText('View daily numbers',{exact:true}).click();
+ await page.getByText('Metric definition and data coverage',{exact:true}).click();
+ const slider=page.getByRole('slider',{name:'Inspect day'});
+ await slider.fill('1');await slider.focus();
+ const calls=state.metricCalls;
+ // Simulate an automatic visibility refresh while keyboard focus stays on the chart.
+ state.metrics.daily[1].activeUsers=35;
+ await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+ await expect.poll(()=>state.metricCalls).toBe(calls+1);
+ await expect(page.locator('.okr1-chart-readout')).toContainText('35 people · Nov 2');
+ await expect(slider).toBeFocused();
+ await expect(page.getByRole('table',{name:'Daily unique trip-plan visitors, UTC'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'What is a plan visit?'})).toBeVisible();
 });
 
 test('ordinary and demo accounts cannot request the aggregate dashboard',async({page})=>{

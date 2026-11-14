@@ -26,12 +26,11 @@ function DanielDashboard() {
   useEffect(() => {
     const controller = new AbortController();
     setBusy(true);
-    setData(null);
     setError("");
     void fetchOkr1Metrics(days, controller.signal).then(next => {
       if (!controller.signal.aborted) { setData(next); setUpdated(new Date()); }
     }).catch((reason: Error) => {
-      if (!controller.signal.aborted) setError(reason.message);
+      if (!controller.signal.aborted) { setData(null); setError(reason.message); }
     }).finally(() => { if (!controller.signal.aborted) setBusy(false); });
     return () => controller.abort();
   }, [days, refresh]);
@@ -53,7 +52,7 @@ function DanielDashboard() {
   return <div className="daniel-dashboard" data-testid="okr1">
     <div className="okr1-controls">
       <div className="okr1-filters">
-        <label>Measurement period<select value={days} onChange={event => setDays(Number(event.target.value))}>
+        <label>Measurement period<select value={days} onChange={event => { setData(null); setDays(Number(event.target.value)); }}>
           <option value={7}>Last 7 completed days</option><option value={14}>Last 14 completed days</option><option value={30}>Last 30 completed days</option>
         </select></label>
         <label>Measure among<select value={cohort} onChange={event => setCohort(event.target.value as "planners" | "all")}>
@@ -64,7 +63,7 @@ function DanielDashboard() {
     </div>
 
     {error && <section className="card okr1-error" role="alert"><h2>Dashboard unavailable</h2><p>{error}</p><Button onClick={() => setRefresh(value => value + 1)}>Retry dashboard</Button></section>}
-    {busy && !error && <p role="status">Loading activity across all accounts…</p>}
+    {busy && !error && !data && <p role="status">Loading activity across all accounts…</p>}
     {data && <>
       <section className="okr1-objective-copy" aria-labelledby="okr1-title">
         <span className="okr-eyebrow">Objective 1 · Daniel</span>

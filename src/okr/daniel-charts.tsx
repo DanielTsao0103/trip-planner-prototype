@@ -56,8 +56,9 @@ export function DailyActivity({ data }: { data: Okr1Metrics }) {
   const today = new Date(Date.parse(data.windowEnd) + 86_400_000).toISOString().slice(0, 10);
   // Today is explicitly provisional and never enters the completed-day return KPI.
   const days = [...data.daily, { date: today, activeUsers: data.activeToday }];
-  const [selected, setSelected] = useState<number | null>(null);
-  const index = Math.min(selected ?? days.length - 1, days.length - 1), day = days[index];
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const found = days.findIndex(item => item.date === selectedDate);
+  const index = found >= 0 ? found : days.length - 1, day = days[index];
   const peak = Math.max(1, ...days.map(item => item.activeUsers));
   const step = (X1 - X0) / days.length, width = Math.min(36, step * .64);
   const y = (value: number) => Y1 - value / peak * (Y1 - Y0);
@@ -67,14 +68,14 @@ export function DailyActivity({ data }: { data: Okr1Metrics }) {
     <div className="okr1-plot"><div className="okr1-y-labels" aria-hidden="true"><span>{peak}</span><span></span><span>0</span></div>
     <svg className="okr1-daily-plot" viewBox="0 0 600 220" role="img" aria-label={`Daily plan visitors. ${days.map(item => `${shortDate(item.date)}: ${item.activeUsers}`).join("; ")}. Today is provisional. Use the day slider below to inspect a bar.`}>
       {[0, peak].map(value => <g key={value}><line className="okr1-gridline" x1={X0} x2={X1} y1={y(value)} y2={y(value)} /><text className="okr1-chart-label" x="34" y={y(value) + 4} textAnchor="end">{value}</text></g>)}
-      {days.map((item, i) => <g key={item.date} onClick={() => setSelected(i)} onMouseEnter={() => setSelected(i)}>
+      {days.map((item, i) => <g key={item.date} onClick={() => setSelectedDate(item.date)} onMouseEnter={() => setSelectedDate(item.date)}>
         <rect className="okr1-bar-hit" x={X0 + i * step} y={Y0} width={step} height={Y1 - Y0} />
         <rect className={`okr1-day-bar${i === days.length - 1 ? " is-today" : ""}${index === i ? " is-selected" : ""}`} x={X0 + (i + .5) * step - width / 2} y={y(item.activeUsers)} width={width} height={Math.max(2, Y1 - y(item.activeUsers))} rx="3"><title>{shortDate(item.date)}: {item.activeUsers} people</title></rect>
       </g>)}
       <text className="okr1-chart-label" x={X0} y="212">{shortDate(days[0].date)}</text><text className="okr1-chart-label" x={X1} y="212" textAnchor="end">Today</text>
     </svg></div>
     <div className="okr1-axis" aria-hidden="true"><span>{shortDate(days[0].date)}</span><span>Today</span></div>
-    {days.length > 1 ? <label className="okr1-day-slider">Inspect day<input type="range" min="0" max={days.length - 1} value={index} onChange={event => setSelected(Number(event.target.value))} aria-valuetext={`${shortDate(day.date)}: ${day.activeUsers} people${index === days.length - 1 ? ", today so far" : ""}`} /></label> : <p className="okr1-support"><strong>Activity starts here</strong> · Today’s visits appear immediately. Completed days build this chart over time.</p>}
+    {days.length > 1 ? <label className="okr1-day-slider">Inspect day<input type="range" min="0" max={days.length - 1} value={index} onChange={event => setSelectedDate(days[Number(event.target.value)].date)} aria-valuetext={`${shortDate(day.date)}: ${day.activeUsers} people${index === days.length - 1 ? ", today so far" : ""}`} /></label> : <p className="okr1-support"><strong>Activity starts here</strong> · Today’s visits appear immediately. Completed days build this chart over time.</p>}
     <details className="okr1-table-details"><summary>View daily numbers</summary><table><caption>Daily unique trip-plan visitors, UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">People</th></tr></thead><tbody>{days.map((item, i) => <tr key={item.date}><th scope="row">{shortDate(item.date)}{i === days.length - 1 ? " · Today so far" : ""}</th><td>{item.activeUsers.toLocaleString()}</td></tr>)}</tbody></table></details>
   </section>;
 }
