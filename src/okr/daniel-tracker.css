@@ -1,5 +1,7 @@
 /* Chart-first reporting, using the shared light/dark theme tokens. */
 :root .daniel-dashboard { display: grid; gap: 24px; min-width: 0; }
+:root .okr1-key-result { margin: 0; font-size: 16px; line-height: 1.6; }
+:root .okr1-focused-overview { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(0, 1.6fr); gap: 24px; align-items: start; }
 :root .okr1-controls, :root .okr1-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; }
 :root .okr1-controls { justify-content: space-between; }
 :root .okr1-filters label { display: grid; gap: 7px; font-size: 13px; font-weight: 600; }
@@ -79,6 +81,7 @@
   :root .okr1-chart-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 800px) {
+  :root .okr1-focused-overview { grid-template-columns: minmax(0, 1fr); }
   :root .okr1-visual-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   :root .okr1-visual-card { padding: 20px 12px; }
   :root .okr1-visual-card h2 { font-size: 15px; min-height: 42px; }

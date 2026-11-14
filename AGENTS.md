@@ -8,6 +8,8 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 ## Corrections & Lessons Learned
 
+- Daniel OKR scope correction (November 14, 2026): simplify the dashboard to OKR #1 only: 85% of users access their trip plan at least every other day. Show the current rate, target status, supporting numerator/denominator, one return-rate trend, and a concise collapsed definition. Remove adoption/sharing metrics, daily activity, extra counts and comparison filters. Keep the confirmed planner denominator and 14 completed UTC days.
+
 - Dashboard hierarchy correction (November 14, 2026): Dan wants visualizations first, then percentages, then supporting numbers. Lead Daniel's OKR with percentage rings and time-series charts; move raw counts into supporting detail. Show live saving/sharing percentages immediately, distinguish today's partial activity, and never invent return-rate history while collecting a baseline.
 - Dashboard refresh lesson: keep chart components mounted during same-period refresh so inspected dates, disclosures, and keyboard focus survive. Clear results when changing the measurement period or when a request is denied/fails. Track inspected dates rather than array indices as rolling windows move.
 

@@ -1,10 +1,10 @@
 # Daniel OKR #1 — saved-plan engagement
 
-Objective: help trip planners save and share trips with friends. Target: **85% of enrolled planners access a saved plan at least every other day** over the last **14 completed UTC days**. The admin dashboard lives at `#/21` under Daniel's OKR. Its 7/30-day options and all-account comparison are secondary views; 14 days and planners are the confirmed default.
+Objective: help trip planners save and share trips with friends. Target: **85% of enrolled planners access a saved plan at least every other day** over the last **14 completed UTC days**. The admin dashboard lives at `#/21` under Daniel's OKR. The dashboard fixes the measurement to this confirmed window and denominator.
 
-The dashboard prioritizes visualizations: percentage rings for return rate, planner adoption (`planners / registeredUsers`) and shared trips (`sharedTrips / savedTrips`), a rolling return-rate chart with an 85% reference line, and a daily activity bar chart with keyboard/touch day inspection. Today is shown separately as provisional activity and never enters the completed-day return calculation. Empty denominators show an unavailable percentage; genuine zero rates show 0%. Missing history is not drawn as zero. Supporting counts and accessible chart tables expand on demand below the charts.
+The dashboard shows one return-rate ring, target status, the consistent/eligible user counts, and one rolling return-rate chart with an 85% reference line. A collapsed explanation defines eligibility and cadence. Adoption, sharing, daily activity, comparison filters and extra totals are omitted to keep the page focused on OKR #1. Empty denominators show an unavailable percentage; genuine zero rates show 0%. Missing history is not drawn as zero. An accessible return-rate table expands on demand.
 
-Automatic refresh preserves the inspected date, expanded details, and keyboard focus. Changing the observation period clears the previous result, and failed or denied requests remove previously displayed metrics.
+Automatic refresh preserves expanded details and keyboard focus. Failed or denied requests remove previously displayed metrics. The backend still supports its existing comparison fields and alternate windows for compatibility.
 
 ## Metric definition
 
