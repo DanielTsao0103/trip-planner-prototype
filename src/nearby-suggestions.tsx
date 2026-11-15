@@ -6,6 +6,7 @@ import { canEdit, days, dateText, member, money, timeText, uid } from "./domain"
 import { TEXT_LIMITS, textError } from "./limits";
 import { getSupabase } from "./supabase";
 import { searchDestinationPhotos, trackUnsplashSelection, type UnsplashPhoto } from "./trip-photos";
+import { suggestionPhotoSearch } from "./nearby-photo-search";
 import { planningContext, safeSource, nearbyListingLinks, isYelpSource, YELP_SEARCH_MESSAGES, NEARBY_EMPTY_MESSAGES, type YelpSearchStatus, type EmptyReason, type ReviewRejections, type Intent, type NearbyResult } from "../supabase/functions/_shared/nearby.ts";
 import "./nearby-suggestions.css";
 
@@ -33,14 +34,25 @@ export function NearbySuggestions() {
     if (!results?.length || !trip) return;
     const controller = new AbortController();
     const photoArea = planningContext(trip, s.userId || "", date, intent, overlay?.data?.event).area;
-    // Share the wider lookup across cards and keep it lazy when venue searches succeed.
-    let areaSearch: Promise<UnsplashPhoto[]> | undefined;
-    const areaPhotos = () => areaSearch ??= (photoArea ? searchDestinationPhotos(photoArea, controller.signal).catch(() => []) : Promise.resolve([]));
+    const searches = new Map<string, Promise<UnsplashPhoto[]>>();
+    const search = (query: string) => {
+      if (!query || controller.signal.aborted) return Promise.resolve([]);
+      if (!searches.has(query)) searches.set(query, searchDestinationPhotos(query, controller.signal).catch(() => []));
+      return searches.get(query)!;
+    };
     void Promise.all(results.slice(0, 3).map(async result => {
-      const found = await searchDestinationPhotos(result.name + " " + result.address + " " + photoArea, controller.signal).catch(() => []);
-      if (controller.signal.aborted) return [result.name, undefined] as const;
-      const photo = found[0] || (await areaPhotos())[0];
-      return [result.name, photo ? { url: photo.url, alt: photo.alt, label: found[0] ? "Illustrative travel photo" : `Area photo · ${photoArea}`, credit: photo.credit, selection: photo } : undefined] as const;
+      const plan = suggestionPhotoSearch(result, trip.destinations, photoArea);
+      let photo = (await search(plan.exact)).find(photo => plan.matchesSubject(photo.searchText || ""));
+      let label = "Illustrative photo of this place or activity";
+      if (!photo && plan.category) {
+        photo = (await search(plan.category)).find(photo => plan.matchesSubject(photo.searchText || ""));
+        label = "Illustrative activity photo · not the exact venue";
+      }
+      if (!photo) {
+        photo = (await search(plan.area)).find(photo => plan.matchesArea(photo.searchText || ""));
+        label = `Area photo · ${plan.location}`;
+      }
+      return [result.name, photo ? { url: photo.url, alt: photo.alt, label, credit: photo.credit, selection: photo } : undefined] as const;
     })).then(entries => {
       if (!controller.signal.aborted) {
         const available: Record<string, NearbyPhoto> = {};
@@ -54,8 +66,8 @@ export function NearbySuggestions() {
   const context = planningContext(trip, s.userId || "", date, intent, overlay?.data?.event);
   const isDemo = trip.persistence !== "account";
   const pending = pendingTripIds.includes(trip.id);
-  const bundledPhoto: NearbyPhoto = { url: `${import.meta.env.BASE_URL}images/${intent === "activity" ? "city" : "food"}.jpg`, alt: intent === "activity" ? "Illustrative city scene" : "Illustrative dining scene", label: "Illustrative photo · not the suggested venue" };
-  const fallbackPhoto: NearbyPhoto = trip.image ? { url: trip.image, alt: "Trip cover used to illustrate this idea", label: "Trip cover · not the suggested venue", credit: trip.imageCredit } : bundledPhoto;
+  const bundledPhoto: NearbyPhoto = { url: `${import.meta.env.BASE_URL}images/city.jpg`, alt: "Illustrative city scene", label: "Illustrative photo · not the suggested venue" };
+  const fallbackPhoto = bundledPhoto;
   async function research() {
     if (!trip || isDemo || pending) return;
     request.current?.abort();

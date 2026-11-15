@@ -6,6 +6,8 @@ export type UnsplashPhoto = {
   url: string;
   thumb: string;
   alt: string;
+  /** Provider metadata only; unlike alt, this never contains a generated query. */
+  searchText?: string;
   downloadLocation: string;
   credit: { name: string; profileUrl: string; photoUrl: string };
 };
@@ -45,6 +47,7 @@ export async function searchDestinationPhotos(query: string, signal?: AbortSigna
       url: photo.urls.regular,
       thumb: photo.urls.small ?? photo.urls.regular,
       alt: photo.alt_description ?? `Photo of ${query}`,
+      searchText: [photo.alt_description, photo.description, ...(Array.isArray(photo.tags) ? photo.tags.map((tag: { title?: string }) => tag.title) : [])].filter(value => typeof value === "string").join(" "),
       downloadLocation: photo.links.download_location,
       credit: { name: photo.user.name, profileUrl: credited(photo.user.links.html), photoUrl: credited(photo.links.html) },
     }];

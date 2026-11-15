@@ -22,11 +22,11 @@ test("nearby entry points share a responsive context popup without fictional res
   }
 });
 
-async function account(page: Page, generation: (request: Record<string, unknown>) => { status?: number; json: unknown }, role: "Owner" | "Day Editor" = "Owner") {
+async function account(page: Page, generation: (request: Record<string, unknown>) => { status?: number; json: unknown }, role: "Owner" | "Day Editor" = "Owner", anchorPlace = "") {
   const owner = { id: "11111111-1111-4111-8111-111111111111", aud: "authenticated", role: "authenticated", email: "qa@example.com", user_metadata: { name: "QA Traveler" }, app_metadata: { provider: "email" } };
   const trip = seed().trips[0];
   trip.members = [{ id: owner.id, name: "QA Traveler", email: owner.email, role, status: "accepted", days: role === "Day Editor" ? ["2027-05-02"] : [], ...(role === "Day Editor" ? {accountId:owner.id} : {}) }];
-  trip.start = "2027-05-01"; trip.end = "2027-05-03"; trip.events = []; trip.prefs = role === "Day Editor" ? {[owner.id]:blankPrefs()} : {};
+  trip.start = "2027-05-01"; trip.end = "2027-05-03"; trip.events = anchorPlace ? [{ ...trip.events[0], id:"anchor", name:"Earlier planned stop", place:anchorPlace, date:trip.start, start:"09:00", end:"10:00", cost:0, attendees:[], image:"", notes:"" }] : []; trip.prefs = role === "Day Editor" ? {[owner.id]:blankPrefs()} : {};
   const row = { tripID: "22222222-2222-4222-8222-222222222222", owner_id: owner.id, created_by: owner.id, trip_name: "Research trip", destination: "Seattle", destinations: ["Seattle"], start_date: trip.start, end_date: trip.end, timezone: "America/Los_Angeles", revision: 1, content_version: 1, content: trip };
   await page.route("https://*.supabase.co/**", async route => {
     const url = new URL(route.request().url());
@@ -86,12 +86,12 @@ test("suggestions retain a loaded illustrative photo when venue and area searche
   await expect(dialog.getByRole("heading", { name: "Photo fallback venue", exact: true })).toBeVisible();
   const photo = dialog.locator(".nearby-result-photo");
   await photo.scrollIntoViewIfNeeded();
-  await expect(photo).toHaveAttribute("src", /\/images\/food\.jpg$/);
+  await expect(photo).toHaveAttribute("src", /\/images\/city\.jpg$/);
   await expect.poll(() => photo.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await expect(dialog).toContainText("Illustrative photo · not the suggested venue");
   await expect.poll(() => queries.length).toBe(2);
   expect(queries[0]).toContain("Photo fallback venue");
-  expect(queries[1]).toBe("Seattle");
+  expect(queries[1]).toBe("Seattle city landscape");
   await expect(dialog.locator(".nearby-photo-credit")).not.toContainText("Unsplash");
 });
 
@@ -152,6 +152,28 @@ test("empty research shows the specific cause and rejection counts", async ({ pa
 });
 
 const candidate = { name: "Research fixture garden", address: "Seattle garden", reason: "A quiet break", durationMinutes: 60, pricePerPersonCents: null, currency: null, facts: [{topic:"Hours",detail:"Check the current hours",sourceUrl:"https://example.com/garden"}], concerns:["Confirm access"], conflicts:[], status:"review", proposedTime:{start:"12:00",end:"13:00"} };
+
+test("shrine suggestions reject anchor photos and carry the relevant image into the event", async ({ page }) => {
+  await account(page, () => ({json:{results:[{...candidate,name:"Shinto Shrine",address:"Address needs confirmation from the venue"}]}}), "Owner", "McDonald's, Seattle");
+  const queries: string[]=[];
+  const photo=(id:string,description:string)=>({id,width:1200,height:800,alt_description:description,urls:{regular:`https://images.unsplash.com/${id}`},links:{html:`https://unsplash.com/photos/${id}`,download_location:`https://api.unsplash.com/photos/${id}/download`},user:{name:"Photo fixture",links:{html:"https://unsplash.com/@fixture"}}});
+  await page.route('**/functions/v1/unsplash-search?**',route=>{
+    const query=new URL(route.request().url()).searchParams.get('query')||'';queries.push(query);
+    const photos=query.startsWith('temple shrine') ? [photo('shrine','A Shinto shrine with traditional gates'),photo('shrine-2','A Buddhist temple')] : [photo('mcdonalds',"McDonald's restaurant and burger sign"),photo('mcdonalds-2','Fast food restaurant')];
+    return route.fulfill({json:{results:photos}});
+  });
+  await page.route('https://images.unsplash.com/**',route=>route.fulfill({path:fileURLToPath(new URL('../public/images/city.jpg',import.meta.url)),contentType:'image/jpeg'}));
+  const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
+  await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+  const image=dialog.locator('.nearby-result-photo');
+  await expect(image).toHaveAttribute('src','https://images.unsplash.com/shrine');
+  await expect.poll(()=>image.evaluate(image=>(image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  expect(queries).toEqual(['Shinto Shrine Seattle','temple shrine Seattle']);
+  expect(queries.join(' ')).not.toMatch(/McDonald|Address needs confirmation/);
+  await dialog.getByRole('button',{name:'Review and add to this day',exact:true}).click();
+  await expect(page).toHaveURL(/#\/7/);
+  await expect(page.locator('.upload-preview')).toHaveAttribute('src','https://images.unsplash.com/shrine');
+});
 test('researched places save once with sources, survive reload and schedule on the selected day',async({page})=>{
   await account(page,()=>({json:{results:[candidate]}}));
   const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
@@ -196,7 +218,7 @@ test('Nearby permits Day Editors to research other days but only schedule assign
 
 for (const action of ['close','change day']) test(`late photo attribution cannot navigate after Nearby ${action}`,async({page})=>{
   await account(page,()=>({json:{results:[candidate]}}));
-  const photo = {id:'fixture-photo',width:1200,height:800,urls:{regular:'https://images.unsplash.com/fixture'},links:{html:'https://unsplash.com/photos/fixture',download_location:'https://api.unsplash.com/photos/fixture/download'},user:{name:'Fixture photographer',links:{html:'https://unsplash.com/@fixture'}}};
+  const photo = {id:'fixture-photo',alt_description:'A peaceful garden',width:1200,height:800,urls:{regular:'https://images.unsplash.com/fixture'},links:{html:'https://unsplash.com/photos/fixture',download_location:'https://api.unsplash.com/photos/fixture/download'},user:{name:'Fixture photographer',links:{html:'https://unsplash.com/@fixture'}}};
   await page.route('**/functions/v1/unsplash-search?**',r=>r.fulfill({json:{results:[photo,{...photo,id:'fixture-photo-2'}]}}));
   await page.route('https://images.unsplash.com/**',r=>r.fulfill({path:fileURLToPath(new URL('../public/images/food.jpg',import.meta.url)),contentType:'image/jpeg'}));
   let release!:()=>void, started=false;
