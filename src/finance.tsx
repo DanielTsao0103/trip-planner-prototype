@@ -833,6 +833,14 @@ export function ExpenseForm() {
     event.target.value = "";
     if (file) choosePhoto(file);
   };
+  const [guidedScan, setGuidedScan] = useState(false);
+  const [totalPosition, setTotalPosition] = useState<number>();
+  const [receiptDetails, setReceiptDetails] = useState<Awaited<ReturnType<typeof scanReceiptPhoto>>>();
+  const resetReceiptGuide = () => {
+    setGuidedScan(false);
+    setTotalPosition(undefined);
+    setReceiptDetails(undefined);
+  };
   const [photoStatus, setPhotoStatus] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -867,6 +875,7 @@ export function ExpenseForm() {
     }
     setError("");
     setScan("");
+    resetReceiptGuide();
     setPhoto(file);
   };
   const purposeRef = useRef<HTMLTextAreaElement>(null);
@@ -966,7 +975,7 @@ export function ExpenseForm() {
         noValidate
         onSubmit={async (e) => {
           e.preventDefault();
-          if (savingPhoto.current) return;
+          if (savingPhoto.current || (guidedScan && totalPosition === undefined)) return;
           if (original && original.payer !== travelerId) {
             setError("Only the payer can edit this expense.");
             return;
@@ -981,12 +990,25 @@ export function ExpenseForm() {
             setUploading(true);
             setPhotoStatus("Reading receipt…");
             try {
-              const fields = await scanReceiptPhoto(photo, t.persistence === "account" && import.meta.env.VITE_RECEIPT_VISION === "true");
+              const fields = receiptDetails?.amount ? receiptDetails : await scanReceiptPhoto(
+                photo, t.persistence === "account" && import.meta.env.VITE_RECEIPT_VISION === "true", totalPosition,
+              );
               if (!active.current) return;
               if (!fields.amount || moneyError(fields.amount, MONEY_LIMITS.expense)) {
-                setError(fields.needsManualAmount
+                setReceiptDetails(current => current ?? fields);
+                setGuidedScan(true);
+                setError(totalPosition !== undefined
+                  ? "Couldn’t read that line. Move the scan line to the total and try again."
+                  : fields.needsManualAmount
                   ? "Couldn’t identify a single USD total. Try another receipt photo."
                   : "Couldn’t read the total. Retake the photo with the full total visible.");
+                return;
+              }
+              if (guidedScan && !receiptDetails?.amount) {
+                setReceiptDetails({ ...fields,
+                  purpose: receiptDetails?.purpose || fields.purpose,
+                  category: receiptDetails?.category ?? fields.category,
+                });
                 return;
               }
               expenseAmount = fields.amount;
@@ -1144,6 +1166,7 @@ export function ExpenseForm() {
               </Button>
               {photo && <Button variant="text" disabled={uploading} onClick={() => {
                 setPhoto(undefined);
+                resetReceiptGuide();
                 setError("");
                 setPhotoUrl("");
                 setPhotoStatus("");
@@ -1154,7 +1177,31 @@ export function ExpenseForm() {
           {original?.source === receiptSource && original.payer === travelerId && !photoUrl && (
             <Button variant="text" onClick={() => void viewPhoto()}>View receipt</Button>
           )}
-          {photoUrl && <img src={photoUrl} alt="Receipt photo" className="expense-receipt-photo" />}
+          {photoUrl && guidedScan ? (
+            <div>
+              <p>Tap the line with the total in USD. You can also move the scan line with the slider.</p>
+              <div className="receipt-scan-target" onClick={event => {
+                if (uploading) return;
+                const bounds = event.currentTarget.getBoundingClientRect();
+                setTotalPosition(Math.min(1, Math.max(0, (event.clientY - bounds.top) / bounds.height)));
+                setReceiptDetails(current => current && { ...current, amount: "" });
+                setError("");
+              }}>
+                <img src={photoUrl} alt="Receipt photo" />
+                {totalPosition !== undefined && <span aria-hidden="true" style={{ top: `${totalPosition * 100}%` }} />}
+              </div>
+              <input type="range" min="0" max="100" step="1" aria-label="Receipt scan line position"
+                disabled={uploading} value={(totalPosition ?? 0.75) * 100}
+                onChange={event => {
+                  setTotalPosition(Number(event.target.value) / 100);
+                  setReceiptDetails(current => current && { ...current, amount: "" });
+                  setError("");
+                }} />
+              {receiptDetails?.amount && <p role="status">
+                Found {money(Math.round(Number(receiptDetails.amount) * 100))} USD. Check it against the receipt before saving.
+              </p>}
+            </div>
+          ) : photoUrl && <img src={photoUrl} alt="Receipt photo" className="expense-receipt-photo" />}
           {!photo && <>
           <p className="expense-date-context">Expense date: {dateText(original?.date || s.date)}{t.persistence !== "account" && " · Demo date"}</p>
           <div className="expense-validated-field">
@@ -1275,7 +1322,9 @@ export function ExpenseForm() {
           <Button variant="text" onClick={close}>
             Cancel
           </Button>
-          <Button type="submit" disabled={uploading}>{uploading ? (photoStatus || "Attaching receipt…") : "Save expense"}</Button>
+          <Button type="submit" disabled={uploading || (guidedScan && totalPosition === undefined)}>
+            {uploading ? (photoStatus || "Attaching receipt…") : guidedScan && !receiptDetails?.amount ? "Read selected line" : "Save expense"}
+          </Button>
         </div>
       </form>
     </Modal>

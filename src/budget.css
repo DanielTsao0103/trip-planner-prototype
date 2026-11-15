@@ -999,3 +999,25 @@ body:has(.budget-page) .modal-head .icon-btn {
 .expense-form .form-actions:has(.expense-split-status) {
   flex-wrap: wrap;
 }
+
+.receipt-scan-target {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+.receipt-scan-target img {
+  display: block;
+  max-width: 100%;
+}
+
+.receipt-scan-target span {
+  position: absolute;
+  inset-inline: 0;
+  height: 0;
+  border-top: 2px solid var(--ink);
+  box-shadow: 0 0 0 1px var(--paper);
+  pointer-events: none;
+}

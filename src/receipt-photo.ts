@@ -45,8 +45,8 @@ async function prepareReceiptImage(photo: File) {
   }
 }
 
-export async function scanReceiptPhoto(photo: File, useVision = false) {
-  if (useVision) {
+export async function scanReceiptPhoto(photo: File, useVision = false, totalPosition?: number) {
+  if (useVision && totalPosition === undefined) {
     const { data, error } = await getSupabase().functions.invoke<{
       purpose: string;
       category: string;
@@ -71,6 +71,17 @@ export async function scanReceiptPhoto(photo: File, useVision = false) {
     }
     worker = instance;
     const image = await prepareReceiptImage(photo).catch(() => photo);
+    if (totalPosition !== undefined) {
+      if (image instanceof File) throw new Error("Could not crop the receipt.");
+      const height = Math.min(image.height, Math.max(18, Math.round(image.height * 0.06)));
+      const top = Math.min(image.height - height, Math.max(0, Math.round(totalPosition * image.height - height / 2)));
+      await instance.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE });
+      const { data } = await instance.recognize(image, { rectangle: { left: 0, top, width: image.width, height } });
+      const line = data.text.trim();
+      const parsed = parseReceiptFields(line);
+      const amountOnly = line.match(/^\$?\s*(\d+(?:,\d{3})*\.\d{2})$/)?.[1]?.replaceAll(",", "") ?? "";
+      return { ...parsed, amount: parsed.amount || amountOnly };
+    }
     const primary = parseReceiptFields((await instance.recognize(image, { rotateAuto: true })).data.text);
     if (primary.needsManualAmount || (primary.amount && primary.purpose && primary.category)) return primary;
 

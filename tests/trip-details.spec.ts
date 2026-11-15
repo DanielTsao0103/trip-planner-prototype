@@ -891,7 +891,14 @@ test("receipt saves using scanned details and its amount counts once", async ({ 
   });
   const uploads: string[] = [];
   let receiptBucketAvailable = true;
-  const image = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jB6kAAAAASUVORK5CYII=", "base64");
+  await page.goto("./");
+  const png = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 400;
+    canvas.height = 600;
+    return canvas.toDataURL("image/png").split(",")[1];
+  });
+  const image = Buffer.from(png, "base64");
   await page.route("https://*.supabase.co/storage/v1/object/expense-receipts/**", route => {
     if (route.request().method() === "GET") {
       return route.fulfill({ contentType: "image/png", body: image });
@@ -908,7 +915,7 @@ test("receipt saves using scanned details and its amount counts once", async ({ 
     contentType: "application/javascript",
     body: `self.onmessage = ({data}) => self.postMessage({
       ...data, status: 'resolve', data: data.action === 'recognize'
-        ? {text: ${JSON.stringify(readable ? "Cedar Cafe\nGrand Total USD 24.95" : "")}} : {}
+        ? {text: ${JSON.stringify(readable ? "Cedar Cafe\nGrand Total USD 24.95" : "Cedar Cafe")}} : {}
     });`,
   }));
   await page.goto("./#/5");
@@ -936,6 +943,10 @@ test("receipt saves using scanned details and its amount counts once", async ({ 
   expect(uploads).toHaveLength(0);
   expect(api.rows[0].content.expenses).toHaveLength(0);
   readable = true;
+  await page.getByRole("slider", { name: "Receipt scan line position" }).press("ArrowDown");
+  await page.getByRole("button", { name: "Read selected line", exact: true }).click();
+  await expect(page.getByText("Found $24.95 USD. Check it against the receipt before saving.")).toBeVisible();
+  expect(uploads).toHaveLength(0);
   await page.getByRole("button", { name: "Save expense", exact: true }).click();
   await expect.poll(() => api.rows[0].content.expenses).toHaveLength(1);
   const [expense] = api.rows[0].content.expenses;
