@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { fileURLToPath } from "node:url";
 import { seed } from "../src/data.ts";
 import { blankPrefs } from "../src/domain.ts";
 
@@ -197,13 +198,14 @@ for (const action of ['close','change day']) test(`late photo attribution cannot
   await account(page,()=>({json:{results:[candidate]}}));
   const photo = {id:'fixture-photo',width:1200,height:800,urls:{regular:'https://images.unsplash.com/fixture'},links:{html:'https://unsplash.com/photos/fixture',download_location:'https://api.unsplash.com/photos/fixture/download'},user:{name:'Fixture photographer',links:{html:'https://unsplash.com/@fixture'}}};
   await page.route('**/functions/v1/unsplash-search?**',r=>r.fulfill({json:{results:[photo,{...photo,id:'fixture-photo-2'}]}}));
-  await page.route('https://images.unsplash.com/**',r=>r.abort());
+  await page.route('https://images.unsplash.com/**',r=>r.fulfill({path:fileURLToPath(new URL('../public/images/food.jpg',import.meta.url)),contentType:'image/jpeg'}));
   let release!:()=>void, started=false;
   const held=new Promise<void>(resolve=>{release=resolve;});
   await page.route('**/functions/v1/unsplash-track',async r=>{started=true;await held;await r.fulfill({json:{success:true}});});
   const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
   await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
   await expect(dialog.locator('.nearby-result-photo')).toHaveCount(1);
+  await expect(dialog.locator('.nearby-photo-credit')).toContainText('Fixture photographer');
   const response=page.waitForResponse(r=>r.url().endsWith('/unsplash-track'));
   await dialog.getByRole('button',{name:'Review and add to this day',exact:true}).click();
   await expect.poll(()=>started).toBe(true);
