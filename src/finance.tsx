@@ -803,7 +803,7 @@ export function ExpenseForm() {
   const [amount, setAmount] = useState(original ? String(original.amount / 100) : "");
   const [category, setCategory] = useState(original?.category ?? "Food");
   const [shared, setShared] = useState(
-      original ? Object.keys(original.shares).length > 1 : false,
+      original ? Object.keys(original.shares).some(id => id !== travelerId) : false,
     ),
     [people, setPeople] = useState(
       original
@@ -813,6 +813,17 @@ export function ExpenseForm() {
     [scan, setScan] = useState(overlay?.data?.scan ? "ready" : ""),
     [error, setError] = useState(""),
     [source, setSource] = useState(original?.source || "Manual");
+  const [splitMethod, setSplitMethod] = useState(() => {
+    if (!original) return "equal";
+    const ids = Object.keys(original.shares);
+    const equal = splitCents(original.amount, ids);
+    return ids.some(id => equal[id] !== original.shares[id]) ? "custom" : "equal";
+  });
+  const [customAmounts, setCustomAmounts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(Object.entries(original?.shares ?? {}).map(([id, cents]) => [id, (cents / 100).toFixed(2)])),
+  );
+  const splitTravelers = t.members.filter(m => m.status === "accepted" || Object.hasOwn(original?.shares ?? {}, m.id));
+  const splitRef = useRef<HTMLFieldSetElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [photo, setPhoto] = useState<File>();
@@ -877,8 +888,25 @@ export function ExpenseForm() {
     ? 0
     : Math.round(Number(amount) * 100);
   const previewShares = splitCents(previewCents, people);
-  const hasRounding =
-    shared && people.length > 1 && previewCents % people.length !== 0;
+  const hasRounding = people.length > 1 && previewCents % people.length !== 0;
+  const customSplit = shared && splitMethod === "custom";
+  const customShares: Record<string, number> = Object.fromEntries(splitTravelers.flatMap(({ id }) => {
+    const value = customAmounts[id]?.trim();
+    return value && !moneyError(value, MONEY_LIMITS.expense, true) && Number(value) > 0
+      ? [[id, Math.round(Number(value) * 100)]]
+      : [];
+  }));
+  const invalidShare = splitTravelers.some(({ id }) => {
+    const value = customAmounts[id]?.trim();
+    return value && !!moneyError(value, MONEY_LIMITS.expense, true);
+  });
+  const assigned = Object.values(customShares).reduce((sum, cents) => sum + cents, 0);
+  const remainingShare = previewCents - assigned;
+  const splitFeedback = invalidShare ? "Enter valid amounts with up to two decimal places."
+    : previewAmountError ? "Enter the bill total to see what’s left."
+    : remainingShare > 0 ? `${money(remainingShare)} left to assign`
+    : remainingShare < 0 ? `${money(-remainingShare)} over the bill total`
+    : "Full bill assigned";
   const scanReceipt = (fail = false) => {
     setScan("loading");
     setTimeout(() => {
@@ -979,8 +1007,12 @@ export function ExpenseForm() {
             return;
           }
           const cents = Math.round(Number(expenseAmount) * 100);
-          if (!photo && shared && !people.length) {
+          if (!photo && shared && !customSplit && !people.length) {
             setError("Choose at least one participant.");
+            return;
+          }
+          if (!photo && customSplit && (invalidShare || remainingShare !== 0)) {
+            splitRef.current?.focus();
             return;
           }
           if (original?.settled.length) {
@@ -995,7 +1027,7 @@ export function ExpenseForm() {
             amount: cents,
             category: expenseCategory,
             payer: travelerId,
-            shares: splitCents(cents, !photo && shared ? people : [travelerId]),
+            shares: !photo && customSplit ? customShares : splitCents(cents, !photo && shared ? people : [travelerId]),
             date: original?.date || s.date,
             source: photo ? "Receipt scan" : source,
             settled: [],
@@ -1184,44 +1216,62 @@ export function ExpenseForm() {
             />
             <span>
               I paid for other people too
-              {shared && (
-                <small>
-                  {hasRounding
-                    ? "Shares differ by 1¢ so they add up to the payment."
-                    : "Split equally among the people selected below."}
-                </small>
-              )}
             </span>
           </label>
-          {shared && previewAmountError && <p className="note">Enter a valid amount to preview each person’s share.</p>}
           {shared && (
-            <fieldset>
-              <legend>Who’s included? · {people.length} selected</legend>
-              {t.members
-                .filter((m) => m.status === "accepted")
-                .map((m) => (
-                  <label className="check-row" key={m.id}>
-                    <input
-                      type="checkbox"
-                      checked={people.includes(m.id)}
-                      onChange={(e) =>
-                        setPeople(
-                          e.target.checked
-                            ? [...people, m.id]
-                            : people.filter((id) => id !== m.id),
-                        )
-                      }
-                    />
-                    <span>{m.name}</span>
-                    <strong>{previewAmountError ? "—" : money(previewShares[m.id] || 0)}</strong>
-                  </label>
-                ))}
+            <fieldset className="expense-split" ref={splitRef} tabIndex={-1} aria-describedby={customSplit ? "expense-split-status" : undefined}>
+              <legend>Split the bill</legend>
+              <Field label="Split method">
+                <select value={splitMethod} onChange={event => setSplitMethod(event.target.value)}>
+                  <option value="equal">Split equally</option>
+                  <option value="custom">Custom amounts</option>
+                </select>
+              </Field>
+              <p className="expense-split-hint">{customSplit
+                ? "Enter each person’s share. Leave the amount blank if they owe nothing."
+                : hasRounding ? "Shares differ by 1¢ so they add up to the payment."
+                : "Select who shares the bill, including yourself if you’re paying a share."}</p>
+              <div className="expense-split-people">
+                {splitTravelers.map(person => {
+                  const included = people.includes(person.id);
+                  const label = person.id === travelerId ? `${person.name} (you)` : person.name;
+                  return (
+                    <div className="expense-split-person" key={person.id}>
+                      {customSplit ? <span>{label}</span> : (
+                        <label className="check-row">
+                          <input type="checkbox" checked={included}
+                            onChange={event => setPeople(event.target.checked
+                              ? [...people, person.id]
+                              : people.filter(id => id !== person.id))}
+                          />
+                          <span>{person.name}</span>
+                        </label>
+                      )}
+                      {customSplit ? (
+                        <div className="expense-split-amount">
+                          <span aria-hidden="true">$</span>
+                          <input type="text" inputMode="decimal" aria-label={`Share for ${label} (USD)`}
+                            placeholder="0.00" value={customAmounts[person.id] ?? ""}
+                            aria-invalid={!!customAmounts[person.id]?.trim() && !!moneyError(customAmounts[person.id], MONEY_LIMITS.expense, true)}
+                            onChange={event => setCustomAmounts({ ...customAmounts, [person.id]: event.target.value })}
+                          />
+                        </div>
+                      ) : (
+                        <strong>{previewAmountError ? "—" : money(previewShares[person.id] || 0)}</strong>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </fieldset>
           )}
           </>}
           <ErrorBox text={error} />
         </div>
         <div className="form-actions">
+          {!photo && customSplit && <p id="expense-split-status" role="status" className="expense-split-status">
+            {splitFeedback}
+          </p>}
           <Button variant="text" onClick={close}>
             Cancel
           </Button>

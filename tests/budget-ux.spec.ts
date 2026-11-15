@@ -520,3 +520,35 @@ test('budget setup keeps invalid amounts inline and recovers without losing the 
   await expect(page.getByLabel('How should we track spending?', { exact: true })).toHaveValue('individual');
   await expect(page.getByLabel('Your individual budget (USD)', { exact: true })).toHaveValue('1200');
 });
+
+test("custom dollar shares reconcile and survive an expense edit and reload", async ({ page, isMobile }) => {
+  if (isMobile) await page.setViewportSize({ width: 320, height: 640 });
+  await budget(page);
+  await page.getByRole("button", { name: "Add expense", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("What was it for?").fill("Dinner with different orders");
+  await dialog.getByLabel("Amount (USD)").fill("60");
+  await dialog.getByRole("checkbox", { name: "I paid for other people too" }).check();
+  await dialog.getByLabel("Split method").selectOption("custom");
+  const own = dialog.getByLabel("Share for Maya Chen (you) (USD)", { exact: true });
+  const other = dialog.getByLabel("Share for Eli Brooks (USD)", { exact: true });
+  await own.fill("18.25");
+  await other.fill("42.75");
+  await expect(dialog.getByRole("status")).toHaveText("$1.00 over the bill total");
+  await dialog.getByRole("button", { name: "Save expense" }).click();
+  await expect(dialog).toBeVisible();
+  await other.fill("41.75");
+  await expect(dialog.getByRole("status")).toHaveText("Full bill assigned");
+  await expect(dialog.getByRole("status")).toBeInViewport();
+  await expect(dialog.getByRole("button", { name: "Save expense" })).toBeInViewport();
+  await page.screenshot({ path: test.info().outputPath("custom-split.png") });
+  await dialog.getByRole("button", { name: "Save expense" }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.reload();
+  const row = page.locator(".expense-row").filter({ hasText: "Dinner with different orders" });
+  await expect(row).toContainText("$60.00");
+  await row.getByRole("button", { name: "Edit", exact: true }).click();
+  await expect(dialog.getByLabel("Split method")).toHaveValue("custom");
+  await expect(own).toHaveValue("18.25");
+  await expect(other).toHaveValue("41.75");
+});
