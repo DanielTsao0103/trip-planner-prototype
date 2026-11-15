@@ -82,7 +82,9 @@ test("identical group answers compact without losing their vote count or request
 test("both real search requests retain the venue and its trip destination", async () => {
   const t = structuredClone(trip); t.events = [{ id: "m", name: "Meet", place: "McDonald's", date: t.start, start: "10:00", end: "11:00", cost: 0, attendees: ["owner"] }];
   const c = planningContext(t, "owner", t.start, "activity");
-  for (const query of researchQueries(c)) { assert.match(query, /McDonald's/); assert.match(query, /Seattle/); }
+  const queries = researchQueries(c);
+  for (const query of queries.slice(0, 2)) { assert.match(query, /McDonald's/); assert.match(query, /Seattle/); }
+  assert.match(queries[2], /Seattle/); assert.doesNotMatch(queries[2], /McDonald's/);
 });
 test("handler distinguishes empty search, empty AI, evidence rejection and no time without exposing source text", async () => {
   const row = { tripID: trip.id, revision: 2, start_date: trip.start, end_date: trip.end, timezone: trip.zone, destinations: trip.destinations, content: trip };
@@ -98,8 +100,9 @@ test("handler distinguishes empty search, empty AI, evidence rejection and no ti
   }
   const blocked = structuredClone(row); blocked.content.events = [{ id: "busy", name: "Busy", place: "Seattle", date: trip.start, start: "09:00", end: "17:00", cost: 0, attendees: [] }];
   const before = reservations;
-  const response = await createNearbyHandler(config, () => ({ ...gateway, trip: async () => blocked }))(request());
-  assert.equal((await response.json()).emptyReason, "no_time"); assert.equal(reservations, before);
+  const response = await createNearbyHandler(config, () => ({ ...gateway, trip: async () => blocked }), async url => String(url).includes("tavily") ? json({ results: [source] }) : json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [candidate] }) } }] }))(request());
+  const busyResult = await response.json();
+  assert.equal(busyResult.results.length, 1); assert.equal(busyResult.results[0].proposedTime, null); assert.equal(reservations, before + 1);
 });
 
 test("handler blocks unauthorized, inaccessible, stale and disabled requests before reserving quota", async () => {
@@ -126,4 +129,72 @@ test("handler enforces server quota before provider calls and records failed att
   assert.equal(limited.status, 429); assert.equal(calls, 0);
   const failed = await createNearbyHandler(config, () => gateway, fetcher)(request());
   assert.equal(failed.status, 429); assert.deepEqual(outcomes, ["failed"]); assert.equal((await failed.json()).attemptUsed, true);
+});
+
+
+test("recovery replaces three rejected candidates with a supported city activity", async () => {
+  let modelCalls = 0;
+  const activitySource = { url: "https://tourism.example/park", title: "City Park", content: "City Park offers walking trails and public gardens. Open daily for visitors." };
+  const activity = { ...candidate, name: "City Park", facts: [{ topic: "Venue", detail: activitySource.content, sourceUrl: activitySource.url, quote: "City Park offers walking trails and public gardens." }] };
+  const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async url => {
+    if (String(url).includes("tavily")) return json({ results: [activitySource] });
+    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: ++modelCalls === 1 ? [candidate, candidate, candidate] : [activity] }) } }] });
+  });
+  assert.equal(modelCalls, 2); assert.equal(result.recoveryAttempted, true);
+  assert.equal(result.candidates.length, 1); assert.equal(result.candidates[0].name, "City Park");
+  assert.equal(result.candidates[0].facts.length, 1);
+});
+test("broader tourism search stays in the active city and region on multi-city trips", () => {
+  const c = context(); c.area = "Small Cafe, Taipei, Taiwan"; c.destinations = ["Seattle, WA", "Taipei, Taiwan"];
+  const queries = researchQueries(c);
+  assert.equal(queries.length, 3); assert.match(queries[2], /Taipei/); assert.match(queries[2], /Taiwan/);
+  assert.doesNotMatch(queries[2], /Small Cafe|Seattle/);
+});
+
+
+test("optional recovery failure preserves already reviewed suggestions", async () => {
+  let modelCalls = 0;
+  const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async url => {
+    if (String(url).includes("tavily")) return json({ results: [source] });
+    if (++modelCalls === 2) return json({}, 429);
+    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [candidate] }) } }] });
+  });
+  assert.equal(result.candidates.length, 1); assert.equal(result.candidates[0].name, candidate.name);
+});
+
+
+test("city tourism evidence reaches the model even when granular searches are full", async () => {
+  let searches = 0;
+  await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async (url, init) => {
+    if (String(url).includes("tavily")) {
+      const stage=++searches;
+      return json({ results: Array.from({ length: 3 }, (_, i) => ({ url: stage===2 ? "https://www.yelp.com/biz/"+i : "https://tourism.example/"+stage+"/"+i, title: "Venue", content: (stage===3 ? "CITY_WIDE_EVIDENCE " : "Venue details ").repeat(180) })) });
+    }
+    assert.ok(JSON.parse(init!.body as string).messages[1].content.includes("CITY_WIDE_EVIDENCE"));
+    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [] }) } }] });
+  });
+});
+
+
+test("invalid provider JSON uses one reserved repair call and returns a suggestion", async () => {
+  let calls = 0;
+  const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async url => {
+    if (String(url).includes("tavily")) return json({ results: [source] });
+    if (++calls === 1) return json({ error: { code: "json_validate_failed" } }, 400);
+    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [candidate] }) } }] });
+  });
+  assert.equal(calls, 2); assert.equal(result.candidates.length, 1); assert.equal(result.recoveryAttempted, true);
+});
+
+
+test("unsupported venues fall back to a real city guide that cannot be scheduled", async () => {
+  const row = { tripID: trip.id, revision: 2, start_date: trip.start, end_date: trip.end, timezone: trip.zone, destinations: trip.destinations, content: trip };
+  const gateway: ResearchGateway = { actor: async () => "owner", trip: async () => row, reserve: async () => "request", finish: async () => {} };
+  let searches=0;
+  const response=await createNearbyHandler({ enabled:true,groq:"fixture",tavily:"fixture" },()=>gateway,async url => {
+    if(String(url).includes("tavily")) return json({results: ++searches===3 ? [{url:"https://tourism.example/city",title:"Seattle city activities",content:"Explore public gardens, local museums and city neighborhoods in Seattle."}] : []});
+    return json({choices:[{finish_reason:"stop",message:{content:JSON.stringify({candidates:[]})}}]});
+  })(new Request("https://edge.example/nearby",{method:"POST",body:JSON.stringify({tripId:trip.id,revision:2,date:trip.start,intent:"lunch"})}));
+  const body=await response.json(); assert.equal(body.results.length,1); assert.equal(body.results[0].kind,"guide");
+  assert.equal(body.results[0].proposedTime,null); assert.equal(body.results[0].facts[0].sourceUrl,"https://tourism.example/city");
 });

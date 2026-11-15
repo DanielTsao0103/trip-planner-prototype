@@ -23,6 +23,9 @@ const check = result => { if (result.error) throw Error(result.error.message); r
 const accounts = [];
 let browser;
 const chainMode = env.NEARBY_QA_CHAIN_LOCATION === "1";
+const destination = env.NEARBY_QA_DESTINATION || "Seattle, WA";
+const anchor = env.NEARBY_QA_ANCHOR || "McDonald's";
+const zone = env.NEARBY_QA_ZONE || "America/Los_Angeles";
 const artifact = chainMode ? "test-results/nearby-location-live" : "test-results/nearby-live";
 mkdirSync(artifact, { recursive: true });
 try {
@@ -34,8 +37,8 @@ try {
     check(await client.auth.signInWithPassword({ email, password }));
   }
   const [owner, outsider] = accounts;
-  const trip = { id: randomUUID(), title: "Nearby live QA", destinations: ["Seattle, WA"], start: "2027-05-01", end: "2027-05-02", zone: "America/Los_Angeles", image: "", members: [{ id: owner.id, name: "Nearby QA Traveler", email: owner.email, role: "Owner", status: "accepted", days: [] }], prefs: { [owner.id]: { diet: ["Vegetarian"], access: ["Step-free access"], walk: 1000, interests: ["Art"], food: "Local flavors", spending: "Moderate", dining: "Casual & simple", atmosphere: "Relaxed", destinations: "", tickets: "Happy to book ahead", notes: "" } }, events: [], expenses: [], budget: 30000, budgetMode: "group", individual: {}, todos: [], dismissed: [] };
-  if (chainMode) { trip.prefs = {}; trip.events = [{ id: randomUUID(), name: "Morning meeting", place: "McDonald's", date: trip.start, start: "09:00", end: "10:00", cost: 0, attendees: [owner.id], image: "", notes: "" }]; }
+  const trip = { id: randomUUID(), title: "Nearby live QA", destinations: [destination], start: "2027-05-01", end: "2027-05-02", zone, image: "", members: [{ id: owner.id, name: "Nearby QA Traveler", email: owner.email, role: "Owner", status: "accepted", days: [] }], prefs: { [owner.id]: { diet: ["Vegetarian"], access: ["Step-free access"], walk: 1000, interests: ["Art"], food: "Local flavors", spending: "Moderate", dining: "Casual & simple", atmosphere: "Relaxed", destinations: "", tickets: "Happy to book ahead", notes: "" } }, events: [], expenses: [], budget: 30000, budgetMode: "group", individual: {}, todos: [], dismissed: [] };
+  if (chainMode) { trip.prefs = {}; trip.events = [{ id: randomUUID(), name: "Morning meeting", place: anchor, date: trip.start, start: "09:00", end: "10:00", cost: 0, attendees: [owner.id], image: "", notes: "" }]; }
   const saved = check(await owner.client.rpc("save_account_trip", { p_trip_id: trip.id, p_expected_revision: null, p_request_id: randomUUID(), p_data: trip, p_photo_credit: null }));
   const body = { tripId: trip.id, revision: saved.revision, date: trip.start, intent: chainMode ? "activity" : "lunch" };
   const endpoint = `${url}/functions/v1/nearby-suggestions`;
@@ -53,27 +56,44 @@ try {
   await page.waitForURL(/#\/4/);
   await page.goto(new URL("#/5", page.url()).href);
   await page.getByRole("button", { name: trip.title, exact: true }).click();
-  await page.goto(new URL("#/17", page.url()).href);
-  await page.getByRole("button", { name: "Nearby suggestion", exact: true }).click();
+  await page.goto(new URL("#/9", page.url()).href);
+  await page.getByRole("button", { name: "Nearby suggestions", exact: true }).click();
   if (chainMode) {
     await page.getByLabel("Find", { exact: true }).selectOption("activity");
-    assert.ok((await page.locator(".nearby-context-panel").innerText()).includes("McDonald's · Seattle, WA"));
+    const location = await page.locator(".nearby-context-panel").innerText();
+    assert.ok(location.includes(anchor), "Granular anchor should be visible in research context");
+    assert.ok(location.includes(destination), "Destination should be visible in research context");
   }
+  const generationStarted = Date.now();
   const responsePromise = page.waitForResponse(r => r.url() === endpoint && r.request().method() === "POST", { timeout: 90000 });
   await page.getByRole("button", { name: "Find nearby suggestions", exact: true }).click();
   const response = await responsePromise;
   const result = await response.json();
-  if (response.ok()) await page.getByRole("heading", { name: "Options to review", exact: true }).scrollIntoViewIfNeeded();
-  writeFileSync(`${artifact}/response.json`, JSON.stringify({ status: response.status(), ...result }, null, 2));
+  writeFileSync(`${artifact}/response.json`, JSON.stringify({ status: response.status(), latencyMs: Date.now() - generationStarted, ...result }, null, 2));
   await page.screenshot({ path: `${artifact}/desktop.png`, fullPage: true });
   assert.equal(response.status(), 200, result.message || "Live research failed");
   assert.ok(Array.isArray(result.results)); assert.ok(result.results.length <= 3);
-  if (!chainMode) assert.ok(result.results.length > 0, "No live candidates survived the evidence checks; inspect response.json.");
-  else {
-    assert.ok(result.diagnostics, "Expected stage-specific search diagnostics");
-    if (!result.results.length) assert.equal(typeof result.emptyReason, "string");
+  assert.ok(result.results.length > 0, "No live candidates survived the evidence checks; inspect response.json.");
+  assert.ok(result.diagnostics, "Expected stage-specific search diagnostics");
+  await page.getByRole("heading", { name: "Options to review", exact: true }).scrollIntoViewIfNeeded();
+  assert.equal(await page.locator(".nearby-result").count(), result.results.length, "Live response candidates must render");
+  const images = page.locator(".nearby-result-photo");
+  await images.first().waitFor({ state: "visible" });
+  await page.waitForFunction(() => [...document.querySelectorAll(".nearby-result-photo")].every(image => image.complete && image.naturalWidth > 0));
+  assert.equal(await images.count(), result.results.length, "Every visible candidate must have a loaded photo");
+  await page.screenshot({ path: `${artifact}/desktop.png`, fullPage: true });
+  for (const [index, candidate] of result.results.entries()) {
+    assert.equal(candidate.status, "review"); assert.ok(candidate.facts.length > 0);
+    const card = page.locator(".nearby-result").nth(index);
+    assert.equal(await card.getByRole("heading", { name: candidate.name, exact: true }).count(), 1);
+    if (candidate.kind === "guide") {
+      assert.equal(candidate.proposedTime, null);
+      assert.equal(await card.getByRole("button", { name: "Review and add to this day", exact: true }).count(), 0);
+      assert.equal(await card.getByRole("link", { name: "Explore city and region ideas", exact: true }).getAttribute("href"), candidate.facts[0].sourceUrl);
+    } else {
+      assert.equal(await card.getByRole("button", { name: "Review and add to this day", exact: true }).count(), 1);
+    }
   }
-  for (const candidate of result.results) { assert.equal(candidate.status, "review"); assert.ok(candidate.facts.length > 0); }
   if (result.results.length) {
     const mapsLink = await page.getByRole("link", { name: "View on Google Maps", exact: true }).first().getAttribute("href");
     const yelpLink = await page.getByRole("link", { name: "View on Yelp", exact: true }).first().getAttribute("href");
@@ -81,10 +101,12 @@ try {
     assert.ok(new URL(yelpLink).hostname === "www.yelp.com" || new URL(yelpLink).hostname.endsWith(".yelp.com"));
   }
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".nearby-result").first().scrollIntoViewIfNeeded();
+  assert.ok(await page.getByRole("dialog", { name: "Nearby suggestions" }).evaluate(element => element.scrollWidth <= element.clientWidth + 1), "Research dialog must fit mobile width");
   await page.screenshot({ path: `${artifact}/mobile.png`, fullPage: true });
   const immediate = await owner.client.functions.invoke("nearby-suggestions", { body });
   assert.ok(immediate.error); assert.equal(immediate.error.context.status, 429);
-  console.log(`PASS: browser → live function → real database → Tavily → Groq returned ${result.results.length} review candidates; immediate repeat blocked by quota.`);
+  console.log(`PASS: browser → live function → real database → Tavily → Groq returned ${result.results.filter(item => item.kind !== "guide").length} venue candidates and ${result.results.filter(item => item.kind === "guide").length} city/region guides; immediate repeat blocked by quota.`);
 } finally {
   if (browser) await browser.close();
   const failures = [];

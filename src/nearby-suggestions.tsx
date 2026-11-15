@@ -9,6 +9,8 @@ import { searchDestinationPhotos, trackUnsplashSelection, type UnsplashPhoto } f
 import { planningContext, safeSource, nearbyListingLinks, isYelpSource, YELP_SEARCH_MESSAGES, NEARBY_EMPTY_MESSAGES, type YelpSearchStatus, type EmptyReason, type ReviewRejections, type Intent, type NearbyResult } from "../supabase/functions/_shared/nearby.ts";
 import "./nearby-suggestions.css";
 
+type NearbyPhoto = { url: string; alt: string; label: string; credit?: UnsplashPhoto["credit"]; selection?: UnsplashPhoto };
+
 export function NearbySuggestions() {
   const { trip, s, overlay, route, updateTrip, pendingTripIds, go } = useApp();
   const preferredDate = overlay?.data?.date;
@@ -31,14 +33,17 @@ export function NearbySuggestions() {
     if (!results?.length || !trip) return;
     const controller = new AbortController();
     const photoArea = planningContext(trip, s.userId || "", date, intent, overlay?.data?.event).area;
+    // Share the wider lookup across cards and keep it lazy when venue searches succeed.
+    let areaSearch: Promise<UnsplashPhoto[]> | undefined;
+    const areaPhotos = () => areaSearch ??= (photoArea ? searchDestinationPhotos(photoArea, controller.signal).catch(() => []) : Promise.resolve([]));
     void Promise.all(results.slice(0, 3).map(async result => {
-      try {
-        const found = await searchDestinationPhotos(result.name + " " + result.address + " " + photoArea, controller.signal);
-        return [result.name, found[0]] as const;
-      } catch { return [result.name, undefined] as const; }
+      const found = await searchDestinationPhotos(result.name + " " + result.address + " " + photoArea, controller.signal).catch(() => []);
+      if (controller.signal.aborted) return [result.name, undefined] as const;
+      const photo = found[0] || (await areaPhotos())[0];
+      return [result.name, photo ? { url: photo.url, alt: photo.alt, label: found[0] ? "Illustrative travel photo" : `Area photo · ${photoArea}`, credit: photo.credit, selection: photo } : undefined] as const;
     })).then(entries => {
       if (!controller.signal.aborted) {
-        const available: Record<string, UnsplashPhoto> = {};
+        const available: Record<string, NearbyPhoto> = {};
         for (const [name, photo] of entries) if (photo) available[name] = photo;
         setPhotos(available);
       }
@@ -49,6 +54,8 @@ export function NearbySuggestions() {
   const context = planningContext(trip, s.userId || "", date, intent, overlay?.data?.event);
   const isDemo = trip.persistence !== "account";
   const pending = pendingTripIds.includes(trip.id);
+  const bundledPhoto: NearbyPhoto = { url: `${import.meta.env.BASE_URL}images/${intent === "activity" ? "city" : "food"}.jpg`, alt: intent === "activity" ? "Illustrative city scene" : "Illustrative dining scene", label: "Illustrative photo · not the suggested venue" };
+  const fallbackPhoto: NearbyPhoto = trip.image ? { url: trip.image, alt: "Trip cover used to illustrate this idea", label: "Trip cover · not the suggested venue", credit: trip.imageCredit } : bundledPhoto;
   async function research() {
     if (!trip || isDemo || pending) return;
     request.current?.abort();
@@ -97,12 +104,12 @@ export function NearbySuggestions() {
     if (!trip || preparing || !canEdit(trip,s.userId,date)) return;
     const generation = ++continuation.current;
     setPreparing(true); setAddError("");
-    const photo = photos[selected.name];
+    const photo = photos[selected.name] || fallbackPhoto;
     try {
-      if (photo) await trackUnsplashSelection(photo.downloadLocation);
+      if (photo.selection) await trackUnsplashSelection(photo.selection.downloadLocation);
       if (generation !== continuation.current) return;
       const sourceNotes = resultNotes(selected);
-      const photoNote = photo ? "\nPhoto by " + photo.credit.name + " on Unsplash: " + photo.credit.photoUrl : "";
+      const photoNote = "\n" + photo.label + (photo.credit ? ". Photo by " + photo.credit.name + " on Unsplash: " + photo.credit.photoUrl : "");
       const params: Record<string, string> = {
         suggestion: selected.name,
         place: resultPlace(selected),
@@ -115,7 +122,7 @@ export function NearbySuggestions() {
       };
       if (selected.proposedTime) { params.start = selected.proposedTime.start; params.end = selected.proposedTime.end; }
       if (selected.pricePerPersonCents !== null && selected.currency === "USD") params.cost = (selected.pricePerPersonCents / 100).toFixed(2);
-      if (photo) params.image = photo.url;
+      params.image = photo.url;
       go(7, params);
     } catch (cause) {
       if (generation === continuation.current) setAddError(cause instanceof Error ? cause.message : "Could not prepare this itinerary item. Try again.");
@@ -151,20 +158,20 @@ export function NearbySuggestions() {
         {diagnostics.yelpStatus && Object.hasOwn(YELP_SEARCH_MESSAGES, diagnostics.yelpStatus) && <p>{YELP_SEARCH_MESSAGES[diagnostics.yelpStatus]} {diagnostics.yelpSourcesUsed ?? 0} Yelp excerpt{diagnostics.yelpSourcesUsed === 1 ? "" : "s"} used.</p>}
         {Object.entries(diagnostics.rejected).length > 0 && <ul>{Object.entries(diagnostics.rejected).map(([reason, count]) => <li key={reason}>{count} removed: {reason === "evidence" ? "insufficient source evidence" : reason === "budget" ? "above a saved budget" : reason === "conflicts" ? "flagged constraint conflict" : reason === "duplicates" ? "duplicate place" : "incomplete or invalid details"}</li>)}</ul>}
       </details>}
-      <div className="nearby-result-grid">{results.map((result, index) => { const links = nearbyListingLinks(result, context); const photo = photos[result.name]; return <article className="nearby-result" key={result.name + index}>
-        {photo && <img className="nearby-result-photo" src={photo.url} alt={photo.alt} loading="lazy" />}
+      <div className="nearby-result-grid">{results.map((result, index) => { const links = nearbyListingLinks(result, context); const photo = photos[result.name] || fallbackPhoto; return <article className="nearby-result" key={result.name + index}>
+        <img className="nearby-result-photo" src={photo.url} alt={photo.alt} loading="lazy" onError={() => setPhotos(current => current[result.name]?.url === bundledPhoto.url ? current : { ...current, [result.name]: bundledPhoto })} />
         <h4>{result.name}</h4><p>{result.address}</p><p>{result.reason}</p>
         <aside className="nearby-fit-note"><strong>A thought for your day</strong><p>{result.fitNote || result.reason}</p></aside>
-        {photo && <small className="nearby-photo-credit">Photo by <a href={photo.credit.profileUrl} target="_blank" rel="noreferrer">{photo.credit.name}</a> on <a href={photo.credit.photoUrl} target="_blank" rel="noreferrer">Unsplash</a></small>}
+        <small className="nearby-photo-credit">{photo.label}{photo.credit && <> · Photo by <a href={photo.credit.profileUrl} target="_blank" rel="noreferrer">{photo.credit.name}</a> on <a href={photo.credit.photoUrl} target="_blank" rel="noreferrer">Unsplash</a></>}</small>
         <div className="nearby-listing-links">
           <a href={links.maps} target="_blank" rel="noopener noreferrer" title={`Search Google Maps for ${result.name}`}>View on Google Maps <ExternalLink size={14} aria-hidden="true" /></a>
           <a href={links.yelp} target="_blank" rel="noopener noreferrer" title={links.yelpIsListing ? `Open the sourced Yelp business page for ${result.name}` : `Search Yelp for ${result.name}`}>View on Yelp <ExternalLink size={14} aria-hidden="true" /></a>
         </div>
-        <p className="nearby-proposed-time"><Clock size={17} aria-hidden="true" />{result.proposedTime ? `${timeText(result.proposedTime.start)}–${timeText(result.proposedTime.end)} · provisional gap in ${context.zone}` : "No suitable time gap found"}</p>
+        <p className="nearby-proposed-time"><Clock size={17} aria-hidden="true" />{result.kind === "guide" ? "Explore activities before choosing a time" : result.proposedTime ? `${timeText(result.proposedTime.start)}–${timeText(result.proposedTime.end)} · provisional gap in ${context.zone}` : "No suitable time gap found"}</p>
         <p>{result.pricePerPersonCents !== null && result.currency ? `${(result.pricePerPersonCents / 100).toFixed(2)} ${result.currency} per person · source estimate` : "Price not confirmed"}</p>
         <ul>{result.facts.filter(f => safeSource(f.sourceUrl)).map((fact, i) => <li key={i}><strong>{fact.topic}: </strong>{fact.detail} <a href={fact.sourceUrl} target="_blank" rel="noopener noreferrer">{isYelpSource(fact.sourceUrl) ? "Yelp source" : `Source ${i + 1}`}</a></li>)}</ul>
         <details><summary>What needs confirmation</summary><ul>{result.concerns.map((concern, i) => <li key={i}>{concern}</li>)}</ul></details>
-        {trip.persistence === "account" && <div className="nearby-result-actions"><Button variant="outline" disabled={pending || preparing || !canEdit(trip,s.userId,date)} onClick={() => void continueToEvent(result)}>Review and add to this day</Button>{canSave && <Button variant="text" disabled={pending || alreadyKept(result)} onClick={() => saveForLater(result)}>{alreadyKept(result) ? "Already in your plans" : "Save for later"}</Button>}</div>}
+        {result.kind === "guide" ? <a href={result.facts[0]?.sourceUrl} target="_blank" rel="noopener noreferrer">Explore city and region ideas <ExternalLink size={14} aria-hidden="true" /></a> : trip.persistence === "account" && <div className="nearby-result-actions"><Button variant="outline" disabled={pending || preparing || !canEdit(trip,s.userId,date)} onClick={() => void continueToEvent(result)}>Review and add to this day</Button>{canSave && <Button variant="text" disabled={pending || alreadyKept(result)} onClick={() => saveForLater(result)}>{alreadyKept(result) ? "Already in your plans" : "Save for later"}</Button>}</div>}
       </article>; })}</div>
     </section>}
     {!canEdit(trip,s.userId,date) && <p className="fine-print">You can research ideas. An editor with access to this day will need to schedule them.</p>}

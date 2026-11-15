@@ -28,13 +28,14 @@ export function createNearbyHandler(config: { enabled: boolean; groq?: string; t
       let context;
       try { context = planningContext({ ...row.content, id: row.tripID, start: row.start_date, end: row.end_date, zone: row.timezone, destinations: row.destinations }, actor, body.date, body.intent, body.anchorId); }
       catch { return reply({ message: "Choose a day within this trip." }, 400); }
-      if (!context.area || !context.gaps.length) return reply({ results: [], emptyReason: !context.area ? "missing_area" : "no_time", checkedAt: new Date().toISOString() });
+      if (!context.area) return reply({ results: [], emptyReason: "missing_area", checkedAt: new Date().toISOString() });
       if (!config.enabled || !config.groq || !config.tavily) return reply({ message: "Nearby research is not connected yet. Your trip and preferences are ready; please try again once the service is enabled." }, 503);
       assertContextFits(context); // Reject oversized context before consuming any quota.
       reservation = await service.reserve(actor);
       const research = await researchWithFreeProviders(context, { groq: config.groq, tavily: config.tavily }, fetcher);
       const rejected: ReviewRejections = {};
-      const results = reviewCandidates(research.candidates, context, research.sources, rejected);
+      const reviewed = reviewCandidates(research.candidates, context, research.sources, rejected);
+      const results = reviewed.length ? reviewed : research.guides || [];
       if (research.candidateCount && !research.candidates.length) rejected.invalid = research.candidateCount;
       const reasons = Object.keys(rejected) as (keyof ReviewRejections)[];
       const emptyReason: EmptyReason | undefined = results.length ? undefined : !research.sourceCount ? "no_sources" : !research.candidateCount ? "no_candidates" : reasons.length === 1 ? reasons[0] : "filtered";

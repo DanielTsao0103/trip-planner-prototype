@@ -72,6 +72,50 @@ test("account popup displays sourced review candidates, resets stale results and
   await expect(dialog.getByRole("heading", { name: "Options to review" })).toHaveCount(0);
   expect(requests).toHaveLength(1);
 });
+test("suggestions retain a loaded illustrative photo when venue and area searches fail", async ({ page }) => {
+  const queries: string[] = [];
+  await page.route("**/images/seattle.jpg", route => route.abort());
+  await account(page, () => ({ json: { results: [{ name: "Photo fallback venue", address: "Seattle", reason: "A researched option", durationMinutes: 60, pricePerPersonCents: null, currency: null, facts: [{ topic: "Venue", detail: "Test source fact", sourceUrl: "https://example.com/venue" }], concerns: [], conflicts: [], status: "review", proposedTime: { start: "12:00", end: "13:00" } }] } }));
+  await page.route("**/functions/v1/unsplash-search**", route => {
+    queries.push(new URL(route.request().url()).searchParams.get("query") || "");
+    return route.fulfill({ status: 503, json: { message: "Photo service unavailable" } });
+  });
+  const dialog = page.getByRole("dialog", { name: "Nearby suggestions" });
+  await dialog.getByRole("button", { name: "Find nearby suggestions", exact: true }).click();
+  await expect(dialog.getByRole("heading", { name: "Photo fallback venue", exact: true })).toBeVisible();
+  const photo = dialog.locator(".nearby-result-photo");
+  await photo.scrollIntoViewIfNeeded();
+  await expect(photo).toHaveAttribute("src", /\/images\/food\.jpg$/);
+  await expect.poll(() => photo.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await expect(dialog).toContainText("Illustrative photo · not the suggested venue");
+  await expect.poll(() => queries.length).toBe(2);
+  expect(queries[0]).toContain("Photo fallback venue");
+  expect(queries[1]).toBe("Seattle");
+  await expect(dialog.locator(".nearby-photo-credit")).not.toContainText("Unsplash");
+});
+
+test("city guide fallback displays a photo and source exploration without scheduling or fit claims", async ({ page }) => {
+  const source = "https://tourism.example/seattle/things-to-do";
+  await account(page, () => ({ json: { results: [{ name: "Explore Seattle and the surrounding region", address: "Seattle", kind: "guide", reason: "Explore this city guide for broader activity ideas.", fitNote: "This source can help you find an activity to review with your group.", durationMinutes: 60, pricePerPersonCents: null, currency: null, facts: [{ topic: "City guide", detail: "Discover local attractions, parks, and cultural activities.", sourceUrl: source }], concerns: ["Choose a specific activity and confirm travel time, accessibility and cost before scheduling."], conflicts: [], status: "review", proposedTime: null }] } }));
+  const dialog = page.getByRole("dialog", { name: "Nearby suggestions" });
+  await dialog.getByRole("button", { name: "Find nearby suggestions", exact: true }).click();
+  const card = dialog.locator(".nearby-result");
+  await expect(card.getByRole("heading", { name: "Explore Seattle and the surrounding region", exact: true })).toBeVisible();
+  const explore = card.getByRole("link", { name: "Explore city and region ideas", exact: true });
+  await explore.scrollIntoViewIfNeeded();
+  await expect(explore).toHaveAttribute("href", source);
+  await expect(explore).toHaveAttribute("target", "_blank");
+  await expect(card.getByRole("button", { name: "Review and add to this day", exact: true })).toHaveCount(0);
+  await expect(card).toContainText("Explore activities before choosing a time");
+  await expect(card).toContainText("Price not confirmed");
+  await expect(card).not.toContainText(/provisional gap|No suitable time gap found|per person|within.*budget/i);
+  const image = card.locator(".nearby-result-photo");
+  await image.scrollIntoViewIfNeeded();
+  await expect.poll(() => image.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  await page.screenshot({ path: test.info().outputPath("city-guide.png") });
+});
+
 test("a sourced Yelp business page opens directly and supplemental availability is explained", async ({ page }) => {
   const source = "https://www.yelp.com/biz/fixture-venue-seattle";
   await account(page, () => ({ json: { results: [{ name: "Fixture venue", address: "Address needs confirmation from the venue", reason: "Fixture", durationMinutes: 60, pricePerPersonCents: null, currency: null, facts: [{ topic: "Menu", detail: "Fixture Yelp excerpt", sourceUrl: source }], concerns: ["Confirm with venue"], conflicts: [], status: "review", proposedTime: null }], diagnostics: { sourcesFound: 2, sourcesUsed: 2, candidatesReturned: 1, rejected: {}, yelpStatus: "found", yelpSourcesUsed: 1 } } }));

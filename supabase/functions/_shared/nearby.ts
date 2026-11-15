@@ -98,7 +98,7 @@ export type Candidate = {
   facts: { topic: string; detail: string; sourceUrl: string }[];
   concerns: string[]; conflicts: string[];
 };
-export type NearbyResult = Candidate & { proposedTime: { start: string; end: string } | null; status: "review" };
+export type NearbyResult = Candidate & { proposedTime: { start: string; end: string } | null; status: "review"; kind?: "guide" };
 export const YELP_SEARCH_MESSAGES = {
   found: "Public Yelp results were found. Available excerpts may be incomplete; confirm critical details with the venue.",
   no_results: "The targeted Yelp search returned no usable public excerpts. Other retrieved sources are still considered.",
