@@ -8,6 +8,8 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 ## Corrections & Lessons Learned
 
+- Preliminary OKR correction (November 14, 2026): show recorded activity immediately, clearly labeled Preliminary. Before two complete UTC days, show today's access percentage; then show cadence over the shorter completed-day period until an official 14-day result exists. Preserve the official denominator and calculation. Show a single activity chart during baseline collection, including the partial launch day, instead of an empty return-rate chart; never call preliminary performance Target met.
+
 - Mobile Calendar correction (November 14, 2026): default to the actual time grid, not an agenda. Fit readable day columns to available space, show several days in landscape, and retain the viewed day when rotating. Keep Agenda as an explicit optional view.
 
 - November 14 site audit lesson: keep the focused planning date separate from visible map days. Persist both through navigation and event editing; re-evaluate date filters when collaborators add a new date, and fit visible pins after explicit day changes. A map fixture validates controls, not real provider imagery.

@@ -1,5 +1,17 @@
 import { getSupabase } from "./supabase.ts";
 
+/** A shorter completed-day window, kept separate from the official OKR. */
+export interface PreliminaryOkr1Metrics {
+  windowStart: string;
+  windowEnd: string;
+  observedDays: number;
+  eligiblePlanners: number;
+  consistentPlanners: number;
+  retentionPercent: number | null;
+  // Includes the partial launch day; today comes from activeToday.
+  daily: { date: string; activeUsers: number }[];
+}
+
 /** Aggregate-only response: no traveler names, email addresses or trip content. */
 export interface Okr1Metrics {
   trackingStartedAt: string;
@@ -28,6 +40,7 @@ export interface Okr1Metrics {
   lastActivityAt: string | null;
   daily: { date: string; activeUsers: number }[];
   trend: { date: string; percent: number | null; allUserPercent: number | null }[];
+  preliminary?: PreliminaryOkr1Metrics;
 }
 
 const counts = ["observedDays", "windowDays", "registeredUsers", "planners", "currentPlanners", "savedTrips", "sharedTrips", "sharingOwners", "acceptedCollaborators", "eligiblePlanners", "consistentPlanners", "eligibleUsers", "consistentUsers", "activeToday", "activeYesterday", "activeInWindow", "newPlanners"] as const;
@@ -54,7 +67,33 @@ export function parseOkr1Metrics(raw: unknown): Okr1Metrics {
       throw new Error("The dashboard returned an invalid percentage.");
     }
   }
+  // Optional for compatibility with the previously deployed aggregate endpoint.
+  const early = value.preliminary;
+  if (early !== undefined && (!early || !isDate(early.windowStart) || !isDate(early.windowEnd)
+    || !isCount(early.observedDays) || early.observedDays > value.windowDays
+    || !isCount(early.eligiblePlanners) || !isCount(early.consistentPlanners)
+    || early.consistentPlanners > early.eligiblePlanners || !isRate(early.retentionPercent)
+    || ((early.observedDays < 2 || early.eligiblePlanners === 0) && early.retentionPercent !== null)
+    || !Array.isArray(early.daily) || early.daily.some(day => !isDate(day.date) || !isCount(day.activeUsers)))) {
+    throw new Error("The dashboard returned incomplete preliminary data.");
+  }
   return value;
+}
+
+/** Today's activity is useful immediately, but never labels one day as cadence. */
+export function okr1Display(data: Okr1Metrics) {
+  if (data.retentionPercent !== null) return {
+    kind: "official" as const, percent: data.retentionPercent,
+    eligible: data.eligiblePlanners, consistent: data.consistentPlanners,
+  };
+  if (data.preliminary?.retentionPercent !== null && data.preliminary?.retentionPercent !== undefined) return {
+    kind: "preliminary" as const, percent: data.preliminary.retentionPercent,
+    eligible: data.preliminary.eligiblePlanners, consistent: data.preliminary.consistentPlanners,
+  };
+  return {
+    kind: "today" as const, percent: data.planners > 0 ? 100 * data.activeToday / data.planners : null,
+    eligible: data.planners, consistent: data.activeToday,
+  };
 }
 
 /** Only the database's current admin decision may authorize this report. */

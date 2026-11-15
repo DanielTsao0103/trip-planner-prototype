@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { formatOkrPercent, parseOkr1Metrics, type Okr1Metrics } from './okr1.ts';
+import { formatOkrPercent, okr1Display, parseOkr1Metrics, type Okr1Metrics } from './okr1.ts';
 import { canTrackTripPlan } from './trip-plan-tracking.ts';
 
 const metrics: Okr1Metrics = {
@@ -26,4 +26,19 @@ test('only genuine saved plans count, never sample, local, auth or admin pages',
  assert.equal(canTrackTripPlan(false,'account',false,8),false);
  assert.equal(canTrackTripPlan(true,'account',true,8),false);
  assert.equal(canTrackTripPlan(true,undefined,false,8),false);
+});
+
+test('preliminary display separates daily activity, short cadence and the official result',()=>{
+ const early={...metrics,retentionPercent:null,observedDays:0};
+ assert.deepEqual(okr1Display(early),{kind:'today',percent:42,eligible:100,consistent:42});
+ assert.equal(okr1Display({...early,planners:0,activeToday:0}).percent,null);
+ assert.equal(okr1Display({...early,activeToday:0}).percent,0);
+ const preliminary={windowStart:'2026-11-13',windowEnd:'2026-11-14',observedDays:2,eligiblePlanners:10,consistentPlanners:9,retentionPercent:90,daily:[]};
+ assert.deepEqual(okr1Display({...early,preliminary}),{kind:'preliminary',percent:90,eligible:10,consistent:9});
+ assert.equal(okr1Display({...metrics,preliminary}).kind,'official');
+ assert.equal(okr1Display({...early,preliminary:{...preliminary,consistentPlanners:0,retentionPercent:0}}).percent,0);
+ for(const invalid of [{...preliminary,observedDays:1},{...preliminary,eligiblePlanners:0},{...preliminary,consistentPlanners:11},{...preliminary,retentionPercent:101},{...preliminary,daily:[{date:'bad',activeUsers:2}]}]) {
+  assert.throws(()=>parseOkr1Metrics({...early,preliminary:invalid}));
+ }
+ assert.deepEqual(parseOkr1Metrics({...early,preliminary}).preliminary,preliminary);
 });

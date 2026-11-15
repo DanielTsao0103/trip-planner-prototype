@@ -61,8 +61,14 @@ try {
  insert into public.admin_email(email) values(${sqlQuote(owner.email)});`);
  latestMetrics=check(await owner.client.rpc('get_daniel_okr_metrics',{p_days:14}));
  verify('approved admin receives aggregate-only metrics contract',()=>{
-  for(const key of ['trackingStartedAt','windowStart','windowEnd','observedDays','windowDays','targetPercent','registeredUsers','planners','currentPlanners','savedTrips','sharedTrips','sharingOwners','acceptedCollaborators','eligiblePlanners','consistentPlanners','eligibleUsers','consistentUsers','retentionPercent','allUserRetentionPercent','activeToday','activeYesterday','activeInWindow','newPlanners','lastActivityAt','daily','trend'])assert.ok(key in latestMetrics,key);
+  for(const key of ['trackingStartedAt','windowStart','windowEnd','observedDays','windowDays','targetPercent','registeredUsers','planners','currentPlanners','savedTrips','sharedTrips','sharingOwners','acceptedCollaborators','eligiblePlanners','consistentPlanners','eligibleUsers','consistentUsers','retentionPercent','allUserRetentionPercent','activeToday','activeYesterday','activeInWindow','newPlanners','lastActivityAt','daily','trend','preliminary'])assert.ok(key in latestMetrics,key);
   assert.equal(latestMetrics.targetPercent,85);
+  const early=latestMetrics.preliminary;
+  assert.equal(early.observedDays,latestMetrics.observedDays);
+  assert.ok(Array.isArray(early.daily));
+  assert.ok(latestMetrics.activeToday>=2);
+  if(early.observedDays<2 || early.eligiblePlanners===0)assert.equal(early.retentionPercent,null);
+  else assert.equal(early.retentionPercent,Math.round(1000*early.consistentPlanners/early.eligiblePlanners)/10);
   if(latestMetrics.observedDays<14){assert.equal(latestMetrics.retentionPercent,null);assert.equal(latestMetrics.eligiblePlanners,0);}
   else {assert.equal(latestMetrics.retentionPercent,latestMetrics.eligiblePlanners===0?null:Math.round(1000*latestMetrics.consistentPlanners/latestMetrics.eligiblePlanners)/10);} 
   const serialized=JSON.stringify(latestMetrics);for(const account of accounts){assert.equal(serialized.includes(account.id),false);assert.equal(serialized.includes(account.email),false);}
@@ -73,8 +79,8 @@ try {
  const revokedAdmin=await owner.client.rpc('get_daniel_okr_metrics',{p_days:14});verify('admin revocation takes effect without token refresh',()=>assert.equal(revokedAdmin.error?.code,'42501'));
  const privileges=await sql(`select relname,relrowsecurity,has_table_privilege('authenticated',c.oid,'select,insert,update,delete') as account_access,has_table_privilege('anon',c.oid,'select,insert,update,delete') as anon_access from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='private' and relname in('plan_access_day','plan_user_cohort','plan_tracking_settings')`,true);
  verify('private telemetry tables enforce RLS with no client data grants',()=>{assert.equal(privileges.length,3);assert.ok(privileges.every(row=>row.relrowsecurity&&!row.account_access&&!row.anon_access));});
- const fn=await sql(`select n.nspname,p.proname,p.prosecdef,p.proconfig,has_function_privilege('anon',p.oid,'execute') as anon_execute from pg_proc p join pg_namespace n on n.oid=p.pronamespace where p.proname in('record_trip_plan_access','get_daniel_okr_metrics')`,true);
- verify('public wrappers are invokers, privileged helpers private, anon denied',()=>{assert.equal(fn.length,4);assert.ok(fn.every(row=>row.prosecdef===(row.nspname==='private')&&!row.anon_execute&&row.proconfig.some(value=>value.startsWith('search_path='))));});
+ const fn=await sql(`select n.nspname,p.proname,p.prosecdef,p.proconfig,has_function_privilege('anon',p.oid,'execute') as anon_execute from pg_proc p join pg_namespace n on n.oid=p.pronamespace where p.proname in('record_trip_plan_access','get_daniel_okr_metrics','get_daniel_okr_preliminary_metrics')`,true);
+ verify('public wrappers are invokers, privileged helpers private, anon denied',()=>{assert.equal(fn.length,5);assert.ok(fn.every(row=>row.prosecdef===(row.nspname==='private')&&!row.anon_execute&&row.proconfig.some(value=>value.startsWith('search_path='))));});
  console.log(`${checks} live telemetry/authorization checks passed.`);
 } finally {
  const errors=[];

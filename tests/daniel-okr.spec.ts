@@ -55,16 +55,16 @@ test('admin sees real metrics, denominator definitions and responsive chart tabl
 
 test('new tracking never invents retention or historical activity and can recover from denial',async({page},info)=>{
  const state=await api(page);state.metrics={...fixture,observedDays:0,eligiblePlanners:0,consistentPlanners:0,eligibleUsers:0,consistentUsers:0,retentionPercent:null,allUserRetentionPercent:null,daily:[],trend:[],activeToday:0,lastActivityAt:null};
- await login(page);await page.goto('./#/21');await expect(page.getByTestId('okr1-percent')).toHaveText('—');
- await expect(page.getByText('Collecting baseline',{exact:true})).toBeVisible();
- await expect(page.getByText('0 of 14 complete tracking days available.',{exact:false})).toBeVisible();
+ await login(page);await page.goto('./#/21');await expect(page.getByTestId('okr1-percent')).toHaveText('0%');
+ await expect(page.getByText('Preliminary',{exact:true})).toBeVisible();
+ await expect(page.getByText('0 of 14 complete days collected',{exact:false})).toBeVisible();
  await expect(page.getByTestId('okr1-trend-line')).toHaveCount(0);
  await page.screenshot({path:info.outputPath('dashboard-baseline.png'),fullPage:true});
  state.fail=true;await page.getByRole('button',{name:'Refresh data',exact:true}).click();
  await expect(page.getByRole('alert')).toContainText('Dashboard unavailable');
  await expect(page.getByTestId('okr1-percent')).toHaveCount(0);
  state.fail=false;await page.getByRole('button',{name:'Retry dashboard',exact:true}).click();
- await expect(page.getByTestId('okr1-percent')).toHaveText('—');
+ await expect(page.getByTestId('okr1-percent')).toHaveText('0%');
  expect(state.days.every(days=>days===14)).toBe(true);
 });
 
@@ -93,6 +93,50 @@ test('automatic refresh preserves expanded details and keyboard focus',async({pa
  await expect(definition).toBeFocused();
  await expect(page.getByRole('table',{name:'Rolling return rate, UTC'})).toBeVisible();
  await expect(page.getByText('Users who have saved a trip',{exact:false})).toBeVisible();
+});
+
+test('preliminary activity shows real visits, short cadence and graduation without claiming target success',async({page},info)=>{
+ const state=await api(page);
+ state.metrics={...fixture,trackingStartedAt:'2026-11-12T12:00:00Z',observedDays:1,retentionPercent:null,eligiblePlanners:0,consistentPlanners:0,daily:[{date:'2026-11-14',activeUsers:30}],trend:[],preliminary:{windowStart:'2026-11-14',windowEnd:'2026-11-14',observedDays:1,eligiblePlanners:0,consistentPlanners:0,retentionPercent:null,daily:[{date:'2026-11-12',activeUsers:12},{date:'2026-11-13',activeUsers:25},{date:'2026-11-14',activeUsers:30}]}};
+ await login(page);await page.goto('./#/21');
+ await expect(page.getByRole('heading',{name:'Plan access today',exact:true})).toBeVisible();
+ await expect(page.getByTestId('okr1-percent')).toHaveText('42%');
+ await expect(page.getByText('Preliminary',{exact:true})).toBeVisible();
+ await expect(page.getByText('Target met',{exact:true})).toHaveCount(0);
+ await page.getByRole('slider',{name:'Inspect day'}).fill('0');
+ await expect(page.locator('.okr1-chart-readout')).toContainText('12 people · Nov 12 · Partial day');
+ await page.getByText('View daily numbers',{exact:true}).click();
+ await expect(page.getByRole('table')).toContainText('Today so far');
+ const slider=page.getByRole('slider',{name:'Inspect day'});await slider.focus();
+ state.metrics.preliminary!.daily[0].activeUsers=13;
+ await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+ await expect(page.locator('.okr1-chart-readout')).toContainText('13 people · Nov 12');
+ await expect(slider).toBeFocused();
+ await expect(page.getByRole('table')).toBeVisible();
+ for(const width of info.project.name==='mobile'?[390,320]:[1440,768]){
+  await page.setViewportSize({width,height:900});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath(`preliminary-${width}.png`),fullPage:true});
+ }
+ await page.addScriptTag({content:axe.source});
+ for(const colorScheme of ['light','dark'] as const){
+  await page.emulateMedia({colorScheme});
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.style.colorScheme)).toBe(colorScheme);
+  expect(await page.evaluate(async()=> (await (window as any).axe.run('.daniel-dashboard',{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}})).violations)).toEqual([]);
+ }
+ state.metrics.observedDays=4;
+ state.metrics.preliminary={...state.metrics.preliminary!,windowStart:'2026-11-11',observedDays:4,eligiblePlanners:10,consistentPlanners:9,retentionPercent:90};
+ await page.getByRole('button',{name:'Refresh data',exact:true}).click();
+ await expect(page.getByTestId('okr1-percent')).toHaveText('90%');
+ await expect(page.getByText('9 of 10',{exact:true})).toBeVisible();
+ await expect(page.getByText('Target met',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('Early result, not the official 14-day score.',{exact:false})).toBeVisible();
+ state.metrics=structuredClone(fixture);
+ await page.getByRole('button',{name:'Refresh data',exact:true}).click();
+ await expect(page.getByTestId('okr1-percent')).toHaveText('85%');
+ await expect(page.getByText('Target met',{exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Activity so far'})).toHaveCount(0);
+ await expect(page.getByTestId('okr1-trend-line')).toBeVisible();
 });
 
 test('ordinary and demo accounts cannot request the aggregate dashboard',async({page})=>{
