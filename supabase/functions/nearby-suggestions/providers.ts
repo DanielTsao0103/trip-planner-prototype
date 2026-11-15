@@ -71,7 +71,7 @@ export function researchQueries(context: PlanningContext) {
   const queries = [
     `${filters} ${category} near ${area} ${context.intent === "activity" ? "official tourism visitor information" : "official venue website menu"} opening hours prices accessibility`,
     `${filters} ${category} near ${area} Yelp business reviews ${context.access.length ? "accessibility" : ""}`,
-    `official tourism visitor guide popular local activities public attractions things to do in ${destination}${region ? ` and surrounding region ${region}` : " and surrounding area"} hours access`,
+    `things to do in ${destination} official tourism attractions${region ? ` surrounding region ${region}` : " surrounding area"}`,
   ];
   // If a venue or small neighborhood is too narrow, widen to the trip's saved
   // city/region. For meals, include sourced city activities as alternatives;
@@ -94,7 +94,7 @@ export async function researchWithFreeProviders(context: PlanningContext, keys: 
     const supplemental = index === 1;
     const optionalSearch = index > 0;
     let response: Response;
-    try { response = await fetcher("https://api.tavily.com/search", { method: "POST", headers: { Authorization: `Bearer ${keys.tavily}`, "Content-Type": "application/json" }, signal: AbortSignal.timeout(8000), body: JSON.stringify({ query, search_depth: "basic", auto_parameters: false, topic: "general", max_results: 3, include_answer: false, include_raw_content: false, include_images: false, include_usage: true, ...(supplemental ? { include_domains: ["yelp.com"], include_domains_mode: "restrict" } : {}) }) }); }
+    try { response = await fetcher("https://api.tavily.com/search", { method: "POST", headers: { Authorization: `Bearer ${keys.tavily}`, "Content-Type": "application/json" }, signal: AbortSignal.timeout(8000), body: JSON.stringify({ query, search_depth: "basic", auto_parameters: false, topic: "general", max_results: 3, include_answer: false, include_raw_content: false, include_images: false, include_usage: true, ...(supplemental ? { include_domains: ["yelp.com"], include_domains_mode: "restrict" } : index === 2 ? { exclude_domains: ["youtube.com", "youtu.be", "tiktok.com", "instagram.com", "facebook.com"] } : {}) }) }); }
     catch { if (supplemental) yelpUnavailable = true; if (optionalSearch) continue; throw new ResearchError("The search service did not respond. Please try later."); }
     if (!response.ok && optionalSearch && ![401, 429, 432].includes(response.status)) { if (supplemental) yelpUnavailable = true; continue; }
     if (!response.ok) throw new ResearchError(response.status === 429 || response.status === 432 ? "The free search allowance is temporarily exhausted. Please try after it resets." : "The search service could not complete this request.", response.status === 429 || response.status === 432 ? 429 : 502);
@@ -109,7 +109,7 @@ export async function researchWithFreeProviders(context: PlanningContext, keys: 
   const yelpStatus: YelpSearchStatus = yelp.length ? "found" : yelpUnavailable ? "unavailable" : "no_results";
   // A retrieved city guide is useful even when no individual venue can be
   // verified. It is an exploration link, never a schedulable venue or meal.
-  const guides: NearbyResult[] = web.filter(source => source.stage === 2).slice(0, 3).map(source => ({
+  const guides: NearbyResult[] = web.filter(source => source.stage === 2 && !/(^|\.)(youtube\.com|youtu\.be|tiktok\.com|instagram\.com|facebook\.com)$/.test(new URL(source.url).hostname)).slice(0, 3).map(source => ({
     kind: "guide", name: source.title.slice(0, 160), address: context.area,
     reason: "City and region inspiration · explore this source for things to do.",
     fitNote: "We broadened the search to city and regional ideas. Browse this guide to choose an activity, then confirm its location and your group’s requirements before adding it to your plans.",

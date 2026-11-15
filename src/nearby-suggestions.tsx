@@ -19,7 +19,7 @@ export function NearbySuggestions() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<NearbyResult[] | null>(null);
-  const [photos, setPhotos] = useState<Record<string, UnsplashPhoto>>({});
+  const [photos, setPhotos] = useState<Record<string, NearbyPhoto>>({});
   const [preparing, setPreparing] = useState(false);
   const [addError, setAddError] = useState("");
   const [emptyReason, setEmptyReason] = useState<EmptyReason>("filtered");
