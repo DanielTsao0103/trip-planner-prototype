@@ -99,6 +99,7 @@ test('one bounded preview survives mixed input and changing viewport', async ({ 
 test('phone agenda keeps full event details and has no hover preview', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile', 'Touch agenda');
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Show agenda', exact: true }).click();
   const card = page.locator('.itcal-agenda-event').filter({ hasText: name });
   await card.scrollIntoViewIfNeeded();
   await expect(card).toContainText(place);

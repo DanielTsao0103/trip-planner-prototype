@@ -149,7 +149,7 @@ function CalendarEventPreview({ target, id, dismiss, ...pointerProps }: {
 export function WeeklyCalendar() {
   const { trip, s, go, updateTrip, open, toast, route } = useApp();
   const [page, setPage] = useState(0);
-  const [mobileGrid, setMobileGrid] = useState(false);
+  const [mobileGrid, setMobileGrid] = useState(true);
   const [desktopAgenda, setDesktopAgenda] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -164,6 +164,10 @@ export function WeeklyCalendar() {
   const grabOffset = useRef(0);
   const scrollRegion = useRef<HTMLDivElement>(null);
   const [gridOverflows, setGridOverflows] = useState(false);
+  const [dayWidth, setDayWidth] = useState(180);
+  const resizeAnchor = useRef<string | null>(null);
+  const resizeFocus = useRef<HTMLElement | null>(null);
+  const measuredWidth = useRef(0);
   const overflowHintId = useId();
   const calendarRegion = useRef<HTMLElement>(null);
   const [preview, setPreview] = useState<{ date: string; minute: number } | null>(null);
@@ -209,7 +213,50 @@ export function WeeklyCalendar() {
     document.addEventListener('keydown', escape);
     return () => { cancelAnimationFrame(frame); document.removeEventListener('keydown', escape); };
   }, [Boolean(selection)]);
-  useEffect(() => { cancelSelection(); }, [page, mobileGrid, desktopAgenda, trip?.id]);
+  // Fit whole, readable days to the calendar itself, including split-screen tablets.
+  useLayoutEffect(() => {
+    const region = scrollRegion.current;
+    if (!region) return;
+    const measure = () => {
+      if (!region.clientWidth) return;
+      const previousWidth = measuredWidth.current || region.clientWidth;
+      measuredWidth.current = region.clientWidth;
+      const available = region.clientWidth - 64;
+      const slots = Math.max(1, Math.min(7, Math.floor(available / 180)));
+      const width = window.matchMedia('(max-width: 1024px)').matches ? Math.max(180, available / slots) : 180;
+      if (Math.abs(width - dayWidth) < 0.5) return;
+      const edge = region.getBoundingClientRect().left + region.clientLeft + 64;
+      const headers = Array.from(region.querySelectorAll<HTMLElement>('.itcal-day-header'));
+      resizeAnchor.current = headers.find(header => header.getBoundingClientRect().right > edge + 1)?.dataset.calendarReturnDate || null;
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && region.contains(active) && active.matches('[data-calendar-return-event], [data-calendar-return-event] *')) {
+        const bounds = active.getBoundingClientRect();
+        // A visible keyboard target takes precedence; an event swiped away does not.
+        if (bounds.left >= edge - 1 && bounds.right <= edge - 64 + previousWidth + 1) {
+          resizeAnchor.current = active.closest<HTMLElement>('[data-calendar-date]')?.dataset.calendarDate || resizeAnchor.current;
+          resizeFocus.current = active;
+        }
+      }
+      setDayWidth(width);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(region);
+    window.addEventListener('resize', measure);
+    return () => { observer.disconnect(); window.removeEventListener('resize', measure); };
+  }, [dayWidth, trip?.id, mobileGrid, desktopAgenda]);
+  useLayoutEffect(() => {
+    const region = scrollRegion.current;
+    const date = resizeAnchor.current;
+    resizeAnchor.current = null;
+    if (!region || !date) return;
+    const header = region.querySelector<HTMLElement>(`.itcal-day-header[data-calendar-return-date="${date}"]`);
+    // Keep the swiped-to day when rotating; leave vertical position and focus alone.
+    if (header) region.scrollLeft += header.getBoundingClientRect().left - region.getBoundingClientRect().left - region.clientLeft - 64;
+    resizeFocus.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    resizeFocus.current = null;
+  }, [dayWidth]);
+  useEffect(() => { cancelSelection(); }, [page, mobileGrid, desktopAgenda, trip?.id, dayWidth]);
   useLayoutEffect(() => {
     const region = scrollRegion.current;
     const grid = region?.firstElementChild;
@@ -322,7 +369,7 @@ export function WeeklyCalendar() {
   const selected = trip.events.find(event => event.id === moving);
   const lanes = new Map(dates.map(date => [date, calendarLanes(orderedEvents(trip, date))]));
   // Give simultaneous events readable columns; the time grid scrolls as needed.
-  const dayWidths = dates.map(date => 180 * Math.max(1, ...Array.from(lanes.get(date)!.values(), lane => lane.columns)));
+  const dayWidths = dates.map(date => dayWidth * Math.max(1, ...Array.from(lanes.get(date)!.values(), lane => lane.columns)));
 
   function beginMove(id: string, opener: HTMLElement) {
     const event = trip!.events.find(item => item.id === id);

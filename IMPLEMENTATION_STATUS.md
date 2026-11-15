@@ -52,6 +52,8 @@ No schema or provider subscription was added. Account, Style, authentication, Bu
 
 ## Seven-day itinerary calendar
 
+Calendar opens as a time grid on phones as well as desktop. Compact layouts fit whole readable day columns to the calendar container: one on narrow phones, several in landscape, with horizontal scrolling for the remaining week. Rotation preserves the viewed day and visible keyboard target; overlapping events retain their readable lanes. Agenda remains an explicit alternative. Responsive sizing and rotation are covered in Chromium and WebKit.
+
 The itinerary can display a list or a seven-day time grid. Calendar drag/drop and the keyboard/touch Move dialog change the same event date/start/end fields through `updateTrip`, the existing save queue, and Supabase `save_trip_bundle`. Pointer moves snap to quarter hours; typed Edit/Move times retain exact minutes. Clicking or dragging empty time-grid space opens the existing event form with a prefilled date and range, with upward selection, Escape cancellation and edge scrolling. Touch swipes keep scrolling; the Add control remains available for touch and keyboard creation. Duration and event metadata are preserved. Existing trip date limits, source/target edit permissions, overlap validation, database ownership and revision conflict checks remain enforced. Failed account writes retain the recovery controls; sample trips stay browser-local. No parallel calendar data store or schema migration is needed.
 
 ## Event location search

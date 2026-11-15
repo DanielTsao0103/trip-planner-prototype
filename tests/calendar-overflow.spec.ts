@@ -10,6 +10,8 @@ test.beforeEach(async ({ page }) => {
 test('the cue follows visible measured overflow across agenda and viewport changes', async ({ page }, testInfo) => {
   const cue = page.locator('.calendar-overflow-hint');
   const grid = page.getByRole('region', { name: 'Scrollable seven-day calendar' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Show agenda', exact: true }).click();
   for (const width of [320, 390, 768, 1024]) {
     await page.setViewportSize({ width, height: 844 });
     await expect(page.getByRole('region', { name: 'Seven-day agenda' })).toBeVisible();
@@ -84,8 +86,6 @@ test('Viewer sees only navigation guidance with a readable dark tablet grid', as
   await controls.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await page.setViewportSize({ width: 768, height: 900 });
   await page.emulateMedia({ colorScheme: 'dark' });
-  await expect(page.locator('.calendar-overflow-hint')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Show time grid', exact: true }).click();
   await expect(page.locator('.calendar-overflow-hint')).toBeVisible();
   await expect(page.locator('.calendar-grid-help')).toHaveCount(0);
   await expect(page.getByText('Use Move to change an event’s date or time.', { exact: false })).toHaveCount(0);
@@ -106,6 +106,7 @@ for (const height of [600, 844]) test(`Move restores the visible agenda control 
     localStorage.setItem(key, JSON.stringify(state));
   });
   await page.reload();
+  await page.getByRole('button', { name: 'Show agenda', exact: true }).click();
   const move = page.getByRole('button', { name: 'Move A morning of art', exact: true });
   const dialog = page.getByRole('dialog', { name: 'Move event', exact: true });
   for (const start of ['10:07', '10:17']) {

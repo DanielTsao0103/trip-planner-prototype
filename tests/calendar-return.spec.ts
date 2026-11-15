@@ -87,11 +87,11 @@ test('saved-event focus follows the visible grid or agenda when changing view an
   await page.goto(`./#/8?view=calendar&date=${laterDate}&event=${laterEvent}`);
   await expectRevealed(page, visibleEvent(page, laterEvent));
   const phone = testInfo.project.name === 'mobile';
-  await page.getByRole('button', { name: phone ? 'Show time grid' : 'Show agenda', exact: true }).click();
+  await page.getByRole('button', { name: 'Show agenda', exact: true }).click();
   await expectRevealed(page, visibleEvent(page, laterEvent));
   await page.screenshot({ path: testInfo.outputPath('alternate-calendar-view.png') });
-  // Return to the default representation so crossing the breakpoint swaps it.
-  await page.getByRole('button', { name: phone ? 'Show agenda' : 'Show time grid', exact: true }).click();
+  // Return to the default representation and retain the saved event across the responsive layout.
+  await page.getByRole('button', { name: 'Show time grid', exact: true }).click();
   await expectRevealed(page, visibleEvent(page, laterEvent));
   await page.setViewportSize({ width: phone ? 1440 : 390, height: phone ? 900 : 600 });
   await expectRevealed(page, visibleEvent(page, laterEvent));

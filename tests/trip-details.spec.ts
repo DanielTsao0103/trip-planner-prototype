@@ -447,7 +447,7 @@ test('weekly calendar reschedules through the save API, reloads, and recovers fa
   await page.goto('./#/5'); await page.reload();
   await page.getByRole('button',{name:'Open itinerary',exact:true}).click();
   await page.getByRole('button',{name:'Calendar',exact:true}).click();
-  await expect(page.getByRole('region',{name: testInfo.project.name === 'desktop' ? 'Scrollable seven-day calendar' : 'Seven-day agenda'})).toBeVisible();
+  await expect(page.getByRole('region',{name: 'Scrollable seven-day calendar'})).toBeVisible();
   await expect(page.locator('.itcal-day-header')).toHaveCount(7);
   await page.getByRole('button',{name:'Next seven days',exact:true}).click();
   await expect(page.locator('.itcal-day-header').first()).toContainText('Jun 8');
