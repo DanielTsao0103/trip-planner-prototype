@@ -94,11 +94,19 @@ try {
       assert.equal(await card.getByRole("button", { name: "Review and add to this day", exact: true }).count(), 1);
     }
   }
-  if (result.results.length) {
-    const mapsLink = await page.getByRole("link", { name: "View on Google Maps", exact: true }).first().getAttribute("href");
-    const yelpLink = await page.getByRole("link", { name: "View on Yelp", exact: true }).first().getAttribute("href");
-    assert.equal(new URL(mapsLink).hostname, "www.google.com"); assert.equal(new URL(mapsLink).searchParams.get("api"), "1");
-    assert.ok(new URL(yelpLink).hostname === "www.yelp.com" || new URL(yelpLink).hostname.endsWith(".yelp.com"));
+  for (const [index, candidate] of result.results.entries()) {
+    const card = page.locator(".nearby-result").nth(index);
+    await card.getByText("More to consider", { exact: true }).click();
+    const maps = card.getByRole("link", { name: "View on Google Maps", exact: true });
+    if (await maps.count()) {
+      const url = await maps.getAttribute("href");
+      assert.ok(candidate.facts.some(fact => fact.sourceUrl === url));
+    } else {
+      const url = new URL(await card.getByRole("link", { name: "Search on Google", exact: true }).getAttribute("href"));
+      assert.equal(url.hostname, "www.google.com"); assert.ok(url.searchParams.get("q").startsWith(candidate.name));
+    }
+    if (candidate.kind === "guide") assert.equal(await card.getByRole("link", { name: "View on Yelp", exact: true }).count(), 0);
+    await card.getByText("More to consider", { exact: true }).click();
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator(".nearby-result").first().scrollIntoViewIfNeeded();

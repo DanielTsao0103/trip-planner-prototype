@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Clock, ExternalLink, MapPin, Search, ShieldCheck } from "lucide-react";
+import { ChevronDown, ExternalLink, MapPin, Search } from "lucide-react";
 import { useApp } from "./state";
 import { Button, Field, Modal } from "./ui";
 import { canEdit, days, dateText, member, money, timeText, uid } from "./domain";
@@ -164,7 +164,7 @@ export function NearbySuggestions() {
     {loading && <p role="status">Checking current sources against your plans and preferences. You can close this window to cancel.</p>}
     {error && <p role="alert" className="error-box">{error}</p>}
     {results !== null && <section className="nearby-results" aria-label="Research results" aria-live="polite">
-      <h3>Options to review</h3><p><ShieldCheck size={17} aria-hidden="true" /> These are researched candidates, not confirmed bookings or verified suitability.</p>
+      <h3>Options to review</h3>
       {!results.length && <div className="nearby-empty-explanation"><h4>{NEARBY_EMPTY_MESSAGES[emptyReason].title}</h4><p>{NEARBY_EMPTY_MESSAGES[emptyReason].message}</p>{diagnostics?.recoveryAttempted && <p>The AI made one follow-up pass using the same sources and trip constraints; it still found no supportable candidate.</p>}<p>{NEARBY_EMPTY_MESSAGES[emptyReason].action}</p></div>}
       {diagnostics && <details className="nearby-search-details"><summary>Search details</summary><p>{diagnostics.sourcesFound} sources found; {diagnostics.sourcesUsed} source excerpts used; {diagnostics.candidatesReturned} candidates returned{diagnostics.recoveryAttempted ? " after one follow-up pass" : ""}.</p>
         {diagnostics.yelpStatus && Object.hasOwn(YELP_SEARCH_MESSAGES, diagnostics.yelpStatus) && <p>{YELP_SEARCH_MESSAGES[diagnostics.yelpStatus]} {diagnostics.yelpSourcesUsed ?? 0} Yelp excerpt{diagnostics.yelpSourcesUsed === 1 ? "" : "s"} used.</p>}
@@ -172,17 +172,24 @@ export function NearbySuggestions() {
       </details>}
       <div className="nearby-result-grid">{results.map((result, index) => { const links = nearbyListingLinks(result, context); const photo = photos[result.name] || fallbackPhoto; return <article className="nearby-result" key={result.name + index}>
         <img className="nearby-result-photo" src={photo.url} alt={photo.alt} loading="lazy" onError={() => setPhotos(current => current[result.name]?.url === bundledPhoto.url ? current : { ...current, [result.name]: bundledPhoto })} />
-        <h4>{result.name}</h4><p>{result.address}</p><p>{result.reason}</p>
-        <aside className="nearby-fit-note"><strong>A thought for your day</strong><p>{result.fitNote || result.reason}</p></aside>
         <small className="nearby-photo-credit">{photo.label}{photo.credit && <> · Photo by <a href={photo.credit.profileUrl} target="_blank" rel="noreferrer">{photo.credit.name}</a> on <a href={photo.credit.photoUrl} target="_blank" rel="noreferrer">Unsplash</a></>}</small>
-        <div className="nearby-listing-links">
-          <a href={links.maps} target="_blank" rel="noopener noreferrer" title={`Search Google Maps for ${result.name}`}>View on Google Maps <ExternalLink size={14} aria-hidden="true" /></a>
-          <a href={links.yelp} target="_blank" rel="noopener noreferrer" title={links.yelpIsListing ? `Open the sourced Yelp business page for ${result.name}` : `Search Yelp for ${result.name}`}>View on Yelp <ExternalLink size={14} aria-hidden="true" /></a>
-        </div>
-        <p className="nearby-proposed-time"><Clock size={17} aria-hidden="true" />{result.kind === "guide" ? "Explore activities before choosing a time" : result.proposedTime ? `${timeText(result.proposedTime.start)}–${timeText(result.proposedTime.end)} · provisional gap in ${context.zone}` : "No suitable time gap found"}</p>
-        <p>{result.pricePerPersonCents !== null && result.currency ? `${(result.pricePerPersonCents / 100).toFixed(2)} ${result.currency} per person · source estimate` : "Price not confirmed"}</p>
-        <ul>{result.facts.filter(f => safeSource(f.sourceUrl)).map((fact, i) => <li key={i}><strong>{fact.topic}: </strong>{fact.detail} <a href={fact.sourceUrl} target="_blank" rel="noopener noreferrer">{isYelpSource(fact.sourceUrl) ? "Yelp source" : `Source ${i + 1}`}</a></li>)}</ul>
-        <details><summary>What needs confirmation</summary><ul>{result.concerns.map((concern, i) => <li key={i}>{concern}</li>)}</ul></details>
+        <h4>{result.name}</h4>
+        <aside className="nearby-fit-note"><strong>A thought for your day</strong><p>{result.fitNote || "Explore this option alongside your plans."}</p></aside>
+        <dl className="nearby-planning-details">
+          <dt>Proposed time</dt><dd>{result.kind === "guide" ? "Explore activities before choosing a time" : result.proposedTime ? `${timeText(result.proposedTime.start)}–${timeText(result.proposedTime.end)} · ${context.zone}` : "No suitable time gap found"}</dd>
+          <dt>{result.kind === "guide" ? "Area" : "Venue"}</dt><dd>{result.address}{result.facts.filter(f => safeSource(f.sourceUrl) && f.topic === "Venue" && f.detail !== result.address).map((fact, i) => <p className="nearby-venue-description" key={i}>{fact.detail}</p>)}</dd>
+          <dt>Price</dt><dd>{result.pricePerPersonCents !== null && result.currency ? `${(result.pricePerPersonCents / 100).toFixed(2)} ${result.currency} per person · source estimate` : "Price not confirmed"}</dd>
+          {result.facts.filter(f => safeSource(f.sourceUrl) && f.topic !== "Venue").map((fact, i) => <div className="nearby-planning-fact" key={i}><dt>{fact.topic === "Price" ? "Price details" : fact.topic}</dt><dd>{fact.detail}</dd></div>)}
+        </dl>
+        <details className="nearby-more"><summary>More to consider <ChevronDown size={16} aria-hidden="true" /></summary>
+          <div className="nearby-listing-links">
+            {links.maps ? <a href={links.maps} target="_blank" rel="noopener noreferrer">View on Google Maps <ExternalLink size={14} aria-hidden="true" /></a> : <a href={links.google} target="_blank" rel="noopener noreferrer">Search on Google <ExternalLink size={14} aria-hidden="true" /></a>}
+            {links.yelp && <a href={links.yelp} target="_blank" rel="noopener noreferrer" title={links.yelpIsListing ? `Open the sourced Yelp business page for ${result.name}` : `Search Yelp for ${result.name}`}>View on Yelp <ExternalLink size={14} aria-hidden="true" /></a>}
+          </div>
+          <h5>Sources</h5>
+          <ul className="nearby-source-links">{result.facts.filter(f => safeSource(f.sourceUrl)).map((fact, i) => <li key={i}><a href={fact.sourceUrl} target="_blank" rel="noopener noreferrer">{isYelpSource(fact.sourceUrl) ? "Yelp source" : `Source ${i + 1}`} <ExternalLink size={12} aria-hidden="true" /></a></li>)}</ul>
+          <div className="nearby-considerations fine-print"><p>Research ideas, not confirmed bookings. Check current hours, availability, travel time and your group’s needs.</p>{result.proposedTime && <p>Proposed times include a provisional travel buffer; the route has not been confirmed.</p>}<ul>{result.concerns.map((concern, i) => <li key={i}>{concern}</li>)}</ul></div>
+        </details>
         {result.kind === "guide" ? <a href={result.facts[0]?.sourceUrl} target="_blank" rel="noopener noreferrer">Explore city and region ideas <ExternalLink size={14} aria-hidden="true" /></a> : trip.persistence === "account" && <div className="nearby-result-actions"><Button variant="outline" disabled={pending || preparing || !canEdit(trip,s.userId,date)} onClick={() => void continueToEvent(result)}>Review and add to this day</Button>{canSave && <Button variant="text" disabled={pending || alreadyKept(result)} onClick={() => saveForLater(result)}>{alreadyKept(result) ? "Already in your plans" : "Save for later"}</Button>}</div>}
       </article>; })}</div>
     </section>}

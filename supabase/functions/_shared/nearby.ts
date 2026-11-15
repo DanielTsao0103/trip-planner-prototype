@@ -111,15 +111,22 @@ export function isYelpSource(value: string): boolean {
   return host === "yelp.com" || host.endsWith(".yelp.com");
 }
 /** Search links require no API key. Direct business links come only from cited evidence. */
-export function nearbyListingLinks(candidate: Candidate, context: Pick<PlanningContext, "area" | "destinations">) {
+export function nearbyListingLinks(candidate: Candidate & { kind?: "guide" }, context: Pick<PlanningContext, "area" | "destinations">) {
   const knownAddress = candidate.address && candidate.address !== "Address needs confirmation from the venue";
-  const location = knownAddress ? candidate.address : context.destinations.find(d => context.area.toLowerCase().includes(d.split(",")[0].trim().toLowerCase())) || context.area;
-  const maps = new URL("https://www.google.com/maps/search/");
-  maps.searchParams.set("api", "1"); maps.searchParams.set("query", `${candidate.name} ${knownAddress ? candidate.address : location}`.slice(0, 180));
+  // Use the anchor only to identify a saved destination, never as the suggested
+  // venue's address. A search URL does not establish a real Maps listing.
+  const location = knownAddress ? candidate.address : context.destinations.find(d => context.area.toLowerCase().includes(d.split(/[,，]/u)[0].trim().toLowerCase())) || (context.destinations.length === 1 ? context.destinations[0] : "");
+  const mapsSource = candidate.kind === "guide" ? undefined : candidate.facts.find(f => {
+    if (!safeSource(f.sourceUrl)) return false;
+    const url = new URL(f.sourceUrl), host = url.hostname.toLowerCase();
+    return ((host === "www.google.com" || host === "google.com" || host === "maps.google.com") && (url.pathname.startsWith("/maps/place/") || url.searchParams.has("cid") || url.searchParams.has("query_place_id"))) || host === "maps.app.goo.gl";
+  });
+  const google = new URL("https://www.google.com/search");
+  google.searchParams.set("q", candidate.kind === "guide" ? candidate.name : [candidate.name, location].filter(Boolean).join(" "));
   const yelpSource = candidate.facts.find(f => isYelpSource(f.sourceUrl) && new URL(f.sourceUrl).pathname.startsWith("/biz/"));
   const yelp = new URL("https://www.yelp.com/search");
   yelp.searchParams.set("find_desc", candidate.name.slice(0, 80)); yelp.searchParams.set("find_loc", location.slice(0, 110));
-  return { maps: maps.href, yelp: yelpSource?.sourceUrl || yelp.href, yelpIsListing: !!yelpSource };
+  return { maps: mapsSource?.sourceUrl || null, google: google.href, yelp: candidate.kind === "guide" ? null : yelpSource?.sourceUrl || yelp.href, yelpIsListing: !!yelpSource };
 }
 export function safeSource(value: unknown): value is string {
   if (typeof value !== "string") return false;

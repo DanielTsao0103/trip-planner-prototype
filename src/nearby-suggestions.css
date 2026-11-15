@@ -27,4 +27,22 @@
 .nearby-listing-links { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 8px 0; }
 .nearby-listing-links a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; text-underline-offset: 3px; }
 .nearby-listing-links a svg { margin: 0; }
+.nearby-planning-details { display: grid; grid-template-columns: minmax(80px, .35fr) minmax(0, 1fr); gap: 10px 14px; margin: 16px 0; line-height: 1.5; }
+.nearby-planning-details dt { font-weight: 600; }
+.nearby-planning-details dd { margin: 0; min-width: 0; }
+.nearby-venue-description { margin: 6px 0 0; }
+.nearby-planning-fact { display: contents; }
+.nearby-more { border-top: 1px solid var(--line); margin: 16px 0; }
+.nearby-more > summary { justify-content: space-between; gap: 12px; text-decoration: none; font-weight: 600; list-style: none; }
+.nearby-more > summary::-webkit-details-marker { display: none; }
+.nearby-more > summary svg { margin: 0; transition: transform 120ms ease; }
+.nearby-more[open] > summary svg { transform: rotate(180deg); }
+.nearby-more h5 { font-size: 1rem; font-weight: 600; margin: 12px 0 6px; }
+.nearby-source-links { margin: 0 0 12px; }
+.nearby-source-links a { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; }
+.nearby-considerations { color: var(--muted); line-height: 1.5; }
+.nearby-more .nearby-considerations, .nearby-more .nearby-considerations p, .nearby-more .nearby-considerations li { font-size: 12px; }
+.nearby-considerations p { margin: 8px 0; }
+.nearby-considerations ul { margin: 8px 0 14px; }
+@media (prefers-reduced-motion: reduce) { .nearby-more > summary svg { transition: none; } }
 @media (max-width: 480px) { .nearby-research-controls { grid-template-columns: 1fr; gap: 0; } .nearby-context-panel dl { grid-template-columns: 1fr; gap: 4px; } .nearby-context-panel dd { margin-bottom: 8px; } }

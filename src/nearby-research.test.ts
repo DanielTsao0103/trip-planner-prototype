@@ -67,9 +67,9 @@ test("candidate filtering records distinct rejection reasons", () => {
 test("external listing links encode venue names, preserve sourced Yelp business URLs and reject spoofed hosts", () => {
   const c = { ...candidate(), name: "Café & Bakery", address: "100 Main St, Portland, OR" };
   const links = nearbyListingLinks(c, context());
-  assert.equal(new URL(links.maps).searchParams.get("api"), "1");
-  assert.equal(new URL(links.maps).searchParams.get("query"), "Café & Bakery 100 Main St, Portland, OR");
-  assert.equal(new URL(links.yelp).searchParams.get("find_desc"), "Café & Bakery");
+  assert.equal(links.maps, null);
+  assert.equal(new URL(links.google).searchParams.get("q"), "Café & Bakery 100 Main St, Portland, OR");
+  assert.equal(new URL(links.yelp!).searchParams.get("find_desc"), "Café & Bakery");
   assert.equal(links.yelpIsListing, false);
   const direct = "https://www.yelp.com/biz/cafe-bakery-portland";
   c.facts[0].sourceUrl = direct;
@@ -78,5 +78,13 @@ test("external listing links encode venue names, preserve sourced Yelp business 
   c.facts[0].sourceUrl = "https://yelp.com.evil.example/biz/a";
   assert.equal(nearbyListingLinks(c, context()).yelpIsListing, false);
   const ambiguous = nearbyListingLinks({ ...c, address: "Address needs confirmation from the venue" }, context());
-  assert.equal(new URL(ambiguous.yelp).searchParams.get("find_loc"), "Portland");
+  assert.equal(new URL(ambiguous.yelp!).searchParams.get("find_loc"), "Portland");
+  const anchored = nearbyListingLinks({ ...c, name: "Meiji Shrine", address: "Address needs confirmation from the venue" }, { area: "McDonald's · Tokyo", destinations: ["Tokyo"] });
+  assert.equal(new URL(anchored.google).searchParams.get("q"), "Meiji Shrine Tokyo");
+  const map = "https://www.google.com/maps/place/Meiji+Shrine/";
+  assert.equal(nearbyListingLinks({ ...c, facts: [{topic:"Venue",detail:"Shrine",sourceUrl:map}] }, context()).maps, map);
+  assert.equal(nearbyListingLinks({ ...c, facts: [{topic:"Venue",detail:"Shrine",sourceUrl:"https://www.google.com.evil.example/maps/place/Shrine"}] }, context()).maps, null);
+  const guide = nearbyListingLinks({ ...c, kind: "guide" }, context());
+  assert.equal(guide.maps, null); assert.equal(guide.yelp, null);
+  assert.equal(new URL(guide.google).searchParams.get("q"), c.name);
 });

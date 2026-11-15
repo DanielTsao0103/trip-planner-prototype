@@ -56,18 +56,22 @@ test("account popup displays sourced review candidates, resets stale results and
   const requests: Record<string, unknown>[] = [];
   await account(page, request => {
     requests.push(request);
-    return { json: { results: [{ name: "Fixture venue for UI testing", address: "Test address", reason: "Fixture explanation", durationMinutes: 60, pricePerPersonCents: null, currency: null, facts: [{ topic: "Menu", detail: "Test source fact", sourceUrl: "https://example.com/menu" }], concerns: ["Confirm access and dietary needs"], conflicts: [], status: "review", proposedTime: { start: "12:00", end: "13:00" } }] } };
+    return { json: { results: [{ name: "Fixture venue for UI testing", address: "Test address", reason: "Found during research for this trip day. Review the source excerpts and confirm suitability before scheduling.", durationMinutes: 60, pricePerPersonCents: null, currency: null, facts: [{ topic: "Menu", detail: "Test source fact", sourceUrl: "https://example.com/menu" }], concerns: ["Confirm access and dietary needs"], conflicts: [], status: "review", proposedTime: { start: "12:00", end: "13:00" } }] } };
   });
   const dialog = page.getByRole("dialog", { name: "Nearby suggestions" });
   await dialog.getByRole("button", { name: "Find nearby suggestions", exact: true }).click();
   await expect(dialog.getByRole("heading", { name: "Options to review" })).toBeVisible();
+  await expect(dialog.locator(".nearby-more")).not.toHaveAttribute("open", "");
+  await expect(dialog).not.toContainText("Found during research for this trip day");
+  await dialog.getByText("More to consider", { exact: true }).click();
   await expect(dialog.getByRole("link", { name: "Source 1" })).toHaveAttribute("href", "https://example.com/menu");
-  await expect(dialog.getByRole("link", { name: "View on Google Maps", exact: true })).toHaveAttribute("href", /https:\/\/www.google.com\/maps\/search\/\?api=1&query=/);
+  await expect(dialog.getByRole("link", { name: "View on Google Maps", exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole("link", { name: "Search on Google", exact: true })).toHaveAttribute("href", "https://www.google.com/search?q=Fixture+venue+for+UI+testing+Test+address");
   await expect(dialog.getByRole("link", { name: "View on Yelp", exact: true })).toHaveAttribute("href", /https:\/\/www.yelp.com\/search\?/);
   await expect(dialog.getByRole("link", { name: "View on Yelp", exact: true })).toHaveAttribute("target", "_blank");
   expect(requests).toHaveLength(1); expect(requests[0]).not.toHaveProperty("preferences");
   expect(requests[0]).toMatchObject({ date: "2027-05-01", revision: 1, intent: "lunch" });
-  await dialog.getByText("What needs confirmation", { exact: true }).click();
+
   await expect(dialog).toContainText("Confirm access and dietary needs");
   await dialog.getByLabel("Find", { exact: true }).selectOption("dinner");
   await expect(dialog.getByRole("heading", { name: "Options to review" })).toHaveCount(0);
@@ -122,6 +126,7 @@ test("a sourced Yelp business page opens directly and supplemental availability 
   await account(page, () => ({ json: { results: [{ name: "Fixture venue", address: "Address needs confirmation from the venue", reason: "Fixture", durationMinutes: 60, pricePerPersonCents: null, currency: null, facts: [{ topic: "Menu", detail: "Fixture Yelp excerpt", sourceUrl: source }], concerns: ["Confirm with venue"], conflicts: [], status: "review", proposedTime: null }], diagnostics: { sourcesFound: 2, sourcesUsed: 2, candidatesReturned: 1, rejected: {}, yelpStatus: "found", yelpSourcesUsed: 1 } } }));
   const dialog = page.getByRole("dialog", { name: "Nearby suggestions" });
   await dialog.getByRole("button", { name: "Find nearby suggestions", exact: true }).click();
+  await dialog.getByText("More to consider", { exact: true }).click();
   await expect(dialog.getByRole("link", { name: "View on Yelp", exact: true })).toHaveAttribute("href", source);
   await expect(dialog.getByRole("link", { name: "Yelp source", exact: true })).toHaveAttribute("href", source);
   await dialog.getByText("Search details", { exact: true }).click();
@@ -152,6 +157,37 @@ test("empty research shows the specific cause and rejection counts", async ({ pa
 });
 
 const candidate = { name: "Research fixture garden", address: "Seattle garden", reason: "A quiet break", durationMinutes: 60, pricePerPersonCents: null, currency: null, facts: [{topic:"Hours",detail:"Check the current hours",sourceUrl:"https://example.com/garden"}], concerns:["Confirm access"], conflicts:[], status:"review", proposedTime:{start:"12:00",end:"13:00"} };
+
+test("recommendation facts precede More to consider and sourced Maps links open the named place", async ({ page }) => {
+  const maps = "https://www.google.com/maps/place/Meiji+Shrine/";
+  await account(page, () => ({json:{results:[{...candidate,name:"Meiji Shrine",address:"Tokyo, Japan",fitNote:"A peaceful stop among the trees.",facts:[{topic:"Venue",detail:"Meiji Shrine in Tokyo",sourceUrl:maps}]}]}}), "Owner", "McDonald's, Seattle");
+  const dialog=page.getByRole("dialog",{name:"Nearby suggestions"});
+  await dialog.getByRole("button",{name:"Find nearby suggestions",exact:true}).click();
+  const card=dialog.locator(".nearby-result");
+  await expect(card.locator(".nearby-planning-details")).toContainText("Tokyo, Japan");
+  expect(await card.evaluate(element=>{
+    const note=element.querySelector('.nearby-fit-note')!, facts=element.querySelector('.nearby-planning-details')!, more=element.querySelector('.nearby-more')!;
+    return !!(note.compareDocumentPosition(facts)&Node.DOCUMENT_POSITION_FOLLOWING) && !!(facts.compareDocumentPosition(more)&Node.DOCUMENT_POSITION_FOLLOWING);
+  })).toBe(true);
+  await expect(card.getByRole("link",{name:"View on Google Maps",exact:true})).not.toBeVisible();
+  await card.getByText("More to consider",{exact:true}).click();
+  const link=card.getByRole("link",{name:"View on Google Maps",exact:true});
+  await expect(link).toHaveAttribute("href",maps);
+  await expect(link).toHaveAttribute("rel","noopener noreferrer");
+  await expect(card.getByRole("link",{name:"Source 1",exact:true})).toBeVisible();
+  await card.getByText("More to consider",{exact:true}).click();
+  await card.getByText("More to consider",{exact:true}).focus();
+  await page.keyboard.press('Enter');
+  await expect(link).toBeVisible();
+  const finePrintSize = await card.locator('.nearby-considerations p').first().evaluate(element => parseFloat(getComputedStyle(element).fontSize));
+  const factsSize = await card.locator('.nearby-planning-details dd').first().evaluate(element => parseFloat(getComputedStyle(element).fontSize));
+  expect(finePrintSize).toBeLessThan(factsSize);
+  expect(await dialog.evaluate(element=>element.scrollWidth<=element.clientWidth+1)).toBe(true);
+  await card.scrollIntoViewIfNeeded();
+  await page.screenshot({path:test.info().outputPath('nearby-more-open.png')});
+  await card.getByText("More to consider",{exact:true}).click();
+  await page.screenshot({path:test.info().outputPath('nearby-more-closed.png')});
+});
 
 test("shrine suggestions reject anchor photos and carry the relevant image into the event", async ({ page }) => {
   await account(page, () => ({json:{results:[{...candidate,name:"Shinto Shrine",address:"Address needs confirmation from the venue"}]}}), "Owner", "McDonald's, Seattle");
