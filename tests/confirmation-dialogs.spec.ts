@@ -28,7 +28,7 @@ test('discard dialog dismissal retains the event and restores its Cancel control
   await cancel.click();
   await page.screenshot({ path: test.info().outputPath('event-discard-short-phone.png') });
   await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
-  await expect(page).toHaveURL(/#\/17\?event=museum$/);
+  await expect(page).toHaveURL(/#\/17\?date=2026-10-16&event=museum$/);
 });
 
 test('traveler removal keeps history and restores stable list focus', async ({ page }) => {

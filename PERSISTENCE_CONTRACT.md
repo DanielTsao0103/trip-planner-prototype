@@ -60,6 +60,8 @@ Ever-paid `settled` markers remain permanent and lock the original expense, incl
 
 ## Saved places
 
+The Suggestions shortlist and Nearby “Save for later” use this same collection. Researched places retain source URLs and confirmation notes, validate existing text limits, and deduplicate matching name/location pairs. Owner/Editor grants are required for unscheduled places; scheduling candidates separately checks `canEdit` for the selected date. Saving a candidate does not consume another research request or create a second write path.
+
 `Trip.savedPlaces` participates in the same root revision, retry payload, recovery journal, and atomic transaction as scheduled events. It carries no assigned date, so only Owner/Editor grants may change it. An omitted field preserves the current collection for older clients; an explicit empty array clears it. Saving an idea into the itinerary removes it and appends the event in one update. The client verifies returned place content without depending on JSONB object key order. Live fixtures cover application-writer roundtrip/retry, malformed content rollback, old-client compatibility, and collaborator denial.
 
 Cached-client compatibility: trip bundles expose `savedPlaces` only when the normal `X-Client-Info` header advertises `stir-crazy/saved-places-v1`. The current browser client opts in; existing cached clients retain their supported response shape and preserve the newer collection when saving other fields. This changes serialization only, never authorization. The live contract gate was also run with the actual previously shipped `731da4c` application writer.

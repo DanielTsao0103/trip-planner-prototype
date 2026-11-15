@@ -28,9 +28,9 @@ test('optional connection setup keeps consent actions clear of trip navigation',
 
 test('suggestion cancellation and preferences preserve their originating page', async ({ page }) => {
   await page.goto('./#/9');
-  await page.getByRole('button', {name: 'Choose a time'}).first().click();
+  await page.getByRole('button', {name: 'Review this idea'}).first().click();
   await page.getByRole('button', {name: 'Cancel', exact: true}).click();
-  await expect(page).toHaveURL(/#\/9$/);
+  await expect(page).toHaveURL(/#\/9(?:\?date=\d{4}-\d{2}-\d{2})?$/);
   await page.getByRole('button', {name: 'Update your preferences'}).click();
   await page.getByRole('button', {name: 'Next', exact: true}).click();
   await page.getByLabel('Maximum comfortable continuous walk (meters)').fill('-1');
@@ -40,7 +40,7 @@ test('suggestion cancellation and preferences preserve their originating page', 
   await page.getByLabel('Maximum comfortable continuous walk (meters)').fill('500');
   await page.getByRole('button', {name: 'Next', exact: true}).click();
   await page.getByRole('button', {name: 'Save my preferences'}).click();
-  await expect(page).toHaveURL(/#\/9$/);
+  await expect(page).toHaveURL(/#\/9(?:\?date=\d{4}-\d{2}-\d{2})?$/);
   await expect(page.getByRole('status').filter({hasText:'Trip preferences saved.'})).toBeVisible();
   await expect(page.getByRole('button',{name:'Update your preferences'})).toBeVisible();
   await page.goto('./#/7');
@@ -660,15 +660,15 @@ test('long reminders stay readable beside visible actions and preserve check and
 
 test('added sample ideas link to their saved event and survive reload', async ({ page }) => {
   await page.goto('./#/9');
-  await expect(page.getByText('Personalize a sample idea, or find researched places nearby.')).toBeVisible();
+  await expect(page.getByText('Keep places you want to visit, then find a time for them.')).toBeVisible();
   await expect(page.locator('.suggestion-card').first().getByText('Sample idea', {exact:true})).toBeVisible();
-  await page.getByRole('button', {name:'Choose a time'}).first().click();
+  await page.getByRole('button', {name:'Review this idea'}).first().click();
   await page.getByRole('button', {name:'Add to itinerary',exact:true}).click();
-  await expect(page).toHaveURL(/#\/9$/);
+  await expect(page).toHaveURL(/#\/9(?:\?date=\d{4}-\d{2}-\d{2})?$/);
   await page.reload();
   const added=page.locator('.suggestion-card').filter({hasText:'A stop for local art'});
   await expect(added.getByText(/^Added:/)).toBeVisible();
-  await expect(added.getByRole('button',{name:'Choose a time'})).toHaveCount(0);
+  await expect(added.getByRole('button',{name:'Review this idea'})).toHaveCount(0);
   await added.getByRole('button',{name:'View added plan'}).click();
   await expect(page).toHaveURL(/#\/11\?.*event=/);
   await expect(page.getByRole('heading',{name:'A stop for local art',exact:true})).toBeVisible();
@@ -803,7 +803,7 @@ test('phone keyboard fields and time errors remain above fixed actions', async (
 test('suggested event puts scheduling first and Nearby recognizes an existing plan', async ({page}) => {
   await page.setViewportSize({width:390,height:844});
   await page.goto('./#/9');
-  await page.getByRole('button',{name:'Choose a time'}).first().click();
+  await page.getByRole('button',{name:'Review this idea'}).first().click();
   await expect(page.getByLabel('Start time',{exact:true})).toBeInViewport();
   await expect(page.getByLabel('Event name',{exact:true})).not.toBeVisible();
   await page.locator('.suggested-event-details > summary').click();
@@ -858,7 +858,7 @@ test('phone group category jump and current survey breadcrumb remain reachable',
 
 test('invalid suggested identity reopens its disclosure and focuses the missing field', async ({page}) => {
   await page.setViewportSize({width:390,height:600});
-  await page.goto('./#/9');await page.getByRole('button',{name:'Choose a time'}).first().click();
+  await page.goto('./#/9');await page.getByRole('button',{name:'Review this idea'}).first().click();
   const disclosure=page.locator('.suggested-event-details');
   await disclosure.locator('summary').click();
   await page.getByLabel('Event name',{exact:true}).fill('');
@@ -869,7 +869,7 @@ test('invalid suggested identity reopens its disclosure and focuses the missing 
   await expect(field).toBeFocused();
   await expect.poll(async()=>{const box=await field.boundingBox(),bar=await page.locator('.event-editor-actions').boundingBox();return box!.y>=96&&box!.y+box!.height<bar!.y;}).toBe(true);
   await field.fill('A named gallery visit');await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
-  await expect(page).toHaveURL(/#\/9$/);
+  await expect(page).toHaveURL(/#\/9(?:\?date=\d{4}-\d{2}-\d{2})?$/);
   await page.goto('./#/8?view=list');await expect(page.getByText('A named gallery visit',{exact:true})).toBeVisible();
 });
 
@@ -1061,7 +1061,7 @@ test('phone location suggestions remain above the fixed editor actions', async (
 
 test('dismissed suggestions can be restored while an added plan remains visible', async ({page}) => {
   await page.goto('./#/9');
-  await page.getByRole('button', {name:'Choose a time'}).first().click();
+  await page.getByRole('button', {name:'Review this idea'}).first().click();
   await page.getByRole('button', {name:'Add to itinerary',exact:true}).click();
   await expect(page.getByRole('button', {name:'View added plan'})).toHaveCount(1);
   const before = await page.evaluate(() => { const s=JSON.parse(localStorage.getItem('trip-planner-demo-v1:demo-maya')!);return s.trips.find((trip:any)=>trip.id===s.tripId).events.length; });
@@ -1070,7 +1070,7 @@ test('dismissed suggestions can be restored while an added plan remains visible'
   }
   await page.reload();
   await page.getByRole('button', {name:'Show suggestions again',exact:true}).click();
-  await expect(page.getByRole('button', {name:'Choose a time'})).toHaveCount(2);
+  await expect(page.getByRole('button', {name:'Review this idea'})).toHaveCount(2);
   await expect(page.getByRole('button', {name:'View added plan'})).toHaveCount(1);
   expect(await page.evaluate(() => { const s=JSON.parse(localStorage.getItem('trip-planner-demo-v1:demo-maya')!);return s.trips.find((trip:any)=>trip.id===s.tripId).events.length; })).toBe(before);
 });
@@ -1086,7 +1086,7 @@ test('suggestions use future free time and never fall back to a past trip day', 
     localStorage.setItem(key, JSON.stringify(state));
   });
   await page.reload();
-  await page.getByRole('button', { name: 'Choose a time', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Review this idea', exact: true }).first().click();
   await expect(page.getByLabel('Start time', { exact: true })).toHaveValue('16:00');
   await expect(page.getByLabel('End time', { exact: true })).toHaveValue('17:00');
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -1095,7 +1095,9 @@ test('suggestions use future free time and never fall back to a past trip day', 
     state.time = '17:30'; localStorage.setItem(key, JSON.stringify(state));
   });
   await page.reload();
-  await page.getByRole('button', { name: 'Choose a time', exact: true }).first().click();
+  await expect(page.getByRole('button', { name: 'Review this idea', exact: true }).first()).toBeDisabled();
+  await page.getByRole('button', { name: 'Try Oct 17', exact: true }).click();
+  await page.getByRole('button', { name: 'Review this idea', exact: true }).first().click();
   await expect(page).toHaveURL(/date=2026-10-17/);
   await expect(page.getByLabel('Start time', { exact: true })).toHaveValue('09:00');
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -1104,10 +1106,10 @@ test('suggestions use future free time and never fall back to a past trip day', 
     state.date = '2026-10-19'; localStorage.setItem(key, JSON.stringify(state));
   });
   await page.reload();
-  await expect(page.getByText('There are no upcoming one-hour slots on your editable days.')).toBeVisible();
-  for (const button of await page.getByRole('button', { name: 'Choose a time', exact: true }).all()) await expect(button).toBeDisabled();
+  await expect(page.getByText('There is no upcoming one-hour slot on this day that you can edit.')).toBeVisible();
+  for (const button of await page.getByRole('button', { name: 'Review this idea', exact: true }).all()) await expect(button).toBeDisabled();
   await page.getByRole('button', { name: 'Review your itinerary', exact: false }).click();
-  await expect(page).toHaveURL(/#\/8$/);
+  await expect(page).toHaveURL(/#\/8\?date=2026-10-17&view=calendar$/);
 });
 
 test('sample idea dismissal does not masquerade as researched nearby results', async ({page}) => {
@@ -1125,7 +1127,7 @@ test('Nearby research remains in a popup and never silently schedules an event',
  const before=await count();
  await page.getByRole('button',{name:'Nearby suggestion',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
- await expect(dialog.getByRole('button',{name:'Choose a time',exact:true})).toHaveCount(0);
+ await expect(dialog.getByRole('button',{name:'Review this idea',exact:true})).toHaveCount(0);
  await expect(dialog.getByRole('button',{name:'Find nearby suggestions',exact:true})).toBeDisabled();
  await page.keyboard.press('Escape');
  expect(await count()).toBe(before);
@@ -1138,9 +1140,9 @@ test('Nearby lets viewers inspect planning constraints without offering scheduli
  await page.getByRole('button',{name:'Nearby suggestion',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
  await dialog.getByText('Planning details used',{exact:true}).click();
- await expect(dialog).toContainText('A trip editor will need to schedule them.');
+ await expect(dialog).toContainText('An editor with access to this day will need to schedule them.');
  await expect(dialog).toContainText('Dietary needs');
- await expect(dialog.getByRole('button',{name:'Choose a time',exact:true})).toHaveCount(0);
+ await expect(dialog.getByRole('button',{name:'Review this idea',exact:true})).toHaveCount(0);
 });
 
 test('compact empty dates keep direct view and add actions with viewer permissions', async ({ page }) => {

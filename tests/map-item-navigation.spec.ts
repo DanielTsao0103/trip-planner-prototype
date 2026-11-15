@@ -28,11 +28,11 @@ test("map-origin edits reopen the selected stop after save or unchanged cancel",
   await page.goto(edit);
   // Playwright dismisses unexpected dialogs: a needless discard prompt fails this assertion.
   await page.getByRole("button", {name:"Cancel",exact:true}).click();
-  await expect(page).toHaveURL(/#\/17\?event=museum$/);
+  await expect(page).toHaveURL(/#\/17\?date=2026-10-16&event=museum$/);
   await page.goto(edit);
   await page.getByLabel("Notes (optional)").fill("Meet outside the north entrance.");
   await page.getByRole("button", {name:"Save changes",exact:true}).click();
-  await expect(page).toHaveURL(/#\/17\?event=museum$/);
+  await expect(page).toHaveURL(/#\/17\?date=2026-10-16&event=museum$/);
   await page.getByRole("link", {name:"View itinerary item"}).click();
   await expect(page.getByRole("article", {name:"A morning of art"})).toContainText("Meet outside the north entrance.");
 });
@@ -42,14 +42,14 @@ test("deleted event links offer recovery and never open an empty event form", as
   await page.goto(edit);
   await page.getByRole("button", {name:"Delete event",exact:true}).click();
   await page.locator(".delete-event-panel").getByRole("button", {name:"Delete event",exact:true}).click();
-  await expect(page).toHaveURL(/#\/17$/);
+  await expect(page).toHaveURL(/#\/17\?date=2026-10-16$/);
   await page.goto("./#/17?event=museum");
   await expect(page.getByText("This stop was removed or no longer has a location.")).toBeVisible();
   await page.goto(edit);
   await expect(page.getByRole("heading", {name:"Itinerary item unavailable"})).toBeVisible();
   await expect(page.getByRole("button", {name:"Add to itinerary"})).toHaveCount(0);
   await page.getByRole("button", {name:"Back to map"}).click();
-  await expect(page).toHaveURL(/#\/17$/);
+  await expect(page).toHaveURL(/#\/17\?date=2026-10-16$/);
   await page.goto("./#/17?event=museum");
   await expect(page.getByText("This stop was removed or no longer has a location.")).toBeVisible();
   await page.goto("./#/11?event=museum&date=2026-10-16");

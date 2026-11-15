@@ -457,14 +457,15 @@ legend {
 .skip-link {
   position: fixed;
   left: 10px;
-  top: -60px;
+  top: 10px;
+  transform: translateY(calc(-100% - 20px));
   z-index: 1000;
   background: var(--paper);
   color: var(--action-ink);
   padding: 12px;
 }
 .skip-link:focus {
-  top: 10px;
+  transform: translateY(0);
 }
 .card {
   background: var(--paper);

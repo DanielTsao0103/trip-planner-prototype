@@ -8,6 +8,10 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 ## Corrections & Lessons Learned
 
+- November 14 site audit lesson: keep the focused planning date separate from visible map days. Persist both through navigation and event editing; re-evaluate date filters when collaborators add a new date, and fit visible pins after explicit day changes. A map fixture validates controls, not real provider imagery.
+- November 14 usefulness review: an available schedule interval is not a travel-time prediction. Label its daytime window, retain precise typed times, and preserve a selected day rather than silently moving a proposed plan to another day. Offer the next free day explicitly.
+
+
 - Daniel OKR scope correction (November 14, 2026): simplify the dashboard to OKR #1 only: 85% of users access their trip plan at least every other day. Show the current rate, target status, supporting numerator/denominator, one return-rate trend, and a concise collapsed definition. Remove adoption/sharing metrics, daily activity, extra counts and comparison filters. Keep the confirmed planner denominator and 14 completed UTC days.
 
 - Dashboard hierarchy correction (November 14, 2026): Dan wants visualizations first, then percentages, then supporting numbers. Lead Daniel's OKR with percentage rings and time-series charts; move raw counts into supporting detail. Show live saving/sharing percentages immediately, distinguish today's partial activity, and never invent return-rate history while collecting a baseline.

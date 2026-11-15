@@ -122,7 +122,7 @@ test("the Admin page is a menu of four OKR tracker pages, with live trackers and
   await expect(page.getByRole("heading", { name: "Admin", exact: true, level: 1 })).toBeVisible();
   const owners = ["Daniel", "Ivy", "Seth", "Drew"];
   const menu = page.locator(".admin-page .menu-links");
-  await expect(menu.getByRole("button")).toHaveText(owners.map((owner) => `${owner}’s OKR tracker`));
+  await expect(menu.locator(".tracker-availability")).toHaveText(["Available · account data", "Available · account data", "Not built yet", "Not built yet"]);
   // The access list is a secondary page now, not the main content here.
   await expect(page.getByLabel("Add an email")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Manage admin access" })).toBeVisible();

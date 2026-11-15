@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Clock, ExternalLink, MapPin, Search, ShieldCheck } from "lucide-react";
 import { useApp } from "./state";
-import { Button, ConfirmDialog, Field, Modal } from "./ui";
-import { days, dateText, member, money, timeText } from "./domain";
+import { Button, Field, Modal } from "./ui";
+import { canEdit, days, dateText, member, money, timeText, uid } from "./domain";
+import { TEXT_LIMITS, textError } from "./limits";
 import { getSupabase } from "./supabase";
 import { searchDestinationPhotos, trackUnsplashSelection, type UnsplashPhoto } from "./trip-photos";
 import { planningContext, safeSource, nearbyListingLinks, isYelpSource, YELP_SEARCH_MESSAGES, NEARBY_EMPTY_MESSAGES, type YelpSearchStatus, type EmptyReason, type ReviewRejections, type Intent, type NearbyResult } from "../supabase/functions/_shared/nearby.ts";
 import "./nearby-suggestions.css";
 
 export function NearbySuggestions() {
-  const { trip, s, overlay, pendingTripIds, go } = useApp();
+  const { trip, s, overlay, route, updateTrip, pendingTripIds, go } = useApp();
   const preferredDate = overlay?.data?.date;
   const [date, setDate] = useState(preferredDate && trip && preferredDate >= trip.start && preferredDate <= trip.end ? preferredDate : trip && s.date >= trip.start && s.date <= trip.end ? s.date : trip?.start || "");
   const [intent, setIntent] = useState<Intent>("lunch");
@@ -17,13 +18,15 @@ export function NearbySuggestions() {
   const [error, setError] = useState("");
   const [results, setResults] = useState<NearbyResult[] | null>(null);
   const [photos, setPhotos] = useState<Record<string, UnsplashPhoto>>({});
-  const [selected, setSelected] = useState<NearbyResult | null>(null);
+  const [preparing, setPreparing] = useState(false);
   const [addError, setAddError] = useState("");
   const [emptyReason, setEmptyReason] = useState<EmptyReason>("filtered");
   const [diagnostics, setDiagnostics] = useState<{ sourcesFound: number; sourcesUsed: number; candidatesReturned: number; recoveryAttempted?: boolean; rejected: ReviewRejections; yelpStatus?: YelpSearchStatus; yelpSourcesUsed?: number } | null>(null);
   const request = useRef<AbortController | null>(null);
-  const contextKey = JSON.stringify([trip, date, intent, overlay?.data?.event]);
-  useEffect(() => { request.current?.abort(); setResults(null); setPhotos({}); setSelected(null); setDiagnostics(null); setError(""); setLoading(false); return () => { request.current?.abort(); }; }, [contextKey]);
+  const contextKey = JSON.stringify([trip?.id, trip?.destinations, trip?.zone, trip?.start, trip?.end, trip?.events, trip?.members, trip?.prefs, trip?.budget, trip?.budgetMode, trip?.individual, trip?.expenses, date, intent, overlay?.data?.event]);
+  const continuation = useRef(0);
+  useEffect(() => { continuation.current += 1; setPreparing(false); return () => { continuation.current += 1; }; }, [contextKey]);
+  useEffect(() => { request.current?.abort(); setResults(null); setPhotos({}); setAddError(""); setDiagnostics(null); setError(""); setLoading(false); return () => { request.current?.abort(); }; }, [contextKey]);
   useEffect(() => {
     if (!results?.length || !trip) return;
     const controller = new AbortController();
@@ -72,27 +75,51 @@ export function NearbySuggestions() {
       if (!controller.signal.aborted || controller.signal.reason === "timeout") setError(controller.signal.reason === "timeout" ? "Research took too long. Please try again." : e instanceof Error ? e.message : "Could not research nearby places.");
     } finally { clearTimeout(timeout); if (request.current === controller) setLoading(false); }
   }
-  async function continueToEvent() {
-    if (!selected || !trip) return;
+  const canSave = ["Owner", "Editor"].includes(member(trip,s.userId)?.role || "");
+  const resultPlace = (result: NearbyResult) => result.address === "Address needs confirmation from the venue" ? context.area : result.address;
+  const resultNotes = (result: NearbyResult) => [result.fitNote || result.reason, ...result.facts.filter(fact => safeSource(fact.sourceUrl)).map(fact => `${fact.topic}: ${fact.detail} — ${fact.sourceUrl}`), ...result.concerns.map(concern => `Confirm: ${concern}`)].join("\n");
+  const alreadyKept = (result: NearbyResult) => [...(trip.savedPlaces || []), ...trip.events].some(place => place.name.trim().toLocaleLowerCase() === result.name.trim().toLocaleLowerCase() && place.place.trim().toLocaleLowerCase() === resultPlace(result).trim().toLocaleLowerCase());
+  function saveForLater(result: NearbyResult) {
+    if (!trip || !canSave || alreadyKept(result)) return;
+    const place = resultPlace(result), notes = resultNotes(result);
+    const problem = textError(result.name, "Place name", TEXT_LIMITS.eventName, true) || textError(place,"Location",TEXT_LIMITS.eventAddress,true) || textError(notes,"Notes",TEXT_LIMITS.notes);
+    if (problem) { setAddError(problem); return; }
+    let applied = false;
+    updateTrip(current => {
+      if (!["Owner","Editor"].includes(member(current,s.userId)?.role || "") || (current.savedPlaces?.length || 0) >= 200) return;
+      if ([...(current.savedPlaces || []), ...current.events].some(item => item.name.trim().toLocaleLowerCase() === result.name.trim().toLocaleLowerCase() && item.place.trim().toLocaleLowerCase() === place.trim().toLocaleLowerCase())) return;
+      current.savedPlaces = [...(current.savedPlaces || []), {id:uid(),name:result.name.trim(),place:place.trim(),notes,point:null,googlePlaceId:null}];
+      applied = true;
+    });
+    setAddError(applied ? "" : "Could not add this place. Check your editing access or remove a place if your shortlist is full.");
+  }
+  async function continueToEvent(selected: NearbyResult) {
+    if (!trip || preparing || !canEdit(trip,s.userId,date)) return;
+    const generation = ++continuation.current;
+    setPreparing(true); setAddError("");
     const photo = photos[selected.name];
     try {
       if (photo) await trackUnsplashSelection(photo.downloadLocation);
-      const sourceNotes = selected.facts.map(fact => fact.topic + ": “" + fact.detail + "” — " + fact.sourceUrl).join("\n");
+      if (generation !== continuation.current) return;
+      const sourceNotes = resultNotes(selected);
       const photoNote = photo ? "\nPhoto by " + photo.credit.name + " on Unsplash: " + photo.credit.photoUrl : "";
       const params: Record<string, string> = {
         suggestion: selected.name,
-        place: selected.address === "Address needs confirmation from the venue" ? context.area : selected.address,
+        place: resultPlace(selected),
         date,
-        notes: (selected.fitNote || selected.reason) + "\n" + sourceNotes + photoNote,
-        return: "16",
+        notes: sourceNotes + photoNote,
+        return: String(route.page === 16 ? 10 : route.page),
+        ...(route.page === 8 ? {view:"calendar"} : {}),
+        ...(route.page === 17 && route.params.get("days") ? {days:route.params.get("days")!} : {}),
+        ...(route.params.get("map") === "hidden" ? {map:"hidden"} : {}),
       };
       if (selected.proposedTime) { params.start = selected.proposedTime.start; params.end = selected.proposedTime.end; }
       if (selected.pricePerPersonCents !== null && selected.currency === "USD") params.cost = (selected.pricePerPersonCents / 100).toFixed(2);
       if (photo) params.image = photo.url;
       go(7, params);
     } catch (cause) {
-      setAddError(cause instanceof Error ? cause.message : "Could not prepare this itinerary item. Try again.");
-    }
+      if (generation === continuation.current) setAddError(cause instanceof Error ? cause.message : "Could not prepare this itinerary item. Try again.");
+    } finally { if (generation === continuation.current) setPreparing(false); }
   }
   return <Modal title="Nearby suggestions" wide className="nearby-research-modal">
     <p className="nearby-intro">Find places around your plans, with your group’s needs in mind.</p>
@@ -137,10 +164,11 @@ export function NearbySuggestions() {
         <p>{result.pricePerPersonCents !== null && result.currency ? `${(result.pricePerPersonCents / 100).toFixed(2)} ${result.currency} per person · source estimate` : "Price not confirmed"}</p>
         <ul>{result.facts.filter(f => safeSource(f.sourceUrl)).map((fact, i) => <li key={i}><strong>{fact.topic}: </strong>{fact.detail} <a href={fact.sourceUrl} target="_blank" rel="noopener noreferrer">{isYelpSource(fact.sourceUrl) ? "Yelp source" : `Source ${i + 1}`}</a></li>)}</ul>
         <details><summary>What needs confirmation</summary><ul>{result.concerns.map((concern, i) => <li key={i}>{concern}</li>)}</ul></details>
-        {trip.persistence === "account" && <Button variant="outline" disabled={pending || member(trip, s.userId)?.role === "Viewer"} onClick={() => { setSelected(result); setAddError(""); }}>Review and add to this day</Button>}
+        {trip.persistence === "account" && <div className="nearby-result-actions"><Button variant="outline" disabled={pending || preparing || !canEdit(trip,s.userId,date)} onClick={() => void continueToEvent(result)}>Review and add to this day</Button>{canSave && <Button variant="text" disabled={pending || alreadyKept(result)} onClick={() => saveForLater(result)}>{alreadyKept(result) ? "Already in your plans" : "Save for later"}</Button>}</div>}
       </article>; })}</div>
     </section>}
-    {member(trip, s.userId)?.role === "Viewer" && <p className="fine-print">You can research ideas. A trip editor will need to schedule them.</p>}
-    {selected && <ConfirmDialog title="Review this itinerary idea?" cancelLabel="Keep exploring" confirmLabel="Continue to event editor" confirmVariant="" onCancel={() => setSelected(null)} onConfirm={() => void continueToEvent()}>{addError || "“" + selected.name + "” will open in the event editor for " + dateText(date) + ". Review the details there and save to add it to the trip."}</ConfirmDialog>}
+    {!canEdit(trip,s.userId,date) && <p className="fine-print">You can research ideas. An editor with access to this day will need to schedule them.</p>}
+    {preparing && <p role="status">Preparing the event editor…</p>}
+    {addError && <p role="alert" className="error-box">{addError}</p>}
   </Modal>;
 }

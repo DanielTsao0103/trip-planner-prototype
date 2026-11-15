@@ -5,7 +5,7 @@ import './calendar-event-preview.css';
 import { ArrowLeftRight, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import { useApp } from './state';
 import { Button, ErrorBox, Field } from './ui';
-import { canEdit, dateText, orderedEvents, timeText, EVENT_PERMISSION_MESSAGE } from './domain';
+import { canEdit, days, dateText, orderedEvents, timeText, EVENT_PERMISSION_MESSAGE } from './domain';
 import { addCalendarDays, clock, minutes, rescheduleEvent, calendarLanes, snapCalendarMinute, calendarSelection } from './calendar';
 
 const HOUR_HEIGHT = 72;
@@ -420,10 +420,11 @@ export function WeeklyCalendar() {
   return <section ref={calendarRegion} className={`weekly-calendar${mobileGrid ? " show-time-grid" : ""}${desktopAgenda ? " show-desktop-agenda" : ""}`} aria-label="Seven-day itinerary calendar">
     <div className="itcal-toolbar">
       <div className="itcal-navigation">
-        <Button variant="outline" aria-label="Previous seven days" disabled={safePage === 0} onClick={() => { setPage(safePage - 1); setError(''); }}><ChevronLeft size={18}/></Button>
+        <Button variant="outline" aria-label="Previous seven days" disabled={safePage === 0} onClick={() => go(8, { view: 'calendar', date: addCalendarDays(trip.start, (safePage - 1) * 7) }, true)}><ChevronLeft size={18}/></Button>
         <h3 aria-live="polite">{dateText(firstDate, true)} – {dateText(dates[dates.length - 1], true)}</h3>
-        <Button variant="outline" aria-label="Next seven days" disabled={safePage === lastPage} onClick={() => { setPage(safePage + 1); setError(''); }}><ChevronRight size={18}/></Button>
+        <Button variant="outline" aria-label="Next seven days" disabled={safePage === lastPage} onClick={() => go(8, { view: 'calendar', date: addCalendarDays(trip.start, (safePage + 1) * 7) }, true)}><ChevronRight size={18}/></Button>
       </div>
+      {lastPage > 0 && <label className="calendar-date-jump">Jump to day<select aria-label="Calendar day" value={requestedDate && requestedDate >= trip.start && requestedDate <= trip.end ? requestedDate : firstDate} onChange={event => go(8, { view: "calendar", date: event.target.value }, true)}>{days(trip.start,trip.end).map((day,index) => <option key={day} value={day}>Day {index+1} · {dateText(day,true)}</option>)}</select></label>}
       <Button variant="outline calendar-desktop-view" onClick={() => setDesktopAgenda(value => !value)}>{desktopAgenda ? "Show time grid" : "Show agenda"}</Button>
       <Button variant="text small calendar-mobile-view" aria-label={mobileGrid ? "Show agenda" : "Show time grid"} onClick={() => setMobileGrid(value => !value)}>{mobileGrid ? "Agenda" : "Time grid"}</Button>
     </div>

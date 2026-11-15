@@ -59,17 +59,19 @@ export function TravelMap({
   compact = false,
   date,
   selectedEvent,
+  focusDate,
   selectedPlace,
   onSelectEvent,
 }: {
   compact?: boolean;
   date?: string;
   selectedEvent?: string;
+  focusDate?: string;
   selectedPlace?: string;
   /** Controlled selection lets a day list and its map share one active stop. */
   onSelectEvent?: (id: string) => void;
 }) {
-  const { trip, s, go, updateTrip, mapSyncOffline } = useApp();
+  const { trip, s, go, route, updateTrip, mapSyncOffline } = useApp();
   const { isDark } = usePalette();
   // Google only accepts colorScheme at construction. Resolve device appearance
   // ourselves: FOLLOW_SYSTEM did not repaint an existing map in live SDK checks.
@@ -89,12 +91,19 @@ export function TravelMap({
   const [satellite, setSatellite] = useState(false);
   const [compactSelection, setCompactSelection] = useState<string>();
   const [hiddenMapDays, setHiddenMapDays] = useState<string[]>([]);
+  const dayFilter = route.params.get("days");
+  const tripDatesKey = Array.from(new Set(trip?.events.map(event => event.date) || [])).sort().join(",");
+  useEffect(() => {
+    const dates = Array.from(new Set(trip?.events.map(event => event.date) || []));
+    const visible = dayFilter === "all" ? dates : dayFilter ? dayFilter.split(",") : focusDate ? [focusDate] : dates;
+    setHiddenMapDays(dates.filter(day => !visible.includes(day)));
+  }, [focusDate, dayFilter, trip?.id, tripDatesKey]);
   const requestedId = selectedEvent || trip?.events.find((e) => e.place === selectedPlace)?.id || "";
   const selectedId = compact && !onSelectEvent ? compactSelection ?? requestedId : requestedId;
   function select(id: string) {
     if (onSelectEvent) onSelectEvent(id);
     else if (compact) setCompactSelection(id);
-    else go(17, id ? { event: id } : {}, true);
+    else go(17, { ...(focusDate ? {date:focusDate} : {}), ...(dayFilter ? {days:dayFilter} : {}), ...(id ? { event: id } : {}) }, true);
   }
   const [nearbyIds, setNearbyIds] = useState<string[]>([]);
   const [updatedPin, setUpdatedPin] = useState("");
@@ -127,6 +136,13 @@ export function TravelMap({
   };
   const visibleMapDays = new Set(mapDays.filter((date) => !hiddenMapDays.includes(date)));
   const allDaysVisible = mapDays.every((date) => visibleMapDays.has(date));
+  function changeVisibleDays(visible: string[], focused = focusDate, clearSelection = false) {
+    setHiddenMapDays(mapDays.filter(day => !visible.includes(day)));
+    setNearbyIds([]);
+    go(17, { ...(focused ? {date:focused} : {}), days: visible.length === mapDays.length ? "all" : visible.join(",") || "none", ...(!clearSelection && selectedId ? {event:selectedId} : {}) }, true);
+    const points = events.filter(event => visible.includes(event.date) && event.point).map(event => event.point!);
+    if (map.current && points.length) showStops(map.current, points);
+  }
   const mapDayGroups = mapDays.map((date) => ({
     date,
     day: tripDayNumber(trip?.start || date, date),
@@ -422,7 +438,7 @@ export function TravelMap({
     if (map.current)
       showStops(
         map.current,
-        events.flatMap((e) => (e.point ? [e.point] : [])),
+        events.flatMap((e) => (e.point && visibleMapDays.has(e.date) ? [e.point] : [])),
         events.some((e) => e.point && !e.area) ? 16 : 13,
       );
   };
@@ -471,8 +487,11 @@ export function TravelMap({
     initialFocus.current = false;
     setNearbyIds([]);
     setEditing(false);
-    setHiddenMapDays((current) => current.filter((date) => date !== event.date));
-    select(event.id);
+    if (!compact && hiddenMapDays.includes(event.date)) {
+      const visible = mapDays.filter(day => !hiddenMapDays.includes(day) || day === event.date);
+      setHiddenMapDays(mapDays.filter(day => !visible.includes(day)));
+      go(17, {date:event.date,days:visible.length === mapDays.length ? "all" : visible.join(","),event:event.id}, true);
+    } else select(event.id);
     if (event.point && map.current)
       focusPoint(map.current, event.point, event.area);
   }
@@ -643,11 +662,11 @@ export function TravelMap({
               </button>
               <button
                 data-map-focus="all-pins"
-                aria-label="Show all pins"
-                title="Show all pins"
+                aria-label="Fit visible pins"
+                title="Fit visible pins"
                 onClick={overview}
               >
-                <span className="map-fit-label">All<br/>pins</span>
+                <span className="map-fit-label">Fit<br/>pins</span>
               </button>
               <button
                 data-map-focus="my-location"
@@ -758,7 +777,7 @@ export function TravelMap({
                 checked={allDaysVisible}
                 onChange={(change) => {
                   const show = change.currentTarget.checked;
-                  setHiddenMapDays(show ? [] : mapDays);
+                  changeVisibleDays(show ? mapDays : [], focusDate, true);
                 }}
               />
               <span>Show events from all days on the trip</span>
@@ -861,7 +880,7 @@ export function TravelMap({
                         </button>
                       )}
                       {(!event.point || event.area) && (
-                        <button aria-label="Edit itinerary location" className={!loadError && !event.point && statusFor(event) !== "error" ? "primary-recovery" : undefined} onClick={() => go(7, { event: event.id, date: event.date, return: "17" })}>
+                        <button aria-label="Edit itinerary location" className={!loadError && !event.point && statusFor(event) !== "error" ? "primary-recovery" : undefined} onClick={() => go(7, { event: event.id, date: event.date, return: "17", ...(dayFilter ? {days:dayFilter} : {}) })}>
                           Edit location
                         </button>
                       )}
@@ -881,13 +900,14 @@ export function TravelMap({
                   checked={visibleMapDays.has(group.date)}
                   onChange={(change) => {
                     const show = change.currentTarget.checked;
-                    setHiddenMapDays((current) => show
-                      ? current.filter((date) => date !== group.date)
-                      : current.includes(group.date) ? current : [...current, group.date]);
+                    changeVisibleDays(show ? [...visibleMapDays, group.date] : [...visibleMapDays].filter(day => day !== group.date), focusDate, true);
                   }}
                 />
                 <span>Show on map</span>
               </label>
+              <button type="button" className="text-link map-only-day" onClick={() => {
+                changeVisibleDays([group.date], group.date, true);
+              }}>Only this day</button>
             </div>
           ))}
         </aside>
@@ -906,7 +926,7 @@ export function MapPage() {
         description={trip?.destinations.join(" · ")}
         title="Map"
         action={
-          <Button variant="outline" onClick={() => open("nearby", { date: selection?.date, event: selection?.id })}>
+          <Button variant="outline" onClick={() => open("nearby", { date: selection?.date || route.params.get("date") || undefined, event: selection?.id })}>
             <Sparkles size={16} />
             Nearby suggestion
           </Button>
@@ -915,6 +935,7 @@ export function MapPage() {
       {trip && (
         <TravelMap
           key={trip.id}
+          focusDate={route.params.get("date") && route.params.get("date")! >= trip.start && route.params.get("date")! <= trip.end ? route.params.get("date")! : undefined}
           selectedEvent={route.params.get("event") || undefined}
           selectedPlace={route.params.get("place") || undefined}
         />

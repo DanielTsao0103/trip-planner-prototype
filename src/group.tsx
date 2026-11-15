@@ -355,6 +355,7 @@ export function Group() {
         </div>
         <Badge tone="green">Visible to the group</Badge>
       </div>
+      {activeTravelers.some(person => person.status === "accepted" && !t.prefs[person.id]) && <details className="preference-followup"><summary>Who hasn’t shared preferences?</summary><p className="fine-print">No response is different from having no restrictions.</p><ul>{activeTravelers.filter(person => person.status === "accepted" && !t.prefs[person.id]).map(person => <li key={person.id}><Avatar name={person.name} id={person.accountId || person.id}/><span>{person.name}</span>{person.id === member(t,s.userId)?.id && <Button variant="text" onClick={() => go(15)}>Share my preferences <ArrowRight size={15}/></Button>}</li>)}</ul></details>}
       {responses.length > 0 && <label className="preference-jump">Jump to
         <select aria-label="Jump to a preference" value="" onChange={(event) => {
           const section = document.getElementById(`group-preference-${event.target.value}`);
@@ -999,6 +1000,7 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
   const { s, go, route, savePreferences, toast, open, dismissMessage } = useApp();
   useEffect(() => dismissMessage(), []);
   const returnPage = route.params.get("return") === "9" ? 9 : route.params.get("return") === "10" ? 10 : 13;
+  const returnDate: Record<string, string> = returnPage === 9 && route.params.get("date") && route.params.get("date")! >= t.start && route.params.get("date")! <= t.end ? {date:route.params.get("date")!} : {};
   const traveler = member(t, s.userId)!;
   const [saving, setSaving] = useState(false);
   // sessionStorage is tab-local; the key also separates accounts, trips and travelers.
@@ -1182,7 +1184,7 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
         }
       }
       toast("Trip preferences saved.", "preferences");
-      go(leaveOnboarding ? 8 : returnPage);
+      go(leaveOnboarding ? 8 : returnPage, leaveOnboarding ? {} : returnDate);
       if (!leaveOnboarding && route.params.get("nearby") === "true") open("nearby");
     } catch (issue) {
       setError(issue instanceof Error ? issue.message : "Could not save preferences. Try again.");
@@ -1457,10 +1459,7 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
             <>
               <div className="step-heading"><span>03</span><h2>The practical little things.</h2></div>
               {bookingFields}
-              <div className="info-banner">
-                <Users size={18} />
-                <span>Your group can see your saved preferences. You can come back and change them.</span>
-              </div>
+              <section className="preference-review" aria-label="Review your preferences"><h3>What you’ll share with the group</h3><dl><dt>Dietary needs</dt><dd>{p.diet.join(", ") || "None selected"}</dd><dt>Dining</dt><dd>{[p.food,p.dining,p.atmosphere].filter(Boolean).join(" · ") || "Not selected"}</dd><dt>Interests</dt><dd>{p.interests.join(", ") || "None selected"}</dd><dt>Walking limit</dt><dd>{p.walk} meters</dd><dt>Accessibility</dt><dd>{p.access.join(", ") || "None selected"}</dd><dt>Spending</dt><dd>{p.spending || "Not selected"}</dd><dt>Tickets</dt><dd>{Array.isArray(p.tickets) ? p.tickets.join(", ") || "None shared" : p.tickets || "None shared"}</dd><dt>Notes</dt><dd>{p.notes || "None shared"}</dd></dl><p className="fine-print">Some fields start with suggested choices. Check that every answer reflects your needs. You can go back to edit before saving, and change them later.</p></section>
             </>
           )}
           <ErrorBox text={error} />
@@ -1469,7 +1468,7 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
           <div className="form-actions survey-actions">
             <div className="survey-back-actions">
               {step > 0 && <Button variant="text" onClick={() => advance(step - 1)}>Back</Button>}
-              <Button variant="text" onClick={() => go(returnPage)}>Cancel</Button>
+              <Button variant="text" onClick={() => go(returnPage, returnDate)}>Cancel</Button>
             </div>
             {step < 2 ? (
               <Button onClick={() => advance(step + 1)}>

@@ -6,6 +6,10 @@ Trip Planner brings group trips, itineraries, shared maps, traveler preferences,
 
 **System overview updated November 9, 2026**, against source revision `7380a57`. This README describes the current implementation. Linked acceptance reports record checks performed on their stated dates and revisions; this documentation update is not a new live-service audit.
 
+## November 14 usefulness update
+
+The [site audit and implementation plan](SITE_USEFULNESS_PLAN.md) covers every page. The release adds relevant trip ordering/search, shared planning dates, selectable free time, a saved-place Suggestions workspace, researched-place retention, persistent map-day filters, and clearer group preference follow-up. Schedule availability excludes travel time; Today remains the travel guide. Budget, account/authentication, appearance and OKR calculations were retained after review.
+
 ## Current features
 
 | Area | Implemented behavior |

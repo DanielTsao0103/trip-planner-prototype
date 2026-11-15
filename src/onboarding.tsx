@@ -1,6 +1,7 @@
 import { readPhotoDataUrl, validatePhoto } from "./image-validation";
 import { RecipientField, useRecipients } from "./recipient-field";
 import { DatePicker } from "./date-picker";
+import { compareTrips, localTripDate, tripPhase } from "./trip-order";
 import { DestinationInput } from "./destination-input";
 /** Implementation status: Real account trip forms persist the complete trip through saveTrip. Standalone demo trips remain browser-local; account invitations run after the trip save succeeds. See ../IMPLEMENTATION_STATUS.md. */
 import {
@@ -61,6 +62,7 @@ import {
   isOwner,
   member,
   isActive,
+  canEdit,
   type Trip,
   type User,
 } from "./domain";
@@ -482,20 +484,14 @@ export function ConnectProvider() {
         </Button>
       </div>
       </div>
-      <button
-        className="text-link centered"
-        disabled={busy}
-        onClick={() => finish(true)}
-      >
-        {reviewing ? "Try unsuccessful update" : "Try unsuccessful connection"}
-      </button>
+      <details className="sample-tools"><summary>Sample tools</summary><button className="text-link" disabled={busy} onClick={() => finish(true)}>{reviewing ? "Try unsuccessful update" : "Try unsuccessful connection"}</button></details>
     </div>
   );
 }
 export function Home() {
   const { go, explore, open, overlay, accountTrips, route, s, mutate } = useApp();
   const recentTrips = s.trips.filter(trip => !trip.sample && member(trip, s.userId))
-    .sort((a,b) => Number(b.id === s.tripId) - Number(a.id === s.tripId) || b.start.localeCompare(a.start)).slice(0,3);
+    .sort((a,b) => compareTrips(a,b,s.date)).slice(0,3);
   const templateHeading = useRef<HTMLHeadingElement>(null);
   const section = route.params.get("section");
   useEffect(() => {
@@ -564,7 +560,7 @@ export function Home() {
       <section className="continue-planning" aria-label="Continue planning">
         <div className="section-title"><h2>Your trips</h2><Button variant="text" onClick={() => go(5)}>All trips <ArrowRight size={16}/></Button></div>
         {recentTrips.length > 0 ? <div className="recent-trip-grid">{recentTrips.map(trip => <button type="button" key={trip.id} className="recent-trip-card" aria-label={`Continue planning ${trip.title}`} onClick={() => {mutate(store => {store.tripId=trip.id;}); go(8);}}>
-          <Photo src={trip.image} alt=""/><span className="recent-trip-copy"><strong>{trip.title}</strong><span>{tripDateRange(trip.start,trip.end)}</span></span><ArrowUpRight size={18}/>
+          <Photo src={trip.image} alt=""/><span className="recent-trip-copy"><strong>{trip.title}</strong><span>{tripPhase(trip,s.date) === "Active" ? "Happening now" : tripPhase(trip,s.date) === "Past" ? "Past trip" : "Coming up"} · {tripDateRange(trip.start,trip.end)}</span></span><ArrowUpRight size={18}/>
         </button>)}</div> : <div className="home-empty"><p>{s.trips.find(trip => trip.id === s.tripId)?.sample ? "No personal trips yet. You’re currently exploring the sample." : "No trips yet. Start with a new trip or an idea below."}</p></div>}
       </section>
       <div className="section-title home-ideas-heading">
@@ -628,19 +624,27 @@ const dateAfter = (iso: string, offset: number) => {
 };
 export function Trips() {
   const { s, user, mutate, go, open, route, pendingTripIds } = useApp();
-  const [filter, setFilter] = useState("All");
+  const filterKey = `trip-planner-trip-filters:${s.userId || "guest"}`;
+  const readFilters = () => {
+    try { const value = JSON.parse(sessionStorage.getItem(filterKey) || "{}"); return { key: filterKey, filter: ["All", "Upcoming", "Active", "Past"].includes(value.filter) ? value.filter as string : "All", search: typeof value.search === "string" ? value.search : "" }; }
+    catch { return { key: filterKey, filter: "All", search: "" }; }
+  };
+  const [storedFilters, setStoredFilters] = useState(readFilters);
+  const { filter, search } = storedFilters.key === filterKey ? storedFilters : readFilters();
+  const changeFilters = (next: {filter: string; search: string}) => {
+    setStoredFilters({key: filterKey, ...next});
+    try { sessionStorage.setItem(filterKey, JSON.stringify(next)); } catch { /* Filtering still works without browser storage. */ }
+  };
+  const setFilter = (next: string) => changeFilters({ filter: next, search });
   const trips = s.trips.filter((t) => member(t, s.userId));
   // Put the new trip beside its confirmation without changing the stored order.
   const createdId = route.params.get("created");
-  const visibleTrips = trips.filter(
-    (t) =>
-      filter === "All" ||
-      (filter === "Past"
-        ? t.end < s.date
-        : filter === "Active"
-          ? isActive(t, s.date)
-          : t.start > s.date),
-  ).sort((a, b) => Number(b.id === createdId) - Number(a.id === createdId));
+  const visibleTrips = trips.filter(t => (filter === "All" || tripPhase(t,s.date) === filter) && (!search.trim() || `${t.title} ${t.destinations.join(" ")}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())))
+    .sort((a, b) => Number(b.id === createdId) - Number(a.id === createdId) || compareTrips(a,b,s.date));
+  const addDate = (trip: Trip) => {
+    const today = localTripDate(trip,s.date);
+    return days(trip.start,trip.end).find(day => day >= today && canEdit(trip,s.userId,day)) || days(trip.start,trip.end).find(day => canEdit(trip,s.userId,day));
+  };
   const pending = s.trips.filter((t) =>
     t.members.some((m) => m.id === s.userId && m.status === "pending"),
   );
@@ -685,6 +689,7 @@ export function Trips() {
           </Button>
         </div>
       ))}
+      {(trips.length > 1 || search) && <div className="trip-search"><Field label="Find a trip"><input type="search" placeholder="Trip name or destination" value={search} onChange={event => changeFilters({filter,search:event.target.value})}/></Field>{search && <Button variant="text" onClick={() => changeFilters({filter,search:""})}>Clear search</Button>}</div>}
       <div className="tabs">
         {["All", "Upcoming", "Active", "Past"].map((f) => (
           <button
@@ -709,9 +714,9 @@ export function Trips() {
             >
               <Photo src={t.image} alt={t.destinations[0]} />
               <Badge tone="white">
-                {t.end < s.date
+                {tripPhase(t,s.date) === "Past"
                   ? "Past trip"
-                  : isActive(t, s.date)
+                  : tripPhase(t,s.date) === "Active"
                     ? "Happening now"
                     : "On the horizon"}
               </Badge>
@@ -753,21 +758,10 @@ export function Trips() {
                 >
                   Open itinerary <ArrowRight size={15} />
                 </Button>
-                <Button
+                {addDate(t) && <Button
                   variant="outline small"
-                  onClick={() => {
-                    mutate((v) => (v.tripId = t.id));
-                    go(7, {
-                      date:
-                        member(t, s.userId)?.role === "Day Editor"
-                          ? member(t, s.userId)!.days[0] || t.start
-                          : t.start,
-                    });
-                  }}
-                >
-                  <Plus size={14} />
-                  Add event
-                </Button>
+                  onClick={() => { mutate((v) => (v.tripId = t.id)); go(7, {date:addDate(t)!}); }}
+                ><Plus size={14} />Add event</Button>}
               </div>
               {isOwner(t, s.userId) && !t.sample && (
                 <Button
@@ -784,10 +778,10 @@ export function Trips() {
       </div>
       {!!trips.length && !visibleTrips.length && (
         <Empty
-          title={`No ${filter.toLowerCase()} trips right now.`}
+          title={search ? "No trips match your search." : `No ${filter.toLowerCase()} trips right now.`}
           body="Your other trips are still here. Show them all or start planning something new."
           action={
-            <Button variant="outline" onClick={() => setFilter("All")}>
+            <Button variant="outline" onClick={() => changeFilters({filter:"All",search:""})}>
               Show all trips
             </Button>
           }
@@ -1222,6 +1216,7 @@ export function TripForm() {
                 onChange={setEnd}
               />
             </div>
+            {original && start && end && start <= end && (original.events.some(event => event.date < start || event.date > end) || original.todos.some(todo => todo.date < start || todo.date > end) || original.members.some(person => person.status !== "removed" && person.role === "Day Editor" && person.days.some(day => day < start || day > end))) && <div className="trip-date-impact" role="status"><strong>These dates leave existing plans outside the trip</strong><ul>{original.events.filter(event => event.date < start || event.date > end).map(event => <li key={event.id}>{event.name} · {dateText(event.date,true)}</li>)}{original.todos.filter(todo => todo.date < start || todo.date > end).map(todo => <li key={todo.id}>Reminder: {todo.text} · {dateText(todo.date,true)}</li>)}{original.members.filter(person => person.status !== "removed" && person.role === "Day Editor" && person.days.some(day => day < start || day > end)).map(person => <li key={person.id}>{person.name}: editing access on {person.days.filter(day => day < start || day > end).map(day => dateText(day,true)).join(", ")} will be removed if you save. {person.days.some(day => day >= start && day <= end) ? "Other assigned days stay the same." : "Assign at least one remaining day in Group before saving."}</li>)}</ul><p>Move any listed events and reminders first, or keep the original trip dates. Review the editing-access changes before saving.</p></div>}
             <Field label="Trip time zones" hint={zoneLoading ? "Finding time zones for your destinations…" : zoneRecoveryHint}>
               {locations.length ? <ul className="trip-timezone-list"><li><ul className="trip-timezone-group">
                 {locations.map(destination => {

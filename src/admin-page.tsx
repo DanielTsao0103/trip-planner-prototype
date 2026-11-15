@@ -16,8 +16,8 @@ export function AdminPage() {
           <h2 id="admin-trackers">OKR trackers</h2>
           <div className="menu-links">
             {OKR_TRACKERS.map(({ owner, page }) => (
-              <button key={page} onClick={() => go(page)}>
-                {okrLabel(owner)}
+              <button key={page} aria-label={okrLabel(owner)} onClick={() => go(page)}>
+                <span>{okrLabel(owner)}<small className="tracker-availability">{owner === "Daniel" || owner === "Ivy" ? "Available · account data" : "Not built yet"}</small></span>
                 <ArrowRight size={16} />
               </button>
             ))}

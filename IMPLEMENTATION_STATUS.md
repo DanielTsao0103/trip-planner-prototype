@@ -2,6 +2,12 @@
 
 Source and live database audit: October 28, 2026. Full account-trip persistence is verified with disposable QA accounts; external simulations are not implemented services. Budget (12) and Suggestions (9) omit implementation commentary, including the shared footer. Other pages and dialogs retain their existing notes. Keep the technical details here and beside the relevant handlers. A clean interface does not mean every action is backed by a server.
 
+## November 14 site usefulness pass
+
+Home and My trips now prioritize active and nearest upcoming plans, with session-scoped search/filter recovery. Calendar paging shares its selected day with Map & list, event creation and nearby research. Schedule openings and event-time choices use actual event intervals within a labeled 9 AM–6 PM window; they do not predict travel or venue availability. Suggestions leads with persisted saved places and an explicit planning day. Nearby can save source-backed candidates through `updateTrip`, deduplicates matching names/locations, and respects per-day editing grants. Map day filters are URL state and remain separate from the focused date. Group follow-up distinguishes absent preference responses; the survey reviews exact shared answers before saving. Admin labels available versus unimplemented trackers.
+
+No schema or provider subscription was added. Account, Style, authentication, Budget, audited repayments, access controls and confirmed OKR definitions retain their existing behavior. See `SITE_USEFULNESS_PLAN.md` for the full route audit and validation scope. Automated provider fixtures are not proof of live map imagery or research availability.
+
 ## Persistence boundary
 
 - `src/auth.tsx` calls Supabase Auth for email/password signup, login, session loading, and sign-out. The account-created trigger in `supabase/migrations/20261010194129_auth_only_lucid_schema.sql` creates the public profile. The old `Auth` component in `onboarding.tsx` is not routed by `main.tsx`.

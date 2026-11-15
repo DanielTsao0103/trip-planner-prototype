@@ -7,6 +7,8 @@ import { WeeklyCalendar } from "./weekly-calendar";
 /** Implementation status: Account events, todos, and dismissed choices save through updateTrip to Supabase. Confirmation extraction, crowds, costs, and suggestions remain fixtures; uploaded file previews are temporary. See ../IMPLEMENTATION_STATUS.md. */
 import { DatePicker } from "./date-picker";
 import { findAvailableHour } from "./planning-slots";
+import { planningTime, planningWindows, timeMinutes } from "./planning-availability";
+import { TimeChoices } from "./time-choices";
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { searchDestinationPhotos, trackUnsplashSelection, uploadTripPhoto, type UnsplashPhoto } from "./trip-photos";
@@ -264,9 +266,7 @@ export function Itinerary({ mapMode: explicitMapMode = false }: { mapMode?: bool
             go(7, {
               ...(mapMode ? {return: "11"} : {view}),
               date:
-                role === "Day Editor"
-                  ? traveler.days[0] || t.start
-                  : activeDay || t.start,
+                canEdit(t, s.userId, activeDay) ? activeDay : traveler.days.find(day => day >= t.start && day <= t.end) || t.start,
             })
           }
         >
@@ -391,6 +391,7 @@ export function Itinerary({ mapMode: explicitMapMode = false }: { mapMode?: bool
                   {mapMode ? "Show on map" : "View day"} <ArrowUpRight size={15} />
                 </button>
               </div>
+                {canEdit(t, s.userId, date) && <details className="day-openings"><summary>Find time for another plan</summary><p className="fine-print">Open time between 9 AM and 6 PM · travel time not included.</p><div className="time-choice-buttons">{planningWindows(t.events, date).filter(window => timeMinutes(window.end) - timeMinutes(window.start) >= 15).map(window => <Button key={window.start} variant="outline small" onClick={() => go(7, { date, start: window.start, end: planningTime(Math.min(timeMinutes(window.end),timeMinutes(window.start)+60)), return: "11", view: "list" })}>{timeText(window.start)}–{timeText(window.end)}</Button>)}</div>{!planningWindows(t.events, date).some(window => timeMinutes(window.end) - timeMinutes(window.start) >= 15) && <p>No daytime openings of 15 minutes or more.</p>}</details>}
                 <div className="events-list">
                   {events.map((e) => (
                     mapMode ? <article key={e.id} id={`day-event-${e.id}`} tabIndex={-1} aria-label={e.name} className={`map-list-stop ${mapEvent === e.id ? "focused" : ""}`}>
@@ -401,7 +402,7 @@ export function Itinerary({ mapMode: explicitMapMode = false }: { mapMode?: bool
                           {canEdit(t,s.userId,e.date) && <Button variant="text" onClick={() => go(7,{event:e.id,date:e.date,return:"11"})}><Pencil size={16}/>Edit event</Button>}
                         </div>
                         {e.notes && <EventNotes key={e.id} notes={e.notes}/>}
-                        <div className="row"><button type="button" className="text-link" onClick={() => {selectStop(e); document.getElementById("itinerary-day-map")?.scrollIntoView({block:"nearest",behavior:"smooth"});}}><MapPin size={14}/>{e.place}</button>
+                        <div className="row"><button type="button" className="text-link" onClick={() => { revealMap.current = true; setActiveDay(e.date); setMapEvent(e.id); navigate(11, { date: e.date, event: e.id }, true); }}><MapPin size={14}/>{e.place}</button>
                         <a className="text-link" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(e.point ? `${e.point.lat},${e.point.lng}` : e.place)}`} target="_blank" rel="noreferrer">Directions <ArrowUpRight size={14}/></a></div>
                       </div>}
                     </article> : <EventCard key={e.id} id={`itinerary-event-${e.id}`} event={e} />
@@ -417,7 +418,7 @@ export function Itinerary({ mapMode: explicitMapMode = false }: { mapMode?: bool
           </div>}
         </div>
         {mapMode && !mapHidden ? <aside id="itinerary-day-map" tabIndex={-1} className="day-map-panel" aria-label="Map of selected day">
-          <div className="day-map-heading"><h2>{new Date(mapDate + "T12:00:00").toLocaleDateString("en-US", {weekday:"long"})}, {dateText(mapDate,true)}</h2><Button variant="text" onClick={() => go(17,mapEvent ? {event:mapEvent} : {})}>Full map <ArrowUpRight size={15}/></Button></div>
+          <div className="day-map-heading"><h2>{new Date(mapDate + "T12:00:00").toLocaleDateString("en-US", {weekday:"long"})}, {dateText(mapDate,true)}</h2><Button variant="text" onClick={() => go(17,{date:mapDate,...(mapEvent ? {event:mapEvent} : {})})}>Full map <ArrowUpRight size={15}/></Button></div>
           <div className="day-control">
             <Button variant="outline" aria-label="Previous day" disabled={mapDate===t.start} onClick={() => go(11,{date:allDays[allDays.indexOf(mapDate)-1]})}><ChevronLeft size={16}/></Button>
             <DatePicker label="Choose a day" value={mapDate} min={t.start} max={t.end} onChange={date => {if(date >= t.start && date <= t.end) go(11,{date});}}/>
@@ -630,8 +631,8 @@ export function EventForm() {
   };
   const returnTo = route.params.get("return");
   const leaveForm = (day: string, eventId?: string) => {
-    if (returnTo === "17") go(17, eventId ? { event: eventId } : {});
-    else if (returnTo === "9") go(9);
+    if (returnTo === "17") go(17, { date: day, ...(eventId ? { event: eventId } : {}), ...(route.params.get("days") ? {days:route.params.get("days")!} : {}) });
+    else if (returnTo === "9") go(9, {date: day});
     else if (returnTo === "16") go(16);
     else if (returnTo === "10") go(10);
     else if (returnTo === "11") go(11, { date: day, ...(eventId ? { event: eventId } : {}), ...(route.params.get("map") === "hidden" ? { map: "hidden" } : {}) });
@@ -912,6 +913,7 @@ export function EventForm() {
                   />
                 </Field>
               </div>
+              <TimeChoices events={t.events} date={date} excludeId={original?.id} start={start} end={end} onChoose={(nextStart, nextEnd) => { setStart(nextStart); setEnd(nextEnd); setError(""); }} />
               {timeError && <div ref={timeErrorTarget} tabIndex={-1} className="event-time-error"><ErrorBox text={error} /></div>}
               <p className="fine-print">
                 Times in {zoneText(t.zone)}. For overnight activities, add one event per
@@ -1040,9 +1042,10 @@ export function EventForm() {
   );
 }
 export function Suggestions() {
-  const { trip: t, s, go, open, updateTrip, toast, message, dismissMessage } = useApp();
+  const { trip: t, s, go, open, route, updateTrip, toast, message, dismissMessage } = useApp();
   const [loading, setLoading] = useState(false);
   if (!t) return null;
+  const selectedDay = itineraryDay(t, null, route.params.get("date"), s.date);
   const traveler = member(t, s.userId)!;
   const prefs = t.prefs[traveler.id];
   const canDismiss = traveler.role === "Owner" || traveler.role === "Editor";
@@ -1088,10 +1091,9 @@ export function Suggestions() {
     },
   ];
   const dates = days(t.start, t.end).filter((d) => canEdit(t, s.userId, d));
-  const preferred = isActive(t, s.date)
-    ? [s.date, ...dates.filter((d) => d !== s.date)]
-    : dates;
+  const preferred = [selectedDay];
   const slot = findAvailableHour(t, s.userId, preferred, undefined, { date: s.date, time: s.time });
+  const nextSlot = !slot ? findAvailableHour(t, s.userId, dates.filter(day => day > selectedDay), undefined, {date:s.date,time:s.time}) : undefined;
   const walkLimit = Math.min(
     100000,
     ...Object.values(t.prefs).map((p) => p.walk),
@@ -1104,12 +1106,12 @@ export function Suggestions() {
     <>
       <PageHead
         title="Suggestions"
-        description="Personalize a sample idea, or find researched places nearby."
+        description="Keep places you want to visit, then find a time for them."
         action={
           <Button
             variant="outline suggestion-refresh"
             aria-label="Nearby suggestions"
-            onClick={() => open("nearby")}
+            onClick={() => open("nearby", {date: selectedDay})}
           >
             <Sparkles size={16} />
             <span>Nearby suggestions</span>
@@ -1117,17 +1119,20 @@ export function Suggestions() {
         }
       />
       {message === "Trip preferences saved." && <div className="inline-success" role="status"><span>{message}</span><button className="icon-btn" aria-label="Dismiss message" onClick={dismissMessage}><X size={16}/></button></div>}
+      <div className="ideas-day"><Field label="Planning day"><select value={selectedDay} onChange={event => go(9, {date: event.target.value}, true)}>{days(t.start,t.end).map((day,index) => <option key={day} value={day}>Day {index + 1} · {dateText(day)}</option>)}</select></Field><Button variant="text" onClick={() => go(11, {date:selectedDay})}>View this day <ArrowRight size={16}/></Button></div>
+      <SavedPlaces key={t.id} date={selectedDay} view="ideas" initiallyExpanded />
+      <div className="section-title"><div><h2>Sample inspiration</h2><p>Starting points to personalize and verify.</p></div></div>
       <div className="suggestion-context">
         <Badge tone="green">
           <MapPin size={13} />
           {t.destinations[0]}
         </Badge>
         <Badge>{Object.keys(t.prefs).length} preference {Object.keys(t.prefs).length === 1 ? "survey" : "surveys"}</Badge>
-        <button className="text-link" onClick={() => { dismissMessage(); go(15, { return: "9" }); }}>
+        <button className="text-link" onClick={() => { dismissMessage(); go(15, { return: "9", date: selectedDay }); }}>
           Update your preferences <ArrowRight size={14} />
         </button>
       </div>
-      {!slot && dates.length > 0 && <p className="note suggestion-time-recovery">There are no upcoming one-hour slots on your editable days. <button className="text-link" onClick={() => go(8)}>Review your itinerary <ArrowRight size={14} /></button></p>}
+      {!slot && dates.length > 0 && <p className="note suggestion-time-recovery">There is no upcoming one-hour slot on this day that you can edit. {nextSlot && <Button variant="text" onClick={() => go(9, {date:nextSlot.date}, true)}>Try {dateText(nextSlot.date,true)} <ArrowRight size={14}/></Button>}<button className="text-link" onClick={() => go(8, {date:selectedDay,view:"calendar"})}>Review your itinerary <ArrowRight size={14} /></button></p>}
       {!prefs && (
         <div className="info-banner">
           Tell us what you enjoy in My preferences to make these ideas more
@@ -1164,8 +1169,8 @@ export function Suggestions() {
                   </div>
                   <p className="available-slot">
                     {added ? `Added: ${dateText(added.date, true)} at ${timeText(added.start)}` : slot
-                      ? `Free in your itinerary: ${dateText(slot.date, true)} at ${timeText(slot.start)}`
-                      : dates.length ? "No upcoming one-hour slot on your editable days" : "Ask a trip editor to add this idea"}
+                      ? `One possible time: ${dateText(slot.date, true)} at ${timeText(slot.start)}`
+                      : dates.length ? "No upcoming one-hour slot on this day" : "Ask a trip editor to add this idea"}
                   </p>
                   <div className="card-actions">
                     {!added && canDismiss && <Button
@@ -1193,7 +1198,7 @@ export function Suggestions() {
                         });
                       }}
                     >
-                      {added ? <>View added plan <ArrowRight size={15} /></> : <>Choose a time <Plus size={15} /></>}
+                      {added ? <>View added plan <ArrowRight size={15} /></> : <>Review this idea <Plus size={15} /></>}
                     </Button>
                   </div>
                 </div>

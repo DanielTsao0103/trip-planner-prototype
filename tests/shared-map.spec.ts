@@ -157,7 +157,7 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
   await expect(
     page.getByRole("link", { name: "Directions", exact: true }),
   ).toHaveAttribute("href", url!);
-  await page.getByRole("button", { name: "Show all pins" }).click();
+  await page.getByRole("button", { name: "Fit visible pins" }).click();
   await expect(
     page.getByRole("link", { name: "Directions", exact: true }),
   ).toHaveCount(0);

@@ -7,11 +7,11 @@ import { Button, ConfirmDialog, ErrorBox, Field, Modal } from "./ui";
 import { EventLocationInput } from "./event-location-input";
 
 /** Unscheduled ideas use the existing trip transaction and recovery journal. */
-export function SavedPlaces({ date, view = "list" }: { date: string; view?: "calendar" | "list" | "map" }) {
+export function SavedPlaces({ date, view = "list", initiallyExpanded = false }: { date: string; view?: "calendar" | "list" | "map" | "ideas"; initiallyExpanded?: boolean }) {
   const { trip, s, updateTrip, go } = useApp();
   const [discarding, setDiscarding] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initiallyExpanded);
   const [removing, setRemoving] = useState<SavedPlace>();
   const [name, setName] = useState("");
   const [place, setPlace] = useState("");
@@ -77,6 +77,7 @@ export function SavedPlaces({ date, view = "list" }: { date: string; view?: "cal
         </div>
       </div>
       <ErrorBox text={notice} />
+      {initiallyExpanded && !places.length && <p className="saved-places-empty">Save a place you have in mind, or research nearby ideas for your selected day.</p>}
       {expanded &&
         places.map((item) => (
           <div className="saved-place-row" key={item.id}>
@@ -90,7 +91,7 @@ export function SavedPlaces({ date, view = "list" }: { date: string; view?: "cal
                 <Button
                   variant="outline"
                   onClick={() =>
-                    go(7, { savedPlace: item.id, date, ...(view === "map" ? {return:"11"} : {view}) })
+                    go(7, { savedPlace: item.id, date, ...(view === "ideas" ? {return:"9"} : view === "map" ? {return:"11"} : {view}) })
                   }
                 >
                   Schedule <ArrowRight size={15} />
