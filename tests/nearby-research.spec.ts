@@ -178,8 +178,11 @@ test("guide ideas add once to the itinerary with location titles and distinct li
   await expect(cards.first().getByRole('button',{name:'Already in your plans',exact:true})).toBeDisabled();
   await cards.first().getByRole('button',{name:'Add to itinerary',exact:true}).click();
   await expect(cards.first().getByRole('button',{name:'Added to itinerary',exact:true})).toBeDisabled();
+  await expect(cards.first().locator('.nearby-planning-details')).toContainText('12:00 PM–1:00 PM');
+  await expect(cards.first().getByRole('button',{name:'Review and add to this day',exact:true})).toBeDisabled();
   await cards.nth(1).getByRole('button',{name:'Add to itinerary',exact:true}).click();
   await expect(cards.nth(1).getByRole('button',{name:'Added to itinerary',exact:true})).toBeDisabled();
+  await expect(cards.first().locator('.nearby-planning-details')).toContainText('12:00 PM–1:00 PM');
   await expect.poll(()=>writes.at(-1)?.events.length).toBe(2);
   const events=writes.at(-1).events;
   expect(writes.at(-1).savedPlaces).toHaveLength(0);
