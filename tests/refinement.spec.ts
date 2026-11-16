@@ -661,7 +661,7 @@ test('long reminders stay readable beside visible actions and preserve check and
 test('added sample ideas link to their saved event and survive reload', async ({ page }) => {
   await page.goto('./#/9');
   await expect(page.getByText('Keep places you want to visit, then find a time for them.')).toBeVisible();
-  await expect(page.locator('.suggestion-card').first().getByText('Sample idea', {exact:true})).toBeVisible();
+  await expect(page.locator('.suggestion-card').first().getByText('Idea', {exact:true})).toBeVisible();
   await page.getByRole('button', {name:'Review this idea'}).first().click();
   await page.getByRole('button', {name:'Add to itinerary',exact:true}).click();
   await expect(page).toHaveURL(/#\/9(?:\?date=\d{4}-\d{2}-\d{2})?$/);

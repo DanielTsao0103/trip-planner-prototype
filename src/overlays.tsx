@@ -661,7 +661,7 @@ export function Overlays() {
           <section><h3>Your trip{t?.title ? ` - ${t.title}` : ""}</h3><div className="menu-links">
             {[[8, "Itinerary"], [11, "Map & list"], [17, "Map"], [12, "Budget"], [13, "The group"], [9, "Suggestions"], [15, "My preferences"], ...(t && isActive(t, s.date) ? [[10, "Today"]] : [])].map(([page, label]) => <button key={page} aria-current={app.route.page === page ? "page" : undefined} onClick={() => tripGo(Number(page))}>{label}</button>)}
           </div></section>
-          <section><h3>Personal</h3><div className="menu-links"><button onClick={() => go(19)}>Your account <Users size={17}/></button><button onClick={() => go(18)}>Style <Palette size={17}/></button>{!app.accountInfo.cloud && <button onClick={() => open("demo")}>Sample trip tools</button>}</div></section>
+          <section><h3>Personal</h3><div className="menu-links"><button onClick={() => go(19)}>Your account <Users size={17}/></button><button onClick={() => go(18)}>Style <Palette size={17}/></button>{(!app.accountInfo.cloud || app.s.sampleReturn) && <button onClick={() => open("demo")}>Sample trip tools</button>}</div></section>
         </nav>
       </Modal>
     );

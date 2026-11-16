@@ -14,6 +14,7 @@ test.beforeEach(async ({ page }) => {
     // These account journeys use a regular traveler; admin authorization has its own suite.
     if (url.pathname === '/rest/v1/rpc/is_admin') return route.fulfill({ json: false });
     if (url.pathname === '/rest/v1/rpc/trip_companion_pictures') return route.fulfill({ json: [] });
+    if (url.pathname === '/rest/v1/rpc/pending_trip_recommendation_feedback') return route.fulfill({ json: [] });
     // Signed-in accounts ask once whether to show the Admin link; these QA accounts are not admins.
     if (url.pathname === '/rest/v1/rpc/is_admin') return route.fulfill({ json: false });
     if (url.pathname === '/rest/v1/rpc/set_google_picture') return route.fulfill({ status: 204 });
@@ -402,6 +403,7 @@ test('new release offers reload without interrupting a form', async ({ page }) =
 
 test('screen index sample entry preserves the real account return path', async ({ page }) => {
   await login(page);
+  await page.getByRole('button', { name: 'Open the sample trip', exact: true }).click();
   const dialog = await controls(page);
   if (await dialog.getByRole("button", {name:"Screens",exact:true}).isVisible()) await dialog.getByRole("button", {name:"Screens",exact:true}).click();
   await dialog.getByRole('button', { name: '08 Itinerary', exact: true }).click();

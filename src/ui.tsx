@@ -711,7 +711,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
           <div className="topbar-right">
             {!accountInfo.cloud && <button className="demo-exit" aria-label="Exit demo" onClick={() => void signOut()}>Exit demo</button>}
-            {!accountInfo.cloud && <button className="prototype-button" aria-label="Sample trip tools" title="Sample trip tools" onClick={() => open("demo")}>
+            {(!accountInfo.cloud || s.sampleReturn) && <button className="prototype-button" aria-label="Sample trip tools" title="Sample trip tools" onClick={() => open("demo")}>
               <Settings2 className="prototype-mobile-icon" size={18}/><span className="prototype-label">Sample trip tools</span> <span className="status-dot" />
             </button>}
             {trip && (() => {
