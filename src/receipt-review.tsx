@@ -82,6 +82,7 @@ export function ReceiptReview({ value, onChange, onUseTotal, onValidityChange }:
   const changeItem = (key: number, change: Partial<Draft["items"][number]>) => update({ ...draft, items: draft.items.map(item => item.key === key ? { ...item, ...change } : item) });
   const subtotalDifference = value.subtotalCents === null ? null : value.reconciliation.itemTotalCents - (value.discountCents ?? 0) - value.subtotalCents;
   const difference = value.reconciliation.differenceCents || subtotalDifference || 0;
+  const readingNotes = value.warnings.filter(warning => !/^This receipt is in [A-Z]{3}\. Enter the amount paid in USD\.$/.test(warning));
   return <section ref={section} className="receipt-review" aria-label="Receipt details">
     <div className="receipt-review-heading"><h3>{editable ? "Review the receipt" : "Receipt details"}</h3><span>{editable ? draft.items.length : value.items.length} line {(editable ? draft.items.length : value.items.length) === 1 ? "item" : "items"}</span></div>
     {editable && <p>Compare the photo with the items and total. Correct anything that was missed.</p>}
@@ -104,7 +105,7 @@ export function ReceiptReview({ value, onChange, onUseTotal, onValidityChange }:
     </details>
     {value.totalCents != null && <p className="receipt-total"><span>Printed total</span><strong>{currencyText(value.totalCents, value.currency)}</strong></p>}
     <p className="receipt-reconciliation" role="status">{editable && !valid ? "Correct the highlighted receipt details before saving." : value.reconciliation.matches === true ? "Line items, adjustments and total agree." : value.reconciliation.matches === false ? `The ${value.reconciliation.differenceCents ? "final total" : "item subtotal"} differs by ${currencyText(Math.abs(difference), value.currency)}. Check the photo for missing items or adjustments.` : "Check the total against the photo; there is not enough information to check the full calculation."}</p>
-    {editable && valid && value.currency === "USD" && value.totalCents != null && value.totalCents > 0 && <Button variant="text" onClick={() => onUseTotal?.((value.totalCents! / 100).toFixed(2))}>Use {money(value.totalCents)} as expense amount</Button>}
-    {editable && value.warnings.length > 0 && <details><summary>Reading notes</summary><ul>{value.warnings.filter(warning => !/^This receipt is in [A-Z]{3}\. Enter the amount paid in USD\.$/.test(warning)).map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}
+    {editable && valid && onUseTotal && value.currency === "USD" && value.totalCents != null && value.totalCents > 0 && <Button variant="text" onClick={() => onUseTotal((value.totalCents! / 100).toFixed(2))}>Use {money(value.totalCents)} as expense amount</Button>}
+    {editable && readingNotes.length > 0 && <details><summary>Reading notes</summary><ul>{readingNotes.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}
   </section>;
 }
