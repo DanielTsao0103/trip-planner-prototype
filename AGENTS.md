@@ -9,6 +9,8 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 ## Corrections & Lessons Learned
 
 - Receipt amount correction (November 16, 2026): scanned/reviewed totals must fill the required USD expense amount automatically, including after confirming an unidentified currency or correcting the printed total. Convert supported foreign currencies using the existing reference-rate service, label estimates, preserve deliberate manual overrides, and cancel stale conversion responses. Never silently treat an unidentified dollar currency as USD.
+- Shilin suggestions correction (November 16, 2026): an autocomplete place ID can exist without coordinates. Resolve that ID before nearby discovery; do not treat a provider quota failure as an empty search. Validate the actual selected venue, since another school in the same district is not an equivalent reproduction.
+- Suggestion-photo correction (November 16, 2026): venue cards must not substitute city/category imagery. The Google demo key excludes user-submitted photos; skip photo calls when search metadata has none, preserve attribution when available, and never persist expiring Google media URLs as itinerary images.
 
 - iPhone Chrome camera correction (November 16, 2026): Take photo must use the inline rear-camera preview when getUserMedia is available, including touch devices. A native file-picker launch is not evidence that the camera appeared. Mount the video before binding its stream; verify mobile preview, capture, denial, timeout and cancellation, and distinguish browser simulations from a physical iPhone check.
 

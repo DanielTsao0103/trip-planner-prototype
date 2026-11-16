@@ -1,3 +1,9 @@
+## November 16 Shilin search and venue photos
+
+Selected autocomplete place IDs now resolve to coordinates using the existing demo key before Nearby Search. Filtered text searches fall back to the same nearby radius when Text Search fails or returns no usable venues; dietary and accessibility needs remain explicit confirmation checks. A failed place provider followed by empty web research now exposes the failure instead of claiming there are no source-backed options. No paid-key fallback was added.
+
+The photo integration uses the exact Google place ID and retains author attribution in the mounted view. Live checks confirmed the current Google demo key omits photos for Shilin restaurants; Google documents that demo keys exclude user-generated photos. Real Google venue-photo display therefore remains unavailable with this key, although its rendering and attribution paths are covered with provider fixtures. Search requests include photo availability; missing metadata skips extra photo lookups to preserve quota. Missing or broken venue photos leave the image absent; generic city/category photos no longer substitute for a venue. Expiring Google photo URLs are not stored in itinerary events. Web-result Unsplash photos require the full venue name and location in provider metadata.
+
 ## November 16 receipt and suggestion release
 
 Receipt review now keeps the USD expense amount synchronized with the confirmed printed total. Unknown currencies require one currency selection; supported foreign totals use the existing Frankfurter reference-rate service and show the rate date as an estimate. Manual USD overrides are preserved. Failed conversions clear stale automatic amounts and offer manual recovery; pending or replaced conversions cannot overwrite later edits. No database or receipt storage changes are required.

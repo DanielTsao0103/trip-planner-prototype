@@ -36,7 +36,7 @@ test('one direct request searches the supplied current location without a paid f
 });
 test('dietary search terms stay within the requested coordinate region',async()=>{
  const dietary={...context,diet:['Vegan']};let body:any;let endpoint='';
- await searchNearbyPlaces(dietary,{label:'Current location',point:{lat:25.03,lng:121.56}},new AbortController().signal,'demo-only',async(input,init)=>{endpoint=String(input);body=JSON.parse(String(init?.body));return Response.json({places:[]});});
+ await searchNearbyPlaces(dietary,{label:'Current location',point:{lat:25.03,lng:121.56}},new AbortController().signal,'demo-only',async(input,init)=>{endpoint=String(input);body=JSON.parse(String(init?.body));return Response.json({places:[place]});});
  assert.ok(endpoint.endsWith('searchText'));assert.match(body.textQuery,/Vegan/u);assert.ok(body.locationRestriction.rectangle);assert.equal(body.locationBias,undefined);
  assert.ok(body.locationRestriction.rectangle.low.latitude<25.03);assert.ok(body.locationRestriction.rectangle.high.latitude>25.03);
 });
@@ -64,4 +64,61 @@ test('unknown hours remain useful and all-closed results remain reviewable',()=>
  assert.equal(mixed[1].openingWindows,undefined);assert.ok(mixed[1].proposedTime);assert.equal(mixed[2].proposedTime,null);
  const closed=googlePlaceResults({places:[0,1,2,3].map(index=>timedVenue(index,closedSaturday))},context);
  assert.equal(closed.length,3);assert.ok(closed.every(result=>result.proposedTime===null&&hasLocatedPlace(result)));
+});
+
+test('selected autocomplete ID resolves through demo Places Details before scoped nearby search',async()=>{
+ const calls:{url:string;key:string|null;fields:string|null;body:any}[]=[];
+ const results=await searchNearbyPlaces(context,{label:'Shilin Elementary School, Taipei',googlePlaceId:'ChIJschool'},new AbortController().signal,'demo-only',async(input,init)=>{
+  const url=String(input),headers=new Headers(init?.headers);calls.push({url,key:headers.get('X-Goog-Api-Key'),fields:headers.get('X-Goog-FieldMask'),body:init?.body?JSON.parse(String(init.body)):null});
+  return url.endsWith('/places/ChIJschool')?Response.json({location:{latitude:25.093,longitude:121.523}}):Response.json({places:[place]});
+ });
+ assert.equal(results.length,1);assert.equal(calls.length,2);
+ assert.ok(calls[0].url.endsWith('/places/ChIJschool'));assert.ok(calls[0].fields?.includes('location'));
+ assert.ok(calls[1].url.endsWith(':searchNearby'));assert.deepEqual(calls[1].body.locationRestriction.circle.center,{latitude:25.093,longitude:121.523});
+ assert.ok(calls.every(call=>call.key==='demo-only'));
+});
+
+test('dietary Text Search quota failure falls back within the same nearby circle without a paid key',async()=>{
+ const calls:{url:string;key:string|null;body:any}[]=[];
+ const results=await searchNearbyPlaces({...context,diet:['Vegan']},{label:'Shilin school',point:{lat:25.093,lng:121.523}},new AbortController().signal,'demo-only',async(input,init)=>{
+  const url=String(input);calls.push({url,key:new Headers(init?.headers).get('X-Goog-Api-Key'),body:JSON.parse(String(init?.body))});
+  return url.endsWith(':searchText')?new Response('',{status:429}):Response.json({places:[place]});
+ });
+ assert.equal(results.length,1);assert.equal(calls.length,2);assert.ok(calls[0].url.endsWith(':searchText'));assert.match(calls[0].body.textQuery,/Vegan/);
+ assert.ok(calls[1].url.endsWith(':searchNearby'));assert.deepEqual(calls[1].body.locationRestriction.circle.center,{latitude:25.093,longitude:121.523});
+ assert.ok(calls.every(call=>call.key==='demo-only'));
+ assert.match([...results[0].concerns,results[0].fitNote||''].join(' '),/diet|Vegan|menu/i);
+});
+
+test('an aborted filtered search never starts a nearby fallback',async()=>{
+ const controller=new AbortController();let calls=0;
+ await assert.rejects(searchNearbyPlaces({...context,diet:['Vegan']},{label:'School',point:{lat:25.093,lng:121.523}},controller.signal,'demo-only',async()=>{calls++;controller.abort();throw new DOMException('Canceled','AbortError');}));
+ assert.equal(calls,1);
+});
+
+test('failed nearby fallback does not retry with another key',async()=>{
+ let calls=0;
+ await assert.rejects(searchNearbyPlaces({...context,diet:['Vegan']},{label:'School',point:{lat:25.093,lng:121.523}},new AbortController().signal,'demo-only',async(_input,init)=>{calls++;assert.equal(new Headers(init?.headers).get('X-Goog-Api-Key'),'demo-only');return new Response('',{status:429});}));
+ assert.equal(calls,2);
+});
+
+test('invalid selected-place detail coordinates never start an unrelated location search',async()=>{
+ for(const location of [null,{}, {latitude:25.09,longitude:'121.52'}, {latitude:91,longitude:121.52}, {latitude:25.09,longitude:181}, {latitude:null,longitude:121.52}]){
+  let calls=0;
+  await assert.rejects(searchNearbyPlaces(context,{label:'School',googlePlaceId:'ChIJschool'},new AbortController().signal,'demo-only',async()=>{calls++;return Response.json({location});}));
+  assert.equal(calls,1);
+ }
+});
+test('an empty filtered Text Search tries nearby venues while retaining dietary confirmation',async()=>{
+ const endpoints:string[]=[];
+ const results=await searchNearbyPlaces({...context,diet:['Vegan']},{label:'School',point:{lat:25.093,lng:121.523}},new AbortController().signal,'demo-only',async(input)=>{
+  endpoints.push(String(input));return Response.json({places:String(input).endsWith(':searchText')?[]:[place]});
+ });
+ assert.equal(results.length,1);assert.deepEqual(endpoints.map(url=>url.split(':').at(-1)),['searchText','searchNearby']);
+ assert.match(results[0].concerns.join(' '),/diet|Vegan/i);
+});
+
+test('missing provider photo metadata skips unsupported demo photo lookups', () => {
+ assert.equal(googlePlaceResults({places:[place]},context)[0].hasPhotos,false);
+ assert.equal(googlePlaceResults({places:[{...place,photos:[{name:'places/ChIJ_test/photos/reference'}]}]},context)[0].hasPhotos,true);
 });
