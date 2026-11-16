@@ -14,7 +14,7 @@ test("nearby context uses active group, personal responses, day area and conserv
   const c = context();
   assert.equal(c.area, "Museum, Portland"); assert.equal(c.travelers, 2); assert.equal(c.preferences.filter(p => p.requester).length, 1);
   assert.deepEqual(c.diet, ["Peanut avoidance"]); assert.equal(c.walkMeters, 300); assert.equal(c.remainingGroupCents, 7000);
-  assert.deepEqual(c.gaps, [{ start: "12:30", end: "15:00" }]); assert.equal(JSON.stringify(c).includes('"account"'), false);
+  assert.deepEqual(c.gaps, [{ start: "12:00", end: "15:00" }]); assert.equal(JSON.stringify(c).includes('"account"'), false);
 });
 test("unretrieved source URLs, explicit conflicts, overspending, duplicates and invalid durations cannot become recommendations", () => {
   const c = context(), sources = ["https://venue.example/menu"];
@@ -26,7 +26,7 @@ test("unretrieved source URLs, explicit conflicts, overspending, duplicates and 
 });
 test("sourced candidates remain review-only and proposed time respects deterministic gap", () => {
   const results = reviewCandidates([candidate(), candidate(), { ...candidate(), name: "Two" }, { ...candidate(), name: "Three" }, { ...candidate(), name: "Four" }], context(), ["https://venue.example/menu"]);
-  assert.ok(results.length <= 3); assert.equal(results[0].status, "review"); assert.deepEqual(results[0].proposedTime, { start: "12:30", end: "13:30" });
+  assert.ok(results.length <= 3); assert.equal(results[0].status, "review"); assert.deepEqual(results[0].proposedTime, { start: "12:00", end: "13:00" });
   assert.equal(results[0].kind, "dish");
   assert.ok(results[0].concerns.some(c => c.includes("cross-contact")));
   const unsafe = reviewCandidates([{ ...candidate(), reason: "Guaranteed allergy safe and accessible within your walking limit" }], context(), ["https://venue.example/menu"]);
@@ -101,7 +101,7 @@ test('nearby availability reserves overnight continuations and counts their cost
   const value=trip();
   value.events=[{...value.events[0],date:'2027-01-01',endDate:'2027-01-02',start:'22:00',end:'13:00'}];
   const result=planningContext(value,'a','2027-01-02','lunch',undefined,new Date('2026-12-01T12:00:00Z'));
-  assert.deepEqual(result.gaps,[{start:'13:30',end:'15:00'}]);
+  assert.deepEqual(result.gaps,[{start:'13:00',end:'15:00'}]);
   assert.equal(result.remainingGroupCents,7000);
   assert.equal(result.events[0].start,'00:00');
   value.events[0].end='00:00';
@@ -132,5 +132,5 @@ test("explicit current location preserves blocked overnight time and canonical c
   assert.deepEqual(middle.gaps,[]); assert.equal(middle.events[0].start,'00:00'); assert.equal(middle.events[0].end,'24:00');
   assert.equal(middle.remainingGroupCents,7000);
   const final=planningContext(value,'a','2027-01-03','lunch',undefined,new Date('2026-12-01T12:00:00Z'),location);
-  assert.deepEqual(final.gaps,[{start:'13:30',end:'15:00'}]); assert.equal(final.remainingGroupCents,7000);
+  assert.deepEqual(final.gaps,[{start:'13:00',end:'15:00'}]); assert.equal(final.remainingGroupCents,7000);
 });

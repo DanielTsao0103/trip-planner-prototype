@@ -119,7 +119,7 @@ test("handler distinguishes empty search, empty AI, evidence rejection and no ti
   const before = reservations;
   const response = await createNearbyHandler(config, () => ({ ...gateway, trip: async () => blocked }), async url => String(url).includes("tavily") ? json({ results: [source] }) : json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [candidate] }) } }] }))(request());
   const busyResult = await response.json();
-  assert.equal(busyResult.results.length, 1); assert.equal(busyResult.results[0].proposedTime, null); assert.equal(reservations, before + 1);
+  assert.equal(busyResult.results.length, 1); assert.equal(busyResult.results[0].proposedTime, null); assert.equal(reservations, before);
 });
 
 test("handler blocks unauthorized, inaccessible, stale and disabled requests before provider calls", async () => {
@@ -148,7 +148,7 @@ test("handler does not enforce the app generation cap; provider rate limits stil
   const request = () => new Request("https://edge.example/nearby", { method: "POST", body: JSON.stringify({ tripId: trip.id, date: trip.start, revision: 2, intent: "lunch" }) });
   const fetcher: typeof fetch = async () => { calls++; return json({}, 429); };
   const failed = await createNearbyHandler(config, () => gateway, fetcher)(request());
-  assert.equal(failed.status, 429); assert.equal(calls, 1); assert.deepEqual(outcomes, []); assert.equal((await failed.json()).attemptUsed, undefined);
+  assert.equal(failed.status, 429); assert.equal(calls, 3); assert.deepEqual(outcomes, []); assert.equal((await failed.json()).attemptUsed, undefined);
 });
 
 
@@ -257,7 +257,7 @@ test("parallel search latency is one batch and never an automatic second model p
   assert.equal(maximum, 3); assert.equal(modelCalls, 1); assert.equal(result.recoveryAttempted, false);
 });
 
-test("same-context cache rechecks membership and coalesces requests without consuming quota twice", async () => {
+test("same-context cache rechecks membership and coalesces requests without a generation cap", async () => {
   let actor = "owner", revision = 2, accessible = true, reservations = 0, providerCalls = 0;
   const row = { tripID: trip.id, revision: 2, start_date: trip.start, end_date: trip.end, timezone: trip.zone, destinations: trip.destinations, content: trip };
   const gateway: ResearchGateway = { actor: async () => actor, trip: async () => accessible ? { ...row, revision } : null, reserve: async () => { reservations++; return "reservation"; }, finish: async () => {} };
@@ -269,16 +269,16 @@ test("same-context cache rechecks membership and coalesces requests without cons
   const request = (extra = {}) => new Request("https://edge.example/nearby", { method: "POST", body: JSON.stringify({ tripId: trip.id, date: trip.start, revision, intent: "lunch", ...extra }) });
   const concurrent = await Promise.all([handler(request()), handler(request())]);
   assert.ok(concurrent.every(response => response.status === 200));
-  assert.equal(reservations, 1); assert.equal(providerCalls, 4);
+  assert.equal(reservations, 0); assert.equal(providerCalls, 4);
   const hit = await (await handler(request())).json();
-  assert.equal(hit.cached, true); assert.equal(reservations, 1);
+  assert.equal(hit.cached, true); assert.equal(reservations, 0);
   accessible = false; assert.equal((await handler(request())).status, 403); accessible = true;
   revision = 3; assert.equal((await handler(request({ revision: 2 }))).status, 409);
-  await handler(request()); assert.equal(reservations, 2);
-  actor = "other"; await handler(request()); assert.equal(reservations, 3);
-  await handler(request({ location: { label: "Portland", point: { lat: 45.52, lng: -122.67 } } })); assert.equal(reservations, 4);
+  await handler(request()); assert.equal(reservations, 0);
+  actor = "other"; await handler(request()); assert.equal(reservations, 0);
+  await handler(request({ location: { label: "Portland", point: { lat: 45.52, lng: -122.67 } } })); assert.equal(reservations, 0);
   const invalid = await handler(request({ location: { label: "Nowhere", point: { lat: 91, lng: 0 } } }));
-  assert.equal(invalid.status, 400); assert.equal(reservations, 4);
+  assert.equal(invalid.status, 400); assert.equal(reservations, 0);
 });
 
 test("empty research remains retryable rather than being retained as a cache hit", async () => {
@@ -286,7 +286,7 @@ test("empty research remains retryable rather than being retained as a cache hit
   const row = { tripID: trip.id, revision: 2, start_date: trip.start, end_date: trip.end, timezone: trip.zone, destinations: trip.destinations, content: trip };
   const handler = createNearbyHandler({ enabled: true, groq: "fixture", tavily: "fixture" }, () => ({ actor: async () => "owner", trip: async () => row, reserve: async () => { reservations++; return "reservation"; }, finish: async () => {} }), async () => json({ results: [] }));
   const request = () => new Request("https://edge.example/nearby", { method: "POST", body: JSON.stringify({ tripId: trip.id, date: trip.start, revision: 2, intent: "lunch" }) });
-  await handler(request()); await handler(request()); assert.equal(reservations, 2);
+  await handler(request()); await handler(request()); assert.equal(reservations, 0);
 });
 
 
