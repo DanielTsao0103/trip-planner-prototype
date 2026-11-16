@@ -8,6 +8,9 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 ## Corrections & Lessons Learned
 
+- Shilin suggestions correction (November 16, 2026): an autocomplete place ID can exist without coordinates. Resolve that ID before nearby discovery; do not treat a provider quota failure as an empty search. Validate the actual selected venue, since another school in the same district is not an equivalent reproduction.
+- Suggestion-photo correction (November 16, 2026): venue cards must not substitute city/category imagery. The Google demo key excludes user-submitted photos; skip photo calls when search metadata has none, preserve attribution when available, and never persist expiring Google media URLs as itinerary images.
+
 - iPhone Chrome camera correction (November 16, 2026): Take photo must use the inline rear-camera preview when getUserMedia is available, including touch devices. A native file-picker launch is not evidence that the camera appeared. Mount the video before binding its stream; verify mobile preview, capture, denial, timeout and cancellation, and distinguish browser simulations from a physical iPhone check.
 
 - Receipt adversarial review (November 16, 2026): a rejected replacement image must preserve an invalid review draft and its disabled Save state. Stage reviewed details in an account-scoped outbox before uploading, and drain only against confirmed expenses; uncertain queued writes must not trigger photo deletion. Keep receipt fields readable at actual container widths and focused after rotation or enlarged text. Test concurrent attachment/deletion with a deferred expense foreign key and cleanup ordered before its constraint checks.

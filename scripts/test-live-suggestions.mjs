@@ -20,10 +20,10 @@ const options={auth:{persistSession:false,autoRefreshToken:false},global:{header
 const admin=createClient(env.VITE_SUPABASE_URL,env.SUPABASE_SECRET_KEY,options);
 const make=()=>createClient(env.VITE_SUPABASE_URL,env.VITE_SUPABASE_PUBLISHABLE_KEY,options);
 const checked=r=>{if(r.error)throw Error(r.error.message);return r.data;};
-const passed=[],requests=[],clients=[];let owner,tripId,browser,page,providerPlaces=[],predictions=[],savedEvent;
+const passed=[],requests=[],photoDetailRequests=[],clients=[];let owner,tripId,browser,page,providerPlaces=[],predictions=[],savedEvent;
 const shilin=env.TRIP_QA_SHILIN==='1';
 const currentLocation=!shilin&&env.TRIP_QA_CURRENT_LOCATION==='1';
-const report={site,scenario:shilin?'Shilin Elementary School autocomplete in Taipei':currentLocation?'Seattle coordinate input':'Seattle city text',currentLocationInput:currentLocation ? {latitude:47.6062,longitude:-122.3321,source:'browser geolocation test input; actual Google results'} : null,checkedAt:new Date().toISOString(),mocks:false,passed,requests,cleanup:{}};
+const report={site,scenario:shilin?'Shilin Elementary School autocomplete in Taipei':currentLocation?'Seattle coordinate input':'Seattle city text',currentLocationInput:currentLocation ? {latitude:47.6062,longitude:-122.3321,source:'browser geolocation test input; actual Google results'} : null,checkedAt:new Date().toISOString(),mocks:false,passed,requests,photoDetailRequests,cleanup:{}};
 const verify=(name,condition)=>{assert.ok(condition,name);passed.push(name);console.log('PASS '+name);};
 async function login(client){checked(await client.auth.signInWithPassword({email:owner.email,password:owner.password}));}
 async function openTrip(target){
@@ -40,6 +40,11 @@ try{
  report.tripTitle=`Live suggestions QA ${tripId.slice(0,8)}`;
  await saveAccountTrip(client,owner,{id:tripId,title:report.tripTitle,destinations:[shilin?'Taipei, Taiwan':'Seattle'],start,end,zone:shilin?'Asia/Taipei':'America/Los_Angeles',image:'',persistence:'account',budget:null,budgetMode:'group',members:[{id:owner.id,name:owner.name,email,role:'Owner',status:'accepted',days:[]}],events:[],expenses:[],prefs:{},individual:{},todos:[],dismissed:[]});
  browser=await chromium.launch();const context=await browser.newContext({viewport:{width:1440,height:1000},...(currentLocation ? {geolocation:{latitude:47.6062,longitude:-122.3321},permissions:['geolocation']} : {})});context.setDefaultTimeout(30000);page=await context.newPage();
+ page.on('request',request=>{
+  if(!request.url().startsWith('https://places.googleapis.com/v1/places/'))return;
+  const fields=request.headers()['x-goog-fieldmask']||'';
+  if(fields.split(',').some(field=>field.trim()==='photos'))photoDetailRequests.push({endpoint:new URL(request.url()).pathname,fields});
+ });
  page.on('response',async response=>{
   if(!response.url().startsWith('https://places.googleapis.com/v1/places'))return;
   const endpoint=new URL(response.url()).pathname,record={provider:'Google Places',endpoint,status:response.status()};requests.push(record);
@@ -76,6 +81,13 @@ try{
   const resolved=requests.find(r=>r.endpoint===`/v1/places/${id}`&&r.status===200&&r.location);
   verify('Nearby search uses the selected school coordinates returned by Places Details',requests.some(r=>r.endpoint.endsWith(':searchNearby')&&r.status===200&&r.searchCenter?.latitude===resolved.location.latitude&&r.searchCenter?.longitude===resolved.location.longitude));
  }
+ const missingPhotoIds=providerPlaces.filter(place=>!Array.isArray(place.photos)||!place.photos.length).map(place=>place.id);
+ report.photoAvailability={providerPlaces:providerPlaces.length,placesWithoutPhotos:missingPhotoIds.length};
+ if(missingPhotoIds.length===providerPlaces.length){
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  await expect(research.locator('.nearby-result img')).toHaveCount(0);
+  verify('Google cards without provider photos do not display generic venue images',true);
+ }
  const eligible=research.locator('.nearby-result').filter({has:page.locator('button:not([disabled])').filter({hasText:/^Add to itinerary$/})}).first();
  await expect(eligible).toBeVisible();const name=await eligible.locator('h4').innerText();
  const place=providerPlaces.find(p=>p.displayName?.text===name);verify('rendered suggestion matches an actual provider place',!!place);
@@ -104,6 +116,7 @@ try{
  verify('fresh-session editor is prefilled with the complete saved venue',true);await phone.screenshot({path:output+'/suggestion-fresh-mobile-editor.png',fullPage:true});
  const finalRow=checked(await independent.from('event').select('map_point,google_place_id').eq('eventID',savedEvent.id).single());
  verify('fresh reload preserves provider identity without duplicate saves',finalRow.google_place_id===expected.googlePlaceId&&finalRow.map_point.lat===expected.point.lat&&checked(await independent.from('event').select('eventID').eq('tripID',tripId)).length===1);
+ verify('Places without photos do not trigger unnecessary photo-only Details requests',photoDetailRequests.every(request=>!missingPhotoIds.some(id=>request.endpoint===`/v1/places/${id}`)));
  report.success=true;
 }catch(error){report.success=false;report.failure=String(error);if(page)await page.screenshot({path:output+'/suggestion-failure.png',fullPage:true}).catch(()=>{});process.exitCode=1;console.error(error);
 }finally{
