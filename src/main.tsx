@@ -9,6 +9,8 @@ import "./theme-compatibility.css";
 import "./budget.css";
 import "./planning-workspace.css";
 import "./site-usefulness.css";
+import "./responsive-review.css";
+import "./visual-polish-review.css";
 import { ReleaseNotice } from "./release-notice";
 import { StyleSync } from "./style-sync-mount";
 import { startSiteStyle } from "./theme";

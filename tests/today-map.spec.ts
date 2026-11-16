@@ -60,10 +60,10 @@ test("ongoing activity stays distinct and next transfer uses the previous stop's
 
 test("route failure preserves navigation and retry without fabricated times", async ({ page }) => {
   await setup(page);
-  await page.route("https://routes.googleapis.com/**", route => route.fulfill({ status: 429, json: { error: {} } }));
+  await page.route("https://routes.googleapis.com/**", route => route.fulfill({ status: 503, json: { error: {} } }));
   await page.getByLabel("Starting address or place").fill("Seattle hotel");
   await page.getByRole("button", { name: "Use start", exact: true }).click();
-  await expect(page.locator(".today-route-error")).toContainText("limit has been reached");
+  await expect(page.locator(".today-route-error")).toContainText("couldn't load");
   await expect(page.locator(".today-departure")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Open walk directions" })).toBeVisible();
   await page.route("https://routes.googleapis.com/**", route => route.fulfill({ json: { routes: [{ duration: "600s", distanceMeters: 500 }] } }));
@@ -351,7 +351,7 @@ for (const laterStop of [false, true]) test(`ongoing destination preserves its c
   } else await expect(page.getByRole('group', { name: 'Transportation' }).getByRole('button', { name: /Drive/ })).toHaveAttribute('aria-pressed', 'true');
 });
 
-test("quota failure stops automatic transit refresh while retaining explicit retry", async ({ page }) => {
+test("quota failure stops automatic refresh and keeps directions as the useful next action", async ({ page }) => {
   await page.clock.install({ time: new Date('2026-10-16T16:00:00Z') });
   await setup(page, '09:00', store => { store.trips.find(t => t.id === 'seattle')!.persistence = 'account'; });
   let calls = 0;
@@ -359,6 +359,8 @@ test("quota failure stops automatic transit refresh while retaining explicit ret
   await page.getByLabel('Starting address or place', { exact: true }).fill('Quota hotel');
   await page.getByRole('button', { name: 'Use start', exact: true }).click();
   await expect(page.locator('.today-route-error')).toContainText('limit has been reached');
+  await expect(page.getByRole('button', {name: 'Refresh estimates', exact: true})).toHaveCount(0);
+  await expect(page.getByRole('link', {name: 'Open walk directions', exact: true})).toBeVisible();
   const initial = calls;
   await page.clock.runFor(121000);
   await expect(page.locator('.today-route-error')).toContainText('limit has been reached');
@@ -391,4 +393,18 @@ test("short landscape Today exposes the next stop without hiding current directi
   await expect(page.getByRole("region", {name:"Happening now"}).getByRole("link", {name:"Directions to A morning of art",exact:true})).toBeVisible();
   await page.locator(".today-default-settings > summary").click();
   await expect(page.getByRole("group",{name:"Default travel preference"})).toBeVisible();
+});
+
+test('Today carries an overnight event into its arrival day without duplicate stops', async ({page}) => {
+  await setup(page, '07:00', store => {
+    const trip=store.trips.find(item=>item.id==='seattle')!;
+    trip.events.push({...trip.events[0],id:'overnight-train',name:'Overnight train',date:'2026-10-15',endDate:'2026-10-16',start:'23:00',end:'07:30',place:'King Street Station'});
+  });
+  await expect(page.getByRole('region',{name:'Happening now',exact:true})).toContainText('Overnight train · until 7:30 AM');
+  await expect(page.locator('.today-origin')).toContainText('King Street Station');
+  await page.locator('.today-rest-disclosure > summary').click();
+  await expect(page.locator('.today-timeline-stop').filter({hasText:'Overnight train'})).toHaveCount(1);
+  const connection=page.getByRole('listitem',{name:'Travel from Overnight train to A morning of art'});
+  await expect(connection).toContainText('Depart 7:30 AM → arrive 7:50 AM');
+  await expect(page.locator('.today-timeline-stop').filter({hasText:'Overnight train'})).toContainText('Oct 15');
 });

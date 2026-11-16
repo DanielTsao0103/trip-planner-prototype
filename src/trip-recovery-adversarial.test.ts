@@ -161,3 +161,17 @@ test("unknown fields and invalid nested entities are quarantined without poisoni
     reopened.close();
   }
 });
+
+
+test("overnight recovery retains the endpoint and rejects malformed dates", async()=>{
+  for (const endDate of ["2026-10-17", "2026-02-30", 17]) {
+    const {local,journal}=fixture();
+    const entry=pending("night").get("night")!;
+    (entry.draft.events[0] as unknown as Record<string,unknown>).endDate=endDate;
+    local.setItem("trip-planner-pending-v2:owner:old:night:1",JSON.stringify({...entry,updated:1}));
+    const reopened=journal("new"), recovered=await reopened.read();
+    if(endDate==="2026-10-17")assert.equal(recovered[0]?.draft.events[0].endDate,endDate);
+    else {assert.equal(recovered.length,0);assert.equal(reopened.rejected.length,1);}
+    reopened.close();
+  }
+});

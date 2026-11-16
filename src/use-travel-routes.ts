@@ -33,7 +33,7 @@ export function useRouteEstimates(requests: RouteRequest[]) {
   void revision;
   const results: Record<string, RouteResult | undefined> = {};
   for (const request of requests) results[request.id] = cache.current.get(requestKey(request));
-  return { results, loading: requests.some(request => !results[request.id]), retry: () => { quotaError.current = ""; cache.current.clear(); setAttempt(value => value + 1); } };
+  return { results, quotaReached: Boolean(quotaError.current), loading: requests.some(request => !results[request.id]), retry: () => { quotaError.current = ""; cache.current.clear(); setAttempt(value => value + 1); } };
 }
 
 async function fetchEstimate(request: RouteRequest, parent: AbortSignal): Promise<RouteResult> {

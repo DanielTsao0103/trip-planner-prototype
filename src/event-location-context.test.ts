@@ -6,18 +6,18 @@ const event=(id:string,date:string,start:string,extra:Partial<Event>={}):Event=>
 const trip=['Taiwan','Japan'];
 test('the latest earlier event wins without averaging cities or depending on array order',()=>{
  const events=[event('Tokyo','2027-05-02','10:00'),event('Taipei dinner','2027-05-01','18:00'),event('Taipei museum','2027-05-01','09:00')];
- assert.equal(inferLocationContext(trip,{events,date:'2027-05-01',start:'14:00'}).label,'Taipei museum');
- assert.equal(inferLocationContext(trip,{events:[...events].reverse(),date:'2027-05-02',start:'14:00'}).label,'Tokyo');
+ assert.equal(inferLocationContext(trip,{events,date:'2027-05-01',start:'14:00'}).label,'Taipei museum, Taiwan');
+ assert.equal(inferLocationContext(trip,{events:[...events].reverse(),date:'2027-05-02',start:'14:00'}).label,'Tokyo, Taiwan');
 });
 test('the next event today beats yesterday; yesterday beats only the trip fallback',()=>{
  const events=[event('Taipei','2027-05-01','18:00'),event('Tokyo','2027-05-02','10:00')];
- assert.equal(inferLocationContext(trip,{events,date:'2027-05-02',start:'08:00'}).label,'Tokyo');
- assert.equal(inferLocationContext(trip,{events,date:'2027-05-03',start:'08:00'}).label,'Tokyo');
+ assert.equal(inferLocationContext(trip,{events,date:'2027-05-02',start:'08:00'}).label,'Tokyo, Taiwan');
+ assert.equal(inferLocationContext(trip,{events,date:'2027-05-03',start:'08:00'}).label,'Tokyo, Taiwan');
  assert.equal(inferLocationContext(trip,{events,date:'2027-05-04',start:'08:00'}).label,'Taiwan');
 });
 test('editing retains the existing location even when changing the time',()=>{
  const events=[event('Taipei','2027-05-01','18:00'),event('Tokyo','2027-05-02','10:00')];
- assert.equal(inferLocationContext(trip,{events,date:'2027-05-03',start:'08:00',editingId:'Taipei'}).label,'Taipei');
+ assert.equal(inferLocationContext(trip,{events,date:'2027-05-03',start:'08:00',editingId:'Taipei'}).label,'Taipei, Taiwan');
 });
 test('vague meeting instructions and invalid coordinates cannot become an anchor',()=>{
  const events=[event('Hotel lobby','2027-05-01','09:00',{place:'Meet in the lobby',point:{lat:999,lng:0}})];
@@ -29,4 +29,9 @@ test('structured addresses can guide older events without stored coordinates',()
  const events=[event('Museum','2027-05-01','09:00',{point:null,place:'National Palace Museum, Taipei, Taiwan'})];
  assert.equal(inferLocationContext(trip,{events,date:'2027-05-01',start:''}).query,'National Palace Museum, Taipei, Taiwan');
  assert.equal(inferLocationContext([]).query,'');
+});
+
+test('a continuing overnight location anchors the next day before a future stop',()=>{
+ const events=[event('Overnight stop','2027-05-01','23:00',{endDate:'2027-05-02',end:'08:00'}),event('Later museum','2027-05-02','12:00')];
+ assert.equal(inferLocationContext(trip,{events,date:'2027-05-02',start:'09:00'}).label,'Overnight stop, Taiwan');
 });

@@ -6,7 +6,7 @@ Deno.serve(request => {
   const url = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   return createNearbyHandler({ enabled: Deno.env.get("NEARBY_AI_ENABLED") === "true", groq: Deno.env.get("GROQ_API_KEY"), tavily: Deno.env.get("TAVILY_API_KEY") }, authorization => {
-    const client = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false } });
+    const client = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authorization, "X-Client-Info": "stir-crazy/saved-places-v1 overnight-events-v1" } }, auth: { persistSession: false } });
     const admin = () => { if (!serviceKey) throw new ResearchError("Research is not configured yet.", 503); return createClient(url, serviceKey, { auth: { persistSession: false } }); };
     return {
       async actor() { const { data, error } = await client.auth.getUser(); return error ? null : data.user?.id || null; },

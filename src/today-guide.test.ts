@@ -47,3 +47,22 @@ test("an incoming journey keeps the same identity after its destination starts",
   assert.equal(previousStop([first, last], last)?.id, 'museum');
   assert.equal(incomingJourneyId([first, last], first), '2026-11-14:start:museum');
 });
+
+test('overnight travel remains current on the arrival day and ends at its actual time', async () => {
+  const { endMinutesOn } = await import('./today-guide.ts');
+  const overnight = {...event('night train', '23:00', '07:30'), endDate:'2026-11-15'};
+  const breakfast = event('breakfast', '08:00', '09:00', '2026-11-15');
+  const before = dayProgress([overnight, breakfast], '2026-11-14', '23:30');
+  assert.deepEqual(before.ongoing.map(item=>item.id), ['night train']);
+  const arrival = dayProgress([overnight, breakfast], '2026-11-15', '07:00');
+  assert.deepEqual(arrival.ongoing.map(item=>item.id), ['night train']);
+  assert.equal(arrival.next?.id, 'breakfast');
+  assert.equal(arrival.previous?.id, 'night train');
+  assert.equal(endMinutesOn(overnight, '2026-11-15'), 450);
+  assert.equal(dayProgress([overnight], '2026-11-15', '07:30').ongoing.length, 0);
+  assert.equal(dayProgress([{...overnight,end:'00:00'}], '2026-11-15', '00:00').today.length, 0);
+});
+
+test('a conflicting overnight predecessor retains its day offset in departure advice', () => {
+  assert.deepEqual(departureAdvice('22:00','20:00',30,1440+450),{leave:1280,lateBy:600,bufferShortBy:610});
+});

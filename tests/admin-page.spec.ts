@@ -131,7 +131,7 @@ test("budget cadence lives in Seth's OKR tracker without a separate team section
   await expect(page.getByRole("heading", { name: "Admin", exact: true, level: 1 })).toBeVisible();
   const owners = ["Daniel", "Ivy", "Seth", "Drew"];
   const menu = page.locator(".admin-page .menu-links");
-  await expect(menu.locator(".tracker-availability")).toHaveText(Array(4).fill("Available · account data"));
+  await expect(menu.locator(".tracker-availability")).toHaveText(["Consistent itinerary use", "Trip saving and sharing", "Keeping budgets up to date", "Finishing within budget"]);
   await expect(page.getByRole("heading", { name: "Team measurement", exact: true })).toHaveCount(0);
   // The access list is a secondary page now, not the main content here.
   await expect(page.getByLabel("Add an email")).toHaveCount(0);

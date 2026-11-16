@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { canEdit, orderedEvents, type Event, type Trip } from "./domain";
+import { canEditEvent, orderedEvents, type Event, type Trip } from "./domain";
 import { geocodeItineraryPlace } from "./itinerary-geocoding";
 
 type Result = Awaited<ReturnType<typeof geocodeItineraryPlace>>;
@@ -39,7 +39,7 @@ export function useItineraryPins(
       id: e.id,
       address: e.place,
       placeId: e.googlePlaceId,
-      editable: canEdit(trip!, user, e.date),
+      editable: canEditEvent(trip!, user, e),
     }));
   const jobKey = JSON.stringify(jobs);
   useEffect(() => {
@@ -95,7 +95,7 @@ export function useItineraryPins(
               !event.point &&
               event.place === change.job.address &&
               event.googlePlaceId === change.job.placeId &&
-              canEdit(draft, user, event.date)
+              canEditEvent(draft, user, event)
             )
               event.googlePlaceId = change.placeId;
           }

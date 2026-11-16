@@ -159,9 +159,8 @@ test("account saves recover from lost responses without duplicate trips, reload,
     "Account weekend",
   );
   await page.getByRole("button", { name: "Create trip", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "Account weekend", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Account weekend", exact: true })).toBeVisible();
+  await page.goto('./#/5');
   expect(new Set(ids).size).toBe(1);
   expect(rows.length).toBe(1);
   expect(

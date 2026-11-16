@@ -84,6 +84,7 @@ test("20-person preference coverage stays readable on desktop and mobile", async
     localStorage.setItem("trip-planner-demo-v1:demo-maya", JSON.stringify(value));
   }, store);
   await page.goto("./#/13");
+  await page.getByText("View preference details", {exact:true}).click();
 
   const preferenceCardHeights = await page.locator(".preference-tile").evaluateAll(cards => cards.map(card => card.getBoundingClientRect().height));
   expect(preferenceCardHeights).toHaveLength(6);
@@ -134,6 +135,7 @@ test("20-person preference coverage stays readable on desktop and mobile", async
     await expect(voters).toContainText('Maya Chen');
     await page.keyboard.press('Escape');
   }
+  await page.getByRole("button", {name: "Show all 20 travelers", exact: true}).click();
   await expect(page.locator(".collaborator-row")).toHaveCount(20);
   await expect(page.locator(".preference-dot-overflow")).toHaveCount(0);
   await expect(page.locator(".spending-count")).toHaveText(["7", "7", "6"]);

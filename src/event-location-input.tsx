@@ -8,6 +8,7 @@ import { destinationContext, inferLocationContext, type LocationItinerary } from
 
 const cache = new Map<string, {result:LocationSuggestions; expires:number}>();
 export function EventLocationInput({value,onChange,destinations=[],itinerary,label="Where",required=true,maxLength}: {label?:string;required?:boolean;maxLength?:number;value:string;onChange:(value:string,point?:MeetingPlace["point"],googlePlaceId?:string)=>void;destinations?:string[];itinerary?:LocationItinerary}) {
+  const input=useRef<HTMLInputElement>(null);
   const id=useId(), list=useRef<HTMLDivElement>(null), menu=useRef<HTMLDivElement>(null);
   const [open,setOpen]=useState(false), [active,setActive]=useState(-1);
   const [results,setResults]=useState<MeetingPlace[]>([]);
@@ -63,7 +64,7 @@ export function EventLocationInput({value,onChange,destinations=[],itinerary,lab
     return()=>{cancelled=true;clearTimeout(timer);controller.abort();};
   },[query,open,context,contextVersion,attempt]);
   useEffect(()=>{if(active>=0)list.current?.children[active]?.scrollIntoView({block:'nearest'});},[active]);
-  function select(index:number){const result=results[index];if(result){onChange(result.label,result.point,result.googlePlaceId);result.finishSelection?.();setOpen(false);setActive(-1);}}
+  function select(index:number){const result=results[index];if(result){onChange(result.label,result.point,result.googlePlaceId);result.finishSelection?.();input.current?.focus({preventScroll:true});setOpen(false);setActive(-1);}}
   const expanded=open && query.length>=2;
   useEffect(() => {
     if (!expanded) return;
@@ -77,20 +78,9 @@ export function EventLocationInput({value,onChange,destinations=[],itinerary,lab
     return () => cancelAnimationFrame(frame);
   }, [expanded, status, results]);
   return <div className="field event-location-field">
-    <div className="event-location-heading">
     <label htmlFor={`${id}-input`}>{label}</label>
-    <div className="event-location-bias">
-      <label htmlFor={`${id}-near`}>Near</label>
-      <select id={`${id}-near`} aria-label="Prioritize locations near" value={near===null?'__auto':near} onChange={e=>{setNear(e.target.value==='__auto'?null:e.target.value);setActive(-1);setResults([]);setOpen(true);}}>
-        <option value="__auto">Automatic</option>
-        {stops.map(stop=><option key={stop} value={stop}>{stop}</option>)}
-        <option value="">Worldwide (no preference)</option>
-      </select>
-    </div>
-    </div>
-    {near===null && destination && <small className="event-location-context">Near {destination} · {context.reason.toLowerCase()}</small>}
     <div className="field-popup-anchor" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setOpen(false);}}>
-    <input id={`${id}-input`} required={required} maxLength={maxLength} value={value} role="combobox" aria-label={label}
+    <input ref={input} id={`${id}-input`} required={required} maxLength={maxLength} value={value} role="combobox" aria-label={label}
       aria-autocomplete="list" aria-expanded={expanded} aria-controls={`${id}-list`}
       aria-activedescendant={expanded && active>=0 ? `${id}-${active}` : undefined}
       autoComplete="off" placeholder="Search a restaurant, place, or address"
@@ -104,6 +94,18 @@ export function EventLocationInput({value,onChange,destinations=[],itinerary,lab
         else if(e.key==='Tab'){setOpen(false);}
         else if(e.key==='Escape' && expanded){e.preventDefault();setOpen(false);}
       }}/>
+  <details className="event-location-area">
+    <summary>Search area: {destination || "Worldwide"}</summary>
+    <div className="event-location-bias">
+      <label htmlFor={`${id}-near`}>Search near</label>
+      <select id={`${id}-near`} aria-label="Prioritize locations near" value={near===null?'__auto':near} onChange={e=>{setNear(e.target.value==='__auto'?null:e.target.value);setActive(-1);setResults([]);setOpen(true);}}>
+        <option value="__auto">Automatic</option>
+        {stops.map(stop=><option key={stop} value={stop}>{stop}</option>)}
+        <option value="">Worldwide (no preference)</option>
+      </select>
+    </div>
+    {near===null && destination && <small className="event-location-context">{context.reason}: {destination}</small>}
+  </details>
     {expanded && <div ref={menu} className="field-popup event-location-menu">
       <div className="event-location-caption">{status==='loading'?'Searching worldwide…':status==='error'?'Search unavailable':results.length?(regionOnly?'Prioritizing trip country':destination && biased?`Near ${destination}${approximate?' (approximate area)':''}`:'Suggested locations'):'No locations found'}</div>
       <div ref={list} id={`${id}-list`} role="listbox" aria-label="Location suggestions">
@@ -128,5 +130,6 @@ export function EventLocationInput({value,onChange,destinations=[],itinerary,lab
       {status==='error' && <button type="button" className="btn btn-outline" onClick={()=>setAttempt(value=>value+1)}>Retry location search</button>}
       {source==='google' && status==='ready' ? <div className="event-location-source google-search-attribution" translate="no">Google Maps</div> : <div className="event-location-source">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a> · Photon</div>}
     </div>}
-  </div></div>;
+  </div>
+</div>;
 }

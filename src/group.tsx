@@ -1,6 +1,7 @@
 /** Implementation status: Account survey answers and guest traveler roles/days are database-backed. Owners can assign editing roles to accepted accounts. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, textError } from "./limits.ts";
 import "./group-refinement.css";
+import "./group-task-review.css";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowRight,
@@ -215,11 +216,14 @@ export function Group() {
   const travelersHeading = useRef<HTMLHeadingElement>(null);
   const preferenceGrid = useRef<HTMLDivElement>(null);
   const [travelerQuery, setTravelerQuery] = useState("");
+  const [showAllTravelers, setShowAllTravelers] = useState(false);
+  useEffect(() => { setTravelerQuery(""); setShowAllTravelers(false); }, [t?.id]);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [removal, setRemoval] = useState<{ tripId: string; memberId: string } | null>(null);
   const [sharedNote, setSharedNote] = useState<{ note: string; names: string[] } | null>(null);
   useLayoutEffect(() => {
     const grid = preferenceGrid.current;
-    if (!grid) return;
+    if (!grid || !preferencesOpen) return;
     const measure = () => {
       grid.style.removeProperty("--group-preference-tile-height");
       const cards = Array.from(grid.querySelectorAll<HTMLElement>(".preference-tile"));
@@ -258,7 +262,20 @@ export function Group() {
       tooltip.style.left = `${Math.max(contentLeft + 8, Math.min(innerWidth - width - 8, rect.left + rect.width / 2 - width / 2))}px`;
       tooltip.style.top = `${rect.top > height + 12 ? rect.top - height - 8 : Math.max(8, Math.min(innerHeight - height - 8, rect.bottom + 8))}px`;
     };
-    const keyboard = (event: KeyboardEvent) => { if (event.key === "Escape") dismiss(); };
+    // Native focus can scroll after focusin. Position the hint after that scroll,
+    // while still dismissing it for subsequent deliberate scrolling.
+    let focusFrame = 0;
+    const focus = (event: Event) => {
+      cancelAnimationFrame(focusFrame);
+      focusFrame = requestAnimationFrame(() => {
+        focusFrame = requestAnimationFrame(() => {
+          if (document.activeElement === event.target) position(event);
+        });
+      });
+    };
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { cancelAnimationFrame(focusFrame); dismiss(); }
+    };
     const leave = (event: Event) => {
       // Pointer events from a different chart must not dismiss the keyboard tooltip.
       if (!(event.target instanceof Node) || !trigger?.contains(event.target)) return;
@@ -267,7 +284,7 @@ export function Group() {
       if (!(next instanceof Node) || !trigger.contains(next)) dismiss();
     };
     document.addEventListener("pointerover", position);
-    document.addEventListener("focusin", position);
+    document.addEventListener("focusin", focus);
     document.addEventListener("keydown", keyboard);
     document.addEventListener("pointerout", leave);
     document.addEventListener("focusout", leave);
@@ -276,7 +293,8 @@ export function Group() {
     return () => {
       dismiss();
       document.removeEventListener("pointerover", position);
-      document.removeEventListener("focusin", position);
+      document.removeEventListener("focusin", focus);
+      cancelAnimationFrame(focusFrame);
       document.removeEventListener("keydown", keyboard);
       document.removeEventListener("pointerout", leave);
       document.removeEventListener("focusout", leave);
@@ -297,9 +315,11 @@ export function Group() {
   };
   const activeTravelers = t.members.filter((m) => m.status !== "removed");
   const query = travelerQuery.trim().toLocaleLowerCase();
-  const visibleTravelers = activeTravelers.filter((m) =>
+  const matchingTravelers = activeTravelers.filter((m) =>
     !query || `${m.name} ${m.email || ""}`.toLocaleLowerCase().includes(query),
   );
+  // Search always covers the complete roster, including initially hidden people.
+  const visibleTravelers = query || showAllTravelers ? matchingTravelers : matchingTravelers.slice(0, 6);
   const responses = t.members.filter(
     (m) => m.status === "accepted" && t.prefs[m.id],
   );
@@ -334,16 +354,131 @@ export function Group() {
         title="The group"
         action={
           <div className="group-page-actions">
-            <Button variant="outline" onClick={() => {
-              travelersHeading.current?.focus({ preventScroll: true });
-              travelersHeading.current?.scrollIntoView({ block: "start" });
-            }}><Users size={16} /> Travelers</Button>
             <Button variant="outline" onClick={() => go(15)}>
               My preferences <ArrowRight size={16} />
             </Button>
           </div>
         }
       />
+      <div className="group-needs-overview" aria-label="Shared planning needs">
+        {([{ label: "Food needs", key: "diet" }, { label: "Access needs", key: "access" }] as const).map(({ label, key }) => {
+          const needs = Array.from(new Set(responses.flatMap(person => t.prefs[person.id][key]).filter(value => value !== "No restrictions")));
+          const text = needs.join(", ") || (responses.length ? `No ${key === "diet" ? "dietary restrictions" : "access needs"} shared` : "Waiting for preferences");
+          return needs.length ? <button type="button" className="group-needs-summary" key={key} aria-haspopup="dialog"
+            onClick={() => open("message", { title: label, body: needs.map(need => `${need}: ${responses.filter(person => t.prefs[person.id][key].includes(need)).map(person => person.name).join(", ")}`).join("\n\n") })}>
+            <strong>{label}<ChevronRight size={16} aria-hidden="true" /></strong><span>{text}</span>
+          </button> : <p key={key}><strong>{label}</strong><span>{text}</span></p>;
+        })}
+        <p className="fine-print">Select a need for names. Check venue suitability; missing answers do not mean no restrictions.</p>
+      </div>
+      <div className="section-title collaborators-title">
+        <div>
+          <h2 ref={travelersHeading} id="group-travelers" tabIndex={-1}>Travelers</h2>
+        </div>
+        {owner && (
+          <Button onClick={() => open("inviteMember")}>
+            <Plus size={16} />
+            Invite someone
+          </Button>
+        )}
+      </div>
+      {(activeTravelers.length > 6 || travelerQuery) && (
+        <div className="traveler-filter">
+          <Field label="Find a traveler">
+            <input type="search" value={travelerQuery} placeholder="Name or email" aria-describedby="traveler-filter-count"
+              onChange={(event) => setTravelerQuery(event.target.value)} />
+          </Field>
+          {travelerQuery && <Button variant="text" onClick={() => setTravelerQuery("")}>Clear filter</Button>}
+          <p id="traveler-filter-count" role="status">{query ? `${visibleTravelers.length} of ${activeTravelers.length} travelers` : `Showing ${visibleTravelers.length} of ${activeTravelers.length} travelers`}</p>
+        </div>
+      )}
+      <div className="card collaborators-table">
+        <div className="collaborator-table-head">
+          <span>TRAVELER</span>
+          <span>ROLE & ACCESS</span>
+          <span>STATUS</span>
+          <span />
+        </div>
+        {visibleTravelers.length === 0 && <p className="traveler-filter-empty">No travelers match “{travelerQuery.trim()}”. Try another name or email.</p>}
+        {visibleTravelers.map((m) => (
+            <div className="collaborator-row" key={m.id}>
+              <div className="person">
+                <Avatar name={m.name} index={activeTravelers.indexOf(m)} id={m.accountId || m.id} />
+                <div>
+                  <strong>
+                    {m.name}
+                    {(m.id === s.userId || m.accountId === s.userId) ? " (you)" : ""}
+                  </strong>
+                  <small>{m.email}</small>
+                </div>
+              </div>
+              <div>
+                <Badge tone={m.role === "Owner" ? "green" : ""}>{m.role}</Badge>
+                {m.role === "Day Editor" && (
+                  <small className="assigned-days">
+                    {m.days.length
+                      ? [...m.days].sort().map((d) => dateText(d, true)).join(", ")
+                      : "No days assigned"}
+                  </small>
+                )}
+              </div>
+              <span className={`member-status ${m.status}`}>
+                <span className="status-dot" />
+                {m.status === "accepted"
+                  ? "Joined"
+                  : t.persistence === "account"
+                    ? "Pending"
+                    : "Invited"}
+              </span>
+              <div className="collaborator-actions">
+                {owner && m.role !== "Owner" && (
+                  <>
+                    {!m.signupPending && <button
+                      className="icon-btn member-permissions-button"
+                      aria-label={`Change permissions for ${m.name}`}
+                      title="Change permissions"
+                      onClick={() => open("permissions", { memberId: m.id })}
+                    >
+                      <Settings2 size={17} /> <span>Permissions</span>
+                    </button>}
+                    <button
+                      className="icon-btn"
+                      aria-label={`Remove ${m.name}`}
+                      onClick={event => {
+                        // Safari pointer clicks do not focus buttons automatically.
+                        event.currentTarget.focus({ preventScroll: true });
+                        setRemoval({ tripId: t.id, memberId: m.id });
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </>
+                )}
+                {m.status === "pending" && !m.signupPending && owner && (
+                  <button
+                    className="text-link"
+                    onClick={() =>
+                      open("invitation", { tripId: t.id, userId: m.id })
+                    }
+                  >
+                    {t.persistence === "account"
+                      ? "Manage traveler"
+                      : "View invite"}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+      </div>
+      {!query && activeTravelers.length > 6 && <div className="group-roster-more">
+        <Button variant="outline" onClick={() => {
+          setShowAllTravelers(value => !value);
+          if (showAllTravelers) requestAnimationFrame(() => {
+            travelersHeading.current?.focus({ preventScroll: true });
+            travelersHeading.current?.scrollIntoView({ block: "start" });
+          });
+        }}>{showAllTravelers ? "Show fewer travelers" : `Show all ${activeTravelers.length} travelers`}</Button>
+      </div>}
       <div className="section-title">
         <div>
           <h2>Preferences</h2>
@@ -356,6 +491,8 @@ export function Group() {
         <Badge tone="green">Visible to the group</Badge>
       </div>
       {activeTravelers.some(person => person.status === "accepted" && !t.prefs[person.id]) && <details className="preference-followup"><summary>Who hasn’t shared preferences?</summary><p className="fine-print">No response is different from having no restrictions.</p><ul>{activeTravelers.filter(person => person.status === "accepted" && !t.prefs[person.id]).map(person => <li key={person.id}><Avatar name={person.name} id={person.accountId || person.id}/><span>{person.name}</span>{person.id === member(t,s.userId)?.id && <Button variant="text" onClick={() => go(15)}>Share my preferences <ArrowRight size={15}/></Button>}</li>)}</ul></details>}
+      <details className="group-preference-details" open={preferencesOpen} onToggle={event => setPreferencesOpen(event.currentTarget.open)}>
+        <summary>{preferencesOpen ? "Hide preference details" : "View preference details"}<ChevronDown size={18} aria-hidden="true" /></summary>
       {responses.length > 0 && <label className="preference-jump">Jump to
         <select aria-label="Jump to a preference" value="" onChange={(event) => {
           const section = document.getElementById(`group-preference-${event.target.value}`);
@@ -790,105 +927,7 @@ export function Group() {
         Different preferences stay visible. Unanswered surveys don’t mean no
         restrictions. Venue suitability still needs checking.
       </div>
-      <div className="section-title collaborators-title">
-        <div>
-          <h2 ref={travelersHeading} id="group-travelers" tabIndex={-1}>Travelers</h2>
-        </div>
-        {owner && (
-          <Button onClick={() => open("inviteMember")}>
-            <Plus size={16} />
-            Invite someone
-          </Button>
-        )}
-      </div>
-      {(activeTravelers.length >= 8 || travelerQuery) && (
-        <div className="traveler-filter">
-          <Field label="Find a traveler">
-            <input type="search" value={travelerQuery} placeholder="Name or email" aria-describedby="traveler-filter-count"
-              onChange={(event) => setTravelerQuery(event.target.value)} />
-          </Field>
-          {travelerQuery && <Button variant="text" onClick={() => setTravelerQuery("")}>Clear filter</Button>}
-          <p id="traveler-filter-count" role="status">{query ? `${visibleTravelers.length} of ${activeTravelers.length} travelers` : `${activeTravelers.length} travelers`}</p>
-        </div>
-      )}
-      <div className="card collaborators-table">
-        <div className="collaborator-table-head">
-          <span>TRAVELER</span>
-          <span>ROLE & ACCESS</span>
-          <span>STATUS</span>
-          <span />
-        </div>
-        {visibleTravelers.length === 0 && <p className="traveler-filter-empty">No travelers match “{travelerQuery.trim()}”. Try another name or email.</p>}
-        {visibleTravelers.map((m) => (
-            <div className="collaborator-row" key={m.id}>
-              <div className="person">
-                <Avatar name={m.name} index={activeTravelers.indexOf(m)} id={m.accountId || m.id} />
-                <div>
-                  <strong>
-                    {m.name}
-                    {(m.id === s.userId || m.accountId === s.userId) ? " (you)" : ""}
-                  </strong>
-                  <small>{m.email}</small>
-                </div>
-              </div>
-              <div>
-                <Badge tone={m.role === "Owner" ? "green" : ""}>{m.role}</Badge>
-                {m.role === "Day Editor" && (
-                  <small className="assigned-days">
-                    {m.days.length
-                      ? [...m.days].sort().map((d) => dateText(d, true)).join(", ")
-                      : "No days assigned"}
-                  </small>
-                )}
-              </div>
-              <span className={`member-status ${m.status}`}>
-                <span className="status-dot" />
-                {m.status === "accepted"
-                  ? "Joined"
-                  : t.persistence === "account"
-                    ? "Pending"
-                    : "Invited"}
-              </span>
-              <div className="collaborator-actions">
-                {owner && m.role !== "Owner" && (
-                  <>
-                    {!m.signupPending && <button
-                      className="icon-btn member-permissions-button"
-                      aria-label={`Change permissions for ${m.name}`}
-                      title="Change permissions"
-                      onClick={() => open("permissions", { memberId: m.id })}
-                    >
-                      <Settings2 size={17} /> <span>Permissions</span>
-                    </button>}
-                    <button
-                      className="icon-btn"
-                      aria-label={`Remove ${m.name}`}
-                      onClick={event => {
-                        // Safari pointer clicks do not focus buttons automatically.
-                        event.currentTarget.focus({ preventScroll: true });
-                        setRemoval({ tripId: t.id, memberId: m.id });
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </>
-                )}
-                {m.status === "pending" && !m.signupPending && owner && (
-                  <button
-                    className="text-link"
-                    onClick={() =>
-                      open("invitation", { tripId: t.id, userId: m.id })
-                    }
-                  >
-                    {t.persistence === "account"
-                      ? "Manage traveler"
-                      : "View invite"}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-      </div>
+      </details>
       {removal && removalTarget && <ConfirmDialog title="Remove this traveler?"
         cancelLabel="Keep traveler" confirmLabel="Remove traveler"
         onCancel={() => setRemoval(null)} onConfirm={() => {
@@ -1118,8 +1157,8 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
   const draftNotice = (restoredDraft || storageWarning) && (
     <div className="survey-draft-notice">
       <p role={storageWarning ? "alert" : "status"}>{storageWarning || (restoredDraft
-        ? "Unsaved preferences restored from this tab. Save them to share with your group."
-        : "Unsaved preferences kept in this tab until you save or discard them.")}</p>
+        ? "Unsaved preferences restored. Save them to share with your group."
+        : "Review your unsaved preferences, then save or discard them.")}</p>
       <div>
         {restoredDraft && !storageWarning && <Button variant="outline" onClick={resumeDraft} disabled={saving}>Resume editing</Button>}
         {storageWarning && <Button variant="text" onClick={downloadDraft} disabled={saving}>Download draft</Button>}
@@ -1128,11 +1167,11 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
     </div>
   );
   const accessRecovery = /invitation.*(?:no longer active|expired)|access.*(?:revoked|removed)/i.test(error) && (
-    <p className="note">Ask the trip owner to restore your access. {storageWarning ? "Keep this page open or download your draft to preserve your answers." : "Your answers are kept in this tab."}</p>
+    <p className="note">Ask the trip owner to restore your access. {storageWarning ? "Keep this page open or download your draft to preserve your answers." : "Your unsaved answers are still available."}</p>
   );
   const draftStatus = hasDraft && !restoredDraft && !storageWarning && (
     <div className="survey-draft-status">
-      <small>Draft kept in this tab.</small>
+      <small>Unsaved changes.</small>
       <Button variant="text" onClick={discardDraft} disabled={saving}>Discard draft</Button>
     </div>
   );

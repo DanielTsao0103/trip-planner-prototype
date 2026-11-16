@@ -61,6 +61,9 @@ import {
   canEdit,
   EVENT_PERMISSION_MESSAGE,
   eventError,
+  eventEndDate,
+  eventOccursOn,
+  canEditEvent,
   member,
   isOwner,
   isActive,
@@ -91,6 +94,18 @@ export function Itinerary({ mapMode: explicitMapMode = false }: { mapMode?: bool
   const go: typeof navigate = (page, params = {}, replace) => navigate(page, {
     ...params, ...((page === 11 || (page === 7 && params.return === "11")) && mapHidden ? { map: "hidden" } : {}),
   }, replace);
+  const toolbar = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const control = toolbar.current;
+    const content = control?.closest<HTMLElement>('main');
+    if (!control || !content) return;
+    const measure = () => content.style.setProperty('--planning-toolbar-height', `${getComputedStyle(control).position === 'sticky' ? control.offsetHeight : 0}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(control);
+    window.addEventListener("resize", measure);
+    return () => { window.removeEventListener("resize", measure); observer.disconnect(); content.style.removeProperty('--planning-toolbar-height'); };
+  }, [t?.id, view]);
   const [mapEvent, setMapEvent] = useState(route.params.get("event") || "");
   const [dayPage, setDayPage] = useState(0);
   const pageSizeAnchor = useRef<{ tripId: string; date: string; origin: Element | null } | null>(null);
@@ -147,7 +162,7 @@ export function Itinerary({ mapMode: explicitMapMode = false }: { mapMode?: bool
     }
     const pending = pendingReveal.current;
     if (!pending) return;
-    const target = (pending.event && document.getElementById(`${mapMode ? "day" : "itinerary"}-event-${pending.event}`)) || document.getElementById(`day-${pending.date}`);
+    const target = (pending.event && (document.getElementById(`${mapMode ? "day" : "itinerary"}-event-${pending.event}-${pending.date}`) || document.getElementById(`${mapMode ? "day" : "itinerary"}-event-${pending.event}`))) || document.getElementById(`day-${pending.date}`);
     if (!target) return;
     const frame = requestAnimationFrame(() => {
       if (pendingReveal.current !== pending || !target.isConnected) return;
@@ -204,10 +219,10 @@ export function Itinerary({ mapMode: explicitMapMode = false }: { mapMode?: bool
     </div>
   );
   const mapDate = activeDay || requestedDate || t.start;
-  const selectStop = (event: Event) => {
-    setActiveDay(event.date);
+  const selectStop = (event: Event, date = event.date) => {
+    setActiveDay(date);
     setMapEvent(event.id);
-    go(11, { date: event.date, event: event.id }, true);
+    go(11, { date, event: event.id }, true);
   };
   return (
     <>
@@ -250,18 +265,18 @@ export function Itinerary({ mapMode: explicitMapMode = false }: { mapMode?: bool
           {allDays.length} {allDays.length === 1 ? "day" : "days"}, {t.events.length} {t.events.length === 1 ? "plan" : "plans"}
         </span>
       </div>
-      <div className="itinerary-controls">
+      <div className="itinerary-controls" ref={toolbar}>
       <div className="section-title itinerary-heading">
         <div>
           <h2>Your itinerary</h2>
         </div>
-        {view === "calendar" && <Button variant="text" onClick={() => open("nearby", { date: activeDay })}><Sparkles size={17} />Nearby suggestions</Button>}
+        {view === "calendar" && t.events.length > 0 && <Button variant="text" onClick={() => open("nearby", { date: activeDay })}><Sparkles size={17} />Nearby suggestions</Button>}
         {mapMode && !mapHidden && <Button variant="text" className="day-map-jump" onClick={() => {
           const panel = document.getElementById("itinerary-day-map");
           panel?.focus({ preventScroll: true });
           panel?.scrollIntoView({ block: "start", behavior: "smooth" });
         }}><MapPin size={17} />Jump to map</Button>}
-        {role !== "Viewer" && <Button
+        {role !== "Viewer" && t.events.length > 0 && <Button
           onClick={() =>
             go(7, {
               ...(mapMode ? {return: "11"} : {view}),
@@ -279,6 +294,33 @@ export function Itinerary({ mapMode: explicitMapMode = false }: { mapMode?: bool
         date: activeDay || t.start, ...(mapEvent ? { event: mapEvent } : {}), ...(!mapHidden ? { map: "hidden" } : {}),
       }, true)}>{mapHidden ? "Show map" : "Hide map"}</Button>}
       </div>
+      {!t.events.length && role !== "Viewer" && (
+        <section
+          className="getting-started card"
+          aria-label="Plan your first day"
+        >
+          <h2>No events yet</h2>
+          <div className="getting-started-actions">
+            <Button
+              onClick={() =>
+                go(7, {
+                  ...(mapMode ? {return:"11"} : {view}),
+                  date:
+                    role === "Day Editor"
+                      ? traveler.days[0] || t.start
+                      : t.start,
+                })
+              }
+            >
+              <Plus size={17} />
+              Add your first plan
+            </Button>
+            <Button variant="outline" onClick={() => open("nearby", { date: activeDay || t.start })}>
+              <Sparkles size={17} /> Find things to do
+            </Button>
+          </div>
+        </section>
+      )}
       {view !== "calendar" && <SavedPlaces date={activeDay || t.start} view={view} />}
       {role === "Viewer" && <ReadOnly />}
       {role === "Day Editor" && <ReadOnly day />}
@@ -310,40 +352,10 @@ export function Itinerary({ mapMode: explicitMapMode = false }: { mapMode?: bool
           }}><option value="" disabled>Choose a date</option>{allDays.map((date,index)=><option key={date} value={date}>Day {index+1} · {dateText(date)}</option>)}</select></div>}
           {renderDayPager()}
           </div>}
-      {!t.events.length && role !== "Viewer" && (
-        <section
-          className="getting-started card"
-          aria-label="Plan your first day"
-        >
-          <h2>No events yet</h2>
-          <div className="getting-started-actions">
-            <Button
-              onClick={() =>
-                go(7, {
-                  ...(mapMode ? {return:"11"} : {view:"list"}),
-                  date:
-                    role === "Day Editor"
-                      ? traveler.days[0] || t.start
-                      : t.start,
-                })
-              }
-            >
-              <Plus size={17} />
-              Add your first plan
-            </Button>
-            <Button variant="outline" onClick={() => go(12)}>
-              <Wallet size={17} />
-              Plan your budget
-            </Button>
-            <Button variant="text" onClick={() => go(15)}>
-              Share your preferences <ArrowRight size={16} />
-            </Button>
-          </div>
-        </section>
-      )}
+
           {visibleDays.map((date, pageIndex) => {
             const i = pageStart + pageIndex;
-            const events = orderedEvents(t, date);
+            const events = orderedEvents(t).filter(event => eventOccursOn(event, date));
             const weekday = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" });
             const dayLabel = `Day ${i + 1} — ${date.slice(5).replace("-", "/")}`;
             if (!events.length) return (
@@ -394,18 +406,18 @@ export function Itinerary({ mapMode: explicitMapMode = false }: { mapMode?: bool
                 {canEdit(t, s.userId, date) && <details className="day-openings"><summary>Find time for another plan</summary><p className="fine-print">Open time between 9 AM and 6 PM · travel time not included.</p><div className="time-choice-buttons">{planningWindows(t.events, date).filter(window => timeMinutes(window.end) - timeMinutes(window.start) >= 15).map(window => <Button key={window.start} variant="outline small" onClick={() => go(7, { date, start: window.start, end: planningTime(Math.min(timeMinutes(window.end),timeMinutes(window.start)+60)), return: "11", view: "list" })}>{timeText(window.start)}–{timeText(window.end)}</Button>)}</div>{!planningWindows(t.events, date).some(window => timeMinutes(window.end) - timeMinutes(window.start) >= 15) && <p>No daytime openings of 15 minutes or more.</p>}</details>}
                 <div className="events-list">
                   {events.map((e) => (
-                    mapMode ? <article key={e.id} id={`day-event-${e.id}`} tabIndex={-1} aria-label={e.name} className={`map-list-stop ${mapEvent === e.id ? "focused" : ""}`}>
-                      <EventCard event={e} selected={mapEvent === e.id} selectionLabel={mapHidden ? `Show details for ${e.name}` : undefined} onSelect={() => selectStop(e)} />
-                      {mapEvent === e.id && <div className="map-stop-details">
+                    mapMode ? <article key={e.id} id={`day-event-${e.id}${e.date === date ? "" : `-${date}`}`} tabIndex={-1} aria-label={e.name} className={`map-list-stop ${mapEvent === e.id && activeDay === date ? "focused" : ""}`}>
+                      <EventCard event={e} selected={mapEvent === e.id && activeDay === date} selectionLabel={mapHidden ? `Show details for ${e.name}` : undefined} onSelect={() => selectStop(e, date)} />
+                      {mapEvent === e.id && activeDay === date && <div className="map-stop-details">
                         <div className="row">
                           <span>{e.attendees.length} travelers · {e.cost ? `${money(e.cost)} estimated` : "No cost planned"}</span>
-                          {canEdit(t,s.userId,e.date) && <Button variant="text" onClick={() => go(7,{event:e.id,date:e.date,return:"11"})}><Pencil size={16}/>Edit event</Button>}
+                          {canEditEvent(t,s.userId,e) && <Button variant="text" onClick={() => go(7,{event:e.id,date,return:"11"})}><Pencil size={16}/>Edit event</Button>}
                         </div>
                         {e.notes && <EventNotes key={e.id} notes={e.notes}/>}
-                        <div className="row"><button type="button" className="text-link" onClick={() => { revealMap.current = true; setActiveDay(e.date); setMapEvent(e.id); navigate(11, { date: e.date, event: e.id }, true); }}><MapPin size={14}/>{e.place}</button>
+                        <div className="row"><button type="button" className="text-link" onClick={() => { revealMap.current = true; setActiveDay(date); setMapEvent(e.id); navigate(11, { date, event: e.id }, true); }}><MapPin size={14}/>{e.place}</button>
                         <a className="text-link" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(e.point ? `${e.point.lat},${e.point.lng}` : e.place)}`} target="_blank" rel="noreferrer">Directions <ArrowUpRight size={14}/></a></div>
                       </div>}
-                    </article> : <EventCard key={e.id} id={`itinerary-event-${e.id}`} event={e} />
+                    </article> : <EventCard key={e.id} id={`itinerary-event-${e.id}${e.date === date ? "" : `-${date}`}`} event={e} onSelect={() => go(11, {date, event:e.id})} />
                   ))}
                 </div>
             </section>
@@ -451,7 +463,7 @@ function UnavailableItineraryItem({ onReturn, label }: { onReturn: () => void; l
 function eventFormVersion(event?: Event): string {
   if (!event) return "";
   return JSON.stringify([
-    event.id, event.name, event.date, event.start, event.end, event.cost,
+    event.id, event.name, event.date, eventEndDate(event), event.start, event.end, event.cost,
     event.place, event.notes, event.image, event.point?.lat, event.point?.lng,
     [...event.attendees].sort(),
   ]);
@@ -488,6 +500,7 @@ export function EventForm() {
     [point, setPoint] = useState(original?.point ?? savedPlace?.point ?? null),
     [selectedGooglePlaceId, setSelectedGooglePlaceId] = useState(original?.googlePlaceId ?? savedPlace?.googlePlaceId ?? null),
     [date, setDate] = useState(original?.date || dateParam),
+    [endDate, setEndDate] = useState(original ? eventEndDate(original) : route.params.get("endDate") || dateParam),
     [start, setStart] = useState(
       original?.start || route.params.get("start") || initialSlot?.start || "",
     ),
@@ -644,9 +657,9 @@ export function EventForm() {
     else if (returnTo === "11") go(11, { date: day, ...(eventId ? { event: eventId } : {}), ...(route.params.get("map") === "hidden" ? { map: "hidden" } : {}) });
     else go(8, { date: day, ...(eventId ? {event: eventId} : {}), view: route.params.get("view") === "calendar" ? "calendar" : "list" });
   };
-  const draft = JSON.stringify([name, place, point, selectedGooglePlaceId, date, start, end, cost, attendees, notes, uploadedEventPhoto, selectedEventPhoto?.url]);
+  const draft = JSON.stringify([name, place, point, selectedGooglePlaceId, date, endDate, start, end, cost, attendees, notes, uploadedEventPhoto, selectedEventPhoto?.url]);
   const initialDraft = useRef(draft);
-  const timeError = /^(?:End time|This overlaps|Choose a day within)/.test(error);
+  const timeError = /^(?:End date|End time|This overlaps|Choose a day within|Choose valid start)/.test(error);
   const timeErrorTarget = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (timeError) {
@@ -660,7 +673,7 @@ export function EventForm() {
       onReturn={() => leaveForm(dateParam)}
     />;
   }
-  if (!canEdit(t, s.userId, original?.date ?? dateParam) || (savedPlace && !["Owner", "Editor"].includes(member(t, s.userId)?.role ?? ""))) {
+  if ((original ? !canEditEvent(t, s.userId, original) : !canEdit(t, s.userId, dateParam)) || (savedPlace && !["Owner", "Editor"].includes(member(t, s.userId)?.role ?? ""))) {
     return <Empty title="Event permissions" body={EVENT_PERMISSION_MESSAGE}
       action={<Button onClick={() => leaveForm(original?.date ?? dateParam, original?.id)}>Back to itinerary</Button>} />;
   }
@@ -682,6 +695,7 @@ export function EventForm() {
       googlePlaceId: point ? null : selectedGooglePlaceId,
       point,
       date,
+      endDate,
       start,
       end,
       cost: Math.round(Number(cost) * 100),
@@ -704,6 +718,8 @@ export function EventForm() {
       if (v.id !== t.id) return;
       const index = v.events.findIndex((e) => e.id === event.id);
       if (changedElsewhere(v.events[index])) return;
+      const currentError = eventError(v, s.userId, event, v.events[index]);
+      if (currentError) { setError(currentError); return; }
       // Scheduling and removing the idea share the same atomic trip save.
       if (savedPlace) {
         if (!["Owner", "Editor"].includes(member(v, s.userId)?.role ?? "")) return;
@@ -746,7 +762,7 @@ export function EventForm() {
         mutate(store => {
           const target = store.trips.find(trip => trip.id === t.id);
           const current = target?.events.find(item => item.id === event.id);
-          if (target && current && store.userId === s.userId && canEdit(target, store.userId, current.date)
+          if (target && current && store.userId === s.userId && canEditEvent(target, store.userId, current)
             && current.place === event.place && !current.point && !current.googlePlaceId) current.googlePlaceId = placeId;
         });
       });
@@ -756,7 +772,7 @@ export function EventForm() {
         ? "Event updated everywhere in your trip."
         : "A new plan, added to your day.",
     );
-    leaveForm(date, event.id);
+    leaveForm(eventOccursOn(event, dateParam) ? dateParam : date, event.id);
   };
   const eventIdentityFields = <>
               <Field label="Event name">
@@ -823,7 +839,7 @@ export function EventForm() {
               Use a confirmation
             </button>
           </div>}
-          {mode === "delete" && original && <div className="delete-event-panel" ref={deletePanel} tabIndex={-1}><h3>Delete this event?</h3><p>Are you sure you want to delete “{original.name}” from this trip?</p><div className="form-actions"><Button variant="outline" onClick={() => setMode("manual")}>Keep editing</Button><Button type="button" variant="danger" disabled={busy || stale || photoUploading} onClick={() => { let deleted=false;updateTrip(trip=>{const current=trip.events.find(e=>e.id===original.id);if(!current||changedElsewhere(current))return;trip.events=trip.events.filter(e=>e.id!==original.id);deleted=true;});if(deleted)leaveForm(original.date);}}>Delete event</Button></div></div>}
+          {mode === "delete" && original && <div className="delete-event-panel" ref={deletePanel} tabIndex={-1}><h3>Delete this event?</h3><p>Are you sure you want to delete “{original.name}” from this trip?</p><div className="form-actions"><Button variant="outline" onClick={() => setMode("manual")}>Keep editing</Button><Button type="button" variant="danger" disabled={busy || stale || photoUploading} onClick={() => { let deleted=false;updateTrip(trip=>{const current=trip.events.find(e=>e.id===original.id);if(!current||changedElsewhere(current)||!canEditEvent(trip,s.userId,current))return;trip.events=trip.events.filter(e=>e.id!==original.id);deleted=true;});if(deleted)leaveForm(original.date);}}>Delete event</Button></div></div>}
           {sampleExtraction && mode === "upload" && (
             <div className="upload-panel">
               <Upload size={33} />
@@ -904,7 +920,7 @@ export function EventForm() {
               {!suggested && <>{eventIdentityFields}</>}
 
               <Field label="Day">
-                <select value={date} onChange={(e) => { setDate(e.target.value); setError(""); }}>
+                <select value={date} onChange={(e) => { if (endDate === date || endDate < e.target.value) setEndDate(e.target.value); setDate(e.target.value); setError(""); }}>
                   {days(t.start, t.end).map((d, i) => (
                     <option key={d} value={d} disabled={!canEdit(t, s.userId, d)}>
                       Day {i + 1} — {dateText(d, true)}
@@ -931,11 +947,17 @@ export function EventForm() {
                   />
                 </Field>
               </div>
-              <TimeChoices events={t.events} date={date} excludeId={original?.id} start={start} end={end} onChoose={(nextStart, nextEnd) => { setStart(nextStart); setEnd(nextEnd); setError(""); }} />
+              <details className="event-end-day" open={endDate !== date || undefined}><summary>Ends on another day</summary>
+              <Field label="End day">
+                <select value={endDate} onChange={e => { setEndDate(e.target.value); setError(""); }}>
+                  {days(date, t.end).map(d => <option key={d} value={d}>{d === date ? "Same day" : dateText(d, true)}</option>)}
+                </select>
+              </Field>
+              </details>
+              {endDate === date && <TimeChoices events={t.events} date={date} excludeId={original?.id} start={start} end={end} onChoose={(nextStart, nextEnd) => { setStart(nextStart); setEnd(nextEnd); setError(""); }} />}
               {timeError && <div ref={timeErrorTarget} tabIndex={-1} className="event-time-error"><ErrorBox text={error} /></div>}
               <p className="fine-print">
-                Times in {zoneText(t.zone)}. For overnight activities, add one event per
-                day.
+                Times in {zoneText(t.zone)}. {endDate !== date ? `Ends ${dateText(endDate, true)} ${end ? `at ${timeText(end)}` : ""}.` : ""}
               </p>
               {suggested && <details className="suggested-event-details"><summary>Edit name or location</summary>{eventIdentityFields}</details>}
               <PlacePopularTimes
@@ -1011,7 +1033,7 @@ export function EventForm() {
                   setConfirmDiscard(true);
                   return;
                 }
-                leaveForm(original?.date || dateParam, original?.id);
+                leaveForm(original && eventOccursOn(original, dateParam) ? dateParam : original?.date || dateParam, original?.id);
               }}
             >
               Cancel
@@ -1035,8 +1057,8 @@ export function EventForm() {
           <div className="card">
             <span className="eyebrow">{original ? "OTHER PLANS THIS DAY" : "ALREADY ON THIS DAY"}</span>
             <h2>{dateText(date, true)}</h2>
-            {orderedEvents(t, date).some(event => event.id !== original?.id) ? (
-              orderedEvents(t, date).filter(event => event.id !== original?.id).map((e) => (
+            {orderedEvents(t).some(event => eventOccursOn(event, date) && event.id !== original?.id) ? (
+              orderedEvents(t).filter(event => eventOccursOn(event, date) && event.id !== original?.id).map((e) => (
                 <div className="mini-event" key={e.id}>
                   <span>{timeText(e.start)}</span>
                   <strong>{e.name}</strong>
@@ -1053,7 +1075,7 @@ export function EventForm() {
           </div>
         </aside>
       </div>
-      {confirmDiscard && <ConfirmDialog title="Discard event changes?" onCancel={() => setConfirmDiscard(false)} onConfirm={() => leaveForm(original?.date || dateParam, original?.id)}>
+      {confirmDiscard && <ConfirmDialog title="Discard event changes?" onCancel={() => setConfirmDiscard(false)} onConfirm={() => leaveForm(original && eventOccursOn(original, dateParam) ? dateParam : original?.date || dateParam, original?.id)}>
         Your unsaved changes will be lost.
       </ConfirmDialog>}
     </>

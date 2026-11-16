@@ -79,10 +79,13 @@ test("an empty Home retains creation, templates and the sample without duplicate
     page.getByRole("button", { name: "New trip", exact: true }),
   ).toHaveCount(1);
   await expect(
-    page.getByText("No personal trips yet. You’re currently exploring the sample.", {
+    page.getByText("You’re exploring the sample. Start a trip of your own when you’re ready.", {
       exact: true,
     }),
   ).toBeVisible();
+  const empty = await page.locator('.home-empty').boundingBox();
+  const copy = await page.locator('.home-empty h3').boundingBox();
+  expect(copy!.x - empty!.x).toBeGreaterThanOrEqual(16);
   await page
     .getByRole("button", { name: "Open the sample trip", exact: true })
     .click();

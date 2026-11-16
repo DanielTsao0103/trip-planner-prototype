@@ -1,6 +1,7 @@
 import { readPhotoDataUrl, validatePhoto } from "./image-validation";
 import { RecipientField, useRecipients } from "./recipient-field";
 import { DatePicker } from "./date-picker";
+import "./trip-setup-review.css";
 import { compareTrips, localTripDate, tripPhase } from "./trip-order";
 import { DestinationInput } from "./destination-input";
 /** Implementation status: Real account trip forms persist the complete trip through saveTrip. Standalone demo trips remain browser-local; account invitations run after the trip save succeeds. See ../IMPLEMENTATION_STATUS.md. */
@@ -56,6 +57,7 @@ import { searchDestinationPhotos, trackUnsplashSelection, uploadTripPhoto, type 
 import { destinationTimeZone, timeZoneLabel } from "./destination-timezones";
 import {
   uid,
+  eventEndDate,
   days,
   dateText,
   tripDateRange,
@@ -494,12 +496,12 @@ export function Home() {
   return (
     <>
       <div className="home-workspace">
-      <PageHead title="Home" action={<Button onClick={() => go(6)}><Plus size={18}/>New trip</Button>} />
+      <PageHead title="Home" action={recentTrips.length > 0 && <Button onClick={() => go(6)}><Plus size={18}/>New trip</Button>} />
       <section className="continue-planning" aria-label="Continue planning">
         <div className="section-title"><h2>Your trips</h2><Button variant="text" onClick={() => go(5)}>All trips <ArrowRight size={16}/></Button></div>
         {recentTrips.length > 0 ? <div className="recent-trip-grid">{recentTrips.map(trip => <button type="button" key={trip.id} className="recent-trip-card" aria-label={`Continue planning ${trip.title}`} onClick={() => {mutate(store => {store.tripId=trip.id;}); go(8);}}>
           <Photo src={trip.image} alt=""/><span className="recent-trip-copy"><strong>{trip.title}</strong><span>{tripPhase(trip,s.date) === "Active" ? "Happening now" : tripPhase(trip,s.date) === "Past" ? "Past trip" : "Coming up"} · {tripDateRange(trip.start,trip.end)}</span></span><ArrowUpRight size={18}/>
-        </button>)}</div> : <div className="home-empty"><p>{s.trips.find(trip => trip.id === s.tripId)?.sample ? "No personal trips yet. You’re currently exploring the sample." : "No trips yet. Start with a new trip or an idea below."}</p></div>}
+        </button>)}</div> : <div className="home-empty"><div><h3>Where will you go next?</h3><p>{s.trips.find(trip => trip.id === s.tripId)?.sample ? "You’re exploring the sample. Start a trip of your own when you’re ready." : "Give your next trip a home for plans, places and shared costs."}</p></div><Button onClick={() => go(6)}><Plus size={18}/>New trip</Button></div>}
       </section>
       <div className="section-title home-ideas-heading">
         <h2 id="preplanned-trips" ref={templateHeading} tabIndex={-1}>Pre-planned trips</h2>
@@ -853,7 +855,7 @@ export function TripForm() {
     recipients.draft.trim() || recipients.emails.length || (original
       ? title !== original.title || JSON.stringify(locations) !== JSON.stringify(original.destinations) ||
         start !== original.start || end !== original.end || zone !== original.zone
-      : title || locations.length || start || end));
+      : title !== (template?.title || "") || JSON.stringify(locations) !== JSON.stringify(template?.destinations || []) || start || end));
   // A failed secondary lookup does not expose the primary calendar fallback.
   // Explain the zone actually in use, and retire the warning if its place is removed.
   const zoneRecoveryHint = zoneError && locations.some(destination => !zoneByDestination[destination])
@@ -912,7 +914,7 @@ export function TripForm() {
       setError(`This starter has ${template.days} days of plans. Choose an end date of ${dateText(dateAfter(start, template.days - 1))} or later.`);
       return;
     }
-    if (original?.events.some((e) => e.date < start || e.date > end)) {
+    if (original?.events.some((e) => e.date < start || eventEndDate(e) > end)) {
       setError(
         "Some events fall outside these dates. Move those events before shortening the trip.",
       );
@@ -1059,7 +1061,7 @@ export function TripForm() {
           ? 8
           : route.params.get("next")
             ? Number(route.params.get("next"))
-            : 5,
+            : 8,
         original ? {} : { created: draft.id },
       );
     } catch (issue) {
@@ -1152,8 +1154,8 @@ export function TripForm() {
                 onChange={setEnd}
               />
             </div>
-            {original && start && end && start <= end && (original.events.some(event => event.date < start || event.date > end) || original.todos.some(todo => todo.date < start || todo.date > end) || original.members.some(person => person.status !== "removed" && person.role === "Day Editor" && person.days.some(day => day < start || day > end))) && <div className="trip-date-impact" role="status"><strong>These dates leave existing plans outside the trip</strong><ul>{original.events.filter(event => event.date < start || event.date > end).map(event => <li key={event.id}>{event.name} · {dateText(event.date,true)}</li>)}{original.todos.filter(todo => todo.date < start || todo.date > end).map(todo => <li key={todo.id}>Reminder: {todo.text} · {dateText(todo.date,true)}</li>)}{original.members.filter(person => person.status !== "removed" && person.role === "Day Editor" && person.days.some(day => day < start || day > end)).map(person => <li key={person.id}>{person.name}: editing access on {person.days.filter(day => day < start || day > end).map(day => dateText(day,true)).join(", ")} will be removed if you save. {person.days.some(day => day >= start && day <= end) ? "Other assigned days stay the same." : "Assign at least one remaining day in Group before saving."}</li>)}</ul><p>Move any listed events and reminders first, or keep the original trip dates. Review the editing-access changes before saving.</p></div>}
-            <Field label="Trip time zones" hint={zoneLoading ? "Finding time zones for your destinations…" : zoneRecoveryHint}>
+            {original && start && end && start <= end && (original.events.some(event => event.date < start || eventEndDate(event) > end) || original.todos.some(todo => todo.date < start || todo.date > end) || original.members.some(person => person.status !== "removed" && person.role === "Day Editor" && person.days.some(day => day < start || day > end))) && <div className="trip-date-impact" role="status"><strong>These dates leave existing plans outside the trip</strong><ul>{original.events.filter(event => event.date < start || eventEndDate(event) > end).map(event => <li key={event.id}>{event.name} · {dateText(event.date,true)}</li>)}{original.todos.filter(todo => todo.date < start || todo.date > end).map(todo => <li key={todo.id}>Reminder: {todo.text} · {dateText(todo.date,true)}</li>)}{original.members.filter(person => person.status !== "removed" && person.role === "Day Editor" && person.days.some(day => day < start || day > end)).map(person => <li key={person.id}>{person.name}: editing access on {person.days.filter(day => day < start || day > end).map(day => dateText(day,true)).join(", ")} will be removed if you save. {person.days.some(day => day >= start && day <= end) ? "Other assigned days stay the same." : "Assign at least one remaining day in Group before saving."}</li>)}</ul><p>Move any listed events and reminders first, or keep the original trip dates. Review the editing-access changes before saving.</p></div>}
+            {locations.length > 0 && <Field label="Trip time zones" hint={zoneLoading ? "Finding time zones for your destinations…" : zoneRecoveryHint}>
               {locations.length ? <ul className="trip-timezone-list"><li><ul className="trip-timezone-group">
                 {locations.map(destination => {
                   const zone = zoneByDestination[destination];
@@ -1162,7 +1164,7 @@ export function TripForm() {
                   return <li key={destination}><strong>{destination} — {timezone}</strong></li>;
                 })}
               </ul></li></ul> : <p className="trip-timezone-empty">Add destinations to see their time zones.</p>}
-            </Field>
+            </Field>}
             {previewPlaces.length > 0 && !zoneLoading && !zoneByDestination[previewPlaces[0]] && <Field
               label="Calendar time zone"
               hint={zoneNeedsReview ? "Choose the time zone for event times, then save your trip." : "The first destination’s time zone is unconfirmed. Choose the time zone to use for event times."}
@@ -1236,12 +1238,11 @@ export function TripForm() {
             </section></details>
           </fieldset>
           <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-            <div className="step-heading">
-              <span>02</span>
-              <h2>Bring your people</h2>
-            </div>
-            <RecipientField recipients={recipients} live={accountTrips} users={s.users} label="Invite by email (optional)" disabled={busy}/>
-            <section
+            <details className="trip-invite-disclosure" open={savedId && recipients.emails.length ? true : undefined}>
+              <summary>Invite travelers <span>Optional</span></summary>
+              <RecipientField recipients={recipients} live={accountTrips} users={s.users} label="Invite by email (optional)" disabled={busy}/>
+            </details>
+            {(title.trim() || previewPlaces.length > 0 || start || end) && <section
               className="mobile-trip-preview note"
               aria-label="Trip preview"
             >
@@ -1253,11 +1254,11 @@ export function TripForm() {
                   ? `${dateText(start, true)} – ${dateText(end, true)} · ${tripLength} ${tripLength === 1 ? "day" : "days"}`
                   : "Choose your dates"}
               </p>
-            </section>
+            </section>}
             {error && <div ref={formError} tabIndex={-1} className="trip-form-error"><ErrorBox text={error} /></div>}
             {savedId && error && <p className="note">Your trip is saved. Retry the remaining invitations here, or continue and invite later from The group.</p>}
             <div data-fixed-actions className="form-actions trip-form-actions">
-              {savedId ? <Button variant="outline" onClick={() => go(original ? 8 : route.params.get("next") ? Number(route.params.get("next")) : 5, original ? {} : {created:savedId})}>Continue to trip</Button> : <Button
+              {savedId ? <Button variant="outline" onClick={() => go(original ? 8 : route.params.get("next") ? Number(route.params.get("next")) : 8, original ? {} : {created:savedId})}>Continue to trip</Button> : <Button
                 ref={cancelTripButton}
                 variant="text"
                 onClick={() => {

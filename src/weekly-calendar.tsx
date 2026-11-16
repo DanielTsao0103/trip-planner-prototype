@@ -5,7 +5,7 @@ import './calendar-event-preview.css';
 import { ArrowLeftRight, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import { useApp } from './state';
 import { Button, ErrorBox, Field } from './ui';
-import { canEdit, days, dateText, orderedEvents, timeText, EVENT_PERMISSION_MESSAGE } from './domain';
+import { canEdit, canEditEvent, days, dateText, eventSegments, eventInterval, eventTimestamp, eventTimeRange, timeText, EVENT_PERMISSION_MESSAGE } from './domain';
 import { addCalendarDays, clock, minutes, rescheduleEvent, calendarLanes, snapCalendarMinute, calendarSelection } from './calendar';
 
 const HOUR_HEIGHT = 72;
@@ -141,7 +141,7 @@ function CalendarEventPreview({ target, id, dismiss, ...pointerProps }: {
   }, [target]);
   return createPortal(<div ref={panel} id={id} role="tooltip" className="calendar-event-preview" {...pointerProps}>
     <strong>{target.event.name}</strong>
-    <span className="calendar-event-preview-time">{timeText(target.event.start)} – {timeText(target.event.end)}</span>
+    <span className="calendar-event-preview-time">{eventTimeRange(target.event)}</span>
     {target.event.place && <span>{target.event.place}</span>}
   </div>, document.body);
 }
@@ -162,6 +162,7 @@ export function WeeklyCalendar() {
   const eventPreview = useEventPreview(Boolean(dragging || moving || selection));
   const eventPreviewId = useId();
   const grabOffset = useRef(0);
+  const draggedSegmentOffset = useRef(0);
   const scrollRegion = useRef<HTMLDivElement>(null);
   const [gridOverflows, setGridOverflows] = useState(false);
   const [dayWidth, setDayWidth] = useState(180);
@@ -261,8 +262,13 @@ export function WeeklyCalendar() {
     const region = scrollRegion.current;
     const grid = region?.firstElementChild;
     if (!region || !grid) return;
-    const measure = () => setGridOverflows(region.getClientRects().length > 0
-      && region.clientWidth > 0 && region.scrollWidth > region.clientWidth + 1);
+    const measure = () => {
+      const header = region.querySelector<HTMLElement>('.itcal-day-header');
+      region.style.scrollPaddingTop = `${(header?.offsetHeight || 0) + 8}px`;
+      region.style.scrollPaddingBottom = '8px';
+      setGridOverflows(region.getClientRects().length > 0
+        && region.clientWidth > 0 && region.scrollWidth > region.clientWidth + 1);
+    };
     measure();
     // Observe both widths: overlap lanes can grow without resizing the viewport.
     // Hidden agenda grids have no rendered box and must never leave a stale cue.
@@ -294,7 +300,7 @@ export function WeeklyCalendar() {
       // receive focus, including when the viewport switches between them.
       const visible = (selector: string, key: string, value: string) =>
         Array.from(root.querySelectorAll<HTMLElement>(selector))
-          .find(node => node.dataset[key] === value && node.getClientRects().length > 0);
+          .find(node => node.dataset[key] === value && (key !== 'calendarReturnEvent' || node.dataset.occurrenceDate === requestedDate) && node.getClientRects().length > 0);
       const target = (requestedEvent && visible('[data-calendar-return-event]', 'calendarReturnEvent', requestedEvent))
         || visible('[data-calendar-return-date]', 'calendarReturnDate', requestedDate);
       if (!target) return;
@@ -349,9 +355,19 @@ export function WeeklyCalendar() {
     if (!trip) return;
     const first = addCalendarDays(trip.start, page * 7);
     const last = addCalendarDays(first, 6);
-    const starts = trip.events.filter(event => event.date >= first && event.date <= last).map(event => minutes(event.start) / 60);
-    const axisStart = Math.min(7, ...starts.map(Math.floor));
-    const frame = requestAnimationFrame(() => { if (scrollRegion.current) scrollRegion.current.scrollTop = starts.length ? Math.max(0, (Math.min(...starts) - axisStart - .5) * HOUR_HEIGHT) : 0; });
+    const segments = trip.events.flatMap(event => eventSegments(event)).filter(segment => segment.date >= first && segment.date <= last);
+    const axisStart = Math.min(7, ...segments.map(segment => Math.floor(segment.startMinute / 60)));
+    // On phones, later days in this week must not scroll the visible day to an empty morning.
+    // Run only when opening/changing a view, never after an unrelated event edit.
+    const frame = requestAnimationFrame(() => {
+      const region = scrollRegion.current;
+      if (!region) return;
+      const focused = requestedDate && requestedDate >= first && requestedDate <= last ? requestedDate : first;
+      const columns = Math.max(1, Math.floor((region.clientWidth - 64) / dayWidth));
+      const through = addCalendarDays(focused, columns - 1);
+      const starts = segments.filter(segment => segment.date >= focused && segment.date <= through).map(segment => segment.startMinute / 60);
+      region.scrollTop = starts.length ? Math.max(0, (Math.min(...starts) - axisStart - .5) * HOUR_HEIGHT) : 0;
+    });
     return () => cancelAnimationFrame(frame);
   }, [trip?.id, page, mobileGrid, desktopAgenda]);
   if (!trip) return null;
@@ -360,21 +376,22 @@ export function WeeklyCalendar() {
   const safePage = Math.min(page, lastPage);
   const firstDate = addCalendarDays(trip.start, safePage * 7);
   const dates = Array.from({ length: Math.min(7, dayCount - safePage * 7) }, (_, i) => addCalendarDays(firstDate, i));
-  const visibleEvents = trip.events.filter(event => dates.includes(event.date));
+  const visibleEvents = trip.events.flatMap(event => eventSegments(event)).filter(segment => dates.includes(segment.date));
+  const segmentsForDay = (date: string) => visibleEvents.filter(segment => segment.date === date).sort((a, b) => a.startMinute - b.startMinute || a.event.id.localeCompare(b.event.id));
   const canEditVisibleDays = dates.some(date => canEdit(trip, s.userId, date));
-  const firstHour = Math.min(7, ...visibleEvents.map(event => Math.floor(minutes(event.start) / 60)));
-  const lastHour = Math.max(22, ...visibleEvents.map(event => Math.ceil(minutes(event.end) / 60)));
+  const firstHour = Math.min(7, ...visibleEvents.map(segment => Math.floor(segment.startMinute / 60)));
+  const lastHour = Math.max(22, ...visibleEvents.map(segment => Math.ceil(segment.endMinute / 60)));
   const hours = Array.from({ length: lastHour - firstHour }, (_, i) => firstHour + i);
   const height = hours.length * HOUR_HEIGHT;
   const selected = trip.events.find(event => event.id === moving);
-  const lanes = new Map(dates.map(date => [date, calendarLanes(orderedEvents(trip, date))]));
+  const lanes = new Map(dates.map(date => [date, calendarLanes(segmentsForDay(date).map(segment => ({id: segment.event.id, start: clock(segment.startMinute), end: clock(segment.endMinute)})))]));
   // Give simultaneous events readable columns; the time grid scrolls as needed.
   const dayWidths = dates.map(date => dayWidth * Math.max(1, ...Array.from(lanes.get(date)!.values(), lane => lane.columns)));
 
   function beginMove(id: string, opener: HTMLElement) {
     const event = trip!.events.find(item => item.id === id);
     if (!event) return;
-    if (!canEdit(trip!, s.userId, event.date)) { denyEdit(); return; }
+    if (!canEditEvent(trip!, s.userId, event)) { denyEdit(); return; }
     eventPreview.dismiss();
     returnFocus.current = opener;
     setMoving(id); setMoveDate(event.date); setMoveStart(event.start); setError('');
@@ -460,7 +477,10 @@ export function WeeklyCalendar() {
     const id = event.dataTransfer.getData('application/x-trip-event');
     if (id && id === dragging && date <= trip!.end) {
       if (!canEdit(trip!, s.userId, date)) denyEdit();
-      else move(id, date, clock(startMinute(event)));
+      else {
+        const start = new Date((eventTimestamp(date, clock(startMinute(event))) - draggedSegmentOffset.current) * 60000);
+        move(id, start.toISOString().slice(0, 10), start.toISOString().slice(11, 16));
+      }
     }
     clearDrag();
   }
@@ -513,20 +533,22 @@ export function WeeklyCalendar() {
             style={{ top: (preview.minute - firstHour * 60) * HOUR_HEIGHT / 60 }}>
             <span>{timeText(clock(preview.minute))}</span>
           </div>}
-          {orderedEvents(trip,date).map(event => {
-            const editable = canEdit(trip,s.userId,event.date);
+          {segmentsForDay(date).map(segment => {
+            const event = segment.event;
+            const editable = canEditEvent(trip,s.userId,event);
             const lane = lanes.get(date)!.get(event.id)!;
-            const from = timeText(event.start), to = timeText(event.end);
+            const from = segment.continuesBefore ? "Continues" : timeText(event.start), to = segment.endMinute === 1440 ? "midnight" : timeText(event.end);
             const sharedPeriod = from.match(/ (AM|PM)$/)?.[1] === to.match(/ (AM|PM)$/)?.[1];
             const timeRange = `${sharedPeriod ? from.replace(/ (AM|PM)$/, "") : from}–${to}`;
-            const eventHeight = Math.max(46, (minutes(event.end)-minutes(event.start))/60*HOUR_HEIGHT-3);
-            return <article key={event.id} className={`itcal-event ${eventHeight >= 64 ? 'has-title-room' : ''} ${dragging === event.id ? 'is-dragging' : ''}`}
-              data-event-id={event.id} data-calendar-return-event={event.id} tabIndex={-1} draggable aria-label={`${event.name}, ${timeText(event.start)} to ${timeText(event.end)}`}
-              style={{top:(minutes(event.start)-firstHour*60)/60*HOUR_HEIGHT,height:eventHeight,left:`calc(${lane.column * 100 / lane.columns}% + 4px)`,width:`calc(${100 / lane.columns}% - 8px)`,right:"auto"}}
+            const eventHeight = Math.max(46, (segment.endMinute-segment.startMinute)/60*HOUR_HEIGHT-3);
+            return <article key={segment.key} className={`itcal-event ${eventHeight >= 64 ? 'has-title-room' : ''} ${dragging === event.id ? 'is-dragging' : ''}`}
+              data-event-id={event.id} data-calendar-return-event={event.id} data-occurrence-date={date} tabIndex={-1} draggable aria-label={`${event.name}, ${eventTimeRange(event).replace(" – ", " to ")}`}
+              style={{top:(segment.startMinute-firstHour*60)/60*HOUR_HEIGHT,height:eventHeight,left:`calc(${lane.column * 100 / lane.columns}% + 4px)`,width:`calc(${100 / lane.columns}% - 8px)`,right:"auto"}}
               onDragStart={e => {
                 if (!editable) { e.preventDefault(); denyEdit(); return; }
                 eventPreview.dismiss();
                 grabOffset.current = e.clientY - e.currentTarget.getBoundingClientRect().top;
+                draggedSegmentOffset.current = eventTimestamp(date, "00:00") + segment.startMinute - eventInterval(event).start;
                 e.dataTransfer.setData('application/x-trip-event', event.id);
                 e.dataTransfer.effectAllowed = 'move';
                 setDragging(event.id);
@@ -543,7 +565,7 @@ export function WeeklyCalendar() {
                   const delta = { ArrowDown: 40, ArrowUp: -40, PageDown: details.clientHeight, PageUp: -details.clientHeight }[e.key];
                   if (delta !== undefined) { e.preventDefault(); details.scrollBy({ top: delta }); }
                 }}
-                title={eventPreview.target?.event.id === event.id ? undefined : event.name} onClick={() => editable ? go(7,{event:event.id,date:event.date,view:"calendar"}) : go(11,{event:event.id,date:event.date})}>{event.name}</button>
+                title={eventPreview.target?.event.id === event.id ? undefined : event.name} onClick={() => editable ? go(7,{event:event.id,date,view:"calendar"}) : go(11,{event:event.id,date})}>{event.name}</button>
               <span className="itcal-event-time">{timeRange}</span>
               {eventHeight >= 100 && <span className="itcal-event-place" title={event.place}>{event.place}</span>}
               {editable && <button type="button" className="itcal-move" aria-label={`Move ${event.name}`} onClick={e => {
@@ -560,13 +582,13 @@ export function WeeklyCalendar() {
           <h3>{new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })} · {dateText(date, true)}</h3>
           {date <= trip.end && canEdit(trip, s.userId, date) && <Button variant="text small" aria-label={`Add event on ${date}`} onClick={() => go(7, { date, view: "calendar" })}><Plus size={16}/> Add</Button>}
         </div>
-        {date > trip.end ? <p className="fine-print">Outside your trip</p> : orderedEvents(trip, date).length === 0 ? <p className="fine-print">No plans yet.</p> : orderedEvents(trip, date).map(event => <article className="itcal-agenda-event" key={event.id} data-calendar-return-event={event.id} tabIndex={-1} aria-label={`${event.name}, ${timeText(event.start)} to ${timeText(event.end)}`}>
-          <button className="itcal-agenda-details" onClick={() => go(11, { event: event.id, date: event.date })}>
-            <span>{timeText(event.start)} – {timeText(event.end)}</span>
+        {date > trip.end ? <p className="fine-print">Outside your trip</p> : segmentsForDay(date).length === 0 ? <p className="fine-print">No plans yet.</p> : segmentsForDay(date).map(({event, key}) => <article className="itcal-agenda-event" key={key} data-calendar-return-event={event.id} data-occurrence-date={date} tabIndex={-1} aria-label={`${event.name}, ${eventTimeRange(event).replace(" – ", " to ")}`}>
+          <button className="itcal-agenda-details" onClick={() => go(11, { event: event.id, date })}>
+            <span>{eventTimeRange(event)}</span>
             <strong>{event.name}</strong>
             <small>{event.place}</small>
           </button>
-          {canEdit(trip, s.userId, event.date) && <button className="itcal-agenda-move" aria-label={`Move ${event.name}`} onClick={e => beginMove(event.id, e.currentTarget)}>Move</button>}
+          {canEditEvent(trip, s.userId, event) && <button className="itcal-agenda-move" aria-label={`Move ${event.name}`} onClick={e => beginMove(event.id, e.currentTarget)}>Move</button>}
         </article>)}
       </section>)}
     </div>
@@ -577,11 +599,13 @@ export function WeeklyCalendar() {
     }}>
       <form onSubmit={e => { e.preventDefault(); if (moving) move(moving,moveDate,moveStart); }}>
         <div className="row"><h2 id="calendar-move-title">Move event</h2><button type="button" className="icon-btn push" aria-label="Close move dialog" onClick={closeMove}><X size={20}/></button></div>
+        <div className="calendar-move-body">
         <p>{selected?.name}</p>
         <p className="muted">The event keeps its duration and other details.</p>
         <Field label="New event date"><input type="date" required min={trip.start} max={trip.end} value={moveDate} onChange={e=>setMoveDate(e.target.value)}/></Field>
         <Field label="New start time"><input type="time" required value={moveStart} onChange={e=>setMoveStart(e.target.value)}/></Field>
         <ErrorBox text={error}/>
+        </div>
         <div className="form-actions"><Button variant="outline" onClick={closeMove}>Cancel</Button><Button type="submit">Move event</Button></div>
       </form>
     </dialog>

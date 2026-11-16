@@ -67,7 +67,7 @@ export function AccountPage() {
         <h2 id="account-more">More</h2>
         <div className="menu-links">
           <button onClick={() => tripGo(15)}>
-            My travel preferences
+            Preferences for this trip
             <ArrowRight size={16} />
           </button>
           <button onClick={() => go(5)}>

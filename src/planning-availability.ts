@@ -1,13 +1,13 @@
-import type { Event } from "./domain.ts";
+import { eventOccursOn, eventInterval, eventTimestamp, type Event } from "./domain.ts";
 
 export type PlanningWindow = { start: string; end: string };
 export const timeMinutes = (value: string): number => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
 export const planningTime = (value: number): string => `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
 
 /** Unscheduled daytime intervals; these do not account for travel or venue hours. */
-export function planningWindows(events: Pick<Event, "id" | "date" | "start" | "end">[], date: string, excludeId?: string): PlanningWindow[] {
-  const busy = events.filter(event => event.date === date && event.id !== excludeId)
-    .map(event => ({ start: Math.max(540, timeMinutes(event.start)), end: Math.min(1080, timeMinutes(event.end)) }))
+export function planningWindows(events: Pick<Event, "id" | "date" | "endDate" | "start" | "end">[], date: string, excludeId?: string): PlanningWindow[] {
+  const busy = events.filter(event => eventOccursOn(event, date) && event.id !== excludeId)
+    .map(event => ({ start: Math.max(540, eventInterval(event).start - eventTimestamp(date, "00:00")), end: Math.min(1080, eventInterval(event).end - eventTimestamp(date, "00:00")) }))
     .filter(event => event.end > event.start).sort((a, b) => a.start - b.start);
   const windows: PlanningWindow[] = [];
   let cursor = 540;

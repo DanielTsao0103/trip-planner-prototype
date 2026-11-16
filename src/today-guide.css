@@ -158,3 +158,18 @@
   :root .today-stop-heading { gap: 12px; }
   :root .today-stop-heading h2 { font-size: 24px; margin-block: 4px 8px; }
 }
+
+:root .today-guide { container: today-content / inline-size; }
+:root .today-modes-unset button { min-height:44px; padding-block:10px; justify-content:center; }
+@container today-content (max-width: 800px) {
+  :root .today-next-guide { display:block; }
+  :root .today-transport { border-left:0; padding:16px 0 0; margin-top:16px; border-top:1px solid var(--line); }
+  :root .today-support { grid-template-columns:minmax(0,1fr); }
+}
+@container today-content (max-width: 500px) {
+  :root .today-stop-heading { flex-direction:column; gap:8px; }
+  :root .today-stop-actions { flex-direction:row; align-items:center; flex-wrap:wrap; }
+  :root .today-next-guide { padding:16px; }
+  :root .today-modes { gap:6px; }
+  :root .today-modes button { padding:10px 8px; }
+}

@@ -29,7 +29,7 @@ export async function detailJourney(page, base, travelerEmail) {
   }).formatToParts(new Date()).find(part => part.type === "timeZoneName")?.value ?? "Asia/Taipei");
   await expect(page.getByText(`Taipei — ${taipeiLabel}`, { exact: true })).toBeVisible();
   await button("Create trip").click();
-  await button("Full detail browser QA").click();
+  await expect(page.getByRole("heading", { name: "Full detail browser QA", exact: true })).toBeVisible();
   await expect(button("Calendar")).toHaveAttribute("aria-pressed", "true");
   await saved(page);
   await button("Save a place").click();

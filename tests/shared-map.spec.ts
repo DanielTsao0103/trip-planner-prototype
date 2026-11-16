@@ -150,7 +150,7 @@ test("select a shared stop, fine-tune its pin, reload, and restore the overview"
   expect(url).not.toContain("47.6077008%2C-122.3385575");
   await expect(page.getByRole("link", { name: "Open A morning of art in itinerary" })).toBeVisible();
   await expect(page.locator(".place-select").first()).toContainText("Settle into our city stay");
-  await expect(page).toHaveURL(/#\/17\?event=museum$/);
+  await expect(page).toHaveURL(/#\/17\?date=2026-10-16&days=all&event=museum$/);
   await page.reload();
   await expect(page.getByRole("button", { name: /A morning of art.*Seattle Art Museum/ }))
     .toHaveAttribute("aria-expanded", "true");

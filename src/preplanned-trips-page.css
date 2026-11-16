@@ -25,3 +25,6 @@
 .field .preplanned-search input:focus-visible {
   outline: none;
 }
+
+.preplanned-pagination { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:1rem; padding-block:1.5rem; }
+.preplanned-pagination p { color:var(--muted); margin:0; }

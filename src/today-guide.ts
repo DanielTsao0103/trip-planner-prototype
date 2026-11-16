@@ -1,4 +1,4 @@
-import type { Event, MapPoint } from "./domain.ts";
+import { eventEndDate, eventInterval, eventOccursOn, eventTimestamp, type Event, type MapPoint } from "./domain.ts";
 
 export type TravelMode = "WALK" | "TRANSIT" | "DRIVE";
 export const TRAVEL_MODES: TravelMode[] = ["WALK", "TRANSIT", "DRIVE"];
@@ -36,8 +36,8 @@ export function itineraryInstant(date: string, time: string, zone: string): Date
 
 /** Resolve the same incoming journey before and after a destination starts. */
 export function previousStop(events: Event[], target: Event): Event | undefined {
-  return events.filter(event => event.date === target.date && event.id !== target.id && event.start <= target.start)
-    .sort((a, b) => b.end.localeCompare(a.end))[0];
+  return events.filter(event => eventOccursOn(event, target.date) && event.id !== target.id && eventInterval(event).start <= eventInterval(target).start)
+    .sort((a, b) => eventInterval(b).end - eventInterval(a).end)[0];
 }
 export function incomingJourneyId(events: Event[], target: Event): string {
   return `${target.date}:${previousStop(events, target)?.id || "start"}:${target.id}`;
@@ -45,15 +45,15 @@ export function incomingJourneyId(events: Event[], target: Event): string {
 
 /** Ongoing events stay distinct from a future destination; no completed stop is revived. */
 export function dayProgress(events: Event[], date: string, time: string) {
-  const today = events.filter(event => event.date === date).sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
-  const ongoing = today.filter(event => event.start <= time && event.end > time);
-  const next = today.find(event => event.start > time);
-  const previous = next ? today.filter(event => event.id !== next.id && event.start <= next.start)
-    .sort((a, b) => b.end.localeCompare(a.end))[0] : undefined;
+  const now = eventTimestamp(date, time);
+  const today = events.filter(event => eventOccursOn(event, date)).sort((a, b) => eventInterval(a).start - eventInterval(b).start || eventInterval(a).end - eventInterval(b).end);
+  const ongoing = today.filter(event => eventInterval(event).start <= now && eventInterval(event).end > now);
+  const next = today.find(event => eventInterval(event).start > now);
+  const previous = next ? previousStop(today, next) : undefined;
   const overlaps: [Event, Event][] = [];
   for (let i = 0; i < today.length; i++) {
-    for (let j = i + 1; j < today.length && today[j].start < today[i].end; j++) {
-      if (today[j].end > time) overlaps.push([today[i], today[j]]);
+    for (let j = i + 1; j < today.length && eventInterval(today[j]).start < eventInterval(today[i]).end; j++) {
+      if (eventInterval(today[j]).end > now) overlaps.push([today[i], today[j]]);
     }
   }
   return { today, ongoing, next, previous, overlaps };
@@ -65,10 +65,14 @@ export function eventLocation(event: Event): RouteLocation | undefined {
     : undefined;
 }
 
+/** A continuation retains its canonical dates; calculations use minutes relative to the visible day. */
+export const endMinutesOn = (event: Event, date: string) => eventTimestamp(eventEndDate(event), event.end) - eventTimestamp(date, "00:00");
+export const startMinutesOn = (event: Event, date: string) => eventTimestamp(event.date, event.start) - eventTimestamp(date, "00:00");
+
 /** Only a provider duration can produce a leave-by time; straight-line distance cannot. */
-export function departureAdvice(start: string, now: string, duration: number, availableAt = now) {
+export function departureAdvice(start: string, now: string, duration: number, availableAt: string | number = now) {
   const leave = minutesOfDay(start) - duration - ARRIVAL_BUFFER;
-  const earliest = Math.max(minutesOfDay(now), minutesOfDay(availableAt));
+  const earliest = Math.max(minutesOfDay(now), typeof availableAt === "number" ? availableAt : minutesOfDay(availableAt));
   return { leave, lateBy: Math.max(0, earliest + duration - minutesOfDay(start)), bufferShortBy: Math.max(0, earliest - leave) };
 }
 

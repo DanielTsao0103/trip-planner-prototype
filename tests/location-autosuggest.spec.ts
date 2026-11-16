@@ -191,6 +191,7 @@ test('country context survives exhausted demo area-lookup quota without restrict
  await page.getByRole('combobox',{name:'Where',exact:true}).fill('coffee');
  await expect.poll(()=>calls.at(-1)?.regionCode).toBe('tw');
  expect(calls.at(-1).includedRegionCodes).toBeUndefined();expect(calls.at(-1).locationRestriction).toBeUndefined();
+ await page.locator('.event-location-area summary').click();
  await page.getByRole('combobox',{name:'Prioritize locations near'}).selectOption('');
  await expect.poll(()=>calls.at(-1)?.regionCode).toBeUndefined();
 });

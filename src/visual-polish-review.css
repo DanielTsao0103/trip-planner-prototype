@@ -1,0 +1,80 @@
+/* Validation is already announced and attached to each field. Give the same
+   message a visible error treatment instead of styling it as ordinary help. */
+:root .auth .field:has([aria-invalid="true"]) {
+  --field-error-ink: light-dark(#9d3027, #ffb4a8);
+}
+:root .auth .field [aria-invalid="true"] {
+  border-color: var(--field-error-ink);
+  box-shadow: inset 0 0 0 1px var(--field-error-ink);
+}
+:root .auth .field:has([aria-invalid="true"]) > small {
+  color: var(--field-error-ink);
+  border-left: 3px solid currentColor;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--field-error-ink) 7%, var(--paper));
+}
+
+/* A card with no credit should not reserve an empty credit row. Actual credits
+   remain visible. The collection width accounts for a persistent tablet rail. */
+:root .page-5 .trip-card-credit:empty { display: none; }
+:root .page-5 .trip-grid {
+  container-type: inline-size;
+  container-name: trip-collection;
+}
+@container trip-collection (max-width: 640px) {
+  :root .page-5 .trip-photo img { height: clamp(128px, 30cqw, 160px); }
+}
+
+/* The status indicator and its sentence stay on one line group when Refresh
+   wraps below them; the dot must not become an isolated row on a phone. */
+:root .okr-live-bar > [data-testid="okr2-updated"] {
+  flex: 1 1 200px;
+  min-width: 0;
+  max-width: calc(100% - 18px);
+}
+:root .okr-live-bar > .okr-live-dot {
+  flex: 0 0 10px;
+  align-self: flex-start;
+  margin-top: 5px;
+}
+
+/* The wide layout keeps its full side-by-side sample. A stacked layout starts
+   with a small live type/color/corner sample so the actual choices come first. */
+:root .style-preview-compact { display: none; }
+@container task-content (max-width: 800px) {
+  :root .page-18 .style-preview-compact { display: block; }
+  :root .page-18 .style-preview:not(.is-expanded) .style-preview-full { display: none; }
+  :root .page-18 .style-preview.is-expanded .style-preview-sample { display: none; }
+  :root .page-18 .style-preview-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    color: var(--sp-ink);
+  }
+  :root .page-18 .style-preview-heading > span { font-size: 13px; font-weight: 600; }
+  :root .page-18 .style-preview-heading .btn { color: var(--sp-ink); padding-inline: 4px; }
+  :root .page-18 .style-preview-sample {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-block: 4px;
+  }
+  :root .page-18 .style-preview-sample h3 {
+    margin: 0;
+    color: var(--sp-ink);
+    font-family: var(--sp-heading);
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1.25;
+  }
+  :root .page-18 .style-preview-sample .sp-button { flex-shrink: 0; }
+  :root .page-18 .style-preview.is-expanded .style-preview-full { margin-top: 12px; }
+}
+@media (max-width: 760px) {
+  /* Keep the single phone action row; spare width comes from padding, not text. */
+  :root .page-18 .style-actions { flex-wrap: nowrap; }
+  :root .page-18 .style-actions .style-preview-jump { padding-inline: 8px; }
+}

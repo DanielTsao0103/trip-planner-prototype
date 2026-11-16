@@ -29,6 +29,8 @@ export type Event = {
   id: string;
   name: string;
   date: string;
+  /** Omitted legacy values end on the start date. */
+  endDate?: string;
   start: string;
   end: string;
   cost: number;
@@ -39,6 +41,36 @@ export type Event = {
   point?: MapPoint | null;
   googlePlaceId?: string | null;
 };
+/** Calendar intervals use trip-local wall time, independent of the device zone. */
+export const eventEndDate = (event: Pick<Event, "date" | "endDate">): string => event.endDate || event.date;
+export const eventTimestamp = (date: string, time: string): number => Date.parse(`${date}T${time}:00Z`) / 60000;
+export function eventInterval(event: Pick<Event, "date" | "endDate" | "start" | "end">) {
+  return { start: eventTimestamp(event.date, event.start), end: eventTimestamp(eventEndDate(event), event.end) };
+}
+export function eventOccursOn(event: Pick<Event, "date" | "endDate" | "start" | "end">, date: string): boolean {
+  const interval = eventInterval(event), midnight = eventTimestamp(date, "00:00");
+  return interval.start < midnight + 1440 && interval.end > midnight;
+}
+/** Display projections never enter the trip's canonical event collection. */
+export type EventDaySegment = { event: Event; date: string; startMinute: number; endMinute: number; continuesBefore: boolean; continuesAfter: boolean; key: string };
+export function eventSegments(event: Event, date?: string): EventDaySegment[] {
+  const interval = eventInterval(event);
+  if (!Number.isFinite(interval.start) || !Number.isFinite(interval.end) || interval.end <= interval.start) return [];
+  return (date ? [date] : days(event.date, eventEndDate(event))).filter(day => eventOccursOn(event, day)).map(day => {
+    const midnight = eventTimestamp(day, "00:00");
+    return { event, date: day, startMinute: Math.max(0, interval.start - midnight), endMinute: Math.min(1440, interval.end - midnight),
+      continuesBefore: interval.start < midnight, continuesAfter: interval.end > midnight + 1440, key: `${event.id}:${day}` };
+  });
+}
+export const eventDates = (event: Event): string[] => eventSegments(event).map(segment => segment.date);
+export const canEditEvent = (trip: Trip, user: string | null, event: Event): boolean => {
+  const occupied = eventDates(event);
+  return occupied.length > 0 && occupied.every(date => canEdit(trip, user, date));
+};
+export const eventTimeRange = (event: Event): string => eventEndDate(event) === event.date
+  ? `${timeText(event.start)} – ${timeText(event.end)}`
+  : `${dateText(event.date, true)}, ${timeText(event.start)} – ${dateText(eventEndDate(event), true)}, ${timeText(event.end)}`;
+
 /** A researched place can be collected before choosing a day or time. */
 export type SavedPlace = {
   id: string;
@@ -200,13 +232,13 @@ export const isActive = (trip: Trip, date: string) =>
 /** A saved event link follows the event if a collaborator moves it to another day. */
 export function itineraryDay(trip: Trip, eventId: string | null, requested: string | null, fallback: string) {
   const event = eventId && trip.events.find((entry) => entry.id === eventId);
-  if (event) return event.date;
+  if (event) return requested && eventOccursOn(event, requested) ? requested : event.date;
   if (requested && isActive(trip, requested)) return requested;
   return isActive(trip, fallback) ? fallback : trip.start;
 }
 export const orderedEvents = (trip: Trip, date?: string) =>
   trip.events
-    .filter((e) => !date || e.date === date)
+    .filter((e) => !date || eventOccursOn(e, date))
     .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
 export function eventError(
   trip: Trip,
@@ -215,9 +247,14 @@ export function eventError(
   original?: Event,
 ): string {
   if (!member(trip, user)) return "You no longer have access to this trip.";
+  const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+  if (!validDate(event.date) || !validDate(eventEndDate(event)) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(event.start) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(event.end))
+    return "Choose valid start and end dates and times.";
+  const interval = eventInterval(event);
+  if (interval.end <= interval.start) return "End date and time must be after the start. Choose a later end date for overnight plans.";
   if (
-    !canEdit(trip, user, event.date) ||
-    (original && !canEdit(trip, user, original.date))
+    !canEditEvent(trip, user, event) ||
+    (original && !canEditEvent(trip, user, original))
   )
     return EVENT_PERMISSION_MESSAGE;
   const problem =
@@ -226,10 +263,8 @@ export function eventError(
     (event.place !== original?.place && textError(event.place, "Location", TEXT_LIMITS.eventAddress)) ||
     textError(event.notes, "Notes", TEXT_LIMITS.notes);
   if (problem) return problem;
-  if (event.date < trip.start || event.date > trip.end)
+  if (event.date < trip.start || eventEndDate(event) > trip.end)
     return "Choose a day within the trip dates.";
-  if (event.end <= event.start)
-    return "End time must be after start time. Split overnight activities into one event per day.";
   if (
     !Number.isSafeInteger(event.cost) ||
     event.cost < 0 ||
@@ -239,12 +274,11 @@ export function eventError(
   const conflict = trip.events.find(
     (e) =>
       e.id !== event.id &&
-      e.date === event.date &&
-      event.start < e.end &&
-      event.end > e.start,
+      interval.start < eventInterval(e).end &&
+      interval.end > eventInterval(e).start,
   );
   return conflict
-    ? `This overlaps with ${conflict.name} (${timeText(conflict.start)}–${timeText(conflict.end)}). Choose another time.`
+    ? `This overlaps with ${conflict.name} (${eventTimeRange(conflict)}). Choose another time.`
     : "";
 }
 /** Remainder cents are allocated deterministically, so every split reconciles. */

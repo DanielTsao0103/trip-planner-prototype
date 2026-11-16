@@ -44,7 +44,7 @@ export function BudgetOkrTracker() {
     </div>
     <p>At least 50% of completed trips with a budget set before departure finish at or below that budget.</p>
     {status === "loading" && <p role="status">Loading trip budget results…</p>}
-    {status === "error" && <p role="alert">Trip budget results is unavailable.</p>}
+    {status === "error" && <p role="alert">Trip budget results are unavailable.</p>}
     {status === "ready" && <>
       <PercentRing value={rate} label="of eligible trips within budget" target={target} />
       {rate === null ? <p>No completed trips with a recorded pre-departure budget yet.</p> : <>

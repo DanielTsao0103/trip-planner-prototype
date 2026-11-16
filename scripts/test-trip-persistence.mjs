@@ -177,6 +177,7 @@ try {
   assert.deepEqual(row.content.dismissed, trip.dismissed);
   assert.deepEqual(row.content.events[0], {
     ...trip.events[0],
+    endDate: trip.events[0].endDate || trip.events[0].date,
     point: null, googlePlaceId: null,
     attendees: [owner.id, guest].sort(),
   });

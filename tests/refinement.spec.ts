@@ -74,9 +74,11 @@ test('unreadable photos are rejected while a decoded photo remains saveable', as
 test('group chart tooltip stays in the content area and Escape dismisses it', async ({ page }) => {
   await page.setViewportSize({width:768,height:900});
   await page.goto('./#/13');
+  await page.getByText('View preference details', {exact:true}).click();
   const target=page.locator('.dietary-bubble-item').first();
   await target.focus();
   const tooltip=target.getByRole('tooltip', {includeHidden:true});
+  await expect(tooltip).toBeVisible();
   await expect(tooltip).toHaveCSS('opacity','1');
   const bounds=await tooltip.boundingBox(); const main=await page.locator('main').boundingBox();
   expect(bounds!.x).toBeGreaterThanOrEqual(main!.x);
@@ -109,7 +111,7 @@ test('demo trip cover can be cleared or saved locally without requiring an accou
   await expect(page.getByRole('button',{name:'Keep current cover',exact:true})).toHaveCount(0);
   await input.setInputFiles(file);
   await page.getByRole('button',{name:'Save changes',exact:true}).click();
-  await expect(page).toHaveURL(/#\/8$/);
+  await expect(page).toHaveURL(/#\/8(?:\?|$)/);
   await page.reload();
   await expect(page.locator('.trip-hero > img')).toHaveAttribute('src',`data:image/png;base64,${png}`);
   expect(uploads).toEqual([]);
@@ -164,7 +166,7 @@ test('concurrent destination lookups retain successful zones when another destin
   await page.getByLabel('Start date', { exact: true }).fill('2027-05-01');
   await page.getByLabel('End date', { exact: true }).fill('2027-05-04');
   await page.getByRole('button', { name: 'Create trip', exact: true }).click();
-  await page.getByRole('button', { name: 'Partial destination lookup', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Partial destination lookup', exact: true })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
   await expect(page.locator('.trip-timezone-list')).toContainText('Taipei — Taiwan Standard Time');
@@ -185,12 +187,12 @@ test('creating directly from a typed destination waits for its calendar time zon
   await page.getByLabel('Start date',{exact:true}).fill('2027-05-01');
   await page.getByLabel('End date',{exact:true}).fill('2027-05-04');
   await page.getByRole('button',{name:'Create trip',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Typed Taipei',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Typed Taipei',exact:true})).toBeVisible();
   const trip=await page.evaluate(()=>JSON.parse(localStorage.getItem('trip-planner-demo-v1:demo-maya')!).trips.find((t:any)=>t.title==='Typed Taipei'));
   expect(trip.destinations).toEqual(['Taipei']);
   expect(trip.zone).toBe('Asia/Taipei');
   expect(trip.destinationTimezones).toEqual(['Asia/Taipei']);
-  await page.getByRole('button',{name:'Typed Taipei',exact:true}).click();await page.reload();
+  await expect(page.getByRole('heading',{name:'Typed Taipei',exact:true})).toBeVisible();await page.reload();
   await page.getByRole('button',{name:'Edit trip',exact:true}).click();
   await expect(page.locator('.trip-timezone-list')).toContainText('Taipei — Taiwan Standard Time');
 });
@@ -218,7 +220,7 @@ test('typed destination lookup failure retains the draft and honors an explicit 
       await page.getByLabel('Calendar time zone',{exact:true}).selectOption('Asia/Taipei');
       await page.getByRole('button',{name:'Create trip',exact:true}).click();
     }
-    await expect(page.getByRole('button',{name:title,exact:true})).toBeVisible();
+    await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible();
     const trip=await page.evaluate(title=>JSON.parse(localStorage.getItem('trip-planner-demo-v1:demo-maya')!).trips.find((t:any)=>t.title===title),title);
     expect(trip.zone).toBe('Asia/Taipei');expect(trip.destinationTimezones).toEqual([null]);
   }
@@ -243,7 +245,7 @@ test('saving during an Add lookup waits, and leaving a pending lookup cannot cre
     await page.getByRole('button',{name:'Create trip',exact:true}).click();
     await expect(page.getByRole('button',{name:'Finding time zones…'})).toBeDisabled();
     if(leave){await page.getByRole('link',{name:'Home',exact:true}).click();await page.waitForTimeout(1100);}
-    else await expect(page.getByRole('button',{name:title,exact:true})).toBeVisible();
+    else await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible();
     const trip=await page.evaluate(title=>JSON.parse(localStorage.getItem('trip-planner-demo-v1:demo-maya')!).trips.find((t:any)=>t.title===title),title);
     if(leave)expect(trip).toBeUndefined();else expect(trip.zone).toBe('Asia/Taipei');
   }
@@ -275,7 +277,7 @@ test('a copied starter cannot create hidden plans outside a shortened trip', asy
   await expect(end).toHaveValue('June 5, 2027');
   await expect(page.locator('.mobile-trip-preview')).toContainText('Jun 2 – Jun 5 · 4 days');
   await page.getByRole('button', { name: 'Create trip', exact: true }).click();
-  await page.getByRole('button', { name: 'Template date boundary', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Template date boundary', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Map & list', exact: true }).click();
   await expect(page.locator('[id^="day-event-"]')).toHaveCount(7);
   await page.reload();
@@ -319,14 +321,14 @@ test('unresolved destination keeps its unknown status after calendar time zone i
   await page.getByLabel('Start date',{exact:true}).fill('2027-05-01');
   await page.getByLabel('End date',{exact:true}).fill('2027-05-04');
   await page.getByRole('button',{name:'Create trip',exact:true}).click();
-  await page.getByRole('button',{name:'Time zone fallback test',exact:true}).click();
-  await expect(page).toHaveURL(/#\/8$/);
+  await expect(page.getByRole('heading',{name:'Time zone fallback test',exact:true})).toBeVisible();
+  await expect(page).toHaveURL(/#\/8(?:\?|$)/);
   await page.reload();
   await page.getByRole('button',{name:'Edit trip',exact:true}).click();
   await expect(page.locator('.trip-timezone-list')).toContainText('Time zone unavailable');
   await expect(page.getByLabel('Calendar time zone',{exact:true})).toHaveValue('Asia/Taipei');
   await page.getByRole('button',{name:'Save changes',exact:true}).click();
-  await page.getByRole('button',{name:'Add event',exact:true}).first().click();
+  await page.getByRole('button',{name:'Add your first plan',exact:true}).click();
   await expect(page.getByText(/Times in Taipei/)).toBeVisible();
 });
 
@@ -432,6 +434,7 @@ test('large budget values keep cents together and long group notes remain readab
     await expect(value).toHaveCSS('white-space','nowrap');
   }
   await page.goto('./#/13');
+  await page.getByText('View preference details', {exact:true}).click();
   await page.getByRole('button',{name:'Read note from Maya Chen',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'Note from Maya Chen',exact:true});
   await expect(dialog).toContainText('Final instruction: meet at the west entrance.');
@@ -444,12 +447,14 @@ test('large budget values keep cents together and long group notes remain readab
 test('large groups can read every preference voter and shared note without oversized dialog headings', async ({ page }) => {
   await page.setViewportSize({width:390,height:600});
   await page.goto('./#/13');
+  await page.getByText('View preference details', {exact:true}).click();
   await page.evaluate(()=>{
     const key='trip-planner-demo-v1:demo-maya';const state=JSON.parse(localStorage.getItem(key)!);const trip=state.trips[0];
     for(let i=0;i<20;i++){const id=`stress-${i}`;trip.members.push({id,name:`Traveler ${i} Alexandria Montgomery-Wellington`,role:'Viewer',status:'accepted',days:[]});trip.prefs[id]={...trip.prefs.maya,notes:'A shared note for all twenty travelers.'};}
     localStorage.setItem(key,JSON.stringify(state));
   });
   await page.reload();
+  await page.getByText('View preference details', {exact:true}).click();
   const bubble=page.locator('.dietary-bubble-item').first();await bubble.focus();await page.keyboard.press('Enter');
   let dialog=page.getByRole('dialog');
   await expect(dialog).toContainText('Traveler 19 Alexandria Montgomery-Wellington');
@@ -513,7 +518,7 @@ test('invalid event times focus an inline explanation and optional photos stay c
   await page.getByLabel('End time',{exact:true}).fill('09:00');
   await page.getByRole('button',{name:'Save changes',exact:true}).click();
   await expect(page.locator('.event-time-error')).toBeFocused();
-  await expect(page.getByRole('alert')).toContainText('End time must be after start time');
+  await expect(page.getByRole('alert')).toContainText('End date and time must be after the start');
   await expect(page.getByRole('alert')).toBeInViewport();
   const alertBounds=await page.locator('.event-time-error').boundingBox();
   const actionBounds=await page.locator('.event-editor-actions').boundingBox();
@@ -563,7 +568,7 @@ test('invalid replacement dates remain visible and cannot silently save an older
   await page.getByLabel('Trip title', {exact:true}).click();
   await expect(end).toHaveAttribute('aria-invalid', 'false');
   await page.getByRole('button', {name:'Save changes',exact:true}).click();
-  await expect(page).toHaveURL(/#\/8$/);
+  await expect(page).toHaveURL(/#\/8(?:\?|$)/);
   await page.reload();
   await page.getByRole('button', {name:'Edit trip',exact:true}).click();
   await expect(page.getByLabel('End date', {exact:true})).toHaveValue('October 20, 2026');
@@ -824,6 +829,7 @@ test('long repayment descriptions keep amounts and completed labels intact', asy
 test('phone group category jump and current survey breadcrumb remain reachable', async ({page}) => {
   await page.setViewportSize({width:390,height:600});
   await page.goto('./#/13');
+  await page.getByText('View preference details', {exact:true}).click();
   await page.getByLabel('Jump to a preference').selectOption({label:'Tickets and notes'});
   const category=page.locator('.preference-tile').filter({has:page.getByRole('heading',{name:'Tickets and notes',exact:true})});
   await expect(category).toBeFocused();
@@ -839,9 +845,9 @@ test('invalid suggested identity reopens its disclosure and focuses the missing 
   await page.setViewportSize({width:390,height:600});
   await page.goto('./#/9');await page.getByRole('button',{name:'Review this idea'}).first().click();
   const disclosure=page.locator('.suggested-event-details');
-  await disclosure.locator('summary').click();
+  await disclosure.locator(':scope > summary').click();
   await page.getByLabel('Event name',{exact:true}).fill('');
-  await disclosure.locator('summary').click();
+  await disclosure.locator(':scope > summary').click();
   await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
   await expect(disclosure).toHaveAttribute('open','');
   const field=page.getByLabel('Event name',{exact:true});
@@ -960,7 +966,7 @@ test('trip cancellation prompts for pending edits and preserves an untouched tri
   if(phone) await expect(page.getByRole('button',{name:'Save changes',exact:true})).toBeInViewport({ratio:1});
   await page.screenshot({path:test.info().outputPath('trip-editor-single-actions.png')});
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect(page).toHaveURL(/#\/8$/);
+  await expect(page).toHaveURL(/#\/8(?:\?|$)/);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   if(phone) await expect(page.getByRole('navigation',{name:'Mobile navigation',exact:true})).toBeVisible();
   await page.getByRole('button', { name: 'Edit trip', exact: true }).click();

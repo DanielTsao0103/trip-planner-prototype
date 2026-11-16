@@ -39,7 +39,7 @@ test('ordinary preferences restore the current step, preserve edits across cance
   expect(await draftKeys(page)).toEqual([]);
   await walk.fill('675');
   await expect(page.locator('.survey-draft-notice')).toHaveCount(0);
-  await expect(page.locator('.survey-draft-status')).toContainText('Draft kept in this tab.');
+  await expect(page.locator('.survey-draft-status')).toContainText('Unsaved changes.');
 });
 
 test('unavailable draft storage warns honestly, downloads answers, and failed discard retains them', async ({ page }) => {
@@ -169,7 +169,7 @@ test('ordinary account preferences keep their scoped draft through a permission 
   expect(keys).toEqual([`trip-survey-draft-v1:${account.id}:${row.tripID}:${traveler}`]);
   await page.getByRole('button', { name: 'Save my preferences' }).click();
   await expect(page.getByRole('alert')).toContainText('invitation is no longer active');
-  await expect(page.getByText('Ask the trip owner to restore your access. Your answers are kept in this tab.')).toBeVisible();
+  await expect(page.getByText('Ask the trip owner to restore your access. Your unsaved answers are still available.')).toBeVisible();
   await page.screenshot({ path: test.info().outputPath('ordinary-access-recovery.png'), fullPage: true });
   await expect(notes).toHaveValue('An ordinary account draft');
   expect(await draftKeys(page)).toEqual(keys);
@@ -199,6 +199,7 @@ test('long-name groups have one bounded tooltip, dismiss it on scroll, and lead 
   });
   await page.goto('./#/13');
   await page.reload();
+  await page.getByText('View preference details', { exact: true }).click();
   for (const width of [320, 390, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -254,15 +255,12 @@ test('short phone survey exposes first-step fields and scrolls subsequent steps 
 });
 
 
-test('Group offers a focused Travelers jump and equal-height empty categories on phones', async ({ page }) => {
+test('Group starts with travelers and retains equal-height optional categories on phones', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 600 });
   await demo(page);
   await page.goto('./#/13');
-  const jump = page.getByRole('button', { name: 'Travelers', exact: true });
-  await expect(jump).toBeInViewport();
-  await jump.click();
-  await expect(page.getByRole('heading', { name: 'Travelers', exact: true })).toBeFocused();
   await expect(page.getByRole('heading', { name: 'Travelers', exact: true })).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Travelers', exact: true })).toHaveCount(0);
   await page.screenshot({ path: test.info().outputPath('travelers-jump-phone.png') });
   await page.evaluate(() => {
     const key = 'trip-planner-demo-v1:demo-maya';
@@ -271,6 +269,7 @@ test('Group offers a focused Travelers jump and equal-height empty categories on
     localStorage.setItem(key, JSON.stringify(state));
   });
   await page.reload();
+  await page.getByText('View preference details', { exact: true }).click();
   await expect(page.locator('.preference-tile-empty')).toHaveCount(6);
   const heights = await page.locator('.preference-tile-empty').evaluateAll(cards => cards.map(card => card.getBoundingClientRect().height));
   expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(1);
@@ -282,6 +281,7 @@ test('Group offers a focused Travelers jump and equal-height empty categories on
 test('spending explains its markers and opens complete traveler names', async ({ page }) => {
   await demo(page);
   await page.goto('./#/13');
+  await page.getByText('View preference details', { exact: true }).click();
   await expect(page.getByText('Each dot is one traveler. Select a dot or count to see names.')).toBeVisible();
   await expect(page.locator('.spending-empty').first()).toHaveText('None yet');
   const marker = page.locator('.spending-marker').first();
@@ -372,6 +372,7 @@ test('large group counts stay concise and assigned days read chronologically in 
   });
   await page.goto('./#/13');
   await page.reload();
+  await page.getByText('View preference details', { exact: true }).click();
   for (const width of [390, 1440]) {
     for (const colorScheme of ['light', 'dark'] as const) {
       await page.setViewportSize({ width, height: 900 });
@@ -406,7 +407,9 @@ test('large group counts stay concise and assigned days read chronologically in 
       await expect(page.getByRole('dialog')).toContainText('Traveler 21 Alexandria Montgomery-Wellington');
       await page.keyboard.press('Escape');
       await expect(bubble).toBeFocused();
-      await page.getByRole('button', { name: 'Travelers', exact: true }).click();
+      // Move focus as a traveler would when leaving the chart; scrolling alone leaves the bubble focused.
+      await page.getByRole('heading', { name: 'Travelers', exact: true }).focus();
+      await page.getByRole('heading', { name: 'Travelers', exact: true }).scrollIntoViewIfNeeded();
       await expect(page.locator('.assigned-days')).toHaveText('May 1, May 3, May 4');
       await expect(page.getByRole('button', { name: 'Change permissions for Sam Rivera' })).toContainText('Permissions');
       await page.screenshot({ path: test.info().outputPath(`travelers-${width}-${colorScheme}.png`) });
@@ -427,10 +430,11 @@ test('large rosters filter full names and email, retain actions, and clearly rec
   });
   await page.goto('./#/13');
   await page.reload();
+  await page.getByText('View preference details', { exact: true }).click();
   for (const width of [320, 390, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ colorScheme: width === 768 ? 'dark' : 'light' });
-    await page.getByRole('button', { name: 'Travelers', exact: true }).click();
+    await page.getByRole('heading', { name: 'Travelers', exact: true }).scrollIntoViewIfNeeded();
     const filter = page.getByRole('searchbox', { name: 'Find a traveler' });
     await filter.fill('TRAVELER 21');
     await expect(page.locator('.collaborator-row')).toHaveCount(1);
@@ -448,6 +452,64 @@ test('large rosters filter full names and email, retain actions, and clearly rec
     await expect(page.getByText('No travelers match “Nobody matches”. Try another name or email.')).toBeVisible();
     await page.getByRole('button', { name: 'Clear filter' }).click();
     await expect(filter).toHaveValue('');
-    await expect(page.locator('.collaborator-row')).toHaveCount(26);
+    await expect(page.locator('.collaborator-row')).toHaveCount(6);
   }
+});
+
+
+test('group puts traveler actions before optional charts and keeps shared needs readable', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await demo(page);
+  await page.goto('./#/13');
+  await expect(page.getByRole('button', { name: 'Invite someone', exact: true })).toBeInViewport();
+  await expect(page.locator('.group-preference-details')).not.toHaveAttribute('open', '');
+  await expect(page.locator('.preference-grid')).not.toBeVisible();
+  await expect(page.getByLabel('Shared planning needs')).toContainText('Step-free access');
+  const positions = await page.evaluate(() => ({
+    people: document.querySelector('.collaborators-table')!.getBoundingClientRect().top,
+    preferences: document.querySelector('.group-preference-details')!.getBoundingClientRect().top,
+  }));
+  expect(positions.people).toBeLessThan(positions.preferences);
+  const details = page.getByText('View preference details', { exact: true });
+  await details.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.preference-grid')).toBeVisible();
+  const heights = await page.locator('.preference-tile').evaluateAll(cards => cards.map(card => card.getBoundingClientRect().height));
+  expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(1);
+  await page.getByText('Hide preference details', { exact: true }).click();
+  await expect(page.locator('.preference-grid')).not.toBeVisible();
+});
+
+
+test('twenty travelers keep shared needs first and expose every traveler through search or show all', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await demo(page);
+  await page.evaluate(() => {
+    const key = 'trip-planner-demo-v1:demo-maya';
+    const state = JSON.parse(localStorage.getItem(key)!);
+    for (let i = 4; i < 20; i++) state.trips[0].members.push({ id: `large-${i}`, name: `Traveler ${i + 1}`, email: `traveler${i + 1}@example.test`, role: 'Viewer', status: 'accepted', days: [] });
+    localStorage.setItem(key, JSON.stringify(state));
+  });
+  await page.goto('./#/13');
+  await page.reload();
+  await expect(page.getByLabel('Shared planning needs')).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Invite someone', exact: true })).toBeInViewport();
+  await expect(page.locator('.collaborator-row')).toHaveCount(6);
+  await page.getByRole('button', { name: /^Access needs/ }).click();
+  await expect(page.getByRole('dialog')).toContainText('Step-free access');
+  await page.keyboard.press('Escape');
+  const search = page.getByRole('searchbox', { name: 'Find a traveler' });
+  await search.fill('traveler20@example.test');
+  await expect(page.locator('.collaborator-row')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Change permissions for Traveler 20', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Clear filter', exact: true }).click();
+  await expect(page.locator('.collaborator-row')).toHaveCount(6);
+  await page.getByRole('button', { name: 'Show all 20 travelers', exact: true }).click();
+  await expect(page.locator('.collaborator-row')).toHaveCount(20);
+  await expect(page.getByRole('button', { name: 'Remove Traveler 20', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Show fewer travelers', exact: true }).click();
+  await expect(page.locator('.collaborator-row')).toHaveCount(6);
+  await expect(page.getByRole('heading', { name: 'Travelers', exact: true })).toBeFocused();
 });

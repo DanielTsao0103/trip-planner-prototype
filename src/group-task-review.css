@@ -1,0 +1,26 @@
+/* Put people and the needs that affect planning ahead of optional charts. */
+.collaborators-title { margin-top: 0; }
+.collaborators-table + .section-title { margin-top: 32px; }
+.group-needs-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin: 16px 0; }
+.group-needs-overview p { margin: 0; min-width: 0; }
+.group-needs-overview strong, .group-needs-overview span { display: block; }
+.group-needs-overview strong { margin-bottom: 4px; }
+.group-needs-overview .fine-print { grid-column: 1 / -1; }
+.group-preference-details { border-top: 1px solid var(--line); margin-bottom: 24px; }
+.group-preference-details > summary { cursor: pointer; display: flex; align-items: center; justify-content: space-between; min-height: 52px; gap: 12px; font-weight: 600; list-style: none; }
+.group-preference-details > summary::-webkit-details-marker { display: none; }
+.group-preference-details[open] > summary svg { transform: rotate(180deg); }
+.group-preference-details > summary:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.group-preference-details .preference-grid { margin-top: 16px; }
+@media (max-width: 600px) { .group-needs-overview { grid-template-columns: 1fr; } }
+/* Let heading and actions wrap based on available content width, including zoom. */
+:root .page-head:has(.group-page-actions) { flex-wrap: wrap; gap: 16px 24px; align-items: flex-start; }
+:root .page-head:has(.group-page-actions) > div:first-child { flex: 1 0 210px; }
+:root .page-head .group-page-actions { flex: 0 1 auto; flex-wrap: wrap; }
+.group-needs-summary { padding: 0; min-height: 44px; border: 0; background: transparent; color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
+.group-needs-summary strong { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.group-needs-summary span { color: var(--muted); }
+.group-needs-summary:hover strong { text-decoration: underline; }
+.group-needs-summary:focus-visible { outline: 3px solid var(--ink); outline-offset: 4px; }
+.group-roster-more { margin: 16px 0 24px; }
+.group-needs-overview + .collaborators-title { margin-top: 24px; }

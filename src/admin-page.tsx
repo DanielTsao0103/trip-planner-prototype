@@ -15,9 +15,9 @@ export function AdminPage() {
         <section className="card account-section" aria-labelledby="admin-trackers">
           <h2 id="admin-trackers">OKR trackers</h2>
           <div className="menu-links">
-            {OKR_TRACKERS.map(({ owner, page }) => (
+            {OKR_TRACKERS.map(({ owner, page, topic }) => (
               <button key={page} aria-label={okrLabel(owner)} onClick={() => go(page)}>
-                <span>{okrLabel(owner)}<small className="tracker-availability">Available · account data</small></span>
+                <span>{okrLabel(owner)}<small className="tracker-availability">{topic}</small></span>
                 <ArrowRight size={16} />
               </button>
             ))}

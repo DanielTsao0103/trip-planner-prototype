@@ -1,4 +1,4 @@
-import type { Event, MapPoint } from './domain.ts';
+import { eventOccursOn, eventInterval, eventTimestamp, eventEndDate, type Event, type MapPoint } from './domain.ts';
 
 export type LocationContext = {
   key: string; label: string; query: string; reason: string;
@@ -17,7 +17,7 @@ function located(event: Event): boolean {
 }
 function eventContext(event: Event, reason: string): LocationContext {
   return { key: JSON.stringify(['event',event.id,event.place,event.googlePlaceId,event.point]),
-    label: event.name || event.place, query: event.place, reason, kind: 'event',
+    label: event.place, query: event.place, reason, kind: 'event',
     point: validLocationPoint(event.point)?event.point:undefined, googlePlaceId: event.googlePlaceId || undefined };
 }
 /** Follow the itinerary in time; never average unrelated cities or use distant past days. */
@@ -28,13 +28,13 @@ export function inferLocationContext(destinations: string[], itinerary?: Locatio
     if(original)return eventContext(original,'Current event location');
     const candidates=events.filter(event=>event.id!==editingId && located(event))
       .sort((a,b)=>`${a.date}T${a.start}`.localeCompare(`${b.date}T${b.start}`) || a.id.localeCompare(b.id));
-    const today=candidates.filter(event=>event.date===date);
-    const previous=today.filter(event=>event.start<=(start||'00:00')).at(-1);
+    const today=candidates.filter(event=>eventOccursOn(event,date));
+    const previous=today.filter(event=>eventInterval(event).start<=eventTimestamp(date,start||'00:00')).at(-1);
     if(previous)return eventContext(previous,'Earlier event that day');
     if(today.length)return eventContext(today[0],'Next event that day');
     // Calendar-day arithmetic avoids the browser's home timezone and DST offsets.
     const day=Date.parse(`${date}T00:00:00Z`);
-    const yesterday=candidates.filter(event=>Date.parse(`${event.date}T00:00:00Z`)===day-86400000).at(-1);
+    const yesterday=candidates.filter(event=>Date.parse(`${eventEndDate(event)}T00:00:00Z`)===day-86400000).at(-1);
     if(yesterday)return eventContext(yesterday,'Last event the previous day');
   }
   return destinationContext(destinations[0] || '');

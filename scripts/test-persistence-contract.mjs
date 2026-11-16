@@ -124,6 +124,7 @@ try {
         name: "Museum",
         place: "National museum",
         date: "2027-01-01",
+        endDate: "2027-01-01",
         start: "10:00",
         end: "11:00",
         cost: 100,
@@ -562,6 +563,66 @@ try {
     verify(role + " cannot modify unscheduled places", () => assert.equal(denied.error?.code, "42501"));
     assert.deepEqual(await read(row.tripID), row);
   }
+  // Overnight events remain one canonical record through every permission and retry path.
+  row = await read(row.tripID);
+  const overnight = payload(row);
+  overnight.events[0] = {...overnight.events[0], date:overnight.start, endDate:overnight.end, start:"23:30", end:"01:15"};
+  const overnightRevision = row.revision;
+  row = check(await save(overnight, overnightRevision));
+  verify("overnight owner roundtrip keeps one ID, one cost and the ending date", () => {
+    assert.equal(row.content.events.length, 1);
+    assert.equal(row.content.events[0].id, original.events[0].id);
+    assert.equal(row.content.events[0].cost, original.events[0].cost);
+    assert.equal(row.content.events[0].endDate, overnight.end);
+  });
+  const repeatedNight = check(await save(overnight, overnightRevision));
+  verify("overnight exact retry retains revision", () => assert.equal(repeatedNight.revision,row.revision));
+  const changedNight = structuredClone(overnight); changedNight.events[0].notes="stale overnight edit";
+  const staleNight=await save(changedNight,overnightRevision);
+  verify("stale overnight writes cannot replace newer data", () => assert.equal(staleNight.error?.code,"PT409"));
+  let oldNight = check(await legacyClient.rpc("load_trip_bundles")).find(value=>value.tripID===row.tripID);
+  verify("legacy overnight response excludes unsupported event keys",()=>assert.equal("endDate" in oldNight.content.events[0],false));
+  const legacyNightPayload=payload(oldNight); legacyNightPayload.todos.push({id:randomUUID(),text:"Legacy unrelated overnight save",date:overnight.start,done:false});
+  const legacyNightSave=await legacyClient.rpc("save_account_trip",{p_trip_id:row.tripID,p_expected_revision:row.revision,p_request_id:randomUUID(),p_data:legacyNightPayload,p_photo_credit:null});
+  check(legacyNightSave); row=await read(row.tripID);
+  verify("legacy unrelated save preserves overnight endpoint",()=>assert.equal(row.content.events[0].endDate,overnight.end));
+  for (const operation of ["edit","delete","move"]) {
+    oldNight=check(await legacyClient.rpc("load_trip_bundles")).find(value=>value.tripID===row.tripID);
+    const proposal=payload(oldNight);
+    if(operation==="delete")proposal.events=[];
+    else if(operation==="move")proposal.events[0].date=overnight.end;
+    else proposal.events[0].notes="Uninformed old-client change";
+    const denied=await legacyClient.rpc("save_account_trip",{p_trip_id:row.tripID,p_expected_revision:row.revision,p_request_id:randomUUID(),p_data:proposal,p_photo_credit:null});
+    verify("legacy overnight "+operation+" requires refresh",()=>assert.match(denied.error?.message||"",/Refresh/));
+    assert.deepEqual(await read(row.tripID),row);
+  }
+  for (const assigned of [[overnight.start],[overnight.start,overnight.end]]) {
+    const permission=payload(row),person=permission.members.find(m=>m.accountId===editor.id);
+    person.role="Day Editor";person.days=assigned;row=check(await save(permission,row.revision));
+    const proposed=payload(row);proposed.events[0].notes="Overnight editor "+assigned.length;
+    const result=await editor.client.rpc("save_shared_trip_changes",{p_trip_id:row.tripID,p_expected_revision:row.revision,p_request_id:randomUUID(),p_data:proposed});
+    verify("overnight day editor requires both occupied days "+assigned.length,()=> assigned.length===1 ? assert.equal(result.error?.code,"42501") : assert.equal(result.error,null));
+    if(assigned.length===2){
+      const previousRevision=row.revision;
+      row=check(result);
+      const retried=check(await editor.client.rpc("save_shared_trip_changes",{p_trip_id:row.tripID,p_expected_revision:previousRevision,p_request_id:randomUUID(),p_data:proposed}));
+      verify("shared overnight exact retry retains revision",()=>assert.equal(retried.revision,row.revision));
+    }
+  }
+  const shortened=payload(row);shortened.end=shortened.start;
+  const shortenResult=await save(shortened,row.revision);
+  verify("shortening a trip cannot truncate an overnight event",()=>assert.ok(shortenResult.error));
+  assert.deepEqual(await read(row.tripID),row);
+  const midnight=payload(row);midnight.events[0].end="00:00";
+  midnight.members.find(m=>m.accountId===editor.id).days=[midnight.start];
+  row=check(await save(midnight,row.revision));
+  const midnightEdit=payload(row);midnightEdit.events[0].notes="Midnight boundary needs only occupied day";
+  const midnightResult=await editor.client.rpc("save_shared_trip_changes",{p_trip_id:row.tripID,p_expected_revision:row.revision,p_request_id:randomUUID(),p_data:midnightEdit});
+  verify("midnight-exclusive endpoint does not require an empty ending-day grant",()=>assert.equal(midnightResult.error,null));
+  row=check(midnightResult);
+  const reset=payload(row); reset.events[0].endDate=reset.events[0].date;reset.events[0].start="10:00";reset.events[0].end="11:00";
+  row=check(await save(reset,row.revision));
+  verify("explicit same-day endpoint can shorten an overnight event",()=>assert.equal(row.content.events[0].endDate,row.content.events[0].date));
   const anonymous = await client().rpc("save_account_trip", {
     p_trip_id: row.tripID,
     p_expected_revision: row.revision,

@@ -284,9 +284,7 @@ test("failed detail saves automatically resume after reload without losing edits
   await page.getByLabel("Start date", { exact: true }).fill("2027-05-01");
   await page.getByLabel("End date", { exact: true }).fill("2027-05-04");
   await page.getByRole("button", { name: "Create trip", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Offline recovery", exact: true })
-    .click();
+  await expect(page.getByRole("heading", { name: "Offline recovery", exact: true })).toBeVisible();
   await saved(page);
   api.setFail(true);
   await page.goto("./#/7");
@@ -429,11 +427,13 @@ test("save popup waits for confirmation, leaves trip actions clear, then disappe
   expect(box!.x).toBeGreaterThan(viewport.width / 2);
   if (viewport.width > 760) expect(box!.y).toBeGreaterThan(viewport.height / 2);
   else {
-    // The compact phone acknowledgment sits below navigation, above trip actions.
+    // The acknowledgment must not cover the new itinerary action or bottom navigation.
     const header = await page.locator(".topbar").boundingBox();
     expect(box!.y).toBeGreaterThanOrEqual(header!.y + header!.height);
-    const action = await page.getByRole("button", { name: "Open trip", exact: true }).boundingBox();
-    expect(box!.y + box!.height).toBeLessThanOrEqual(action!.y);
+    const action = await page.getByRole("button", { name: "Add your first plan", exact: true }).boundingBox();
+    expect(box!.y + box!.height <= action!.y || action!.y + action!.height <= box!.y).toBe(true);
+    const nav = await page.getByRole("navigation", {name:"Mobile navigation"}).boundingBox();
+    expect(box!.y + box!.height).toBeLessThanOrEqual(nav!.y);
   }
   expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width - 15);
   await page.screenshot({ path: test.info().outputPath("changes-saved.png") });
@@ -498,11 +498,12 @@ test('event location autocomplete selects a worldwide landmark, saves, reloads, 
  await page.route('https://photon.komoot.io/api/**',route=>route.fulfill({json:{features:[{geometry:{coordinates:[2.29448,48.85837]},properties:{osm_type:'W',osm_id:1,name:'Eiffel Tower',housenumber:'5',street:'Avenue Anatole France',city:'Paris',country:'France'}}]}}));
  const id='77777777-7777-4777-8777-777777777777';
  api.rows.push({tripID:id,owner_id:owner.id,created_by:owner.id,trip_name:'Location test',destinations:['Paris, France'],start_date:'2027-06-01',end_date:'2027-06-03',timezone:'Europe/Paris',revision:1,content_version:1,content:{image:'',members:[{id:owner.id,name:'QA Traveler',email:owner.email,role:'Owner',status:'accepted',days:[]}],events:[],expenses:[],prefs:{},budget:null,budgetMode:'group',individual:{},todos:[],dismissed:[]}});
- await page.goto('./#/5');await page.reload();await page.getByRole('button',{name:'Open itinerary',exact:true}).click();await page.getByRole('button',{name:'Add event',exact:true}).click();
+ await page.goto('./#/5');await page.reload();await page.getByRole('button',{name:'Open itinerary',exact:true}).click();await page.getByRole('button',{name:'Add your first plan',exact:true}).click();
  await page.getByLabel('Event name',{exact:true}).fill('Eiffel visit');
  const input=page.getByRole('combobox',{name:'Where',exact:true});
  await input.fill('Eiffe');await expect(page.getByRole('option',{name:/Eiffel Tower/})).toBeVisible();
- await expectUnderInput(input,page.locator('.event-location-menu'));
+ await expectUnderInput(page.locator('.field-popup-anchor').filter({has:input}),page.locator('.event-location-menu'));
+ await expect(page.locator('.event-location-area summary')).toBeVisible();
  await input.press('ArrowDown');await input.press('Enter');
  const label='Eiffel Tower, 5 Avenue Anatole France, Paris, France';await expect(input).toHaveValue(label);
  const popularTimes=page.locator('.place-popular-times summary');
@@ -570,12 +571,13 @@ test('location suggestions prioritize the selected trip stop and retain worldwid
   return route.fulfill({json:{features}});
  });
  api.rows.push({tripID:'88888888-8888-4888-8888-888888888888',owner_id:owner.id,created_by:owner.id,trip_name:'Nearby locations',destinations:stops,start_date:'2027-06-01',end_date:'2027-06-03',timezone:'America/Los_Angeles',revision:1,content_version:1,content:{image:'',members:[{id:owner.id,name:'QA Traveler',email:owner.email,role:'Owner',status:'accepted',days:[]}],events:[],expenses:[],prefs:{},budget:null,budgetMode:'group',individual:{},todos:[],dismissed:[]}});
- await page.goto('./#/5');await page.reload();await page.getByRole('button',{name:'Open itinerary',exact:true}).click();await page.getByRole('button',{name:'Add event',exact:true}).click();
+ await page.goto('./#/5');await page.reload();await page.getByRole('button',{name:'Open itinerary',exact:true}).click();await page.getByRole('button',{name:'Add your first plan',exact:true}).click();
  await page.getByLabel('Event name',{exact:true}).fill('Beach walk');
  const input=page.getByRole('combobox',{name:'Where',exact:true});
  const near=page.getByRole('combobox',{name:'Prioritize locations near'});
  await input.fill('T Street');
  await expect(page.locator('[role="listbox"] [role="option"]').first()).toContainText('T Street Beach');
+ await page.locator('.event-location-area summary').click();
  await near.selectOption(stops[1]);
  await expect(page.locator('[role="listbox"] [role="option"]').first()).toContainText('Paris');
  await near.selectOption('');
@@ -610,6 +612,7 @@ test("a mixed invite keeps only failed addresses and retries without creating an
   await page.getByLabel("Where are you going?", {exact:true}).fill("Taipei");
   await page.getByLabel("Start date", {exact:true}).fill("2027-03-01");
   await page.getByLabel("End date", {exact:true}).fill("2027-03-03");
+  await page.locator(".trip-invite-disclosure summary").click();
   const field = page.getByLabel("Invite by email (optional)");
   await field.fill("guest@example.test; NEW@example.test, guest@example.test");
   await field.press("Enter");
@@ -618,7 +621,7 @@ test("a mixed invite keeps only failed addresses and retries without creating an
   await expect(page.getByRole("alert")).toContainText("Email sending is temporarily limited");
   await expect(page.locator(".recipient-chip")).toHaveText(["new@example.test"]);
   await page.getByRole("button", {name:"Retry invitations"}).click();
-  await expect(page.getByRole("button", {name:"Shared trip",exact:true})).toBeVisible();
+  await expect(page.getByRole("heading", {name:"Shared trip",exact:true})).toBeVisible();
   expect(api.rows).toHaveLength(1);
   expect(attempts).toBe(2);
   expect(mailed).toEqual(["guest@example.test", "new@example.test", "new@example.test"]);
@@ -674,7 +677,7 @@ for (const malformedPart of ["draft", "retryDraft"] as const) {
     await page.goto("./#/5");
     await page.reload();
     await page.getByRole("button", { name: "Open itinerary", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Add event", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Add (event|your first plan)$/ })).toBeVisible();
     await expect(page.locator(".account-save-banner")).toContainText("Some local recovery data could not be read");
     await expect(page.getByRole("button", { name: "Retry save", exact: true })).toHaveCount(0);
     const downloadPromise = page.waitForEvent("download");
@@ -755,9 +758,9 @@ test('failed event photo upload retries the selected file and saves the recovere
   await page.getByLabel('Start date',{exact:true}).fill('2027-05-01');
   await page.getByLabel('End date',{exact:true}).fill('2027-05-04');
   await page.getByRole('button',{name:'Create trip',exact:true}).click();
-  await page.getByRole('button',{name:'Photo recovery',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Photo recovery',exact:true})).toBeVisible();
   await saved(page);
-  await page.getByRole('button',{name:'Add event',exact:true}).click();
+  await page.getByRole('button',{name:'Add your first plan',exact:true}).click();
   await page.getByLabel('Event name',{exact:true}).fill('Recovered photo stop');
   await page.getByLabel('Where',{exact:true}).fill('Taipei park');
   await page.locator('.event-photo-disclosure summary').click();
@@ -790,6 +793,7 @@ test('saved trip remains directly accessible after invitation delivery fails', a
   await page.getByLabel('Where are you going?',{exact:true}).fill('Taipei');
   await page.getByLabel('Start date',{exact:true}).fill('2027-03-01');
   await page.getByLabel('End date',{exact:true}).fill('2027-03-03');
+  await page.locator('.trip-invite-disclosure summary').click();
   const invite=page.getByLabel('Invite by email (optional)');await invite.fill('new@example.test');await invite.press('Enter');
   await page.getByRole('button',{name:'Create trip',exact:true}).click();
   await expect(page.getByRole('alert')).toContainText('Trip saved.');
@@ -798,7 +802,7 @@ test('saved trip remains directly accessible after invitation delivery fails', a
   await expect(proceed).toBeInViewport();
   await expect(page.locator('.recipient-chip')).toHaveText(['new@example.test']);
   await proceed.click();
-  await expect(page.getByRole('button',{name:'Invite later weekend',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Invite later weekend',exact:true})).toBeVisible();
   expect(api.rows).toHaveLength(1);expect(attempts).toBe(1);
 });
 
@@ -813,7 +817,7 @@ test("account pin feedback waits for a complete save response and recovers", asy
   await page.getByLabel("End date", { exact: true }).fill("2027-05-04");
   await page.getByRole("button", { name: "Create trip", exact: true }).click();
   // Creation awaits the destination lookup before the save banner can appear.
-  await expect(page.getByRole("button", { name: "Pin feedback trip", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pin feedback trip", exact: true })).toBeVisible();
   await saved(page);
   await expect.poll(() => api.rows.length).toBe(1);
   const eventId = "66666666-6666-4666-8666-666666666666";
@@ -867,10 +871,11 @@ test('event autocomplete follows itinerary cities, date changes, and explicit ov
  const input=page.getByRole('combobox',{name:'Where',exact:true}),near=page.getByRole('combobox',{name:'Prioritize locations near'});
  await input.fill('coffee');await expect(page.getByRole('option',{name:'Coffee Taipei'})).toBeVisible();
  expect(calls.at(-1).locationBias.circle).toEqual({center:{latitude:25.04,longitude:121.56},radius:20000});
- await expect(page.locator('.event-location-context')).toContainText('Taipei museum');
+ await expect(page.locator('.event-location-context')).toContainText('Museum, Taipei, Taiwan');
  await page.getByLabel('Day',{exact:true}).selectOption('2027-05-02');await input.focus();
  await expect(page.getByRole('option',{name:'Coffee Tokyo'})).toBeVisible();
- await expect(page.locator('.event-location-context')).toContainText('Tokyo museum');
+ await expect(page.locator('.event-location-context')).toContainText('Museum, Tokyo, Japan');
+ await page.locator('.event-location-area summary').click();
  await near.selectOption('Taipei, Taiwan');await expect(page.getByRole('option',{name:'Coffee Taipei'})).toBeVisible();
  await near.selectOption('');await expect.poll(()=>calls.at(-1).locationBias).toBeUndefined();
  await near.selectOption('__auto');await expect(page.getByRole('option',{name:'Coffee Tokyo'})).toBeVisible();
@@ -918,7 +923,7 @@ test('typing consecutive trip dates preserves the replacement selection', async 
   await page.getByLabel('Start date', { exact: true }).fill('2027-05-01');
   await page.getByLabel('End date', { exact: true }).fill('2027-05-03');
   await page.getByRole('button', { name: 'Create trip', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Quick date entry', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Quick date entry', exact: true })).toBeVisible();
   expect(api.rows[0].start_date).toBe('2027-05-01');
   expect(api.rows[0].end_date).toBe('2027-05-03');
 });

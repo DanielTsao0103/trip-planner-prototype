@@ -1,7 +1,7 @@
 /** Implementation status: Account guest details, role/day settings, budgets, and repayment markers persist through updateTrip. Invitations use Supabase. Provider/OCR/receipt/transaction previews remain simulations. See ../IMPLEMENTATION_STATUS.md. */
 import { RecipientField, useRecipients } from "./recipient-field";
 import { TEXT_LIMITS, textError } from "./limits.ts";
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -160,6 +160,7 @@ function InviteMember() {
   </Modal>;
 }
 function Permissions() {
+  const formId = useId();
   const { trip: t, s, overlay, saveTrip, close, toast } = useApp();
   const m = t?.members.find((m) => m.id === overlay?.data?.memberId);
   const [role, setRole] = useState<Role>(m?.role || "Viewer"),
@@ -168,9 +169,12 @@ function Permissions() {
     [error, setError] = useState("");
   if (!t || !m || !isOwner(t, s.userId) || m.role === "Owner" || m.status === "removed" || m.signupPending) return null;
   return (
-    <Modal title="Permissions">
+    <Modal title="Permissions" footer={<div className="permission-actions">
+      <Button variant="outline" disabled={saving} onClick={close}>Cancel</Button>
+      <Button type="submit" form={formId} disabled={saving}>{saving ? "Saving permissions…" : "Save permissions"}</Button>
+    </div>}>
       <p className="permission-traveler">{m.name}</p>
-      <form
+      <form id={formId}
         onSubmit={async (e) => {
           e.preventDefault();
           if (saving) return;
@@ -233,9 +237,6 @@ function Permissions() {
           </fieldset>
         )}
         <ErrorBox text={error} />
-        <Button type="submit" variant="full" disabled={saving}>
-          {saving ? "Saving permissions…" : "Save permissions"}
-        </Button>
       </form>
     </Modal>
   );
@@ -639,14 +640,14 @@ export function Overlays() {
     );
   if (o.kind === "menu")
     return (
-      <Modal title="Your next stop" className="menu-navigation-modal">
+      <Modal title="Explore your trip" className="menu-navigation-modal">
         <nav className="menu-sections" aria-label="All pages">
           <section><h3>Workspace</h3><div className="menu-links">
             {[[4, "Home"], [5, "My trips"], [6, "New trip"]].map(([page, label]) => <button key={page} aria-current={app.route.page === page ? "page" : undefined} onClick={() => go(Number(page))}>{label}</button>)}
             <button onClick={() => go(26)}>Pre-planned trips</button>
           </div></section>
           <section><h3>Your trip{t?.title ? ` - ${t.title}` : ""}</h3><div className="menu-links">
-            {[[8, "Itinerary"], [11, "Map & list"], [17, "Map"], [12, "Budget"], [13, "The group"], [9, "Suggestions"], [15, "My preferences"], ...(t && isActive(t, s.date) ? [[10, "Today"]] : [])].map(([page, label]) => <button key={page} aria-current={app.route.page === page ? "page" : undefined} onClick={() => tripGo(Number(page))}>{label}</button>)}
+            {[[8, "Itinerary"], [17, "Map"], [12, "Budget"], [13, "The group"], [9, "Suggestions"], [15, "My preferences"], ...(t && isActive(t, s.date) ? [[10, "Today"]] : [])].map(([page, label]) => <button key={page} aria-current={app.route.page === page ? "page" : undefined} onClick={() => tripGo(Number(page))}>{label}</button>)}
           </div></section>
           <section><h3>Personal</h3><div className="menu-links"><button onClick={() => go(19)}>Your account <Users size={17}/></button><button onClick={() => go(18)}>Style <Palette size={17}/></button>{(!app.accountInfo.cloud || app.s.sampleReturn) && <button onClick={() => open("demo")}>Sample trip tools</button>}</div></section>
         </nav>

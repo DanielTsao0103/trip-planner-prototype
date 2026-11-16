@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Check, Moon, RotateCcw, Sun } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Moon, RotateCcw, Sun } from "lucide-react";
 import { PageHead, Button, Badge } from "./ui";
 import { brandLogoUrl } from "./brand-logo";
 import { THEMES, DEFAULT_STYLE, setStyle, useStyle, useSystemDark, resolvePalette } from "./theme";
@@ -40,6 +40,7 @@ export function StylePage() {
   const restoreSaveFocus = useRef(false);
   const feedbackRef = useRef<HTMLParagraphElement>(null);
   const [previewVisible, setPreviewVisible] = useState(true);
+  const [previewExpanded, setPreviewExpanded] = useState(false);
   useEffect(() => {
     if (saveStatus !== "save-error" && saveStatus !== "load-error") return;
     const restoreActionFocus = saveStatus === "save-error" && restoreSaveFocus.current;
@@ -226,7 +227,21 @@ export function StylePage() {
         </div>
 
         <aside className="style-side">
-          <div className="style-preview" ref={previewRef} tabIndex={-1} style={previewVars} aria-label="Style preview">
+          <div className={`style-preview${previewExpanded ? " is-expanded" : ""}`} ref={previewRef} tabIndex={-1} style={previewVars} aria-label="Style preview">
+            <div className="style-preview-compact">
+              <div className="style-preview-heading">
+                <span>Live preview</span>
+                <Button variant="text" aria-expanded={previewExpanded} aria-controls="style-full-preview" onClick={() => setPreviewExpanded(!previewExpanded)}>
+                  {previewExpanded ? "Compact preview" : "Expand preview"}
+                  {previewExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </Button>
+              </div>
+              <div className="style-preview-sample">
+                <h3>Your next adventure</h3>
+                <span className="sp-button">Plan</span>
+              </div>
+            </div>
+            <div id="style-full-preview" className="style-preview-full">
             <div className="sp-top">
               <img className="sp-logo" src={brandLogoUrl(choice.theme, pal.isDark)} alt="Stir Crazy" />
               <span className="sp-chip">Oct 15 to Oct 18</span>
@@ -250,6 +265,7 @@ export function StylePage() {
                   <span>65%</span>
                 </div>
               </div>
+            </div>
             </div>
           </div>
 

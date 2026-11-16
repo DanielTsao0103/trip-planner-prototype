@@ -5,7 +5,7 @@ export type PlanningTrip = {
   id: string; start: string; end: string; zone: string; destinations: string[];
   members: { id: string; accountId?: string | null; role: string; status: string }[];
   prefs: Record<string, Preferences>;
-  events: { id: string; name: string; place: string; date: string; start: string; end: string; cost: number; attendees: string[] }[];
+  events: { id: string; name: string; place: string; date: string; endDate?: string; start: string; end: string; cost: number; attendees: string[] }[];
   expenses: { amount: number; shares: Record<string, number> }[];
   budget: number | null; budgetMode: string; individual: Record<string, number>;
 };
@@ -17,7 +17,13 @@ export function planningContext(trip: PlanningTrip, actor: string, date: string,
   const travelers = trip.members.filter(m => m.status === "accepted");
   const self = travelers.find(m => m.id === actor || m.accountId === actor);
   const answers = travelers.flatMap(m => trip.prefs[m.id] ? [{ ...trip.prefs[m.id], requester: m.id === self?.id }] : []);
-  const events = trip.events.filter(e => e.date === date).sort((a, b) => a.start.localeCompare(b.start));
+  const dayStart = Date.parse(`${date}T00:00:00Z`) / 60000;
+  // Clip display/context times, retaining exactly one canonical event for cost totals.
+  const events = trip.events.flatMap(event => {
+    const start = Date.parse(`${event.date}T${event.start}:00Z`) / 60000 - dayStart;
+    const end = Date.parse(`${event.endDate || event.date}T${event.end}:00Z`) / 60000 - dayStart;
+    return start < 1440 && end > 0 ? [{...event, start: clock(Math.max(0, start)), end: clock(Math.min(1440, end))}] : [];
+  }).sort((a, b) => a.start.localeCompare(b.start));
   const window = intent === "lunch" ? [11 * 60, 15 * 60] : intent === "dinner" ? [17 * 60, 21 * 60] : [9 * 60, 20 * 60];
   // Reserve 30 minutes each side, explicitly provisional until routing is available.
   const gaps: { start: string; end: string }[] = [];

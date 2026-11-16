@@ -581,3 +581,11 @@
   :root .itinerary-map-layout { display: grid; }
   :root .day-map-jump { display: inline-flex; }
 }
+
+/* Anchor targets clear the actual wrapped toolbar, including enlarged type. */
+:root :is(.page-8,.page-11) :is(.day-section,[id^="day-event-"],[id^="itinerary-event-"],.day-map-panel) {
+  scroll-margin-top: calc(var(--planning-toolbar-height, 100px) + var(--release-notice-height, 0px) + 16px);
+}
+
+:root .saved-places.saved-places-compact { border: 0; background: transparent; padding: 0; margin: 16px 0; }
+:root .saved-places-compact .section-title { justify-content: flex-start; }

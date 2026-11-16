@@ -24,7 +24,7 @@ import {
 import { useApp } from "./state";
 import { BrandLogo } from "./brand-logo";
 import { ADMIN_ACCESS_PAGE, OKR_TRACKERS, okrLabel } from "./okr-trackers";
-import { dateText, isActive, itineraryDay, member, timeText, type Event } from "./domain";
+import { eventTimeRange, dateText, isActive, itineraryDay, member, timeText, type Event } from "./domain";
 export const icons = {
   home: House,
   itinerary: Route,
@@ -313,7 +313,7 @@ export function EventCard({
       <div className="event-info">
         <div className="event-time">
           <Clock size={13} />
-          <span>{timeText(event.start)} – {timeText(event.end)}</span>
+          <span>{eventTimeRange(event)}</span>
         </div>
         <h3>{event.name}</h3>
         <p>
@@ -543,7 +543,9 @@ function Breadcrumbs() {
   const tripPage = [7, 8, 9, 10, 11, 12, 13, 15, 16, 17].includes(page);
   const editingTrip = page === 6 && route.params.get("edit") === "true" && trip;
 
-  if (page === 19) {
+  if (page === 18) {
+    add("Style", 18);
+  } else if (page === 19) {
     add("Account", 19);
   } else if ((page >= 20 && page <= 25) || page === 27) {
     add("Account", 19);

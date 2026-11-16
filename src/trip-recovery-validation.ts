@@ -86,6 +86,7 @@ const event = shape({
   id,
   name: text,
   date,
+  endDate: optional(date),
   start: time,
   end: time,
   cost: integer,

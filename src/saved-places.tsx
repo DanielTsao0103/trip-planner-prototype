@@ -26,20 +26,23 @@ export function SavedPlaces({ date, view = "list", initiallyExpanded = false }: 
   useEffect(() => {
     if (removing || !restoreHeading.current) return;
     restoreHeading.current = false;
-    heading.current?.focus();
+    const target = !trip?.savedPlaces?.length && view !== "ideas" && addButton.current
+      ? addButton.current : heading.current;
+    target?.focus();
   }, [removing]);
   if (!trip) return null;
   const role = member(trip, s.userId)?.role;
   const allowed = role === "Owner" || role === "Editor";
   const places = trip.savedPlaces ?? [];
+  const compactEmpty = allowed && places.length === 0 && view !== "ideas";
   const close = () => {
     if (name || place || notes) setDiscarding(true);
     else setEditing(false);
   };
   return (
-    <section className="saved-places" aria-label="Saved places">
+    <section className={`saved-places${compactEmpty ? " saved-places-compact" : ""}`} aria-label="Saved places">
       <div className="section-title">
-        <div>
+        <div className={compactEmpty ? "sr-only" : undefined}>
           <h2 ref={heading} tabIndex={-1}>
             <Bookmark size={18} /> Saved places{" "}
             <span className="muted">{places.length}</span>

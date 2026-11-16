@@ -143,8 +143,8 @@ test("keyboard editing keeps fields between expanded recovery and fixed actions"
   for(const width of [390,320]) {
     await page.setViewportSize({width,height:600});
     await page.getByLabel('Event name',{exact:true}).focus();
-    for(const name of ['Event name','Prioritize locations near','Where','Day']) {
-      const control=page.getByLabel(name,{exact:true});
+    const controls = [page.getByLabel('Event name',{exact:true}), page.getByLabel('Where',{exact:true}), page.locator('.event-location-area summary'), page.getByLabel('Day',{exact:true})];
+    for(const control of controls) {
       await expect(control).toBeFocused();
       await expect.poll(async()=>{
         const field=await control.boundingBox(), notice=await banner.boundingBox(), actions=await page.locator('[data-fixed-actions]').boundingBox();

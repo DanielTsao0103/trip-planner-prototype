@@ -62,3 +62,33 @@ test("catalog filters survive route changes and reload under the current person 
   const keys = await page.evaluate(() => Object.keys(sessionStorage).filter(key => key.startsWith("trip-planner-catalog-filters:")));
   expect(keys).toEqual(["trip-planner-catalog-filters:sample:maya"]);
 });
+
+test('catalog shows manageable batches while searching the entire collection', async ({page}) => {
+  await page.goto('./');
+  await page.getByRole('button', {name:'Explore a sample trip',exact:true}).click();
+  await page.goto('./#/26');
+  await expect(page.locator('.preplanned-result')).toHaveCount(12);
+  await expect(page.getByText('Showing 12 of 76 trips', {exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Show more trips',exact:true}).click();
+  await expect(page.locator('.preplanned-result')).toHaveCount(24);
+  await page.getByLabel('Search trips',{exact:true}).fill('Honolulu');
+  await expect(page.locator('.preplanned-result')).toHaveCount(1);
+  await expect(page.getByRole('button',{name:'Show more trips',exact:true})).toHaveCount(0);
+  await page.getByLabel('Search trips',{exact:true}).fill('');
+  await expect(page.locator('.preplanned-result')).toHaveCount(12);
+});
+
+test('untouched starter can be cancelled directly while personal edits require confirmation', async ({page}) => {
+  await page.goto('./');
+  await page.getByRole('button',{name:'Explore a sample trip',exact:true}).click();
+  await page.goto('./#/6?template=seattle&returnTo=26');
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await expect(page).toHaveURL(/#\/26$/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.goto('./#/6?template=seattle&returnTo=26');
+  await page.getByLabel('Trip title',{exact:true}).fill('My Seattle trip');
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Discard trip changes?'})).toBeVisible();
+  await page.getByRole('button',{name:'Keep editing',exact:true}).click();
+  await expect(page.getByLabel('Trip title',{exact:true})).toHaveValue('My Seattle trip');
+});

@@ -8,6 +8,10 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 ## Corrections & Lessons Learned
 
+- Question-everything review (November 16, 2026): assess each page's purpose, default state and complete interaction, while preserving the visual identity. Record observed friction separately from missing coverage; never invent fractional score deductions or certify a target without evidence.
+- Overnight events (November 16, 2026): keep one canonical event and cost with an explicit end date; derive daily displays and enforce all occupied-day permissions. Preserve legacy unrelated writes and reject legacy changes to overnight events.
+- Layout recovery (November 16, 2026): use actual toolbar/container dimensions for scroll clearance; short landscape dialogs retain actions while fields scroll. Optional location-area controls must remain reachable while autocomplete is open, and native focus scrolling must not immediately dismiss keyboard chart hints.
+
 - Budget overflow correction (November 16, 2026): ordinary four-digit totals can overflow when the sidebar or enlarged rendering leaves less room than viewport breakpoints imply. Size the summary from its actual content container; keep full currency values and cents visible, and verify card bounds as well as page bounds at enlarged scale.
 
 - Fresh product review (November 16, 2026): Dan requests new independent reviewers, a fresh app-wide UI/UX assessment toward 9.7 per area, complete vertical-flow and edge-case verification, and removal of unnecessary customer-facing implementation/storage commentary throughout the app. This supersedes earlier page-specific copy-preservation limits. Keep actionable save/error recovery and truthful availability; keep technical explanations in source/docs. Fetch and integrate GitHub main before each fresh review/test run, build, and deployment; preserve incoming work and revalidate affected flows. Do not certify zero bugs or inflate review scores.

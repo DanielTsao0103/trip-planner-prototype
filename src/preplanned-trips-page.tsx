@@ -24,7 +24,9 @@ export function PreplannedTripsPage() {
     setStoredFilters({ key: filterKey, ...next });
     try { sessionStorage.setItem(filterKey, JSON.stringify(next)); } catch { /* Search remains usable if storage is unavailable. */ }
   };
+  const [visibleCount, setVisibleCount] = useState(12);
   const searchInput = useRef<HTMLInputElement>(null);
+  useEffect(() => { setVisibleCount(12); }, [search, duration, budget, filterKey]);
   const trips = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase();
     return PREPLANNED_TRIPS.filter(trip =>
@@ -46,12 +48,13 @@ export function PreplannedTripsPage() {
     </div>
     <p className="preplanned-count" role="status">{trips.length} {trips.length === 1 ? "trip" : "trips"}</p>
     {!trips.length && <Empty title="No trips match your filters" body="Try another city, a longer trip, or a higher budget." action={<Button variant="outline" onClick={clearFilters}>Clear filters</Button>} />}
-    <div className="preplanned-grid">{trips.map(trip => <article className="preplanned-result" key={trip.id}>
+    <div className="preplanned-grid">{trips.slice(0, visibleCount).map(trip => <article className="preplanned-result" key={trip.id}>
       <Photo src={trip.image} alt={`${trip.destinations[0]} scenery`} className="preplanned-photo" />
       <div className="preplanned-result-copy"><span className="eyebrow">{trip.destinations.join(" · ")}</span><h2 id={`template-${trip.id}`}>{trip.title}</h2><p>{trip.summary}</p>
         <p className="preplanned-cost"><strong>${trip.estimate}</strong> estimated per person · {trip.days} days</p>
         <Button variant="outline" aria-describedby={`template-${trip.id}`} onClick={() => open("plannedTrip", { id: trip.id })}>View itinerary</Button>
       </div>
     </article>)}</div>
+    {trips.length > 0 && <div className="preplanned-pagination"><p>Showing {Math.min(visibleCount, trips.length)} of {trips.length} trips</p>{visibleCount < trips.length && <Button variant="outline" onClick={() => setVisibleCount(count => count + 12)}>Show more trips</Button>}</div>}
   </div>;
 }

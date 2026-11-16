@@ -62,8 +62,8 @@ test("navigation opens the pre-planned trips page and focuses its heading", asyn
   // Desktop uses the same responsive menu once the sidebar collapses.
   if (!await menu.isVisible()) await page.setViewportSize({ width: 768, height: 900 });
   await menu.click();
-  const dialog = page.getByRole("dialog", { name: "Your next stop" });
-  const menuTitle = dialog.getByRole("heading", { name: "Your next stop", exact: true });
+  const dialog = page.getByRole("dialog", { name: "Explore your trip" });
+  const menuTitle = dialog.getByRole("heading", { name: "Explore your trip", exact: true });
   const titleFont = await menuTitle.evaluate((heading) => {
     const probe = document.createElement("span");
     probe.style.fontFamily = "var(--font-heading)";

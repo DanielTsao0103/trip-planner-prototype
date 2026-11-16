@@ -470,3 +470,24 @@ gmp-advanced-marker:focus-visible .trip-pin-face {
 .map-day-disclosure summary > small { margin-left: 0; }
 .map-day-toggle { position: absolute; top: 4px; right: 0; margin: 0; }
 .map-day-events { width: 100%; }
+
+/* A failed provider should explain recovery without reserving an empty map. */
+:root .trip-map[data-map-state="unavailable"] .map-canvas,
+:root .day-map-panel .trip-map.compact[data-map-state="unavailable"] .map-canvas,
+:root .itinerary-map-layout .trip-map.compact[data-map-state="unavailable"] .map-canvas {
+  height: auto;
+  min-height: 0;
+}
+:root .trip-map[data-map-state="unavailable"] .google-map-state {
+  position: relative;
+  inset: auto;
+  padding: 20px;
+}
+:root .trip-map[data-map-state="unavailable"] .google-map-state > div {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+@media (max-width: 1099px) {
+  :root .itinerary-map-layout:has(.trip-map[data-map-state="unavailable"]) > .day-map-panel { grid-row: 2; }
+  :root .itinerary-map-layout:has(.trip-map[data-map-state="unavailable"]) > .itinerary-day-list { grid-row: 1; }
+}

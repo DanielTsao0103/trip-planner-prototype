@@ -1,0 +1,16 @@
+/* Keep optional setup secondary to the first usable itinerary. */
+.trip-invite-disclosure { margin: 1rem 0; border-block: 1px solid var(--line); padding-block: 1rem; }
+.trip-invite-disclosure > summary { cursor: pointer; font-weight: 600; }
+.trip-invite-disclosure > summary span { color: var(--muted); font-weight: 400; margin-left: .6rem; }
+.trip-invite-disclosure[open] > summary { margin-bottom: 1rem; }
+:root .home-workspace .home-empty { display: flex; gap: 1rem; align-items: center; justify-content: space-between; border: 1px dashed var(--line); border-radius: 14px; padding: 1.25rem; }
+:root .home-workspace .home-empty h3 { margin: 0 0 .35rem; font-size: 1.1rem; }
+:root .home-workspace .home-empty p { margin: 0; max-width: 40rem; }
+.home-empty .btn { flex-shrink: 0; }
+@media(max-width: 600px) { :root .home-workspace .home-empty { align-items: flex-start; flex-direction: column; } .trip-editor-form .step-heading { display: none; } }
+
+.event-end-day { margin-block:0 1rem; }
+.event-end-day summary { cursor:pointer; min-height:44px; display:flex; align-items:center; gap:.4rem; }
+.event-end-day summary::before { content:"+"; }
+.event-end-day[open] summary::before { content:"−"; }
+.event-end-day .field { margin-top:.5rem; }

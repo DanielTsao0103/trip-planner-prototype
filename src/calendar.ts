@@ -1,4 +1,4 @@
-import { canEdit, EVENT_PERMISSION_MESSAGE, eventError, type Event, type Trip } from './domain.ts';
+import { canEdit, canEditEvent, eventInterval, eventTimestamp, EVENT_PERMISSION_MESSAGE, eventError, type Event, type Trip } from './domain.ts';
 
 export function addCalendarDays(date: string, amount: number): string {
   const value = new Date(`${date}T12:00:00Z`);
@@ -28,12 +28,12 @@ export function rescheduleEvent(trip: Trip, user: string | null, eventId: string
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(`${date}T12:00:00Z`)) ||
       new Date(`${date}T12:00:00Z`).toISOString().slice(0,10) !== date || !/^([01]\d|2[0-3]):[0-5]\d$/.test(start))
     return { error: 'Choose a valid date and start time.' };
-  const duration = minutes(original.end) - minutes(original.start);
-  const end = minutes(start) + duration;
-  if (duration <= 0 || end >= 1440) return { error: 'This move would end after the last time slot. Choose an earlier start time.' };
-  const event = { ...original, date, start, end: clock(end) };
+  const interval = eventInterval(original), duration = interval.end - interval.start;
+  if (!(duration > 0)) return { error: 'This event has invalid dates or times. Edit it before moving it.' };
+  const finish = new Date((eventTimestamp(date, start) + duration) * 60000);
+  const event = { ...original, date, start, endDate: finish.toISOString().slice(0, 10), end: finish.toISOString().slice(11, 16) };
   const error = eventError(trip, user, event, original);
-  if (error === EVENT_PERMISSION_MESSAGE && canEdit(trip, user, original.date) && !canEdit(trip, user, date))
+  if (error === EVENT_PERMISSION_MESSAGE && canEditEvent(trip, user, original) && !canEdit(trip, user, date))
     return { error: 'You do not have permission to move events to this day. Choose one of your assigned days.' };
   return error ? { error } : { event, error: '' };
 }

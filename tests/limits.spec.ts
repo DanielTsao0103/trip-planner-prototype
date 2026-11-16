@@ -203,9 +203,7 @@ test("maximum-length trip and event details survive saving and remain within the
   await page.getByLabel("Start date", { exact: true }).fill("2027-05-01");
   await page.getByLabel("End date", { exact: true }).fill("2027-05-02");
   await page.getByRole("button", { name: "Create trip", exact: true }).click();
-  await page
-    .getByRole("button", { name: "T".repeat(100), exact: true })
-    .click();
+  await expect(page.getByRole("heading", { name: "T".repeat(100), exact: true })).toBeVisible();
   await noOverflow(page);
   await page.goto("./#/7");
   await page.getByLabel("Event name", { exact: true }).fill("E".repeat(100));

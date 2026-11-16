@@ -96,3 +96,14 @@ test("external listing links encode venue names, preserve sourced Yelp business 
   assert.equal(dish.maps, null); assert.equal(dish.yelp, null);
   assert.equal(new URL(dish.google).searchParams.get("q"), "Café & Bakery Portland");
 });
+
+test('nearby availability reserves overnight continuations and counts their cost once', () => {
+  const value=trip();
+  value.events=[{...value.events[0],date:'2027-01-01',endDate:'2027-01-02',start:'22:00',end:'13:00'}];
+  const result=planningContext(value,'a','2027-01-02','lunch',undefined,new Date('2026-12-01T12:00:00Z'));
+  assert.deepEqual(result.gaps,[{start:'13:30',end:'15:00'}]);
+  assert.equal(result.remainingGroupCents,7000);
+  assert.equal(result.events[0].start,'00:00');
+  value.events[0].end='00:00';
+  assert.deepEqual(planningContext(value,'a','2027-01-02','lunch',undefined,new Date('2026-12-01T12:00:00Z')).gaps,[{start:'11:00',end:'15:00'}]);
+});

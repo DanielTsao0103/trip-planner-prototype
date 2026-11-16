@@ -260,7 +260,8 @@ test('created trips survive reload and logout, deletion preserves the samples', 
   await page.getByLabel('Start date', { exact: true }).fill('2027-05-01');
   await page.getByLabel('End date', { exact: true }).fill('2027-05-04');
   await page.getByRole('button', { name: 'Create trip', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'QA weekend', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'QA weekend', exact: true })).toBeVisible();
+  await page.goto('./#/5');
   await page.reload();
   await expect(page.getByRole('button', { name: 'QA weekend', exact: true })).toBeVisible();
   await openAccount(page);
@@ -298,7 +299,7 @@ test('itinerary defaults to Calendar and List pages through 7, 10, or 20 days', 
   await page.getByLabel('Start date', { exact: true }).fill('2027-05-01');
   await page.getByLabel('End date', { exact: true }).fill('2027-05-23');
   await page.getByRole('button', { name: 'Create trip', exact: true }).click();
-  await page.getByRole('button', { name: 'Paging QA', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Paging QA', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Map & list', exact: true }).click();
 
   const pages = page.getByRole('navigation', { name: 'Itinerary day pages', exact: true });

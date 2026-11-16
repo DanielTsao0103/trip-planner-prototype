@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useApp } from "./state";
 import { Button, PageHead } from "./ui";
-import { canEdit, dateText, member, timeText, type Event, type MapPoint } from "./domain";
+import { canEdit, canEditEvent, eventDates, eventOccursOn, eventTimeRange, dateText, member, timeText, type Event, type MapPoint } from "./domain";
 import { resolveSearchFocus } from "./event-location-search";
 import { usePalette } from "./theme";
 
@@ -92,9 +92,9 @@ export function TravelMap({
   const [compactSelection, setCompactSelection] = useState<string>();
   const [hiddenMapDays, setHiddenMapDays] = useState<string[]>([]);
   const dayFilter = route.params.get("days");
-  const tripDatesKey = Array.from(new Set(trip?.events.map(event => event.date) || [])).sort().join(",");
+  const tripDatesKey = Array.from(new Set(trip?.events.flatMap(eventDates) || [])).sort().join(",");
   useEffect(() => {
-    const dates = Array.from(new Set(trip?.events.map(event => event.date) || []));
+    const dates = Array.from(new Set(trip?.events.flatMap(eventDates) || []));
     const visible = dayFilter === "all" ? dates : dayFilter ? dayFilter.split(",") : focusDate ? [focusDate] : dates;
     setHiddenMapDays(dates.filter(day => !visible.includes(day)));
   }, [focusDate, dayFilter, trip?.id, tripDatesKey]);
@@ -121,7 +121,7 @@ export function TravelMap({
   const [locating, setLocating] = useState(false);
   // Scope both location lookups and every map interaction to the displayed day.
   const mapTrip = trip && date
-    ? { ...trip, events: trip.events.filter((event) => event.date === date) }
+    ? { ...trip, events: trip.events.filter((event) => eventOccursOn(event, date)) }
     : trip;
   const { events, statusFor, retryLookup } = useItineraryPins(
     mapTrip,
@@ -129,24 +129,26 @@ export function TravelMap({
     ready && !loadError,
     updateTrip,
   );
-  const mapDays = Array.from(new Set(events.map((event) => event.date))).sort();
+  const mapDays = date ? [date] : Array.from(new Set(events.flatMap(eventDates))).sort();
   const dayColor = (date: string) => {
     const day = tripDayNumber(trip?.start || date, date);
     return mapDayColors[(day - 1 + mapDayColors.length) % mapDayColors.length];
   };
   const visibleMapDays = new Set(mapDays.filter((date) => !hiddenMapDays.includes(date)));
+  const eventVisible = (event: Event) => eventDates(event).some(day => visibleMapDays.has(day));
+  const occurrenceDate = (event: Event) => (date && eventOccursOn(event, date) ? date : focusDate && eventOccursOn(event, focusDate) && visibleMapDays.has(focusDate) ? focusDate : eventDates(event).find(day => visibleMapDays.has(day))) || event.date;
   const allDaysVisible = mapDays.every((date) => visibleMapDays.has(date));
   function changeVisibleDays(visible: string[], focused = focusDate, clearSelection = false) {
     setHiddenMapDays(mapDays.filter(day => !visible.includes(day)));
     setNearbyIds([]);
     go(17, { ...(focused ? {date:focused} : {}), days: visible.length === mapDays.length ? "all" : visible.join(",") || "none", ...(!clearSelection && selectedId ? {event:selectedId} : {}) }, true);
-    const points = events.filter(event => visible.includes(event.date) && event.point).map(event => event.point!);
+    const points = events.filter(event => eventDates(event).some(day => visible.includes(day)) && event.point).map(event => event.point!);
     if (map.current && points.length) showStops(map.current, points);
   }
   const mapDayGroups = mapDays.map((date) => ({
     date,
     day: tripDayNumber(trip?.start || date, date),
-    events: events.filter((event) => event.date === date),
+    events: events.filter((event) => eventOccursOn(event, date)),
   }));
   useEffect(() => {
     setHiddenMapDays((current) => current.filter((date) => mapDays.includes(date)));
@@ -173,7 +175,7 @@ export function TravelMap({
     if (!compact && selectedId) activeActions.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [compact, selectedId]);
   // Keep markers and the visitor's viewport stable through unrelated trip saves.
-  const pinKey = JSON.stringify([trip?.start, events.map((e) => [e.id, e.place, e.date, e.point, e.area, !hiddenMapDays.includes(e.date)])]);
+  const pinKey = JSON.stringify([trip?.start, events.map((e) => [e.id, e.place, e.date, e.endDate, e.point, e.area, occurrenceDate(e), eventVisible(e)])]);
   const destination = trip?.destinations[0] ?? "";
   const initialFocus = useRef(true);
   const geoDot = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
@@ -294,7 +296,7 @@ export function TravelMap({
     if (!ready || !view || loadError) return;
     const controller = new AbortController();
     const points: MapPoint[] = [];
-    const pinned = new Set(events.filter((event) => event.point && !hiddenMapDays.includes(event.date)).map((event) => event.id));
+    const pinned = new Set(events.filter((event) => event.point && eventVisible(event)).map((event) => event.id));
     markers.current.forEach((marker, id) => {
       if (!pinned.has(id)) {
         detachMarker(marker);
@@ -302,7 +304,7 @@ export function TravelMap({
       }
     });
     events.forEach((event, index) => {
-      if (!event.point || hiddenMapDays.includes(event.date)) return;
+      if (!event.point || !eventVisible(event)) return;
       points.push(event.point);
       // Another stop finishing its lookup must not detach a focused marker.
       const signature = JSON.stringify([event.place, event.point.lat, event.point.lng, event.area]);
@@ -311,7 +313,7 @@ export function TravelMap({
         const numeral = existing.querySelector(".trip-pin-face");
         if (numeral) {
           numeral.textContent = String(index + 1);
-          (numeral as HTMLElement).style.setProperty("--trip-day-color", dayColor(event.date));
+          (numeral as HTMLElement).style.setProperty("--trip-day-color", dayColor(occurrenceDate(event)));
         }
         return;
       }
@@ -321,7 +323,7 @@ export function TravelMap({
       const numeral = document.createElement("span");
       numeral.className = "trip-pin-face";
       numeral.textContent = String(index + 1);
-      numeral.style.setProperty("--trip-day-color", dayColor(event.date));
+      numeral.style.setProperty("--trip-day-color", dayColor(occurrenceDate(event)));
       face.append(numeral);
       const marker = new google.maps.marker.AdvancedMarkerElement({
         map: view,
@@ -438,7 +440,7 @@ export function TravelMap({
     if (map.current)
       showStops(
         map.current,
-        events.flatMap((e) => (e.point && visibleMapDays.has(e.date) ? [e.point] : [])),
+        events.flatMap((e) => (e.point && eventVisible(e) ? [e.point] : [])),
         events.some((e) => e.point && !e.area) ? 16 : 13,
       );
   };
@@ -483,14 +485,14 @@ export function TravelMap({
       { timeout: 10000, enableHighAccuracy: true },
     );
   }
-  function choose(event: Event & { area: boolean }) {
+  function choose(event: Event & { area: boolean }, selectedDate = occurrenceDate(event)) {
     initialFocus.current = false;
     setNearbyIds([]);
     setEditing(false);
-    if (!compact && hiddenMapDays.includes(event.date)) {
-      const visible = mapDays.filter(day => !hiddenMapDays.includes(day) || day === event.date);
+    if (!compact && (!eventVisible(event) || selectedDate !== focusDate)) {
+      const visible = mapDays.filter(day => !hiddenMapDays.includes(day) || day === selectedDate);
       setHiddenMapDays(mapDays.filter(day => !visible.includes(day)));
-      go(17, {date:event.date,days:visible.length === mapDays.length ? "all" : visible.join(","),event:event.id}, true);
+      go(17, {date:selectedDate,days:visible.length === mapDays.length ? "all" : visible.join(","),event:event.id}, true);
     } else select(event.id);
     if (event.point && map.current)
       focusPoint(map.current, event.point, event.area);
@@ -514,7 +516,7 @@ export function TravelMap({
       !selection ||
       !map.current ||
       !trip ||
-      !canEdit(trip, s.userId, selection.date)
+      !canEditEvent(trip, s.userId, selection)
     )
       return;
     if ((map.current.getZoom() ?? 0) < 15) return;
@@ -525,7 +527,7 @@ export function TravelMap({
       const event = draft.events.find(
         (e) => e.id === selection.id && e.place === selection.place,
       );
-      if (event) {
+      if (event && canEditEvent(draft, s.userId, event)) {
         event.point = { lat: center.lat, lng: center.lng };
         event.googlePlaceId = null;
         updated = true;
@@ -606,7 +608,7 @@ export function TravelMap({
                 markers.current.get(event.id)?.focus({ preventScroll: true });
               }}>
                 <strong>{event.name}</strong>
-                <small>{dateText(event.date, true)} · {timeText(event.start)}</small>
+                <small>{dateText(occurrenceDate(event), true)} · {eventTimeRange(event)}</small>
               </button>
             ))}</div>
           </div>
@@ -791,7 +793,7 @@ export function TravelMap({
           )}
           {mapDayGroups.map((group, groupIndex) => (
             <div className="map-day-group" key={group.date} style={{ "--trip-day-color": dayColor(group.date) } as React.CSSProperties}>
-              <details className="map-day-disclosure" open={groupIndex === 0 || selection?.date === group.date}>
+              <details className="map-day-disclosure" open={groupIndex === 0 || !!selection && occurrenceDate(selection) === group.date}>
                 <summary>
                   <span className="map-day-number">Day {group.day}</span>
                   <span className="map-day-date">{dateText(group.date, true)}</span>
@@ -803,25 +805,25 @@ export function TravelMap({
             <div
               key={event.id}
               className={
-                selection?.id === event.id ? "place-row active" : "place-row"
+                selection?.id === event.id && occurrenceDate(event) === group.date ? "place-row active" : "place-row"
               }
             >
               <button
                 className="place-select"
-                aria-expanded={selection?.id === event.id}
+                aria-expanded={selection?.id === event.id && occurrenceDate(event) === group.date}
                 onClick={() => {
-                  if (selection?.id === event.id) {
+                  if (selection?.id === event.id && occurrenceDate(event) === group.date) {
                     select("");
                     setNearbyIds([]);
                     setEditing(false);
-                  } else choose(event);
+                  } else choose(event, group.date);
                 }}
               >
-                <span className="place-number" style={{ "--trip-day-color": dayColor(event.date) } as React.CSSProperties}>{index + 1}</span>
+                <span className="place-number" style={{ "--trip-day-color": dayColor(group.date) } as React.CSSProperties}>{index + 1}</span>
                 <span>
                   <strong>{event.name}</strong>
                   <small>{event.place}</small>
-                  <small>{dateText(event.date, true)} · {timeText(event.start)}</small>
+                  <small>{dateText(group.date, true)} · {eventTimeRange(event)}</small>
                   {event.point && event.area && <em>Area center</em>}
                   {!event.point && (
                     <em>
@@ -837,13 +839,13 @@ export function TravelMap({
                 </span>
                 <ChevronRight size={15} />
               </button>
-              {selection?.id === event.id && (
+              {selection?.id === event.id && occurrenceDate(event) === group.date && (
                 <div className="place-actions" ref={activeActions} tabIndex={-1}>
                   {event.point && ready && !loadError && <button className="place-show-map" onClick={() => {
                     host.current?.scrollIntoView({ block: "center" });
                     host.current?.focus({ preventScroll: true });
                   }}><MapPin size={15} aria-hidden="true" /> Show on map</button>}
-                  <a href={`#/11?${new URLSearchParams({ date: event.date, event: event.id })}`}>
+                  <a href={`#/11?${new URLSearchParams({ date: group.date, event: event.id })}`}>
                     <CalendarDays size={15} aria-hidden="true" /> View itinerary item
                   </a>
                   {!event.point && statusFor(event) === "error" && (
@@ -861,12 +863,12 @@ export function TravelMap({
                     </a>
                   )}
                   {!event.point && (loadError || statusFor(event) !== undefined) && (
-                    <a className={loadError || (!trip || !canEdit(trip, s.userId, event.date)) && statusFor(event) !== "error" ? "primary-recovery" : undefined} href={`https://www.google.com/maps/search/?${new URLSearchParams({ api: "1", query: event.place })}`}
+                    <a className={loadError || (!trip || !canEditEvent(trip, s.userId, event)) && statusFor(event) !== "error" ? "primary-recovery" : undefined} href={`https://www.google.com/maps/search/?${new URLSearchParams({ api: "1", query: event.place })}`}
                       target="_blank" rel="noreferrer">
                       <ArrowUpRight size={15} /> Search in Google Maps
                     </a>
                   )}
-                  {trip && canEdit(trip, s.userId, event.date) && !editing && (
+                  {trip && canEditEvent(trip, s.userId, event) && !editing && (
                     <>
                       {ready && !loadError && (event.point || statusFor(event) !== undefined) && (
                         <button data-pin-edit data-map-focus="pin-edit" onClick={() => {
@@ -880,7 +882,7 @@ export function TravelMap({
                         </button>
                       )}
                       {(!event.point || event.area) && (
-                        <button aria-label="Edit itinerary location" className={!loadError && !event.point && statusFor(event) !== "error" ? "primary-recovery" : undefined} onClick={() => go(7, { event: event.id, date: event.date, return: "17", ...(dayFilter ? {days:dayFilter} : {}) })}>
+                        <button aria-label="Edit itinerary location" className={!loadError && !event.point && statusFor(event) !== "error" ? "primary-recovery" : undefined} onClick={() => go(7, { event: event.id, date: group.date, return: "17", ...(dayFilter ? {days:dayFilter} : {}) })}>
                           Edit location
                         </button>
                       )}
