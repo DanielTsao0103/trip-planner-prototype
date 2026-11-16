@@ -8,6 +8,8 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 ## Corrections & Lessons Learned
 
+- iPhone Chrome camera correction (November 16, 2026): Take photo must use the inline rear-camera preview when getUserMedia is available, including touch devices. A native file-picker launch is not evidence that the camera appeared. Mount the video before binding its stream; verify mobile preview, capture, denial, timeout and cancellation, and distinguish browser simulations from a physical iPhone check.
+
 - Receipt adversarial review (November 16, 2026): a rejected replacement image must preserve an invalid review draft and its disabled Save state. Stage reviewed details in an account-scoped outbox before uploading, and drain only against confirmed expenses; uncertain queued writes must not trigger photo deletion. Keep receipt fields readable at actual container widths and focused after rotation or enlarged text. Test concurrent attachment/deletion with a deferred expense foreign key and cleanup ordered before its constraint checks.
 - Suggestion evidence review (November 16, 2026): a price quote must support the exact currency and per-person amount, and practical facts must identify the same venue. Prefer usable opening windows before limiting cards. Trying another day must update the parent planning date before adding an event.
 

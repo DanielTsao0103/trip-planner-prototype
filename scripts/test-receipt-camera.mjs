@@ -72,7 +72,8 @@ try {
   }
   writeFileSync(feedPath,Buffer.concat([Buffer.from(`YUV4MPEG2 W${width} H${height} F5:1 Ip A1:1 C420jpeg\n`),...Array.from({length:10},()=>[Buffer.from('FRAME\n'),frame]).flat()]));
   browser = await makeBrowser();
-  const context = await browser.newContext({viewport:{width:1440,height:1000},recordVideo:{dir:output+'/video'}});
+  // Exercise the phone's coarse-pointer path with real getUserMedia, not a file chooser.
+  const context = await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,recordVideo:{dir:output+'/video'}});
   await context.addInitScript(() => {
     const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     window.__receiptCameraStreams=[];
@@ -82,6 +83,7 @@ try {
   const page=await context.newPage();failurePage=page;
   const pageErrors=[];page.on('pageerror',error=>pageErrors.push(error.message));
   await openBudget(page);
+  verify('Camera acceptance starts on a touch-device layout',await page.evaluate(()=>matchMedia('(pointer: coarse)').matches));
   await page.getByRole('button',{name:'Add expense',exact:true}).click();
   await page.getByRole('button',{name:'Take photo',exact:true}).dblclick();
   await page.getByRole('button',{name:'Capture receipt',exact:true}).waitFor();
