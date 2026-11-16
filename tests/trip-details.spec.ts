@@ -909,6 +909,10 @@ test("receipt saves using scanned details and its amount counts once", async ({ 
     uploads.push(new URL(route.request().url()).pathname);
     return route.fulfill({ json: { Key: uploads.at(-1) } });
   });
+  // This fixture exercises the on-device fallback for accounts outside the vision pilot.
+  await page.route("https://*.supabase.co/functions/v1/read-receipt", route =>
+    route.fulfill({ status: 403, json: { error: "Receipt scan unavailable." } }),
+  );
   // Keep the browser test independent of OCR model downloads.
   let readable = false;
   await page.route(/\/worker\.min[^/]*\.js(?:\?.*)?$/, route => route.fulfill({
