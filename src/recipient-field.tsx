@@ -166,7 +166,7 @@ export function RecipientField({
       <small id={id + "-hint"}>
         {live
           ? "Press Enter after each address, or paste a list of up to 20."
-          : "Press Enter or paste a list. Demo invitations stay in this browser."}
+          : "Press Enter or paste a list. Invitations on a sample trip aren’t sent."}
       </small>
       {r.error && (
         <p ref={errorElement} id={id + "-error"} className="form-error" role="alert">

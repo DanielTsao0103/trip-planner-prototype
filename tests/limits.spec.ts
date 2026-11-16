@@ -8,7 +8,7 @@ async function demo(page: Page) {
   );
   await page.goto("./");
   await page
-    .getByRole("button", { name: "Try demo as Maya", exact: true })
+    .getByRole("button", { name: "Explore a sample trip", exact: true })
     .click();
   await expect(
     page.getByRole("heading", {
@@ -76,9 +76,9 @@ test("text controls cap pasted text without displaying counters across all forms
   await capped(page, "What was it for?", 130);
   await noOverflow(page);
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
-  if (!await page.getByRole("button", {name:"Prototype",exact:true}).isVisible()) await page.getByRole("button",{name:"Open navigation menu",exact:true}).click();
+  if (!await page.getByRole("button", {name:"Sample trip tools",exact:true}).isVisible()) await page.getByRole("button",{name:"Open navigation menu",exact:true}).click();
   await page
-    .getByRole("button", { name: "Prototype", exact: true })
+    .getByRole("button", { name: "Sample trip tools", exact: true })
     .click();
   if (await page.getByRole("button",{name:"Date & time",exact:true}).isVisible()) await page.getByRole("button",{name:"Date & time",exact:true}).click();
   await page.getByRole("button", { name: "During", exact: true }).click();

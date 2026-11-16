@@ -51,11 +51,11 @@ for (const device of ['desktop', 'mobile']) {
       console.log(`${device} ${name}: Lighthouse Accessibility ${score}/100; responsive ${responsive.passes ? 'pass' : 'FAIL'}`);
     }
     await page.goto(site);
-    await button('Try demo as Maya').waitFor();
+    await button('Explore a sample trip').waitFor();
     await audit('login', true);
     await button('New here? Create an account').click();
     await audit('signup');
-    await button('Try demo as Maya').click();
+    await button('Explore a sample trip').click();
     await page.getByRole('heading', { name: 'Seattle & Bainbridge getaway', exact: true }).waitFor();
     await page.goto(`${site}#/6`);
     await page.getByLabel('Trip title', { exact: true }).fill('A trip with room to explore');
@@ -84,8 +84,8 @@ for (const device of ['desktop', 'mobile']) {
     await audit('expense-validation');
     await button('Close dialog').click();
     await page.goto(`${site}#/8`);
-    if (!await button('Prototype').isVisible()) await button('Open navigation menu').click();
-    await button('Prototype').click();
+    if (!await button('Sample trip tools').isVisible()) await button('Open navigation menu').click();
+    await button('Sample trip tools').click();
     if (await button('Date & time').isVisible()) await button('Date & time').click();
     await button('During').click();
     await button(/^Apply & open (Home|Today)$/).click();

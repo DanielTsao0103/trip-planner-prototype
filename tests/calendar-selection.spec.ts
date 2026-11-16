@@ -77,8 +77,8 @@ test('viewers cannot create a selection and touch swipes remain scrolling gestur
   const { day, x, y } = await emptyDay(page);
   await day.dispatchEvent('pointerdown', { pointerType: 'touch', pointerId: 9, isPrimary: true, button: 0, clientX: x, clientY: y + 144 });
   await expect(page.locator('.itcal-selection')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Prototype', exact: true }).click();
-  const controls = page.getByRole('dialog', { name: 'Prototype controls' });
+  await page.getByRole('button', { name: 'Sample trip tools', exact: true }).click();
+  const controls = page.getByRole('dialog', { name: 'Sample trip tools' });
   await controls.getByLabel('View as a fictional participant').selectOption('nora');
   await controls.getByRole('button', { name: 'Close dialog', exact: true }).click();
   const viewerDay = await emptyDay(page);

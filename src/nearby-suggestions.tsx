@@ -198,7 +198,7 @@ export function NearbySuggestions() {
         <p>{context.budgetNote}</p><p>Recommendations are generated from live retrieved sources, not model training. Group constraints are checked against the trip snapshot; account names and emails are excluded from provider searches.</p>
       </details>
     </div>
-    {isDemo && <p className="info-banner">Sample trip: you can explore the planning context here. Live research is available for saved account trips once the service is connected.</p>}
+    {isDemo && <p className="info-banner">Sample trip: you can explore the planning context here. Live research is available on trips saved to your account.</p>}
     {pending && <p role="status">Waiting for your trip changes to finish saving before researching.</p>}
     <p className="fine-print">Free service: the group shares a limited allowance. Research pauses when that allowance is used.</p>
     {!context.gaps.length && <p role="status">No free hour in this day’s {intent === "activity" ? "planning" : intent} window with a provisional 30-minute travel buffer. Choose another day.</p>}

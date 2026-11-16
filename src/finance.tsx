@@ -574,7 +574,7 @@ export function Budget() {
               )}
             </>
           )}
-          {tab === "Expenses" && filter === "All" && (
+          {tab === "Expenses" && filter === "All" && t.persistence !== "account" && (
             <details className="budget-samples">
               <summary>Sample tools</summary>
               <div className="ledger-tools">

@@ -4,7 +4,7 @@ const date = new Date().toISOString().slice(0, 10);
 async function openBudget(page: Page) {
   await page.goto("./");
   await page
-    .getByRole("button", { name: "Try demo as Maya", exact: true })
+    .getByRole("button", { name: "Explore a sample trip", exact: true })
     .click();
   await page.goto("./#/12");
   await page.getByRole("button", { name: /Currency converter/ }).click();

@@ -46,7 +46,7 @@ test.afterEach(async ({ page }) => {
 });
 async function demo(page: Page) {
   await page.goto('./');
-  await page.getByRole('button', { name: 'Try demo as Maya', exact: true }).click();
+  await page.getByRole('button', { name: 'Explore a sample trip', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Seattle & Bainbridge getaway', exact: true })).toBeVisible();
 }
 async function login(page: Page) {
@@ -57,9 +57,9 @@ async function login(page: Page) {
   await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
 }
 async function controls(page: Page) {
-  if (!await page.getByRole("button", { name: "Prototype", exact: true }).isVisible()) await page.getByRole("button", { name: "Open navigation menu", exact: true }).click();
-  await page.getByRole('button', { name: 'Prototype', exact: true }).click();
-  return page.getByRole('dialog', { name: 'Prototype controls' });
+  if (!await page.getByRole("button", { name: "Sample trip tools", exact: true }).isVisible()) await page.getByRole("button", { name: "Open navigation menu", exact: true }).click();
+  await page.getByRole('button', { name: 'Sample trip tools', exact: true }).click();
+  return page.getByRole('dialog', { name: 'Sample trip tools' });
 }
 async function openAccount(page: Page) {
   await page.getByRole('button', { name: 'Account and preferences', exact: true }).click();
@@ -264,7 +264,7 @@ test('created trips survive reload and logout, deletion preserves the samples', 
   await expect(page.getByRole('button', { name: 'QA weekend', exact: true })).toBeVisible();
   await openAccount(page);
   await page.locator('.account-page').getByRole('button', { name: 'Exit demo', exact: true }).click();
-  await page.getByRole('button', { name: 'Try demo as Maya', exact: true }).click();
+  await page.getByRole('button', { name: 'Explore a sample trip', exact: true }).click();
   await page.goto('./#/5');
   await expect(page.getByRole('button', { name: 'QA weekend', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Delete trip: QA weekend', exact: true }).click();
@@ -392,7 +392,7 @@ test('new release offers reload without interrupting a form', async ({ page }) =
   await expect(page).toHaveURL(/release=ffffffff/);
   await expect(page.getByRole('heading', { name: 'Welcome to Stir Crazy' })).toBeVisible();
   await page.setViewportSize({ width: 768, height: 900 });
-  await page.getByRole('button', { name: 'Try demo as Maya', exact: true }).click();
+  await page.getByRole('button', { name: 'Explore a sample trip', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Reload app', exact: true })).toBeVisible();
   const notice = await page.locator('.release-notice').boundingBox();
   const sidebar = await page.locator('.sidebar').boundingBox();
@@ -619,7 +619,7 @@ test('account page: the Maya demo has no editable account details', async ({ pag
   await demo(page);
   await page.getByRole('button', { name: 'Account and preferences', exact: true }).click();
   const panel = page.locator('.account-page');
-  await expect(panel.getByText('local demo account')).toBeVisible();
+  await expect(panel.getByText('sample account')).toBeVisible();
   await expect(panel.getByLabel('Name', { exact: true })).toHaveCount(0);
   await expect(panel.getByText('Change password')).toHaveCount(0);
   await expect(panel.getByRole('button', { name: 'Exit demo' })).toBeVisible();
@@ -635,7 +635,7 @@ test('password visibility preserves entry and demo exit returns to the top of lo
   await expect(password).toHaveValue('visible-typo-check');
   await page.getByRole('button', { name: 'Hide password', exact: true }).click();
   await expect(password).toHaveAttribute('type', 'password');
-  await page.getByRole('button', { name: 'Try demo as Maya', exact: true }).click();
+  await page.getByRole('button', { name: 'Explore a sample trip', exact: true }).click();
   await page.goto('./#/13');
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.getByRole('button', { name: 'Exit demo', exact: true }).click();

@@ -784,10 +784,10 @@ export function AuthApp({
                 disabled={busy}
                 onClick={enterDemo}
               >
-                Try demo as Maya
+                Explore a sample trip
               </button>
               <p className="fine-print">
-                No account needed. Explore Maya’s sample trips.
+                No account needed. Look around with a sample group trip.
               </p>
             </div>
           )}

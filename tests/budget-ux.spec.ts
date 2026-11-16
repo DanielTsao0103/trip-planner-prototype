@@ -44,7 +44,7 @@ test("saving a different category reveals the expense instead of leaving it filt
 async function budget(page: Page) {
   await page.goto("./");
   await page
-    .getByRole("button", { name: "Try demo as Maya", exact: true })
+    .getByRole("button", { name: "Explore a sample trip", exact: true })
     .click();
   await page.goto("./#/12");
   await expect(

@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function enterDemo(page: Page): Promise<void> {
   await page.goto("./");
-  await page.getByRole("button", { name: "Try demo as Maya", exact: true }).click();
+  await page.getByRole("button", { name: "Explore a sample trip", exact: true }).click();
 }
 
 test("long trip-picker lists keep search visible while retaining the current task", async ({ page, isMobile }) => {
@@ -36,10 +36,10 @@ test("prototype sections are directly reachable on desktop tablet and short phon
   for (const width of [1440, 768, 320]) {
     await page.setViewportSize({ width, height: width === 320 ? 600 : 900 });
     await page.goto('./#/12');
-    const opener = page.getByRole('button', { name: 'Prototype', exact: true }).filter({ visible: true });
+    const opener = page.getByRole('button', { name: 'Sample trip tools', exact: true }).filter({ visible: true });
     if (!await opener.count()) await page.getByRole('button', { name: 'Open navigation menu', exact: true }).click();
     await opener.click();
-    const dialog = page.getByRole('dialog', { name: 'Prototype controls', exact: true });
+    const dialog = page.getByRole('dialog', { name: 'Sample trip tools', exact: true });
     await dialog.getByRole('button', { name: 'Screens', exact: true }).click();
     await expect(dialog.locator('.screen-index > button').first()).toBeInViewport({ ratio: 1 });
     await expect(dialog.getByLabel('Demo date', { exact: true })).toBeHidden();

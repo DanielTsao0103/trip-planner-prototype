@@ -171,7 +171,7 @@ test("a signed-in account that is not an admin gets no link and a plain no-acces
 test("demo accounts never see Admin and never ask the database", async ({ page }) => {
   const log = await mockSupabase(page, { admin: true });
   await page.goto("./");
-  await page.getByRole("button", { name: "Try demo as Maya", exact: true }).click();
+  await page.getByRole("button", { name: "Explore a sample trip", exact: true }).click();
   await page.goto("./#/19");
   await expect(page.getByRole("button", { name: "Style", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Admin", exact: true })).toHaveCount(0);

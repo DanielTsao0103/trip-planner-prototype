@@ -143,7 +143,7 @@ test('preliminary activity shows real visits, short cadence and graduation witho
 test('ordinary and demo accounts cannot request the aggregate dashboard',async({page})=>{
  const state=await api(page,{admin:false});await login(page);await page.goto('./#/21');
  await expect(page.getByRole('heading',{name:'You do not have access to this page.'})).toBeVisible();expect(state.metricCalls).toBe(0);
- await page.evaluate(()=>{localStorage.clear();sessionStorage.clear()});await page.goto('./');await page.getByRole('button',{name:'Try demo as Maya',exact:true}).click();await page.goto('./#/21');
+ await page.evaluate(()=>{localStorage.clear();sessionStorage.clear()});await page.goto('./');await page.getByRole('button',{name:'Explore a sample trip',exact:true}).click();await page.goto('./#/21');
  await expect(page.getByRole('heading',{name:'You do not have access to this page.'})).toBeVisible();expect(state.metricCalls).toBe(0);expect(state.accessCalls).toHaveLength(0);
 });
 
