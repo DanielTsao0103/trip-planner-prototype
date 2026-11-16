@@ -8,12 +8,14 @@ import { getSupabase } from "./supabase";
 import { EventLocationInput } from "./event-location-input";
 import { searchNearbyPlaces, hasLocatedPlace, type LocatedSuggestion, type SearchLocation } from "./nearby-places";
 import { searchDestinationPhotos, trackUnsplashSelection, type UnsplashPhoto } from "./trip-photos";
+import { loadNearbyPlacePhoto } from "./nearby-place-photos";
 import { suggestionPhotoSearch } from "./nearby-photo-search";
 import { planningContext, reviewCandidates, safeSource, nearbyListingLinks, NEARBY_EMPTY_MESSAGES, type EmptyReason, type Intent, type NearbyResult } from "../supabase/functions/_shared/nearby.ts";
 import { distinctRecommendationThoughts, recommendationLocation, recommendationTitle, recommendationNotes, recommendationSlot, recommendationGroupCost, sentenceExcerpt } from "../supabase/functions/_shared/nearby-content.ts";
 import "./nearby-suggestions.css";
 
-type NearbyPhoto = { url: string; alt: string; label: string; credit?: UnsplashPhoto["credit"]; selection?: UnsplashPhoto };
+type NearbyPhoto = { url: string; alt: string; label: string; credit?: UnsplashPhoto["credit"]; selection?: UnsplashPhoto; attributions?: {name:string;url?:string}[] };
+const photoKey = (result: LocatedSuggestion) => result.googlePlaceId || `${result.name}\n${result.address}`;
 const cityIdeasSearch = (area: string) => {
   const search = new URL("https://www.google.com/search");
   search.searchParams.set("q", `official tourism city and region ideas ${area}`);
@@ -62,18 +64,13 @@ export function NearbySuggestions({ embedded = false, initialDate, onDateChange 
       return searches.get(query)!;
     };
     void Promise.all(results.slice(0, 3).map(async result => {
+      if (result.googlePlaceId) {
+        const photo = await loadNearbyPlacePhoto(result, controller.signal, import.meta.env.VITE_GOOGLE_MAPS_DEMO_API_KEY?.trim() || "");
+        return [photoKey(result), photo] as const;
+      }
       const plan = suggestionPhotoSearch(result, trip.destinations, result.researchArea || photoArea);
-      let photo = (await search(plan.exact)).find(photo => plan.matchesSubject(photo.searchText || ""));
-      let label = "Illustrative photo of this place or activity";
-      if (!photo && plan.category) {
-        photo = (await search(plan.category)).find(photo => plan.matchesSubject(photo.searchText || ""));
-        label = "Illustrative activity photo · not the exact venue";
-      }
-      if (!photo) {
-        photo = (await search(plan.area)).find(photo => plan.matchesArea(photo.searchText || ""));
-        label = `Area photo · ${plan.location}`;
-      }
-      return [result.name, photo ? { url: photo.url, alt: photo.alt, label, credit: photo.credit, selection: photo } : undefined] as const;
+      const photo = (await search(plan.exact)).find(photo => plan.matchesSubject(photo.searchText || ""));
+      return [photoKey(result), photo ? { url: photo.url, alt: photo.alt, label: "Photo matching this place", credit: photo.credit, selection: photo } : undefined] as const;
     })).then(entries => {
       if (!controller.signal.aborted) {
         const available: Record<string, NearbyPhoto> = {};
@@ -90,8 +87,6 @@ export function NearbySuggestions({ embedded = false, initialDate, onDateChange 
     day > date && planningContext(trip, s.userId || "", day, intent).gaps.length > 0);
   const isDemo = trip.persistence !== "account";
   const pending = pendingTripIds.includes(trip.id);
-  const bundledPhoto: NearbyPhoto = { url: `${import.meta.env.BASE_URL}images/city.jpg`, alt: "Illustrative city scene", label: "Illustrative photo · not the suggested venue" };
-  const fallbackPhoto = bundledPhoto;
   function useCurrentLocation() {
     const generation = ++locationRequest.current;
     setLocationError("");
@@ -112,11 +107,12 @@ export function NearbySuggestions({ embedded = false, initialDate, onDateChange 
     const controller = new AbortController(); request.current = controller;
     setLoading(true); if (!webOnly) setResults(null); setError(""); setAddError("");
     const timeout = setTimeout(() => controller.abort("timeout"), 45000);
+    let placeFailure = "";
     try {
       if (!webOnly) {
         const anchor = trip.events.find(event => event.id === context.anchorId);
-        const searchLocation = location || (anchor?.point ? { label: context.area, point: anchor.point, googlePlaceId: anchor.googlePlaceId || undefined } : undefined);
-        const fast = await searchNearbyPlaces(context, searchLocation, controller.signal, import.meta.env.VITE_GOOGLE_MAPS_DEMO_API_KEY?.trim() || "").catch(() => []);
+        const searchLocation = location || (anchor?.point || anchor?.googlePlaceId ? { label: context.area, point: anchor.point || undefined, googlePlaceId: anchor.googlePlaceId || undefined } : undefined);
+        const fast = await searchNearbyPlaces(context, searchLocation, controller.signal, import.meta.env.VITE_GOOGLE_MAPS_DEMO_API_KEY?.trim() || "").catch(error => { placeFailure = error instanceof Error ? error.message : "Place search is temporarily unavailable. Please try again."; return []; });
         if (controller.signal.aborted) return;
         if (fast.length) {
           setResults(fast.map(result => ({ ...result, researchArea: context.area })));
@@ -133,6 +129,7 @@ export function NearbySuggestions({ embedded = false, initialDate, onDateChange 
         throw new Error(detail?.message || "Nearby research is unavailable. Please try again.");
       }
       if (!data || !Array.isArray(data.results)) throw new Error("Research returned an invalid response.");
+      if (!data.results.length && placeFailure) throw new Error(`${placeFailure} Additional research found no alternatives.`);
       if (!controller.signal.aborted) {
         if (webOnly && !data.results.length && results?.length) {
           setError("No additional source-backed options found. Your current places are still available.");
@@ -172,12 +169,12 @@ export function NearbySuggestions({ embedded = false, initialDate, onDateChange 
     if (!trip || preparing || !canEdit(trip,s.userId,date) || !hasLocatedPlace(selected)) return;
     const generation = ++continuation.current;
     setPreparingLabel("Preparing the event editor…"); setPreparing(true); setAddError("");
-    const photo = photos[selected.name] || fallbackPhoto;
+    const photo = photos[photoKey(selected as LocatedSuggestion)];
     try {
-      if (photo.selection) void trackUnsplashSelection(photo.selection.downloadLocation).catch(() => undefined);
+      if (photo?.selection) void trackUnsplashSelection(photo.selection.downloadLocation).catch(() => undefined);
       if (generation !== continuation.current) return;
       const sourceNotes = resultNotes(selected);
-      const photoNote = "\n" + photo.label + (photo.credit ? ". Photo by " + photo.credit.name + " on Unsplash: " + photo.credit.photoUrl : "");
+      const photoNote = photo?.selection ? "\n" + photo.label + (photo.credit ? ". Photo by " + photo.credit.name + " on Unsplash: " + photo.credit.photoUrl : "") : "";
       const params: Record<string, string> = {
         suggestion: eventTitle(selected),
         place: resultPlace(selected),
@@ -194,7 +191,7 @@ export function NearbySuggestions({ embedded = false, initialDate, onDateChange 
       if (slot) { params.start = slot.start; params.end = slot.end; }
       else if ((selected as LocatedSuggestion).openingWindows) { params.start = ""; params.end = ""; }
       if (selected.pricePerPersonCents !== null && selected.currency === "USD") params.cost = (recommendationGroupCost(selected,trip.members.filter(member=>member.status === "accepted").length) / 100).toFixed(2);
-      params.image = photo.url;
+      params.image = photo?.selection ? photo.url : "";
       go(7, params);
     } catch (cause) {
       if (generation === continuation.current) setAddError(cause instanceof Error ? cause.message : "Could not prepare this itinerary item. Try again.");
@@ -204,9 +201,9 @@ export function NearbySuggestions({ embedded = false, initialDate, onDateChange 
     if (!trip || pending || preparing || !canEdit(trip,s.userId,date) || alreadyAdded(selected) || !hasLocatedPlace(selected)) return;
     const generation = ++continuation.current;
     setPreparingLabel("Adding to itinerary…"); setPreparing(true); setAddError("");
-    const photo = photos[selected.name] || fallbackPhoto;
+    const photo = photos[photoKey(selected as LocatedSuggestion)];
     try {
-      if (photo.selection) void trackUnsplashSelection(photo.selection.downloadLocation).catch(() => undefined);
+      if (photo?.selection) void trackUnsplashSelection(photo.selection.downloadLocation).catch(() => undefined);
       if (generation !== continuation.current) return;
       let problem = "", applied = false;
       await updateTripConfirmed(current => {
@@ -220,10 +217,10 @@ export function NearbySuggestions({ embedded = false, initialDate, onDateChange 
         const attendees = current.members.filter(member=>member.status === "accepted").map(member=>member.id);
         const cost = recommendationGroupCost(selected,attendees.length);
         if (!Number.isSafeInteger(cost) || cost < 0 || cost > MONEY_LIMITS.expense) { problem = "The group estimate is too large. Review the event cost before adding it."; return; }
-        const notes = recommendationNotes(selected,fresh) + "\n" + photo.label + (photo.credit ? `. Photo by ${photo.credit.name}: ${photo.credit.photoUrl}` : "");
+        const notes = recommendationNotes(selected,fresh) + (photo?.selection ? "\n" + photo.label + (photo.credit ? `. Photo by ${photo.credit.name}: ${photo.credit.photoUrl}` : "") : "");
         problem = textError(name,"Event name",TEXT_LIMITS.eventName,true) || textError(place,"Location",TEXT_LIMITS.eventAddress,true) || textError(notes,"Notes",TEXT_LIMITS.notes);
         if (problem) return;
-        const event = {id:uid(),name,place,notes,image:photo.url,date,start:slot.start,end:slot.end,cost,attendees,point:(selected as LocatedSuggestion).point || null,googlePlaceId:(selected as LocatedSuggestion).googlePlaceId || null};
+        const event = {id:uid(),name,place,notes,image:photo?.selection ? photo.url : "",date,start:slot.start,end:slot.end,cost,attendees,point:(selected as LocatedSuggestion).point || null,googlePlaceId:(selected as LocatedSuggestion).googlePlaceId || null};
         problem = eventError(current,s.userId,event);
         if (problem) return;
         current.events.push(event);
@@ -264,9 +261,11 @@ export function NearbySuggestions({ embedded = false, initialDate, onDateChange 
       <div className="nearby-results-heading"><h3>{intent === "activity" ? "Activities to do" : "Places to eat"}</h3>{checkedAt && Number.isFinite(Date.parse(checkedAt)) && <span className="fine-print">Checked {new Intl.DateTimeFormat(undefined,{hour:"numeric",minute:"2-digit"}).format(new Date(checkedAt))}</span>}</div>
       {results.length > 0 && resultSource === "google" && <p className="nearby-provider" translate="no">Google Maps</p>}
       {!results.length && <div className="nearby-empty-explanation"><h4>{NEARBY_EMPTY_MESSAGES[emptyReason].title}</h4><p>{NEARBY_EMPTY_MESSAGES[emptyReason].message}</p><p>{NEARBY_EMPTY_MESSAGES[emptyReason].action}</p></div>}
-      <div className="nearby-result-grid">{results.map((result, index) => { const links = nearbyListingLinks(result, context); const photo = photos[result.name] || fallbackPhoto; const scheduled = trip.events.find(event=>matchesIdea(event,result)); const slot = scheduled ? {start:scheduled.start,end:scheduled.end} : recommendationSlot(result,context.gaps); const added = !!scheduled; return <article className="nearby-result" key={result.name + index}>
-        <img className="nearby-result-photo" src={photo.url} alt={photo.alt} loading="lazy" onError={() => setPhotos(current => current[result.name]?.url === bundledPhoto.url ? current : { ...current, [result.name]: bundledPhoto })} />
-        <small className="nearby-photo-credit">{photo.label}{photo.credit && <> · Photo by <a href={photo.credit.profileUrl} target="_blank" rel="noreferrer">{photo.credit.name}</a> on <a href={photo.credit.photoUrl} target="_blank" rel="noreferrer">Unsplash</a></>}</small>
+      <div className="nearby-result-grid">{results.map((result, index) => { const links = nearbyListingLinks(result, context); const photo = photos[photoKey(result)]; const scheduled = trip.events.find(event=>matchesIdea(event,result)); const slot = scheduled ? {start:scheduled.start,end:scheduled.end} : recommendationSlot(result,context.gaps); const added = !!scheduled; return <article className="nearby-result" key={result.name + index}>
+        {photo && <>
+          <img className="nearby-result-photo" src={photo.url} alt={photo.alt} loading="lazy" onError={() => setPhotos(current => { const next = {...current}; delete next[photoKey(result)]; return next; })} />
+          <small className="nearby-photo-credit">{photo.label}{photo.attributions?.map((author,index) => <span key={index}> · {author.url ? <a href={author.url} target="_blank" rel="noreferrer">{author.name}</a> : author.name}</span>)}{photo.credit && <> · Photo by <a href={photo.credit.profileUrl} target="_blank" rel="noreferrer">{photo.credit.name}</a> on <a href={photo.credit.photoUrl} target="_blank" rel="noreferrer">Unsplash</a></>}</small>
+        </>}
         <h4>{resultTitle(result)}</h4>
         <aside className="nearby-fit-note"><strong>A thought for your day</strong><p>{result.fitNote || "Explore this option alongside your plans."}</p></aside>
         <dl className="nearby-planning-details">

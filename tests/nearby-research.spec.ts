@@ -80,9 +80,8 @@ test("account popup displays sourced review candidates, resets stale results and
   await expect(dialog.getByRole("heading", { name: "Places to eat" })).toHaveCount(0);
   expect(requests).toHaveLength(1);
 });
-test("suggestions retain a loaded illustrative photo when venue and area searches fail", async ({ page }) => {
+test("suggestions do not substitute a city photo when the exact venue search fails", async ({ page }) => {
   const queries: string[] = [];
-  await page.route("**/images/seattle.jpg", route => route.abort());
   await account(page, () => ({ json: { results: [{ name: "Photo fallback venue", address: "Seattle", reason: "A researched option", durationMinutes: 60, pricePerPersonCents: null, currency: null, facts: [{ topic: "Venue", detail: "Test source fact", sourceUrl: "https://example.com/venue" }], concerns: [], conflicts: [], status: "review", proposedTime: { start: "12:00", end: "13:00" } }] } }));
   await page.route("**/functions/v1/unsplash-search**", route => {
     queries.push(new URL(route.request().url()).searchParams.get("query") || "");
@@ -91,18 +90,15 @@ test("suggestions retain a loaded illustrative photo when venue and area searche
   const dialog = page.getByRole("dialog", { name: "Nearby suggestions" });
   await dialog.getByRole("button", { name: "Find nearby suggestions", exact: true }).click();
   await expect(dialog.getByRole("heading", { name: "Photo fallback venue", exact: true })).toBeVisible();
-  const photo = dialog.locator(".nearby-result-photo");
-  await photo.scrollIntoViewIfNeeded();
-  await expect(photo).toHaveAttribute("src", /\/images\/city\.jpg$/);
-  await expect.poll(() => photo.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
-  await expect(dialog).toContainText("Illustrative photo · not the suggested venue");
-  await expect.poll(() => queries.length).toBe(2);
+  await expect.poll(() => queries.length).toBe(1);
   expect(queries[0]).toContain("Photo fallback venue");
-  expect(queries[1]).toBe("Seattle city landscape");
-  await expect(dialog.locator(".nearby-photo-credit")).not.toContainText("Unsplash");
+  await expect(dialog.locator(".nearby-result-photo")).toHaveCount(0);
+  await expect(dialog.locator(".nearby-photo-credit")).toHaveCount(0);
+  expect(queries).not.toContain("Seattle city landscape");
+  await expect(dialog).not.toContainText(/Illustrative photo|Area photo/);
 });
 
-test("city guide fallback displays a photo and source exploration without scheduling or fit claims", async ({ page }) => {
+test("city guide fallback offers source exploration without an unrelated photo, scheduling or fit claims", async ({ page }) => {
   const source = "https://tourism.example/seattle/things-to-do";
   await account(page, () => ({ json: { results: [{ name: "Explore Seattle and the surrounding region", address: "Seattle", kind: "guide", reason: "Explore this city guide for broader activity ideas.", fitNote: "This source can help you find an activity to review with your group.", durationMinutes: 60, pricePerPersonCents: null, currency: null, facts: [{ topic: "City guide", detail: "Discover local attractions, parks, and cultural activities.", sourceUrl: source }], concerns: ["Choose a specific activity and confirm travel time, accessibility and cost before scheduling."], conflicts: [], status: "review", proposedTime: null }] } }));
   const dialog = page.getByRole("dialog", { name: "Nearby suggestions" });
@@ -118,9 +114,8 @@ test("city guide fallback displays a photo and source exploration without schedu
   await expect(card).toContainText("Proposed time");
   await expect(card).toContainText("Price not confirmed");
   await expect(card).not.toContainText(/provisional gap|No suitable time gap found|per person|within.*budget/i);
-  const image = card.locator(".nearby-result-photo");
-  await image.scrollIntoViewIfNeeded();
-  await expect.poll(() => image.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await expect(card.locator(".nearby-result-photo")).toHaveCount(0);
+  await expect(card.locator(".nearby-photo-credit")).toHaveCount(0);
   expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   await page.screenshot({ path: test.info().outputPath("city-guide.png") });
 });
@@ -218,13 +213,13 @@ test("recommendation facts precede More to consider and sourced Maps links open 
   await page.screenshot({path:test.info().outputPath('nearby-more-closed.png')});
 });
 
-test("shrine suggestions reject anchor photos and carry the relevant image into the event", async ({ page }) => {
-  await account(page, () => ({json:{results:[{...candidate,name:"Shinto Shrine",address:"123 Shrine Way, Seattle"}]}}), "Owner", "McDonald's, Seattle");
+test("shrine suggestions reject anchor and generic shrine photos and carry only the exact venue image into the event", async ({ page }) => {
+  await account(page, () => ({json:{results:[{...candidate,name:"Hikawa Shrine",address:"123 Shrine Way, Seattle"}]}}), "Owner", "McDonald's, Seattle");
   const queries: string[]=[];
   const photo=(id:string,description:string)=>({id,width:1200,height:800,alt_description:description,urls:{regular:`https://images.unsplash.com/${id}`},links:{html:`https://unsplash.com/photos/${id}`,download_location:`https://api.unsplash.com/photos/${id}/download`},user:{name:"Photo fixture",links:{html:"https://unsplash.com/@fixture"}}});
   await page.route('**/functions/v1/unsplash-search?**',route=>{
     const query=new URL(route.request().url()).searchParams.get('query')||'';queries.push(query);
-    const photos=query.startsWith('temple shrine') ? [photo('shrine','A Shinto shrine with traditional gates'),photo('shrine-2','A Buddhist temple')] : [photo('mcdonalds',"McDonald's restaurant and burger sign"),photo('mcdonalds-2','Fast food restaurant')];
+    const photos=[photo('mcdonalds',"McDonald's restaurant and burger sign"),photo('generic-shrine','A Shinto shrine with traditional gates in Seattle'),photo('wrong-city','Hikawa Shrine in Tokyo'),photo('shrine','Hikawa Shrine in Seattle')];
     return route.fulfill({json:{results:photos}});
   });
   await page.route('https://images.unsplash.com/**',route=>route.fulfill({path:fileURLToPath(new URL('../public/images/city.jpg',import.meta.url)),contentType:'image/jpeg'}));
@@ -233,7 +228,7 @@ test("shrine suggestions reject anchor photos and carry the relevant image into 
   const image=dialog.locator('.nearby-result-photo');
   await expect(image).toHaveAttribute('src','https://images.unsplash.com/shrine');
   await expect.poll(()=>image.evaluate(image=>(image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
-  expect(queries).toEqual(['Shinto Shrine Seattle','temple shrine Seattle']);
+  expect(queries).toEqual(['Hikawa Shrine Seattle']);
   expect(queries.join(' ')).not.toMatch(/McDonald|Address needs confirmation/);
   await dialog.getByRole('button',{name:'Review and add to this day',exact:true}).click();
   await expect(page).toHaveURL(/#\/7/);
@@ -284,7 +279,7 @@ test('Nearby permits Day Editors to research other days but only schedule assign
 
 for (const operation of ['review','add']) test(`slow photo attribution does not block ${operation} or cause a duplicate later`,async({page})=>{
   await account(page,()=>({json:{results:[candidate]}}));
-  const photo = {id:'fixture-photo',alt_description:'A peaceful garden',width:1200,height:800,urls:{regular:'https://images.unsplash.com/fixture'},links:{html:'https://unsplash.com/photos/fixture',download_location:'https://api.unsplash.com/photos/fixture/download'},user:{name:'Fixture photographer',links:{html:'https://unsplash.com/@fixture'}}};
+  const photo = {id:'fixture-photo',alt_description:'Research fixture garden in Seattle',width:1200,height:800,urls:{regular:'https://images.unsplash.com/fixture'},links:{html:'https://unsplash.com/photos/fixture',download_location:'https://api.unsplash.com/photos/fixture/download'},user:{name:'Fixture photographer',links:{html:'https://unsplash.com/@fixture'}}};
   await page.route('**/functions/v1/unsplash-search?**',r=>r.fulfill({json:{results:[photo,{...photo,id:'fixture-photo-2'}]}}));
   await page.route('https://images.unsplash.com/**',r=>r.fulfill({path:fileURLToPath(new URL('../public/images/food.jpg',import.meta.url)),contentType:'image/jpeg'}));
   let release!:()=>void, started=false, saves=0;
@@ -487,4 +482,62 @@ test('embedded next-day recovery synchronizes the planning day before saving',as
  await expect.poll(()=>writes.at(-1)?.events.length).toBe(2);
  expect(writes.at(-1).events.at(-1).date).toBe('2027-05-02');
  await page.getByRole('button',{name:'View this day',exact:true}).click();await expect(page).toHaveURL(/date=2027-05-02/);
+});
+
+for (const failure of ['no-photo','media-error','image-error']) test(`Google ${failure} never substitutes generic city or Unsplash imagery`,async({page})=>{
+ let detailsCalls=0,unsplashCalls=0;
+ await account(page,()=>({json:{results:[]}}));
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[googleFixture]}}));
+ await page.route(`https://places.googleapis.com/v1/places/${googleFixture.id}`,route=>{detailsCalls++;return route.fulfill({json:{id:googleFixture.id,photos:failure==='no-photo'?[]:[{name:`places/${googleFixture.id}/photos/exact-photo`,authorAttributions:[]}]}});});
+ await page.route(`https://places.googleapis.com/v1/places/${googleFixture.id}/photos/exact-photo/media?**`,route=>failure==='media-error'?route.fulfill({status:503,json:{error:{message:'Photo temporarily unavailable'}}}):route.fulfill({json:{name:`places/${googleFixture.id}/photos/exact-photo/media`,photoUri:'https://lh3.googleusercontent.com/places/unavailable-exact-photo'}}));
+ await page.route('https://lh3.googleusercontent.com/places/unavailable-exact-photo',route=>route.abort());
+ await page.route('**/functions/v1/unsplash-search**',route=>{unsplashCalls++;return route.fulfill({json:{results:[]}});});
+ const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
+ await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+ const card=dialog.locator('.nearby-result');await expect(card.getByRole('heading',{name:'Fixture Cafe',exact:true})).toBeVisible();
+ await expect.poll(()=>detailsCalls).toBe(1);
+ if(failure==='image-error')await expect.poll(()=>page.evaluate(()=>performance.getEntriesByType('resource').some(entry=>entry.name.includes('unavailable-exact-photo')))).toBe(true);
+ await expect(card.locator('.nearby-result-photo')).toHaveCount(0);
+ await expect(card.locator('.nearby-photo-credit')).toHaveCount(0);
+ await expect(card.getByRole('button',{name:'Add to itinerary',exact:true})).toBeEnabled();
+ expect(unsplashCalls).toBe(0);
+ await expect(card).not.toContainText(/Illustrative photo|Area photo/);
+});
+
+for(const operation of ['direct','review']) test(`exact Google photo shows author credit but its expiring URL is not saved through ${operation} add`,async({page})=>{
+ const writes:any[]=[];const photoRequests:{url:string;mask:string|undefined}[]=[];
+ page.on('request',request=>{if(request.url().endsWith('/save_account_trip'))writes.push(request.postDataJSON().p_data);});
+ await account(page,()=>({json:{results:[]}}));
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[googleFixture]}}));
+ const authorUrl='https://maps.google.com/maps/contrib/123456789';
+ await page.route(`https://places.googleapis.com/v1/places/${googleFixture.id}`,route=>{photoRequests.push({url:route.request().url(),mask:route.request().headers()['x-goog-fieldmask']});return route.fulfill({json:{id:googleFixture.id,photos:[{name:`places/${googleFixture.id}/photos/exact-photo`,authorAttributions:[{displayName:'Exact venue photographer',uri:authorUrl}]}]}});});
+ const photoUrl='https://lh3.googleusercontent.com/places/exact-fixture-cafe';
+ await page.route(`https://places.googleapis.com/v1/places/${googleFixture.id}/photos/exact-photo/media?**`,route=>route.fulfill({json:{name:`places/${googleFixture.id}/photos/exact-photo/media`,photoUri:photoUrl}}));
+ await page.route(photoUrl,route=>route.fulfill({path:fileURLToPath(new URL('../public/images/food.jpg',import.meta.url)),contentType:'image/jpeg'}));
+ const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+ const card=dialog.locator('.nearby-result'),image=card.locator('.nearby-result-photo');
+ await expect(image).toHaveAttribute('src',photoUrl);await image.scrollIntoViewIfNeeded();await expect.poll(()=>image.evaluate(element=>(element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+ await expect(card.locator('.nearby-photo-credit')).toContainText('Google Maps photo');
+ await expect(card.getByRole('link',{name:'Exact venue photographer',exact:true})).toHaveAttribute('href',authorUrl);
+ expect(photoRequests).toEqual([{url:`https://places.googleapis.com/v1/places/${googleFixture.id}`,mask:'id,photos'}]);
+ if(operation==='review'){
+  await card.getByRole('button',{name:'Review and add to this day',exact:true}).click();
+  await expect(page).toHaveURL(/googlePlaceId=ChIJfixtureCafe/);expect(page.url()).not.toContain(encodeURIComponent(photoUrl));
+  await expect(page.locator('.upload-preview')).toHaveCount(0);
+  await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
+ }else await card.getByRole('button',{name:'Add to itinerary',exact:true}).click();
+ await expect.poll(()=>writes.at(-1)?.events.length).toBe(1);
+ expect(writes.at(-1).events[0]).toMatchObject({name:'Fixture Cafe',place:googleFixture.formattedAddress,googlePlaceId:googleFixture.id,image:''});
+ expect(JSON.stringify(writes.at(-1).events[0])).not.toContain(photoUrl);
+});
+
+test('Google search failure with empty web fallback shows an actionable retry error',async({page})=>{
+ await account(page,()=>({json:{results:[]}}));
+ let providerCalls=0;
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>{providerCalls++;return route.fulfill({status:503,json:{error:{message:'Temporary provider failure'}}});});
+ const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+ await expect(dialog.getByRole('alert')).toContainText('Place search is temporarily unavailable. Please try again.');
+ await expect(dialog.getByRole('alert')).toContainText('Additional research found no alternatives.');
+ await expect(dialog).not.toContainText('No source-backed options found');
+ await expect(dialog.getByRole('button',{name:'Find nearby suggestions',exact:true})).toBeEnabled();expect(providerCalls).toBe(1);
 });

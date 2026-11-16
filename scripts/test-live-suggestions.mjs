@@ -2,6 +2,7 @@
  * Run with: node --experimental-strip-types scripts/test-live-suggestions.mjs
  * TRIP_QA_URL supports the published site; TRIP_QA_OUTPUT selects the evidence folder.
  * TRIP_QA_CURRENT_LOCATION=1 supplies declared Seattle geolocation input and tests Nearby Search.
+ * TRIP_QA_SHILIN=1 selects the Taipei school through real autocomplete, without seeded coordinates.
  */
 import assert from 'node:assert/strict';
 import {readFileSync, writeFileSync, mkdirSync, existsSync} from 'node:fs';
@@ -19,9 +20,10 @@ const options={auth:{persistSession:false,autoRefreshToken:false},global:{header
 const admin=createClient(env.VITE_SUPABASE_URL,env.SUPABASE_SECRET_KEY,options);
 const make=()=>createClient(env.VITE_SUPABASE_URL,env.VITE_SUPABASE_PUBLISHABLE_KEY,options);
 const checked=r=>{if(r.error)throw Error(r.error.message);return r.data;};
-const passed=[],requests=[],clients=[];let owner,tripId,browser,page,providerPlaces=[],savedEvent;
-const currentLocation=env.TRIP_QA_CURRENT_LOCATION==='1';
-const report={site,currentLocationInput:currentLocation ? {latitude:47.6062,longitude:-122.3321,source:'browser geolocation test input; actual Google results'} : null,checkedAt:new Date().toISOString(),mocks:false,passed,requests,cleanup:{}};
+const passed=[],requests=[],clients=[];let owner,tripId,browser,page,providerPlaces=[],predictions=[],savedEvent;
+const shilin=env.TRIP_QA_SHILIN==='1';
+const currentLocation=!shilin&&env.TRIP_QA_CURRENT_LOCATION==='1';
+const report={site,scenario:shilin?'Shilin Elementary School autocomplete in Taipei':currentLocation?'Seattle coordinate input':'Seattle city text',currentLocationInput:currentLocation ? {latitude:47.6062,longitude:-122.3321,source:'browser geolocation test input; actual Google results'} : null,checkedAt:new Date().toISOString(),mocks:false,passed,requests,cleanup:{}};
 const verify=(name,condition)=>{assert.ok(condition,name);passed.push(name);console.log('PASS '+name);};
 async function login(client){checked(await client.auth.signInWithPassword({email:owner.email,password:owner.password}));}
 async function openTrip(target){
@@ -36,15 +38,44 @@ try{
  const client=make();clients.push(client);await login(client);
  const start=new Date(Date.now()+7*86400000).toISOString().slice(0,10),end=new Date(Date.now()+9*86400000).toISOString().slice(0,10);
  report.tripTitle=`Live suggestions QA ${tripId.slice(0,8)}`;
- await saveAccountTrip(client,owner,{id:tripId,title:report.tripTitle,destinations:['Seattle'],start,end,zone:'America/Los_Angeles',image:'',persistence:'account',budget:null,budgetMode:'group',members:[{id:owner.id,name:owner.name,email,role:'Owner',status:'accepted',days:[]}],events:[],expenses:[],prefs:{},individual:{},todos:[],dismissed:[]});
+ await saveAccountTrip(client,owner,{id:tripId,title:report.tripTitle,destinations:[shilin?'Taipei, Taiwan':'Seattle'],start,end,zone:shilin?'Asia/Taipei':'America/Los_Angeles',image:'',persistence:'account',budget:null,budgetMode:'group',members:[{id:owner.id,name:owner.name,email,role:'Owner',status:'accepted',days:[]}],events:[],expenses:[],prefs:{},individual:{},todos:[],dismissed:[]});
  browser=await chromium.launch();const context=await browser.newContext({viewport:{width:1440,height:1000},...(currentLocation ? {geolocation:{latitude:47.6062,longitude:-122.3321},permissions:['geolocation']} : {})});context.setDefaultTimeout(30000);page=await context.newPage();
- page.on('response',async response=>{if(/^https:\/\/places.googleapis.com\/v1\/places:search/.test(response.url())){const record={provider:'Google Places',status:response.status()};requests.push(record);try{const data=await response.json();providerPlaces=data.places||[];record.resultCount=providerPlaces.length;}catch{record.parseFailure=true;}}});
+ page.on('response',async response=>{
+  if(!response.url().startsWith('https://places.googleapis.com/v1/places'))return;
+  const endpoint=new URL(response.url()).pathname,record={provider:'Google Places',endpoint,status:response.status()};requests.push(record);
+  if(endpoint.endsWith(':searchNearby'))record.searchCenter=response.request().postDataJSON()?.locationRestriction?.circle?.center;
+  try{
+   const data=await response.json();
+   if(endpoint.includes(':search')){if(Array.isArray(data.places))providerPlaces=data.places;record.resultCount=data.places?.length||0;}
+   if(endpoint.endsWith(':autocomplete'))predictions=(data.suggestions||[]).flatMap(item=>item.placePrediction?[item.placePrediction]:[]);
+   if(/^\/v1\/places\/[^/]+$/.test(endpoint)&&data.location)record.location=data.location;
+  }catch{record.parseFailure=true;}
+ });
  await openTrip(page);await page.goto(site+'#/9');const research=page.getByRole('region',{name:'Nearby suggestions'});
+ if(shilin){
+  await research.getByRole('button',{name:'Change location',exact:true}).click();
+  const input=research.getByRole('combobox',{name:'Search around',exact:true});
+  await input.fill('臺北市士林區士林國民小學');
+  const school=research.getByRole('option').filter({hasText:/Shilin Elementary School|士林國民小學|士林國小/iu}).first();
+  await school.waitFor({timeout:30000});await school.click();
+  const label=await input.inputValue();
+  await expect.poll(()=>predictions.some(item=>item.text?.text===label),{timeout:10000}).toBe(true);
+  const prediction=predictions.find(item=>item.text?.text===label);
+  report.selectedSearchLocation={label,googlePlaceId:prediction.placeId,coordinateInput:'None; selected actual autocomplete prediction'};
+  verify('Shilin school selected from actual Google autocomplete without seeded coordinates',!!prediction.placeId&&/Shilin Elementary School|士林國民小學|士林國小/iu.test(prediction.structuredFormat?.mainText?.text||label));
+  await page.screenshot({path:output+'/shilin-autocomplete-selected.png',fullPage:true});
+ }
  if(currentLocation){await research.getByRole('button',{name:'Use my location',exact:true}).click();await expect(research.getByText('Current location',{exact:true})).toBeVisible();}
  const started=performance.now();await research.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
  await research.locator('.nearby-result').first().waitFor({timeout:45000});report.visibleResultsMs=Math.round(performance.now()-started);
  await expect.poll(()=>providerPlaces.length,{timeout:10000}).toBeGreaterThan(0);
  verify('real Google Places response supplies suggestions',requests.some(r=>r.status===200&&r.resultCount>0));
+ if(shilin){
+  const id=report.selectedSearchLocation.googlePlaceId;
+  await expect.poll(()=>requests.some(r=>r.endpoint===`/v1/places/${id}`&&r.status===200&&r.location),{timeout:10000}).toBe(true);
+  const resolved=requests.find(r=>r.endpoint===`/v1/places/${id}`&&r.status===200&&r.location);
+  verify('Nearby search uses the selected school coordinates returned by Places Details',requests.some(r=>r.endpoint.endsWith(':searchNearby')&&r.status===200&&r.searchCenter?.latitude===resolved.location.latitude&&r.searchCenter?.longitude===resolved.location.longitude));
+ }
  const eligible=research.locator('.nearby-result').filter({has:page.locator('button:not([disabled])').filter({hasText:/^Add to itinerary$/})}).first();
  await expect(eligible).toBeVisible();const name=await eligible.locator('h4').innerText();
  const place=providerPlaces.find(p=>p.displayName?.text===name);verify('rendered suggestion matches an actual provider place',!!place);

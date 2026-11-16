@@ -8,7 +8,9 @@ test("shrine photo queries never inherit an earlier McDonald's stop", () => {
   assert.equal(plan.category,"temple shrine Tokyo, Japan");
   assert.equal(plan.area,"Tokyo, Japan city landscape");
   assert.equal(plan.matchesSubject("McDonald's restaurant in Tokyo"),false);
-  assert.equal(plan.matchesSubject("Torii gates at a Shinto shrine"),true);
+  assert.equal(plan.matchesSubject("Torii gates at a Shinto shrine"),false);
+  assert.equal(plan.matchesSubject("Meiji Shrine in Tokyo"),true);
+  assert.equal(plan.matchesSubject("Meiji Shrine in Kyoto"),false);
   assert.equal(plan.matchesArea("McDonald's logo above the Tokyo city street"),false);
   assert.equal(plan.matchesArea("Tokyo city skyline at sunset"),true);
   assert.equal(plan.matchesArea("Seattle city skyline at sunset"),false);

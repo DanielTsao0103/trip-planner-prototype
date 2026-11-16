@@ -25,9 +25,10 @@ export function suggestionPhotoSearch(suggestion: Suggestion, destinations: stri
     location,
     matchesSubject(metadata: string) {
       const text = normalize(metadata);
-      if (category) return category.terms.test(text);
-      const words = normalize(suggestion.name).split(" ").filter(word => word.length > 2 && !/^(the|and|visit|explore|tour|venue|restaurant|cafe)$/u.test(word));
-      return words.some(word => (` ${text} `).includes(` ${word} `));
+      const name = normalize(suggestion.name);
+      const city = normalize(location.split(/[,，]/u)[0]);
+      // A shared category or a single name word does not identify a venue.
+      return !!name && !!city && (` ${text} `).includes(` ${name} `) && (` ${text} `).includes(` ${city} `);
     },
     matchesArea(metadata: string) {
       // A city fallback must describe geography, not an unrelated business.
