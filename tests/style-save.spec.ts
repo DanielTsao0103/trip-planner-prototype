@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test('tablet Style offers a preview jump only while the preview is elsewhere', async ({ page }) => {
   await page.setViewportSize({ width: 768, height: 900 });
   await page.goto('./');
-  await page.getByRole('button', { name: 'Try demo as Maya', exact: true }).click();
+  await page.getByRole('button', { name: 'Explore a sample trip', exact: true }).click();
   await page.goto('./#/18');
   const jump = page.getByRole('button', { name: 'View preview', exact: true });
   const preview = page.locator('.style-preview');
@@ -101,7 +101,7 @@ test("demo style applies locally without an account save or account-save claim",
     await route.fulfill({ json: [] });
   });
   await page.goto("./");
-  await page.getByRole("button", { name: "Try demo as Maya", exact: true }).click();
+  await page.getByRole("button", { name: "Explore a sample trip", exact: true }).click();
   await page.goto("./#/18");
   await page.getByRole("button", { name: "Green", exact: true }).click();
   await page.getByRole("button", { name: "Apply to my site", exact: true }).click();
@@ -114,7 +114,7 @@ test("demo style applies locally without an account save or account-save claim",
 test('short-phone Style keeps one action bar and preserves access to trip navigation', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 600 });
   await page.goto('./');
-  await page.getByRole('button', { name: 'Try demo as Maya', exact: true }).click();
+  await page.getByRole('button', { name: 'Explore a sample trip', exact: true }).click();
   await page.goto('./#/18');
   await expect(page.locator('.mobile-nav')).toHaveCount(0);
   const actions=await page.locator('.style-actions').boundingBox();

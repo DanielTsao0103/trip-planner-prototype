@@ -4,7 +4,7 @@ for (const width of [320, 390, 768, 1440]) {
   test(`template cards fit, loop and restore keyboard focus at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("./");
-    await page.getByRole("button", { name: "Try demo as Maya", exact: true }).click();
+    await page.getByRole("button", { name: "Explore a sample trip", exact: true }).click();
     await page.goto("./#/4");
     const carousel = page.getByRole("region", { name: "Pre-planned trip carousel" });
     const window = carousel.locator(".planned-carousel-window");

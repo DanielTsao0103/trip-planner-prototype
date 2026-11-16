@@ -32,7 +32,7 @@ export function AccountPage() {
           <NameForm current={user?.name ?? ""} />
         ) : (
           <p className="account-note">
-            This is a local demo account, so its name and photo are fixed. Sign up to edit them.
+            This is a sample account, so its name and photo are fixed. Sign up to edit them.
           </p>
         )}
       </section>
@@ -84,10 +84,10 @@ export function AccountPage() {
               <ShieldCheck size={16} />
             </button>
           )}
-          <button onClick={() => open("demo")}>
-            Prototype controls
+          {!cloud && <button onClick={() => open("demo")}>
+            Sample trip tools
             <Users size={16} />
-          </button>
+          </button>}
           <button onClick={() => void signOut()}>
             {cloud ? "Log out" : "Exit demo"}
             <LogOut size={16} />

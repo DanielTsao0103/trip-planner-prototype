@@ -483,9 +483,9 @@ test('optional connections can be skipped immediately and phone prototype sectio
   await page.getByRole('button',{name:'Skip for now',exact:true}).click();
   await expect(page).toHaveURL(/#\/[45]$/);
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  if (!await page.getByRole("button", { name: "Prototype", exact: true }).isVisible()) await page.getByRole("button", { name: "Open navigation menu", exact: true }).click();
-  await page.getByRole('button',{name:'Prototype',exact:true}).click();
-  const dialog=page.getByRole('dialog',{name:'Prototype controls',exact:true});
+  if (!await page.getByRole("button", { name: "Sample trip tools", exact: true }).isVisible()) await page.getByRole("button", { name: "Open navigation menu", exact: true }).click();
+  await page.getByRole('button',{name:'Sample trip tools',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'Sample trip tools',exact:true});
   await dialog.getByRole('button',{name:'Date & time',exact:true}).click();
   await expect(dialog.getByLabel('Demo date',{exact:true})).toBeVisible();
   await expect(dialog.getByRole('button',{name:'Explore the sample trip',exact:true})).not.toBeVisible();

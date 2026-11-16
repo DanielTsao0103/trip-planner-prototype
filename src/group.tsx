@@ -847,7 +847,7 @@ export function Group() {
                   ? "Joined"
                   : t.persistence === "account"
                     ? "Pending"
-                    : "Invited · demo"}
+                    : "Invited"}
               </span>
               <div className="collaborator-actions">
                 {owner && m.role !== "Owner" && (
@@ -882,7 +882,7 @@ export function Group() {
                   >
                     {t.persistence === "account"
                       ? "Manage traveler"
-                      : "Preview invite"}
+                      : "View invite"}
                   </button>
                 )}
               </div>
@@ -1399,7 +1399,7 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
           </fieldset>
           <ErrorBox text={error} />
           {accessRecovery}
-          <p className="invite-audience"><Users size={16} aria-hidden="true" /> Everyone on this trip can see your answers. Use fictional details in this prototype.</p>
+          <p className="invite-audience"><Users size={16} aria-hidden="true" /> Everyone on this trip can see your answers.</p>
           {draftStatus}
           <div className="invite-review-actions">
             <Button type="submit" disabled={saving}>{saving ? "Saving preferences…" : "Save and open trip"} <ArrowRight size={16} /></Button>
@@ -1437,8 +1437,7 @@ export function Survey({ trip: t, leaveOnboarding }: { trip: Trip; leaveOnboardi
             )}
           </div>
           <p className="fine-print">
-            Your answers are shared with everyone on this trip. Use fictional
-            details in this prototype.
+            Your answers are shared with everyone on this trip.
           </p>
         </aside>
         <div className="card form-card" ref={panel}>

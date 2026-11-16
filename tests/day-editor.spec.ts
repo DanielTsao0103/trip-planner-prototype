@@ -10,9 +10,9 @@ test("an owner can assign a day and that traveler can move only that day's event
   await permissions.getByRole("button", { name: "Save permissions" }).click();
   await expect(permissions).toHaveCount(0);
 
-  if (!await page.getByRole("button", { name: "Prototype", exact: true }).isVisible()) await page.getByRole("button", { name: "Open navigation menu", exact: true }).click();
-  await page.getByRole("button", { name: "Prototype", exact: true }).click();
-  const controls = page.getByRole("dialog", { name: "Prototype controls" });
+  if (!await page.getByRole("button", { name: "Sample trip tools", exact: true }).isVisible()) await page.getByRole("button", { name: "Open navigation menu", exact: true }).click();
+  await page.getByRole("button", { name: "Sample trip tools", exact: true }).click();
+  const controls = page.getByRole("dialog", { name: "Sample trip tools" });
   await controls.getByLabel("View as a fictional participant").selectOption("nora");
   await controls.getByRole("button", { name: "Close dialog" }).click();
   await page.goto("./#/8?view=calendar");

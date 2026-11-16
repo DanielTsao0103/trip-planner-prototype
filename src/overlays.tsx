@@ -346,13 +346,13 @@ function Demo() {
     } else go(4);
   };
   return (
-    <Modal title="Prototype controls" navigation={
-      <div className="demo-mobile-tabs" role="group" aria-label="Prototype sections">
+    <Modal title="Sample trip tools" navigation={
+      <div className="demo-mobile-tabs" role="group" aria-label="Sample tool sections">
         {[["experience", "Scenario"], ["time", "Date & time"], ["screens", "Screens"]].map(([id,label]) => <Button key={id} variant="outline" aria-pressed={section === id} onClick={() => setSection(id)}>{label}</Button>)}
       </div>
     } footer={section === "time" ? <div className="demo-time-footer"><Button variant="full" disabled={!s.userId || !date || !time} onClick={landing}>{landingLabel} <ArrowRight size={15}/></Button></div> : undefined}>
       <p className="fine-print">
-        Explore fictional trips and simulated integrations in this browser.
+        Explore sample trips in this browser.
       </p>
       <div className="demo-grid" data-active={section}>
         <div className="card" data-section="experience">
@@ -661,7 +661,7 @@ export function Overlays() {
           <section><h3>Your trip{t?.title ? ` - ${t.title}` : ""}</h3><div className="menu-links">
             {[[8, "Itinerary"], [11, "Map & list"], [17, "Map"], [12, "Budget"], [13, "The group"], [9, "Suggestions"], [15, "My preferences"], ...(t && isActive(t, s.date) ? [[10, "Today"]] : [])].map(([page, label]) => <button key={page} aria-current={app.route.page === page ? "page" : undefined} onClick={() => tripGo(Number(page))}>{label}</button>)}
           </div></section>
-          <section><h3>Personal</h3><div className="menu-links"><button onClick={() => go(19)}>Your account <Users size={17}/></button><button onClick={() => go(18)}>Style <Palette size={17}/></button><button onClick={() => open("demo")}>Prototype</button></div></section>
+          <section><h3>Personal</h3><div className="menu-links"><button onClick={() => go(19)}>Your account <Users size={17}/></button><button onClick={() => go(18)}>Style <Palette size={17}/></button>{!app.accountInfo.cloud && <button onClick={() => open("demo")}>Sample trip tools</button>}</div></section>
         </nav>
       </Modal>
     );
@@ -708,7 +708,7 @@ export function Overlays() {
           access.
         </p>
         <p className="fine-print">
-          Accepting switches the prototype to this fictional participant. No
+          Accepting switches the sample to this participant. No
           invitation was sent.
         </p>
         <div className="form-actions">

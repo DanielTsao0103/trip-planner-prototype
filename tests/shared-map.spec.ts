@@ -33,7 +33,7 @@ test("map access denial remains accurate after the tile timeout", async ({ page 
   await installGoogleMapFixture(page, { tilesLoaded: false });
   await page.clock.install();
   await page.goto("./");
-  await page.getByRole("button", { name: "Try demo as Maya", exact: true }).click();
+  await page.getByRole("button", { name: "Explore a sample trip", exact: true }).click();
   await page.goto("./#/17");
   await expect(page.locator('.trip-map-host')).toHaveAttribute("tabindex", "0");
   await page.evaluate(() => window.dispatchEvent(new Event("trip-google-maps-auth-failure")));

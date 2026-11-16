@@ -1,16 +1,16 @@
 import { expect, test, type Page } from '@playwright/test';
 
 async function prototype(page: Page) {
-  if (!await page.getByRole('button', { name: 'Prototype', exact: true }).isVisible())
+  if (!await page.getByRole('button', { name: 'Sample trip tools', exact: true }).isVisible())
     await page.getByRole('button', { name: 'Open navigation menu', exact: true }).click();
-  await page.getByRole('button', { name: 'Prototype', exact: true }).click();
+  await page.getByRole('button', { name: 'Sample trip tools', exact: true }).click();
 }
 
 test('explicit Maya entry resets only the participant while refresh retains it and saved demo work survives', async ({ page }) => {
   await page.route('https://*.supabase.co/**', route => route.fulfill({ json: [] }));
   await page.route('https://maps.googleapis.com/maps/api/js?**', route => route.abort());
   await page.goto('./');
-  await page.getByRole('button', { name: 'Try demo as Maya', exact: true }).click();
+  await page.getByRole('button', { name: 'Explore a sample trip', exact: true }).click();
   await page.goto('./#/12');
   await page.getByRole('button', { name: 'Add expense', exact: true }).click();
   await page.getByLabel('What was it for?', { exact: true }).fill('Retained demo lunch');
@@ -26,7 +26,7 @@ test('explicit Maya entry resets only the participant while refresh retains it a
       await prototype(page);
       await page.getByRole('button', { name: 'Start at Log in / Create account', exact: true }).click();
     } else await page.getByRole('button', { name: 'Exit demo', exact: true }).click();
-    await page.getByRole('button', { name: 'Try demo as Maya', exact: true }).click();
+    await page.getByRole('button', { name: 'Explore a sample trip', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Account and preferences' })).toContainText('MC');
     await expect(page.getByText('You have view-only access to the shared itinerary.', { exact: true })).toHaveCount(0);
     await page.goto('./#/12');
@@ -38,7 +38,7 @@ test('explicit demo entry chooses an accessible trip without deleting another pa
   await page.route('https://*.supabase.co/**', route => route.fulfill({ json: [] }));
   await page.route('https://maps.googleapis.com/maps/api/js?**', route => route.abort());
   await page.goto('./');
-  await page.getByRole('button', { name: 'Try demo as Maya', exact: true }).click();
+  await page.getByRole('button', { name: 'Explore a sample trip', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Account and preferences' })).toBeVisible();
   await page.evaluate(() => {
     const key = 'trip-planner-demo-v1:demo-maya';
@@ -53,7 +53,7 @@ test('explicit demo entry chooses an accessible trip without deleting another pa
   await page.reload();
   await expect(page.getByRole('button', { name: 'Account and preferences' })).toContainText('NP');
   await page.getByRole('button', { name: 'Exit demo', exact: true }).click();
-  await page.getByRole('button', { name: 'Try demo as Maya', exact: true }).click();
+  await page.getByRole('button', { name: 'Explore a sample trip', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Account and preferences' })).toContainText('MC');
   await expect(page.getByRole('heading', { name: 'Seattle & Bainbridge getaway', exact: true })).toBeVisible();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('trip-planner-demo-v1:demo-maya')!));

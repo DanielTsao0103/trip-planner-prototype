@@ -80,8 +80,8 @@ test('overlap changes update the cue without resizing and preserve preview and M
 
 test('Viewer sees only navigation guidance with a readable dark tablet grid', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.getByRole('button', { name: 'Prototype', exact: true }).click();
-  const controls = page.getByRole('dialog', { name: 'Prototype controls' });
+  await page.getByRole('button', { name: 'Sample trip tools', exact: true }).click();
+  const controls = page.getByRole('dialog', { name: 'Sample trip tools' });
   await controls.getByLabel('View as a fictional participant').selectOption('nora');
   await controls.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await page.setViewportSize({ width: 768, height: 900 });

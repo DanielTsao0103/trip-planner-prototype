@@ -1156,7 +1156,7 @@ export function Suggestions() {
               return <article className="suggestion-card" key={i.id}>
                 <Photo src={i.image} alt={i.title} />
                 <div className="suggestion-body">
-                  <div className="suggestion-source"><span className="eyebrow">{i.tag}</span><Badge>Sample idea</Badge></div>
+                  <div className="suggestion-source"><span className="eyebrow">{i.tag}</span><Badge>Idea</Badge></div>
                   <h2>{i.title}</h2>
                   <p className="suggestion-place"><MapPin size={14} aria-hidden="true" />{i.place}</p>
                   <p>{i.reason}</p>

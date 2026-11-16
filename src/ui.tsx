@@ -710,9 +710,9 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
           <div className="topbar-right">
             {!accountInfo.cloud && <button className="demo-exit" aria-label="Exit demo" onClick={() => void signOut()}>Exit demo</button>}
-            <button className="prototype-button" aria-label="Prototype" title="Prototype controls" onClick={() => open("demo")}>
-              <Settings2 className="prototype-mobile-icon" size={18}/><span className="prototype-label">Prototype</span> <span className="status-dot" />
-            </button>
+            {!accountInfo.cloud && <button className="prototype-button" aria-label="Sample trip tools" title="Sample trip tools" onClick={() => open("demo")}>
+              <Settings2 className="prototype-mobile-icon" size={18}/><span className="prototype-label">Sample trip tools</span> <span className="status-dot" />
+            </button>}
             {trip && (() => {
               // The signed-in person is the picture button on the right, so only show the others here.
               const others = trip.members.filter(
@@ -746,7 +746,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <div className="sample-return info-banner">
               <Compass size={20} />
               <span>
-                You’re exploring the fictional group. Your own trips are saved.
+                You’re exploring a sample trip. Your own trips are saved.
               </span>
               <Button variant="outline small" onClick={returnFromSample}>
                 Back to my trips <ArrowLeft size={15} />
