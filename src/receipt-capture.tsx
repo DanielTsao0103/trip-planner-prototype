@@ -11,6 +11,7 @@ export function ReceiptCapture({ onPhoto, disabled, onPreparingChange }: { onPho
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | undefined>(undefined);
   const request = useRef(0);
+  const previewCleanup = useRef<(() => void) | undefined>(undefined);
   const [camera, setCamera] = useState(false);
   const [ready, setReady] = useState(false);
   const [opening, setOpening] = useState(false);
@@ -18,12 +19,13 @@ export function ReceiptCapture({ onPhoto, disabled, onPreparingChange }: { onPho
   const [error, setError] = useState("");
   const stop = () => {
     request.current++;
+    previewCleanup.current?.(); previewCleanup.current = undefined;
     stream.current?.getTracks().forEach(track => track.stop());
     stream.current = undefined;
     if (video.current) video.current.srcObject = null;
     setCamera(false); setReady(false); setOpening(false); setPreparing(false); onPreparingChange?.(false);
   };
-  useEffect(() => () => { request.current++; stream.current?.getTracks().forEach(track => track.stop()); onPreparingChange?.(false); }, [onPreparingChange]);
+  useEffect(() => () => { request.current++; previewCleanup.current?.(); previewCleanup.current = undefined; stream.current?.getTracks().forEach(track => track.stop()); onPreparingChange?.(false); }, [onPreparingChange]);
   useEffect(() => {
     const hidden = () => { if (document.hidden) stop(); };
     document.addEventListener("visibilitychange", hidden);
@@ -44,6 +46,7 @@ export function ReceiptCapture({ onPhoto, disabled, onPreparingChange }: { onPho
   const openCamera = async () => {
     if (disabled || opening || camera || preparing) return;
     // Do not leave an older video track alive when starting a new capture session.
+    previewCleanup.current?.(); previewCleanup.current = undefined;
     stream.current?.getTracks().forEach(track => track.stop()); stream.current = undefined;
     setReady(false); setError("");
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -57,6 +60,7 @@ export function ReceiptCapture({ onPhoto, disabled, onPreparingChange }: { onPho
       if (current !== request.current) return;
       stop(); setError("The camera did not start. Check camera access in your browser, then try again or upload a receipt photo.");
     }, 20_000);
+    previewCleanup.current = () => window.clearTimeout(timeout);
     try {
       const media = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } });
       if (current !== request.current) { media.getTracks().forEach(track => track.stop()); return; }
@@ -65,17 +69,30 @@ export function ReceiptCapture({ onPhoto, disabled, onPreparingChange }: { onPho
       if (!preview) throw new Error("Camera preview is unavailable.");
       // Explicit properties keep iPhone playback inline and silent.
       preview.muted = true; preview.playsInline = true;
+      const updateReadiness = () => {
+        if (current !== request.current || preview.srcObject !== media) return;
+        const canCapture = preview.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && preview.videoWidth > 0 && preview.videoHeight > 0;
+        setReady(canCapture);
+        if (canCapture) { setOpening(false); window.clearTimeout(timeout); }
+      };
+      // play() may resolve before a frame has dimensions in WebKit. Keep
+      // listening and keep the startup deadline until usable video arrives.
+      const readinessEvents = ["loadedmetadata", "loadeddata", "canplay", "playing", "resize"];
+      for (const event of readinessEvents) preview.addEventListener(event, updateReadiness);
+      previewCleanup.current = () => {
+        window.clearTimeout(timeout);
+        for (const event of readinessEvents) preview.removeEventListener(event, updateReadiness);
+      };
       preview.srcObject = media;
       await preview.play();
-      if (current !== request.current) return;
-      setReady(preview.videoWidth > 0 && preview.videoHeight > 0); setOpening(false);
+      updateReadiness();
     } catch (issue) {
       if (current !== request.current) return;
       stop();
       setError(issue instanceof DOMException && issue.name === "NotAllowedError"
         ? "Camera access was declined. Allow it in your browser, or upload a receipt photo."
         : "The camera could not open. Upload a receipt photo instead.");
-    } finally { window.clearTimeout(timeout); }
+    }
   };
   const capture = () => {
     const source = video.current;

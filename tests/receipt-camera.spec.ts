@@ -68,3 +68,53 @@ test("stalled camera recovers and stops media arriving after timeout", async ({ 
   await expect.poll(() => page.evaluate(() => (window as any).lateCamera.getTracks().every((track: MediaStreamTrack) => track.readyState === "ended"))).toBe(true);
   await expect(page.getByLabel("Receipt camera preview")).toHaveCount(0);
 });
+
+test("camera becomes capturable when video data arrives after play resolves", async ({ page }) => {
+  await openReceipt(page);
+  await page.evaluate(() => {
+    let frameAvailable=false;
+    Object.defineProperty(HTMLVideoElement.prototype,"videoWidth",{configurable:true,get:()=>frameAvailable?320:0});
+    Object.defineProperty(HTMLVideoElement.prototype,"videoHeight",{configurable:true,get:()=>frameAvailable?240:0});
+    Object.defineProperty(HTMLVideoElement.prototype,"readyState",{configurable:true,get:()=>frameAvailable?HTMLMediaElement.HAVE_CURRENT_DATA:HTMLMediaElement.HAVE_NOTHING});
+    Object.defineProperty(HTMLMediaElement.prototype,"play",{configurable:true,value:()=>Promise.resolve()});
+    Object.defineProperty(MediaDevices.prototype,"getUserMedia",{configurable:true,value:async()=>{
+      const media=document.createElement("canvas").captureStream(5);
+      Object.assign(window,{delayedFrameMedia:media});return media;
+    }});
+    Object.assign(window,{deliverCameraFrame:()=>{
+      frameAvailable=true;
+      document.querySelector<HTMLVideoElement>('video[aria-label="Receipt camera preview"]')!.dispatchEvent(new Event("loadeddata"));
+    }});
+  });
+  await page.getByRole("button",{name:"Take photo",exact:true}).click();
+  const capture=page.getByRole("button",{name:"Capture receipt",exact:true});
+  await expect(capture).toBeDisabled();
+  await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+  await page.evaluate(()=>(window as any).deliverCameraFrame());
+  await expect(capture).toBeEnabled();
+  await page.getByRole("button",{name:"Close camera",exact:true}).click();
+  expect(await page.evaluate(()=>(window as any).delayedFrameMedia.getTracks().every((track:MediaStreamTrack)=>track.readyState==="ended"))).toBe(true);
+});
+
+
+test("resolved playback without a usable frame still times out and stops its stream",async({page})=>{
+  await openReceipt(page);
+  await page.evaluate(()=>{
+    Object.defineProperty(HTMLVideoElement.prototype,"videoWidth",{configurable:true,get:()=>0});
+    Object.defineProperty(HTMLVideoElement.prototype,"videoHeight",{configurable:true,get:()=>0});
+    Object.defineProperty(HTMLMediaElement.prototype,"play",{configurable:true,value:()=>Promise.resolve()});
+    Object.defineProperty(MediaDevices.prototype,"getUserMedia",{configurable:true,value:async()=>{
+      const media=document.createElement("canvas").captureStream(5);
+      Object.assign(window,{emptyFrameMedia:media});return media;
+    }});
+  });
+  await page.clock.install();
+  await page.getByRole("button",{name:"Take photo",exact:true}).click();
+  await expect(page.getByText("Opening camera…",{exact:true})).toBeVisible();
+  await expect(page.getByRole("button",{name:"Capture receipt",exact:true})).toBeDisabled();
+  await page.clock.fastForward(20_001);
+  await expect(page.getByRole("alert")).toContainText("The camera did not start");
+  expect(await page.evaluate(()=>(window as any).emptyFrameMedia.getTracks().every((track:MediaStreamTrack)=>track.readyState==="ended"))).toBe(true);
+  await expect(page.getByLabel("Receipt camera preview")).toHaveCount(0);
+  await expect(page.getByRole("button",{name:"Take photo",exact:true})).toBeEnabled();
+});
