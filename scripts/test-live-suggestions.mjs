@@ -77,6 +77,12 @@ try{
 }catch(error){report.success=false;report.failure=String(error);if(page)await page.screenshot({path:output+'/suggestion-failure.png',fullPage:true}).catch(()=>{});process.exitCode=1;console.error(error);
 }finally{
  if(browser)await browser.close();
- try{if(tripId){checked(await admin.from('trip').delete().eq('tripID',tripId));report.cleanup.tripDeleted=checked(await admin.from('trip').select('tripID').eq('tripID',tripId)).length===0;}for(const client of clients)await client.auth.signOut();if(owner){checked(await admin.auth.admin.deleteUser(owner.id));report.cleanup.accountDeleted=(await admin.auth.admin.getUserById(owner.id)).error?.status===404;}assert.ok(!tripId||report.cleanup.tripDeleted);assert.ok(!owner||report.cleanup.accountDeleted);}catch(error){report.cleanup.failure=String(error);process.exitCode=1;}
+ try{if(tripId){checked(await admin.from('trip').delete().eq('tripID',tripId));report.cleanup.tripDeleted=checked(await admin.from('trip').select('tripID').eq('tripID',tripId)).length===0;}for(const client of clients)await client.auth.signOut();if(owner){
+   // Auth deletion does not cascade into the legacy public profile table.
+   checked(await admin.from('user').delete().eq('userID',owner.id).eq('email',owner.email));
+   report.cleanup.profileDeleted=checked(await admin.from('user').select('userID').eq('userID',owner.id)).length===0;
+   assert.ok(report.cleanup.profileDeleted);
+   checked(await admin.auth.admin.deleteUser(owner.id));report.cleanup.accountDeleted=(await admin.auth.admin.getUserById(owner.id)).error?.status===404;
+  }assert.ok(!tripId||report.cleanup.tripDeleted);assert.ok(!owner||report.cleanup.accountDeleted);}catch(error){report.cleanup.failure=String(error);process.exitCode=1;}
  writeFileSync(output+'/suggestions-live-account.json',JSON.stringify(report,null,2));console.log('Evidence: '+output+'/suggestions-live-account.json');console.log('Cleanup: '+JSON.stringify(report.cleanup));
 }

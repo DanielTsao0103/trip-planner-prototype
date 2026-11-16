@@ -32,7 +32,8 @@ try{
  verify('payer cannot attach receipt to nonexistent expense',!!(await owner.client.from('expense_receipt_details').insert({...row,expense_id:'not-an-expense'})).error);
  verify('payer cannot transfer receipt ownership',!!(await owner.client.from('expense_receipt_details').update({account_id:other.id}).eq('trip_id',tripId)).error);
  photoPath=`${owner.id}/${tripId}/${expenseId}`;
- const image=readFileSync(output+'/ocr/cafe.png');
+ // Storage round-trip fixture is self-contained; real OCR has its own camera test.
+ const image=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAE0lEQVR4nGP8//8/AwMDEwMYAAAkBgMBXaJOiAAAAABJRU5ErkJggg==','base64');
  check(await owner.client.storage.from('expense-receipts').upload(photoPath,image,{contentType:'image/png',upsert:false}));
  const loaded=check(await owner.client.storage.from('expense-receipts').download(photoPath));
  verify('private receipt photo survives independent read',Buffer.from(await loaded.arrayBuffer()).equals(image));
@@ -46,11 +47,25 @@ try{
  verify('confirmed expense deletion removes private receipt details',check(await admin.from('expense_receipt_details').select('expense_id').eq('trip_id',tripId)).length===0);
  check(await owner.client.storage.from('expense-receipts').remove([photoPath]));
  verify('payer removes receipt photo after confirmed expense deletion',check(await admin.storage.from('expense-receipts').list(`${owner.id}/${tripId}`)).length===0);
- await fresh.auth.signOut();writeFileSync(output+'/receipt-live-storage.json',JSON.stringify({passed,checkedAt:new Date().toISOString()},null,2));
+ await fresh.auth.signOut();
 }finally{
- if(photoPath&&accounts[0])check(await accounts[0].client.storage.from('expense-receipts').remove([photoPath]));
- if(tripId)check(await admin.from('trip').delete().eq('tripID',tripId));
- for(const a of accounts){await a.client.auth.signOut();check(await admin.auth.admin.deleteUser(a.id));}
- if(tripId)assert.equal(check(await admin.from('expense_receipt_details').select('expense_id').eq('trip_id',tripId)).length,0);
- console.log('Cleanup verified.');
+ const cleanup={accounts:[],tripDeleted:false,receiptDetailsDeleted:false,errors:[]};
+ try{if(photoPath&&accounts[0])check(await admin.storage.from('expense-receipts').remove([photoPath]));}catch(error){cleanup.errors.push(`Photo: ${error.message}`);}
+ try{
+  if(tripId){check(await admin.from('trip').delete().eq('tripID',tripId));cleanup.tripDeleted=check(await admin.from('trip').select('tripID').eq('tripID',tripId)).length===0;cleanup.receiptDetailsDeleted=check(await admin.from('expense_receipt_details').select('expense_id').eq('trip_id',tripId)).length===0;assert.ok(cleanup.tripDeleted&&cleanup.receiptDetailsDeleted);}
+ }catch(error){cleanup.errors.push(`Trip: ${error.message}`);}
+ for(const a of accounts){
+  try{
+   await a.client.auth.signOut();
+   // Match both generated identity and email; never sweep unrelated profiles.
+   check(await admin.from('user').delete().eq('userID',a.id).eq('email',a.email));
+   const profileDeleted=check(await admin.from('user').select('userID').eq('userID',a.id)).length===0;assert.ok(profileDeleted);
+   check(await admin.auth.admin.deleteUser(a.id));
+   const accountDeleted=(await admin.auth.admin.getUserById(a.id)).error?.status===404;assert.ok(accountDeleted);
+   cleanup.accounts.push({id:a.id,profileDeleted,accountDeleted});
+  }catch(error){cleanup.errors.push(`Account ${a.id}: ${error.message}`);}
+ }
+ writeFileSync(output+'/receipt-live-storage.json',JSON.stringify({passed,cleanup,checkedAt:new Date().toISOString()},null,2));
+ if(cleanup.errors.length)throw new Error('Cleanup failed: '+cleanup.errors.join('; '));
+ console.log('Cleanup verified: generated accounts, profiles, trip and receipt details removed.');
 }

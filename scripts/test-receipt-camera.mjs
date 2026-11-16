@@ -176,8 +176,12 @@ try {
       assert.equal(checked(await live.admin.storage.from('expense-receipts').list(prefix)).length,0);
       checked(await live.admin.from('trip').delete().eq('tripID',live.tripId));
       assert.equal(checked(await live.admin.from('expense_receipt_details').select('expense_id').eq('trip_id',live.tripId)).length,0);
-      await live.client.auth.signOut();checked(await live.admin.auth.admin.deleteUser(live.owner.id));
-      assert.equal((await live.admin.auth.admin.getUserById(live.owner.id)).error?.status,404);cleanupVerified=true;console.log('Cleanup verified: disposable account, trip, photo and receipt document removed.');
+      await live.client.auth.signOut();
+      // This legacy profile table has no Auth cascade; delete only this run's identity.
+      checked(await live.admin.from('user').delete().eq('userID',live.owner.id).eq('email',live.owner.email));
+      assert.equal(checked(await live.admin.from('user').select('userID').eq('userID',live.owner.id)).length,0);
+      checked(await live.admin.auth.admin.deleteUser(live.owner.id));
+      assert.equal((await live.admin.auth.admin.getUserById(live.owner.id)).error?.status,404);cleanupVerified=true;console.log('Cleanup verified: disposable account, profile, trip, photo and receipt document removed.');
     }catch(error){completed=false;failure=`Cleanup: ${error.message}`;process.exitCode=1;console.error(failure);}
   }
   writeFileSync(output+'/results.json',JSON.stringify({completed,failure,method:`Real Chromium getUserMedia and canvas capture using a generated virtual-camera video; real Tesseract OCR; ${liveMode?'real disposable account and independent database/storage readback':'sample persistence'}. No physical camera or phone OS picker claim.`,site,cleanupVerified:liveMode?cleanupVerified:undefined,checks:results},null,2));
