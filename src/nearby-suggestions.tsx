@@ -233,7 +233,6 @@ export function NearbySuggestions({ embedded = false, initialDate, onDateChange 
   }
   const content = <>
     <p className="nearby-intro">Find real places around your plans, with addresses ready to add to your itinerary.</p>
-    <p className="fine-print">Up to 3 ideas per search. The app’s daily generation cap is disabled for testing.</p>
     <div className="nearby-research-controls">
       {!embedded && <Field label="Trip day"><select value={date} onChange={e => selectDate(e.target.value)}>{days(trip.start, trip.end).map(day => <option key={day} value={day}>{dateText(day)}</option>)}</select></Field>}
       <Field label="Find"><select value={intent} onChange={e => setIntent(e.target.value as Intent)}><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="activity">Things to do</option></select></Field>
@@ -252,7 +251,6 @@ export function NearbySuggestions({ embedded = false, initialDate, onDateChange 
     </div>
     {isDemo && <p className="info-banner">Nearby research is available on account trips.</p>}
     {pending && <p role="status">Waiting for your trip changes to finish saving before researching.</p>}
-    <p className="fine-print">Search and AI providers may still apply their own temporary rate limits.</p>
     {!context.gaps.length && <div className="nearby-day-recovery"><p role="status">No open time block is available in this window. You can still research ideas; choose a time in the itinerary editor if you want to add one.</p>{nextAvailableDay && <Button variant="outline" onClick={() => selectDate(nextAvailableDay)}>Try {dateText(nextAvailableDay, true)}</Button>}</div>}
     <Button onClick={() => void research()} disabled={loading || isDemo || pending || !context.area}><Search size={17} />{loading ? "Finding nearby places…" : "Find nearby suggestions"}</Button>
     {loading && <p role="status">Looking for places with real addresses. Your plans and preferences stay in view.</p>}
