@@ -64,7 +64,7 @@ test("account popup displays sourced review candidates, resets stale results and
   await expect(dialog.locator(".nearby-more")).not.toHaveAttribute("open", "");
   await expect(dialog).not.toContainText("Found during research for this trip day");
   await dialog.getByText("More to consider", { exact: true }).click();
-  await expect(dialog.getByRole("link", { name: "Source 1" })).toHaveAttribute("href", "https://example.com/menu");
+  await expect(dialog.getByRole("link", { name: "https://example.com/menu" })).toHaveAttribute("href", "https://example.com/menu");
   await expect(dialog.getByRole("link", { name: "View on Google Maps", exact: true })).toHaveCount(0);
   await expect(dialog.getByRole("link", { name: "Search on Google", exact: true })).toHaveAttribute("href", "https://www.google.com/search?q=Fixture+venue+for+UI+testing+Test+address");
   await expect(dialog.getByRole("link", { name: "View on Yelp", exact: true })).toHaveAttribute("href", /https:\/\/www.yelp.com\/search\?/);
@@ -105,13 +105,14 @@ test("city guide fallback displays a photo and source exploration without schedu
   const dialog = page.getByRole("dialog", { name: "Nearby suggestions" });
   await dialog.getByRole("button", { name: "Find nearby suggestions", exact: true }).click();
   const card = dialog.locator(".nearby-result");
-  await expect(card.getByRole("heading", { name: "Explore Seattle and the surrounding region", exact: true })).toBeVisible();
+  await expect(card.getByRole("heading", { name: "Seattle", exact: true })).toBeVisible();
+  await card.getByText("More to consider",{exact:true}).click();
   const explore = card.getByRole("link", { name: "Explore city and region ideas", exact: true });
   await explore.scrollIntoViewIfNeeded();
   await expect(explore).toHaveAttribute("href", source);
   await expect(explore).toHaveAttribute("target", "_blank");
-  await expect(card.getByRole("button", { name: "Review and add to this day", exact: true })).toHaveCount(0);
-  await expect(card).toContainText("Explore activities before choosing a time");
+  await expect(card.getByRole("button", { name: "Add to itinerary", exact: true })).toBeEnabled();
+  await expect(card).toContainText("Proposed time");
   await expect(card).toContainText("Price not confirmed");
   await expect(card).not.toContainText(/provisional gap|No suitable time gap found|per person|within.*budget/i);
   const image = card.locator(".nearby-result-photo");
@@ -128,7 +129,7 @@ test("a sourced Yelp business page opens directly and supplemental availability 
   await dialog.getByRole("button", { name: "Find nearby suggestions", exact: true }).click();
   await dialog.getByText("More to consider", { exact: true }).click();
   await expect(dialog.getByRole("link", { name: "View on Yelp", exact: true })).toHaveAttribute("href", source);
-  await expect(dialog.getByRole("link", { name: "Yelp source", exact: true })).toHaveAttribute("href", source);
+  await expect(dialog.getByRole("link", { name: source, exact: true })).toHaveAttribute("href", source);
   await dialog.getByText("Search details", { exact: true }).click();
   await expect(dialog).toContainText("Public Yelp results were found");
   await expect(dialog).toContainText("1 Yelp excerpt used");
@@ -158,6 +159,39 @@ test("empty research shows the specific cause and rejection counts", async ({ pa
 
 const candidate = { name: "Research fixture garden", address: "Seattle garden", reason: "A quiet break", durationMinutes: 60, pricePerPersonCents: null, currency: null, facts: [{topic:"Hours",detail:"Check the current hours",sourceUrl:"https://example.com/garden"}], concerns:["Confirm access"], conflicts:[], status:"review", proposedTime:{start:"12:00",end:"13:00"} };
 
+test("guide ideas add once to the itinerary with location titles and distinct linked notes", async ({page})=>{
+  const writes: any[]=[];
+  page.on('request',request=>{if(request.url().endsWith('/save_account_trip')) writes.push(request.postDataJSON().p_data);});
+  const guides=[{...candidate,kind:"guide",name:"Seattle waterfront guide",facts:[{topic:"Guide excerpt",detail:"The waterfront has public piers. Then a clipped frag",sourceUrl:"https://example.com/waterfront"}]},{...candidate,kind:"guide",name:"Seattle gardens guide",facts:[{topic:"Guide excerpt",detail:"The gardens have seasonal flowers. Another clipped frag",sourceUrl:"https://example.com/gardens"}]}];
+  await account(page,()=>({json:{results:guides}}));
+  const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
+  await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+  const cards=dialog.locator('.nearby-result');
+  await expect(cards).toHaveCount(2);
+  await expect(cards.first().getByRole('heading',{name:'Seattle',exact:true})).toBeVisible();
+  await expect(cards.first()).not.toContainText('clipped frag');
+  await expect(cards.first().getByRole('link',{name:'Explore city and region ideas',exact:true})).not.toBeVisible();
+  await cards.first().getByText('More to consider',{exact:true}).click();
+  await expect(cards.first().getByRole('link',{name:'https://example.com/waterfront',exact:true})).toBeVisible();
+  await cards.first().getByText('More to consider',{exact:true}).click();
+  await cards.first().getByRole('button',{name:'Save for later',exact:true}).click();
+  await expect(cards.first().getByRole('button',{name:'Already in your plans',exact:true})).toBeDisabled();
+  await cards.first().getByRole('button',{name:'Add to itinerary',exact:true}).click();
+  await expect(cards.first().getByRole('button',{name:'Added to itinerary',exact:true})).toBeDisabled();
+  await cards.nth(1).getByRole('button',{name:'Add to itinerary',exact:true}).click();
+  await expect(cards.nth(1).getByRole('button',{name:'Added to itinerary',exact:true})).toBeDisabled();
+  await expect.poll(()=>writes.at(-1)?.events.length).toBe(2);
+  const events=writes.at(-1).events;
+  expect(writes.at(-1).savedPlaces).toHaveLength(0);
+  expect(events.map((event:any)=>event.name)).toEqual(['Seattle','Seattle']);
+  expect(events[0].notes).toContain('https://example.com/waterfront'); expect(events[1].notes).toContain('https://example.com/gardens');
+  expect(events[0].notes).not.toEqual(events[1].notes); expect(events[0].notes).not.toContain('clipped frag');
+  expect(events[1].start).toBe('13:30');
+  await page.reload();
+  await expect(page.getByRole('button',{name:'Nearby suggestions',exact:true})).toBeVisible();
+  expect(writes.at(-1).events).toHaveLength(2);
+});
+
 test("recommendation facts precede More to consider and sourced Maps links open the named place", async ({ page }) => {
   const maps = "https://www.google.com/maps/place/Meiji+Shrine/";
   await account(page, () => ({json:{results:[{...candidate,name:"Meiji Shrine",address:"Tokyo, Japan",fitNote:"A peaceful stop among the trees.",facts:[{topic:"Venue",detail:"Meiji Shrine in Tokyo",sourceUrl:maps}]}]}}), "Owner", "McDonald's, Seattle");
@@ -174,7 +208,7 @@ test("recommendation facts precede More to consider and sourced Maps links open 
   const link=card.getByRole("link",{name:"View on Google Maps",exact:true});
   await expect(link).toHaveAttribute("href",maps);
   await expect(link).toHaveAttribute("rel","noopener noreferrer");
-  await expect(card.getByRole("link",{name:"Source 1",exact:true})).toBeVisible();
+  await expect(card.getByRole("link",{name:maps,exact:true})).toBeVisible();
   await card.getByText("More to consider",{exact:true}).click();
   await card.getByText("More to consider",{exact:true}).focus();
   await page.keyboard.press('Enter');
@@ -247,17 +281,19 @@ test('Nearby permits Day Editors to research other days but only schedule assign
   await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
   await expect(dialog.getByRole('button',{name:'Review and add to this day',exact:true})).toBeDisabled();
   await expect(dialog.getByRole('button',{name:'Save for later',exact:true})).toHaveCount(0);
+  await expect(dialog.getByRole('button',{name:'Add to itinerary',exact:true})).toBeDisabled();
   await dialog.getByLabel('Trip day',{exact:true}).selectOption('2027-05-02');
   await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
   await expect(dialog.getByRole('button',{name:'Review and add to this day',exact:true})).toBeEnabled();
 });
 
-for (const action of ['close','change day']) test(`late photo attribution cannot navigate after Nearby ${action}`,async({page})=>{
+for (const action of ['close','change day']) for (const operation of ['review','add']) test(`late photo attribution cannot ${operation} after Nearby ${action}`,async({page})=>{
   await account(page,()=>({json:{results:[candidate]}}));
   const photo = {id:'fixture-photo',alt_description:'A peaceful garden',width:1200,height:800,urls:{regular:'https://images.unsplash.com/fixture'},links:{html:'https://unsplash.com/photos/fixture',download_location:'https://api.unsplash.com/photos/fixture/download'},user:{name:'Fixture photographer',links:{html:'https://unsplash.com/@fixture'}}};
   await page.route('**/functions/v1/unsplash-search?**',r=>r.fulfill({json:{results:[photo,{...photo,id:'fixture-photo-2'}]}}));
   await page.route('https://images.unsplash.com/**',r=>r.fulfill({path:fileURLToPath(new URL('../public/images/food.jpg',import.meta.url)),contentType:'image/jpeg'}));
-  let release!:()=>void, started=false;
+  let release!:()=>void, started=false, saves=0;
+  page.on('request',request=>{if(request.url().endsWith('/save_account_trip'))saves++;});
   const held=new Promise<void>(resolve=>{release=resolve;});
   await page.route('**/functions/v1/unsplash-track',async r=>{started=true;await held;await r.fulfill({json:{success:true}});});
   const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
@@ -273,4 +309,5 @@ for (const action of ['close','change day']) test(`late photo attribution cannot
   await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
   await expect(page).toHaveURL(/#\/9$/);
   if(action==='change day') await expect(dialog.getByLabel('Trip day',{exact:true})).toHaveValue('2027-05-02');
+  expect(saves).toBe(0);
 });

@@ -1,8 +1,16 @@
 # Nearby research — free providers
 
-> **In progress — November 14, 2026:** The source-backed activity fallback, up-to-three suggestion tiles, Unsplash imagery, trip-fit note and event-editor handoff are being prepared for review. This push is a work in progress. The quota migration and updated Edge Function still need deployment before the new backend behavior is available for live testing.
+> **November 15, 2026:** Research is deployed with bounded free-provider usage, concrete-stop ranking and broader guide fallback. Cards offer direct itinerary addition through the existing revision-checked trip queue, plus the event editor for adjustments. The changes below have desktop/mobile and live disposable-account verification.
 
-Nearby entry points on Itinerary, Daily itinerary, Today, Map and Suggestions open one themed popup. Itinerary and Map pass their selected day/event. Account research uses the current database snapshot; samples show context without calling external providers. Recommendations use live retrieval, not model training on tourism sources. Results appear as up to three source-backed tiles with optional attributed Unsplash photos. Review and add opens the existing event editor; saving there is required.
+Nearby entry points on Itinerary, Daily itinerary, Today, Map and Suggestions open one themed popup. Itinerary and Map pass their selected day/event. Account research uses the current database snapshot; samples show context without calling external providers. Recommendations use live retrieval, not model training on tourism sources. Results appear as up to three source-backed tiles with attributed Unsplash or illustrative fallback photos.
+
+## Recommendation finishing (November 15, 2026)
+
+Every account recommendation has an Add to itinerary action. It rechecks editing rights, fresh available slots, event validation and supported group costs before using the existing trip-save queue. Owner/Editor additions retire a matching saved-place item in that same transaction. Pending and failed writes retain the app's recovery controls; only a confirmed save gets the completed button label. The editor remains available when people want a different time or other changes. Closing Nearby or changing its date cancels outstanding photo-attribution continuations.
+
+Broader guides use the destination as their itinerary title, with the original guide title, specific excerpt and full source links in their notes. Their Explore city and region ideas link is inside More to consider. Source labels show actual URLs and duplicate links are removed. Guide excerpts end at complete sentences, including Chinese punctuation; an unfinished source fragment is replaced by a link to the full guide. AI ranking explicitly prioritizes named venues and schedulable activities. Repeated thought text is replaced with each option's own source details, and stored notes avoid repeated lines.
+
+Verification: 220 unit checks, 34 focused desktop/mobile cases, and a live Taipei browser → Edge Function → trip-save → fresh database readback using disposable accounts. The live run returned three broader guides and confirmed one was saved with the destination title and source link; QA accounts/trips were removed. This verifies the fallback and save path, not the existence of a specific venue match in that run.
 
 ## Workflow and evidence
 

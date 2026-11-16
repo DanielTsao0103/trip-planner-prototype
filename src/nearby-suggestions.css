@@ -44,5 +44,6 @@
 .nearby-more .nearby-considerations, .nearby-more .nearby-considerations p, .nearby-more .nearby-considerations li { font-size: 12px; }
 .nearby-considerations p { margin: 8px 0; }
 .nearby-considerations ul { margin: 8px 0 14px; }
+.nearby-result-actions .nearby-add { flex-basis: 100%; margin-top: 4px; }
 @media (prefers-reduced-motion: reduce) { .nearby-more > summary svg { transition: none; } }
 @media (max-width: 480px) { .nearby-research-controls { grid-template-columns: 1fr; gap: 0; } .nearby-context-panel dl { grid-template-columns: 1fr; gap: 4px; } .nearby-context-panel dd { margin-bottom: 8px; } }

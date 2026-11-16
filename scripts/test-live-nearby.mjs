@@ -74,6 +74,7 @@ try {
   assert.equal(response.status(), 200, result.message || "Live research failed");
   assert.ok(Array.isArray(result.results)); assert.ok(result.results.length <= 3);
   assert.ok(result.results.length > 0, "No live candidates survived the evidence checks; inspect response.json.");
+  assert.equal(new Set(result.results.map(item => item.fitNote)).size, result.results.length, "Live recommendations need distinct notes");
   assert.ok(result.diagnostics, "Expected stage-specific search diagnostics");
   await page.getByRole("heading", { name: "Options to review", exact: true }).scrollIntoViewIfNeeded();
   assert.equal(await page.locator(".nearby-result").count(), result.results.length, "Live response candidates must render");
@@ -85,11 +86,13 @@ try {
   for (const [index, candidate] of result.results.entries()) {
     assert.equal(candidate.status, "review"); assert.ok(candidate.facts.length > 0);
     const card = page.locator(".nearby-result").nth(index);
-    assert.equal(await card.getByRole("heading", { name: candidate.name, exact: true }).count(), 1);
+    assert.equal(await card.getByRole("heading", { level: 4 }).count(), 1);
+    assert.equal(await card.getByRole("button", { name: "Add to itinerary", exact: true }).count(), 1);
     if (candidate.kind === "guide") {
       assert.equal(candidate.proposedTime, null);
-      assert.equal(await card.getByRole("button", { name: "Review and add to this day", exact: true }).count(), 0);
+      await card.getByText("More to consider",{exact:true}).click();
       assert.equal(await card.getByRole("link", { name: "Explore city and region ideas", exact: true }).getAttribute("href"), candidate.facts[0].sourceUrl);
+      await card.getByText("More to consider",{exact:true}).click();
     } else {
       assert.equal(await card.getByRole("button", { name: "Review and add to this day", exact: true }).count(), 1);
     }
@@ -112,6 +115,15 @@ try {
   await page.locator(".nearby-result").first().scrollIntoViewIfNeeded();
   assert.ok(await page.getByRole("dialog", { name: "Nearby suggestions" }).evaluate(element => element.scrollWidth <= element.clientWidth + 1), "Research dialog must fit mobile width");
   await page.screenshot({ path: `${artifact}/mobile.png`, fullPage: true });
+  const firstCard = page.locator(".nearby-result").first();
+  await firstCard.getByRole("button", { name: "Add to itinerary", exact: true }).click();
+  await page.getByRole("button", { name: "Added to itinerary", exact: true }).waitFor({ state: "visible" });
+  const fresh = check(await owner.client.rpc("nearby_trip_context", { p_trip_id: trip.id }));
+  assert.equal(fresh.content.events.length, trip.events.length + 1, "Direct add must be confirmed in the real database");
+  const added = fresh.content.events.at(-1);
+  assert.ok(added.notes.includes(result.results[0].facts[0].sourceUrl));
+  if (result.results[0].kind === "guide") assert.equal(added.name, trip.destinations[0]);
+  body.revision = fresh.revision;
   const immediate = await owner.client.functions.invoke("nearby-suggestions", { body });
   assert.ok(immediate.error); assert.equal(immediate.error.context.status, 429);
   console.log(`PASS: browser → live function → real database → Tavily → Groq returned ${result.results.filter(item => item.kind !== "guide").length} venue candidates and ${result.results.filter(item => item.kind === "guide").length} city/region guides; immediate repeat blocked by quota.`);

@@ -1,3 +1,4 @@
+import { distinctRecommendationThoughts } from "../_shared/nearby-content.ts";
 import { planningContext, reviewCandidates, type PlanningTrip, type EmptyReason, type ReviewRejections } from "../_shared/nearby.ts";
 import { assertContextFits, researchWithFreeProviders, ResearchError } from "./providers.ts";
 
@@ -35,7 +36,7 @@ export function createNearbyHandler(config: { enabled: boolean; groq?: string; t
       const research = await researchWithFreeProviders(context, { groq: config.groq, tavily: config.tavily }, fetcher);
       const rejected: ReviewRejections = {};
       const reviewed = reviewCandidates(research.candidates, context, research.sources, rejected);
-      const results = reviewed.length ? reviewed : research.guides || [];
+      const results = distinctRecommendationThoughts(reviewed.length ? reviewed : research.guides || []);
       if (research.candidateCount && !research.candidates.length) rejected.invalid = research.candidateCount;
       const reasons = Object.keys(rejected) as (keyof ReviewRejections)[];
       const emptyReason: EmptyReason | undefined = results.length ? undefined : !research.sourceCount ? "no_sources" : !research.candidateCount ? "no_candidates" : reasons.length === 1 ? reasons[0] : "filtered";

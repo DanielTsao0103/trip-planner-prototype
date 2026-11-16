@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ExternalLink, MapPin, Search } from "lucide-react";
 import { useApp } from "./state";
 import { Button, Field, Modal } from "./ui";
-import { canEdit, days, dateText, member, money, timeText, uid } from "./domain";
-import { TEXT_LIMITS, textError } from "./limits";
+import { canEdit, days, dateText, eventError, member, money, timeText, uid } from "./domain";
+import { MONEY_LIMITS, TEXT_LIMITS, textError } from "./limits";
 import { getSupabase } from "./supabase";
 import { searchDestinationPhotos, trackUnsplashSelection, type UnsplashPhoto } from "./trip-photos";
 import { suggestionPhotoSearch } from "./nearby-photo-search";
-import { planningContext, safeSource, nearbyListingLinks, isYelpSource, YELP_SEARCH_MESSAGES, NEARBY_EMPTY_MESSAGES, type YelpSearchStatus, type EmptyReason, type ReviewRejections, type Intent, type NearbyResult } from "../supabase/functions/_shared/nearby.ts";
+import { planningContext, reviewCandidates, safeSource, nearbyListingLinks, YELP_SEARCH_MESSAGES, NEARBY_EMPTY_MESSAGES, type YelpSearchStatus, type EmptyReason, type ReviewRejections, type Intent, type NearbyResult } from "../supabase/functions/_shared/nearby.ts";
+import { distinctRecommendationThoughts, recommendationLocation, recommendationTitle, recommendationNotes, recommendationSlot, recommendationGroupCost, sentenceExcerpt } from "../supabase/functions/_shared/nearby-content.ts";
 import "./nearby-suggestions.css";
 
 type NearbyPhoto = { url: string; alt: string; label: string; credit?: UnsplashPhoto["credit"]; selection?: UnsplashPhoto };
@@ -22,14 +23,17 @@ export function NearbySuggestions() {
   const [results, setResults] = useState<NearbyResult[] | null>(null);
   const [photos, setPhotos] = useState<Record<string, NearbyPhoto>>({});
   const [preparing, setPreparing] = useState(false);
+  const [preparingLabel, setPreparingLabel] = useState("Preparing the event editor…");
   const [addError, setAddError] = useState("");
   const [emptyReason, setEmptyReason] = useState<EmptyReason>("filtered");
   const [diagnostics, setDiagnostics] = useState<{ sourcesFound: number; sourcesUsed: number; candidatesReturned: number; recoveryAttempted?: boolean; rejected: ReviewRejections; yelpStatus?: YelpSearchStatus; yelpSourcesUsed?: number } | null>(null);
   const request = useRef<AbortController | null>(null);
-  const contextKey = JSON.stringify([trip?.id, trip?.destinations, trip?.zone, trip?.start, trip?.end, trip?.events, trip?.members, trip?.prefs, trip?.budget, trip?.budgetMode, trip?.individual, trip?.expenses, date, intent, overlay?.data?.event]);
+  const contextKey = JSON.stringify([trip?.id, trip?.destinations, trip?.zone, trip?.start, trip?.end, trip?.members, trip?.prefs, trip?.budget, trip?.budgetMode, trip?.individual, trip?.expenses, date, intent, overlay?.data?.event]);
+  const eventsKey = JSON.stringify(trip?.events);
   const continuation = useRef(0);
   useEffect(() => { continuation.current += 1; setPreparing(false); return () => { continuation.current += 1; }; }, [contextKey]);
   useEffect(() => { request.current?.abort(); setResults(null); setPhotos({}); setAddError(""); setDiagnostics(null); setError(""); setLoading(false); return () => { request.current?.abort(); }; }, [contextKey]);
+  useEffect(() => { continuation.current += 1; request.current?.abort(); setLoading(false); setPreparing(false); }, [eventsKey]);
   useEffect(() => {
     if (!results?.length || !trip) return;
     const controller = new AbortController();
@@ -86,7 +90,7 @@ export function NearbySuggestions() {
       }
       if (!data || !Array.isArray(data.results)) throw new Error("Research returned an invalid response.");
       if (!controller.signal.aborted) {
-        setResults(data.results);
+        setResults(distinctRecommendationThoughts(data.results));
         setEmptyReason(typeof data.emptyReason === "string" && Object.hasOwn(NEARBY_EMPTY_MESSAGES, data.emptyReason) ? data.emptyReason as EmptyReason : "filtered");
         setDiagnostics(data.diagnostics || null);
       }
@@ -95,19 +99,22 @@ export function NearbySuggestions() {
     } finally { clearTimeout(timeout); if (request.current === controller) setLoading(false); }
   }
   const canSave = ["Owner", "Editor"].includes(member(trip,s.userId)?.role || "");
-  const resultPlace = (result: NearbyResult) => result.address === "Address needs confirmation from the venue" ? context.area : result.address;
-  const resultNotes = (result: NearbyResult) => [result.fitNote || result.reason, ...result.facts.filter(fact => safeSource(fact.sourceUrl)).map(fact => `${fact.topic}: ${fact.detail} — ${fact.sourceUrl}`), ...result.concerns.map(concern => `Confirm: ${concern}`)].join("\n");
-  const alreadyKept = (result: NearbyResult) => [...(trip.savedPlaces || []), ...trip.events].some(place => place.name.trim().toLocaleLowerCase() === result.name.trim().toLocaleLowerCase() && place.place.trim().toLocaleLowerCase() === resultPlace(result).trim().toLocaleLowerCase());
+  const resultPlace = (result: NearbyResult) => recommendationLocation(result, context);
+  const resultTitle = (result: NearbyResult) => recommendationTitle(result, context);
+  const resultNotes = (result: NearbyResult) => recommendationNotes(result, context);
+  const matchesIdea = (place: { name: string; place: string; notes: string }, result: NearbyResult) => result.kind === "guide" ? !!result.facts[0]?.sourceUrl && place.notes.includes(result.facts[0].sourceUrl) : place.name.trim().toLocaleLowerCase() === resultTitle(result).trim().toLocaleLowerCase() && place.place.trim().toLocaleLowerCase() === resultPlace(result).trim().toLocaleLowerCase();
+  const alreadyAdded = (result: NearbyResult) => trip.events.some(event => matchesIdea(event, result));
+  const alreadyKept = (result: NearbyResult) => [...(trip.savedPlaces || []), ...trip.events].some(place => matchesIdea(place, result));
   function saveForLater(result: NearbyResult) {
     if (!trip || !canSave || alreadyKept(result)) return;
     const place = resultPlace(result), notes = resultNotes(result);
-    const problem = textError(result.name, "Place name", TEXT_LIMITS.eventName, true) || textError(place,"Location",TEXT_LIMITS.eventAddress,true) || textError(notes,"Notes",TEXT_LIMITS.notes);
+    const problem = textError(resultTitle(result), "Place name", TEXT_LIMITS.eventName, true) || textError(place,"Location",TEXT_LIMITS.eventAddress,true) || textError(notes,"Notes",TEXT_LIMITS.notes);
     if (problem) { setAddError(problem); return; }
     let applied = false;
     updateTrip(current => {
       if (!["Owner","Editor"].includes(member(current,s.userId)?.role || "") || (current.savedPlaces?.length || 0) >= 200) return;
-      if ([...(current.savedPlaces || []), ...current.events].some(item => item.name.trim().toLocaleLowerCase() === result.name.trim().toLocaleLowerCase() && item.place.trim().toLocaleLowerCase() === place.trim().toLocaleLowerCase())) return;
-      current.savedPlaces = [...(current.savedPlaces || []), {id:uid(),name:result.name.trim(),place:place.trim(),notes,point:null,googlePlaceId:null}];
+      if ([...(current.savedPlaces || []), ...current.events].some(item => matchesIdea(item, result))) return;
+      current.savedPlaces = [...(current.savedPlaces || []), {id:uid(),name:resultTitle(result).trim(),place:place.trim(),notes,point:null,googlePlaceId:null}];
       applied = true;
     });
     setAddError(applied ? "" : "Could not add this place. Check your editing access or remove a place if your shortlist is full.");
@@ -115,7 +122,7 @@ export function NearbySuggestions() {
   async function continueToEvent(selected: NearbyResult) {
     if (!trip || preparing || !canEdit(trip,s.userId,date)) return;
     const generation = ++continuation.current;
-    setPreparing(true); setAddError("");
+    setPreparingLabel("Preparing the event editor…"); setPreparing(true); setAddError("");
     const photo = photos[selected.name] || fallbackPhoto;
     try {
       if (photo.selection) await trackUnsplashSelection(photo.selection.downloadLocation);
@@ -123,7 +130,7 @@ export function NearbySuggestions() {
       const sourceNotes = resultNotes(selected);
       const photoNote = "\n" + photo.label + (photo.credit ? ". Photo by " + photo.credit.name + " on Unsplash: " + photo.credit.photoUrl : "");
       const params: Record<string, string> = {
-        suggestion: selected.name,
+        suggestion: resultTitle(selected),
         place: resultPlace(selected),
         date,
         notes: sourceNotes + photoNote,
@@ -132,13 +139,48 @@ export function NearbySuggestions() {
         ...(route.page === 17 && route.params.get("days") ? {days:route.params.get("days")!} : {}),
         ...(route.params.get("map") === "hidden" ? {map:"hidden"} : {}),
       };
-      if (selected.proposedTime) { params.start = selected.proposedTime.start; params.end = selected.proposedTime.end; }
-      if (selected.pricePerPersonCents !== null && selected.currency === "USD") params.cost = (selected.pricePerPersonCents / 100).toFixed(2);
+      const slot = recommendationSlot(selected, context.gaps);
+      if (slot) { params.start = slot.start; params.end = slot.end; }
+      if (selected.pricePerPersonCents !== null && selected.currency === "USD") params.cost = (recommendationGroupCost(selected,trip.members.filter(member=>member.status === "accepted").length) / 100).toFixed(2);
       params.image = photo.url;
       go(7, params);
     } catch (cause) {
       if (generation === continuation.current) setAddError(cause instanceof Error ? cause.message : "Could not prepare this itinerary item. Try again.");
     } finally { if (generation === continuation.current) setPreparing(false); }
+  }
+  async function addToItinerary(selected: NearbyResult) {
+    if (!trip || pending || preparing || !canEdit(trip,s.userId,date) || alreadyAdded(selected)) return;
+    const generation = ++continuation.current;
+    setPreparingLabel("Adding to itinerary…"); setPreparing(true); setAddError("");
+    const photo = photos[selected.name] || fallbackPhoto;
+    try {
+      if (photo.selection) await trackUnsplashSelection(photo.selection.downloadLocation);
+      if (generation !== continuation.current) return;
+      let problem = "", applied = false;
+      updateTrip(current => {
+        if (current.id !== trip.id || !canEdit(current,s.userId,date) || current.events.some(event => matchesIdea(event,selected))) return;
+        const fresh = planningContext(current,s.userId || "",date,intent,overlay?.data?.event);
+        const slot = recommendationSlot(selected,fresh.gaps);
+        if (!slot) { problem = "No free slot remains. Choose another time in the event editor."; return; }
+        if (selected.kind !== "guide" && !reviewCandidates([selected],fresh,selected.facts.map(fact=>fact.sourceUrl)).length) { problem = "Your plans or budget changed. Review this idea before adding it."; return; }
+        const name = recommendationTitle(selected,fresh);
+        const place = recommendationLocation(selected,fresh);
+        const attendees = current.members.filter(member=>member.status === "accepted").map(member=>member.id);
+        const cost = recommendationGroupCost(selected,attendees.length);
+        if (!Number.isSafeInteger(cost) || cost < 0 || cost > MONEY_LIMITS.expense) { problem = "The group estimate is too large. Review the event cost before adding it."; return; }
+        const notes = recommendationNotes(selected,fresh) + "\n" + photo.label + (photo.credit ? `. Photo by ${photo.credit.name}: ${photo.credit.photoUrl}` : "");
+        problem = textError(name,"Event name",TEXT_LIMITS.eventName,true) || textError(place,"Location",TEXT_LIMITS.eventAddress,true) || textError(notes,"Notes",TEXT_LIMITS.notes);
+        if (problem) return;
+        const event = {id:uid(),name,place,notes,image:photo.url,date,start:slot.start,end:slot.end,cost,attendees,point:null,googlePlaceId:null};
+        problem = eventError(current,s.userId,event);
+        if (problem) return;
+        current.events.push(event);
+        if (current.savedPlaces && ["Owner","Editor"].includes(member(current,s.userId)?.role || "")) current.savedPlaces = current.savedPlaces.filter(place=>!matchesIdea(place,selected));
+        applied = true;
+      });
+      if (!applied && problem) setAddError(problem);
+    } catch (cause) { if (generation === continuation.current) setAddError(cause instanceof Error ? cause.message : "Could not add this idea. Try again."); }
+    finally { if (generation === continuation.current) setPreparing(false); }
   }
   return <Modal title="Nearby suggestions" wide className="nearby-research-modal">
     <p className="nearby-intro">Find places around your plans, with your group’s needs in mind.</p>
@@ -170,31 +212,32 @@ export function NearbySuggestions() {
         {diagnostics.yelpStatus && Object.hasOwn(YELP_SEARCH_MESSAGES, diagnostics.yelpStatus) && <p>{YELP_SEARCH_MESSAGES[diagnostics.yelpStatus]} {diagnostics.yelpSourcesUsed ?? 0} Yelp excerpt{diagnostics.yelpSourcesUsed === 1 ? "" : "s"} used.</p>}
         {Object.entries(diagnostics.rejected).length > 0 && <ul>{Object.entries(diagnostics.rejected).map(([reason, count]) => <li key={reason}>{count} removed: {reason === "evidence" ? "insufficient source evidence" : reason === "budget" ? "above a saved budget" : reason === "conflicts" ? "flagged constraint conflict" : reason === "duplicates" ? "duplicate place" : "incomplete or invalid details"}</li>)}</ul>}
       </details>}
-      <div className="nearby-result-grid">{results.map((result, index) => { const links = nearbyListingLinks(result, context); const photo = photos[result.name] || fallbackPhoto; return <article className="nearby-result" key={result.name + index}>
+      <div className="nearby-result-grid">{results.map((result, index) => { const links = nearbyListingLinks(result, context); const photo = photos[result.name] || fallbackPhoto; const slot = recommendationSlot(result,context.gaps); const added = alreadyAdded(result); return <article className="nearby-result" key={result.name + index}>
         <img className="nearby-result-photo" src={photo.url} alt={photo.alt} loading="lazy" onError={() => setPhotos(current => current[result.name]?.url === bundledPhoto.url ? current : { ...current, [result.name]: bundledPhoto })} />
         <small className="nearby-photo-credit">{photo.label}{photo.credit && <> · Photo by <a href={photo.credit.profileUrl} target="_blank" rel="noreferrer">{photo.credit.name}</a> on <a href={photo.credit.photoUrl} target="_blank" rel="noreferrer">Unsplash</a></>}</small>
-        <h4>{result.name}</h4>
+        <h4>{resultTitle(result)}</h4>
         <aside className="nearby-fit-note"><strong>A thought for your day</strong><p>{result.fitNote || "Explore this option alongside your plans."}</p></aside>
         <dl className="nearby-planning-details">
-          <dt>Proposed time</dt><dd>{result.kind === "guide" ? "Explore activities before choosing a time" : result.proposedTime ? `${timeText(result.proposedTime.start)}–${timeText(result.proposedTime.end)} · ${context.zone}` : "No suitable time gap found"}</dd>
-          <dt>{result.kind === "guide" ? "Area" : "Venue"}</dt><dd>{result.address}{result.facts.filter(f => safeSource(f.sourceUrl) && f.topic === "Venue" && f.detail !== result.address).map((fact, i) => <p className="nearby-venue-description" key={i}>{fact.detail}</p>)}</dd>
+          <dt>Proposed time</dt><dd>{slot ? `${timeText(slot.start)}–${timeText(slot.end)} · ${context.zone}` : "No suitable time gap found"}</dd>
+          <dt>{result.kind === "guide" ? "Area" : "Venue"}</dt><dd>{resultPlace(result)}{result.facts.filter(f => safeSource(f.sourceUrl) && f.topic === "Venue" && f.detail !== result.address).map((fact, i) => <p className="nearby-venue-description" key={i}>{fact.detail}</p>)}</dd>
           <dt>Price</dt><dd>{result.pricePerPersonCents !== null && result.currency ? `${(result.pricePerPersonCents / 100).toFixed(2)} ${result.currency} per person · source estimate` : "Price not confirmed"}</dd>
-          {result.facts.filter(f => safeSource(f.sourceUrl) && f.topic !== "Venue").map((fact, i) => <div className="nearby-planning-fact" key={i}><dt>{fact.topic === "Price" ? "Price details" : fact.topic}</dt><dd>{fact.detail}</dd></div>)}
+          {result.facts.filter(f => safeSource(f.sourceUrl) && f.topic !== "Venue").map((fact, i) => <div className="nearby-planning-fact" key={i}><dt>{fact.topic === "Price" ? "Price details" : fact.topic}</dt><dd>{fact.topic === "Guide excerpt" ? sentenceExcerpt(fact.detail) || "Read the complete guide in More to consider." : fact.detail}</dd></div>)}
         </dl>
         <details className="nearby-more"><summary>More to consider <ChevronDown size={16} aria-hidden="true" /></summary>
           <div className="nearby-listing-links">
             {links.maps ? <a href={links.maps} target="_blank" rel="noopener noreferrer">View on Google Maps <ExternalLink size={14} aria-hidden="true" /></a> : <a href={links.google} target="_blank" rel="noopener noreferrer">Search on Google <ExternalLink size={14} aria-hidden="true" /></a>}
             {links.yelp && <a href={links.yelp} target="_blank" rel="noopener noreferrer" title={links.yelpIsListing ? `Open the sourced Yelp business page for ${result.name}` : `Search Yelp for ${result.name}`}>View on Yelp <ExternalLink size={14} aria-hidden="true" /></a>}
+            {result.kind === "guide" && result.facts.find(fact=>safeSource(fact.sourceUrl)) && <a href={result.facts.find(fact=>safeSource(fact.sourceUrl))!.sourceUrl} target="_blank" rel="noopener noreferrer">Explore city and region ideas <ExternalLink size={14} aria-hidden="true" /></a>}
           </div>
           <h5>Sources</h5>
-          <ul className="nearby-source-links">{result.facts.filter(f => safeSource(f.sourceUrl)).map((fact, i) => <li key={i}><a href={fact.sourceUrl} target="_blank" rel="noopener noreferrer">{isYelpSource(fact.sourceUrl) ? "Yelp source" : `Source ${i + 1}`} <ExternalLink size={12} aria-hidden="true" /></a></li>)}</ul>
-          <div className="nearby-considerations fine-print"><p>Research ideas, not confirmed bookings. Check current hours, availability, travel time and your group’s needs.</p>{result.proposedTime && <p>Proposed times include a provisional travel buffer; the route has not been confirmed.</p>}<ul>{result.concerns.map((concern, i) => <li key={i}>{concern}</li>)}</ul></div>
+          <ul className="nearby-source-links">{[...new Set(result.facts.filter(f => safeSource(f.sourceUrl)).map(fact=>fact.sourceUrl))].map(url => <li key={url}><a href={url} target="_blank" rel="noopener noreferrer">{url} <ExternalLink size={12} aria-hidden="true" /></a></li>)}</ul>
+          <div className="nearby-considerations fine-print"><p>Research ideas, not confirmed bookings. Check current hours, availability, travel time and your group’s needs.</p>{slot && <p>Proposed times include a provisional travel buffer; the route has not been confirmed.</p>}<ul>{result.concerns.map((concern, i) => <li key={i}>{concern}</li>)}</ul></div>
         </details>
-        {result.kind === "guide" ? <a href={result.facts[0]?.sourceUrl} target="_blank" rel="noopener noreferrer">Explore city and region ideas <ExternalLink size={14} aria-hidden="true" /></a> : trip.persistence === "account" && <div className="nearby-result-actions"><Button variant="outline" disabled={pending || preparing || !canEdit(trip,s.userId,date)} onClick={() => void continueToEvent(result)}>Review and add to this day</Button>{canSave && <Button variant="text" disabled={pending || alreadyKept(result)} onClick={() => saveForLater(result)}>{alreadyKept(result) ? "Already in your plans" : "Save for later"}</Button>}</div>}
+        {trip.persistence === "account" && <div className="nearby-result-actions"><Button variant="text" disabled={pending || preparing || !canEdit(trip,s.userId,date)} onClick={() => void continueToEvent(result)}>{slot ? "Review and add to this day" : "Choose another time"}</Button>{canSave && <Button variant="text" disabled={pending || alreadyKept(result)} onClick={() => saveForLater(result)}>{alreadyKept(result) ? "Already in your plans" : "Save for later"}</Button>}<Button variant="nearby-add" disabled={pending || preparing || added || !slot || !canEdit(trip,s.userId,date)} onClick={() => void addToItinerary(result)}>{added ? pending ? "Adding to itinerary…" : "Added to itinerary" : "Add to itinerary"}</Button></div>}
       </article>; })}</div>
     </section>}
     {!canEdit(trip,s.userId,date) && <p className="fine-print">You can research ideas. An editor with access to this day will need to schedule them.</p>}
-    {preparing && <p role="status">Preparing the event editor…</p>}
+    {preparing && <p role="status">{preparingLabel}</p>}
     {addError && <p role="alert" className="error-box">{addError}</p>}
   </Modal>;
 }
