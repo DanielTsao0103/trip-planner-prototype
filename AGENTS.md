@@ -8,6 +8,8 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 ## Corrections & Lessons Learned
 
+- Receipt amount correction (November 16, 2026): scanned/reviewed totals must fill the required USD expense amount automatically, including after confirming an unidentified currency or correcting the printed total. Convert supported foreign currencies using the existing reference-rate service, label estimates, preserve deliberate manual overrides, and cancel stale conversion responses. Never silently treat an unidentified dollar currency as USD.
+
 - iPhone Chrome camera correction (November 16, 2026): Take photo must use the inline rear-camera preview when getUserMedia is available, including touch devices. A native file-picker launch is not evidence that the camera appeared. Mount the video before binding its stream; verify mobile preview, capture, denial, timeout and cancellation, and distinguish browser simulations from a physical iPhone check.
 
 - Receipt adversarial review (November 16, 2026): a rejected replacement image must preserve an invalid review draft and its disabled Save state. Stage reviewed details in an account-scoped outbox before uploading, and drain only against confirmed expenses; uncertain queued writes must not trigger photo deletion. Keep receipt fields readable at actual container widths and focused after rotation or enlarged text. Test concurrent attachment/deletion with a deferred expense foreign key and cleanup ordered before its constraint checks.

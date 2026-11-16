@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "./ui";
 import { money } from "./domain";
+import { CURRENCIES } from "./exchange-rates";
 import { normalizeReceiptDocument, type ReceiptScanResult } from "./receipt-items";
 
 const cents = (value: string) => /^\d+(?:\.\d{0,2})?$/.test(value) && Number(value) <= 99999.99 ? Math.round(Number(value) * 100) : null;
@@ -12,7 +13,7 @@ const currencyText = (value: number, currency: string | null) => {
 const adjustments = [["subtotalCents", "Subtotal"], ["taxCents", "Tax"], ["tipCents", "Tip"], ["discountCents", "Discount"], ["totalCents", "Printed total"]] as const;
 type Adjustment = typeof adjustments[number][0];
 type Draft = { items: { key: number; description: string; quantity: string; amount: string }[]; fields: Record<Adjustment, string>; currency: string };
-const currencies = ["USD", "CAD", "EUR", "GBP", "JPY", "AUD", "NZD", "CHF", "CNY", "TWD", "KRW", "MXN", "INR"];
+const currencies: string[] = Object.keys(CURRENCIES);
 const validDraft = (draft: Draft) => draft.items.every(item => item.description.trim() && item.description.length <= 200 && cents(item.amount) !== null &&
   (!item.quantity || /^\d+(?:\.\d{1,3})?$/.test(item.quantity) && Number(item.quantity) > 0 && Number(item.quantity) <= 10000)) &&
   Object.values(draft.fields).every(value => value === "" || cents(value) !== null);
@@ -84,6 +85,8 @@ export function ReceiptReview({ value, onChange, onUseTotal, onValidityChange }:
   return <section ref={section} className="receipt-review" aria-label="Receipt details">
     <div className="receipt-review-heading"><h3>{editable ? "Review the receipt" : "Receipt details"}</h3><span>{editable ? draft.items.length : value.items.length} line {(editable ? draft.items.length : value.items.length) === 1 ? "item" : "items"}</span></div>
     {editable && <p>Compare the photo with the items and total. Correct anything that was missed.</p>}
+    {editable && <label>Receipt currency<select aria-label="Receipt currency" value={draft.currency} onChange={event => update({ ...draft, currency: event.target.value })}><option value="">Choose currency</option>{currencies.map(code => <option key={code}>{code}</option>)}{draft.currency && !currencies.includes(draft.currency) && <option>{draft.currency}</option>}</select></label>}
+    {editable && !value.currency && <p className="receipt-currency-note">Choose the receipt currency to fill the USD expense amount automatically.</p>}
     <div className="receipt-items">
       {editable ? draft.items.map((item, index) => <div className="receipt-item" key={item.key}>
         <label>Item {index + 1}<input aria-label={`Receipt item ${index + 1}`} maxLength={200} value={item.description} aria-invalid={!item.description.trim() || undefined} onChange={event => changeItem(item.key, { description: event.target.value })}/></label>
@@ -97,12 +100,11 @@ export function ReceiptReview({ value, onChange, onUseTotal, onValidityChange }:
     {editable && draft.items.length < 100 && <Button variant="text" onClick={() => update({ ...draft, items: [...draft.items, { key: ++sequence.current, description: "New item", quantity: "", amount: "0.00" }] })}>Add a line item</Button>}
     <details className="receipt-adjustments"><summary>Subtotal, tax and tip</summary>
       <div className="receipt-adjustment-grid">{adjustments.map(([key, label]) => <label key={key}>{label}{editable ? <input type="number" min="0" max="99999.99" step="0.01" aria-label={`Receipt ${label.toLowerCase()}`} value={draft.fields[key]} aria-invalid={draft.fields[key] !== "" && cents(draft.fields[key]) === null || undefined} onChange={event => update({ ...draft, fields: { ...draft.fields, [key]: event.target.value } })}/> : <strong>{value[key] == null ? "Not recorded" : currencyText(value[key]!, value.currency)}</strong>}</label>)}</div>
-      {editable ? <label>Receipt currency<select aria-label="Receipt currency" value={draft.currency} onChange={event => update({ ...draft, currency: event.target.value })}><option value="">Not identified</option>{currencies.map(code => <option key={code}>{code}</option>)}{draft.currency && !currencies.includes(draft.currency) && <option>{draft.currency}</option>}</select></label> : <p>Receipt currency: {value.currency || "Not identified"}</p>}
+      {!editable && <p>Receipt currency: {value.currency || "Not identified"}</p>}
     </details>
     {value.totalCents != null && <p className="receipt-total"><span>Printed total</span><strong>{currencyText(value.totalCents, value.currency)}</strong></p>}
     <p className="receipt-reconciliation" role="status">{editable && !valid ? "Correct the highlighted receipt details before saving." : value.reconciliation.matches === true ? "Line items, adjustments and total agree." : value.reconciliation.matches === false ? `The ${value.reconciliation.differenceCents ? "final total" : "item subtotal"} differs by ${currencyText(Math.abs(difference), value.currency)}. Check the photo for missing items or adjustments.` : "Check the total against the photo; there is not enough information to check the full calculation."}</p>
     {editable && valid && value.currency === "USD" && value.totalCents != null && value.totalCents > 0 && <Button variant="text" onClick={() => onUseTotal?.((value.totalCents! / 100).toFixed(2))}>Use {money(value.totalCents)} as expense amount</Button>}
-    {editable && value.currency !== "USD" && <p className="receipt-currency-note">{value.currency ? `This receipt is in ${value.currency}. Enter the amount paid in USD below.` : "Confirm the receipt currency above, then enter the amount paid in USD below."}</p>}
-    {editable && value.warnings.length > 0 && <details><summary>Reading notes</summary><ul>{value.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}
+    {editable && value.warnings.length > 0 && <details><summary>Reading notes</summary><ul>{value.warnings.filter(warning => !/^This receipt is in [A-Z]{3}\. Enter the amount paid in USD\.$/.test(warning)).map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}
   </section>;
 }

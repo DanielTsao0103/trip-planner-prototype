@@ -1,5 +1,7 @@
 ## November 16 receipt and suggestion release
 
+Receipt review now keeps the USD expense amount synchronized with the confirmed printed total. Unknown currencies require one currency selection; supported foreign totals use the existing Frankfurter reference-rate service and show the rate date as an estimate. Manual USD overrides are preserved. Failed conversions clear stale automatic amounts and offer manual recovery; pending or replaced conversions cannot overwrite later edits. No database or receipt storage changes are required.
+
 Current behavior and measured checks are recorded in [SUGGESTIONS_RECEIPTS_VERIFICATION.md](SUGGESTIONS_RECEIPTS_VERIFICATION.md). Dated entries below are historical and may describe earlier provider behavior.
 
 # Implementation status
