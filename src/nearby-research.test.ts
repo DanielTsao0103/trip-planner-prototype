@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { planningContext, reviewCandidates, nearbyListingLinks, isYelpSource, type PlanningTrip, type Candidate } from "../supabase/functions/_shared/nearby.ts";
+import { planningContext, parseSearchLocation, reviewCandidates, nearbyListingLinks, isYelpSource, type PlanningTrip, type Candidate } from "../supabase/functions/_shared/nearby.ts";
 const trip = (): PlanningTrip => ({
   id: "trip", start: "2027-01-01", end: "2027-01-03", zone: "America/Los_Angeles", destinations: ["Seattle", "Portland"],
   members: [{ id: "a", role: "Owner", status: "accepted" }, { id: "b", accountId: "account", role: "Viewer", status: "accepted" }, { id: "removed", role: "Viewer", status: "removed" }],
@@ -106,4 +106,31 @@ test('nearby availability reserves overnight continuations and counts their cost
   assert.equal(result.events[0].start,'00:00');
   value.events[0].end='00:00';
   assert.deepEqual(planningContext(value,'a','2027-01-02','lunch',undefined,new Date('2026-12-01T12:00:00Z')).gaps,[{start:'11:00',end:'15:00'}]);
+});
+
+test("explicit location overrides the itinerary anchor and validates coordinates", () => {
+  const selected = parseSearchLocation({ label: "Harbor Park, Tokyo", point: { lat: 35.6, lng: 139.7 }, googlePlaceId: "ChI1234567" });
+  const result = planningContext(trip(), "account", "2027-01-02", "activity", undefined, new Date("2026-12-01T12:00:00Z"), selected);
+  assert.equal(result.area, "Harbor Park, Tokyo"); assert.equal(result.locationNote, ""); assert.deepEqual(result.searchLocation, selected);
+  for (const value of [{ label: "" }, { label: "Point", point: { lat: Infinity, lng: 0 } }, { label: "Point", point: { lat: 0, lng: 181 } }, { label: "Point", googlePlaceId: "<script>" }]) assert.throws(() => parseSearchLocation(value));
+});
+
+test("restaurant recommendations preserve the associated street address", () => {
+  const place = { ...candidate(), name: "Harbor Cafe", recommendationType: "place" as const, address: "100 Main Street, Portland", addressVerified: true };
+  const result = reviewCandidates([place], context(), ["https://venue.example/menu"])[0];
+  assert.equal(result.kind, undefined); assert.equal(result.address, place.address); assert.equal(result.addressVerified, true);
+
+});
+
+
+test("explicit current location preserves blocked overnight time and canonical costs", () => {
+  const value=trip();
+  value.events=[{...value.events[0],date:'2027-01-01',endDate:'2027-01-03',start:'22:00',end:'13:00'}];
+  const location=parseSearchLocation({label:'Harbor Park, Tokyo',point:{lat:35.6,lng:139.7}});
+  const middle=planningContext(value,'a','2027-01-02','activity',undefined,new Date('2026-12-01T12:00:00Z'),location);
+  assert.equal(middle.area,location!.label); assert.deepEqual(middle.searchLocation,location);
+  assert.deepEqual(middle.gaps,[]); assert.equal(middle.events[0].start,'00:00'); assert.equal(middle.events[0].end,'24:00');
+  assert.equal(middle.remainingGroupCents,7000);
+  const final=planningContext(value,'a','2027-01-03','lunch',undefined,new Date('2026-12-01T12:00:00Z'),location);
+  assert.deepEqual(final.gaps,[{start:'13:30',end:'15:00'}]); assert.equal(final.remainingGroupCents,7000);
 });

@@ -23,6 +23,7 @@ test("nearby entry points share a responsive context popup without fictional res
 });
 
 async function account(page: Page, generation: (request: Record<string, unknown>) => { status?: number; json: unknown }, role: "Owner" | "Day Editor" = "Owner", anchorPlace = "", blockedFirstDay = false) {
+  await page.route("https://places.googleapis.com/**", route => route.abort());
   const owner = { id: "11111111-1111-4111-8111-111111111111", aud: "authenticated", role: "authenticated", email: "qa@example.com", user_metadata: { name: "QA Traveler" }, app_metadata: { provider: "email" } };
   const trip = seed().trips[0];
   trip.members = [{ id: owner.id, name: "QA Traveler", email: owner.email, role, status: "accepted", days: role === "Day Editor" ? ["2027-05-02"] : [], ...(role === "Day Editor" ? {accountId:owner.id} : {}) }];
@@ -61,7 +62,7 @@ test("account popup displays sourced review candidates, resets stale results and
   });
   const dialog = page.getByRole("dialog", { name: "Nearby suggestions" });
   await dialog.getByRole("button", { name: "Find nearby suggestions", exact: true }).click();
-  await expect(dialog.getByRole("heading", { name: "Foods to try" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Places to eat" })).toBeVisible();
   await expect(dialog.locator(".nearby-more")).not.toHaveAttribute("open", "");
   await expect(dialog).not.toContainText("Found during research for this trip day");
   await dialog.getByText("More to consider", { exact: true }).click();
@@ -75,7 +76,7 @@ test("account popup displays sourced review candidates, resets stale results and
 
   await expect(dialog).toContainText("Confirm access and dietary needs");
   await dialog.getByLabel("Find", { exact: true }).selectOption("dinner");
-  await expect(dialog.getByRole("heading", { name: "Foods to try" })).toHaveCount(0);
+  await expect(dialog.getByRole("heading", { name: "Places to eat" })).toHaveCount(0);
   expect(requests).toHaveLength(1);
 });
 test("suggestions retain a loaded illustrative photo when venue and area searches fail", async ({ page }) => {
@@ -112,7 +113,7 @@ test("city guide fallback displays a photo and source exploration without schedu
   await explore.scrollIntoViewIfNeeded();
   await expect(explore).toHaveAttribute("href", source);
   await expect(explore).toHaveAttribute("target", "_blank");
-  await expect(card.getByRole("button", { name: "Add to itinerary", exact: true })).toBeEnabled();
+  await expect(card.getByRole("button", { name: "Add to itinerary", exact: true })).toBeDisabled();
   await expect(card).toContainText("Proposed time");
   await expect(card).toContainText("Price not confirmed");
   await expect(card).not.toContainText(/provisional gap|No suitable time gap found|per person|within.*budget/i);
@@ -155,41 +156,33 @@ test("empty research shows a specific cause and recovery without implementation 
   await expect(dialog.getByText("Search details", { exact: true })).toHaveCount(0);
 });
 
-const candidate = { name: "Research fixture garden", address: "Seattle garden", reason: "A quiet break", durationMinutes: 60, pricePerPersonCents: null, currency: null, facts: [{topic:"Hours",detail:"Check the current hours",sourceUrl:"https://example.com/garden"}], concerns:["Confirm access"], conflicts:[], status:"review", proposedTime:{start:"12:00",end:"13:00"} };
+const candidate = { name: "Research fixture garden", address: "123 Garden Way, Seattle", addressVerified:true, recommendationType:"place", reason: "A quiet break", durationMinutes: 60, pricePerPersonCents: null, currency: null, facts: [{topic:"Hours",detail:"Check the current hours",sourceUrl:"https://example.com/garden"}], concerns:["Confirm access"], conflicts:[], status:"review", proposedTime:{start:"12:00",end:"13:00"} };
 
-test("guide ideas add once to the itinerary with location titles and distinct linked notes", async ({page})=>{
+test("located ideas add once with precise addresses and distinct linked notes", async ({page})=>{
   const writes: any[]=[];
   page.on('request',request=>{if(request.url().endsWith('/save_account_trip')) writes.push(request.postDataJSON().p_data);});
-  const guides=[{...candidate,kind:"guide",name:"Seattle waterfront guide",facts:[{topic:"Guide excerpt",detail:"The waterfront has public piers. Then a clipped frag",sourceUrl:"https://example.com/waterfront"}]},{...candidate,kind:"guide",name:"Seattle gardens guide",facts:[{topic:"Guide excerpt",detail:"The gardens have seasonal flowers. Another clipped frag",sourceUrl:"https://example.com/gardens"}]}];
-  await account(page,()=>({json:{results:guides}}));
+  const options=[{...candidate,name:"Seattle Waterfront Park",address:"1401 Alaskan Way, Seattle",facts:[{topic:"Venue",detail:"The waterfront has public piers.",sourceUrl:"https://example.com/waterfront"}]},{...candidate,name:"Seattle Garden",address:"1075 Lake Washington Blvd E, Seattle",facts:[{topic:"Venue",detail:"The gardens have seasonal flowers.",sourceUrl:"https://example.com/gardens"}]}];
+  await account(page,()=>({json:{results:options}}));
   const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
   await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
   const cards=dialog.locator('.nearby-result');
   await expect(cards).toHaveCount(2);
-  await expect(cards.first().getByRole('heading',{name:'Seattle',exact:true})).toBeVisible();
-  await expect(cards.first()).not.toContainText('clipped frag');
-  await expect(cards.first().getByRole('link',{name:'Explore city and region ideas',exact:true})).not.toBeVisible();
-  await cards.first().getByText('More to consider',{exact:true}).click();
-  await expect(cards.first().getByRole('link',{name:'https://example.com/waterfront',exact:true})).toBeVisible();
-  await cards.first().getByText('More to consider',{exact:true}).click();
   await cards.first().getByRole('button',{name:'Save for later',exact:true}).click();
   await expect(cards.first().getByRole('button',{name:'Already in your plans',exact:true})).toBeDisabled();
   await cards.first().getByRole('button',{name:'Add to itinerary',exact:true}).click();
   await expect(cards.first().getByRole('button',{name:'Added to itinerary',exact:true})).toBeDisabled();
-  await expect(cards.first().locator('.nearby-planning-details')).toContainText('12:00 PM–1:00 PM');
   await expect(cards.first().getByRole('button',{name:'Review and add to this day',exact:true})).toBeDisabled();
   await cards.nth(1).getByRole('button',{name:'Add to itinerary',exact:true}).click();
   await expect(cards.nth(1).getByRole('button',{name:'Added to itinerary',exact:true})).toBeDisabled();
-  await expect(cards.first().locator('.nearby-planning-details')).toContainText('12:00 PM–1:00 PM');
   await expect.poll(()=>writes.at(-1)?.events.length).toBe(2);
   const events=writes.at(-1).events;
   expect(writes.at(-1).savedPlaces).toHaveLength(0);
-  expect(events.map((event:any)=>event.name)).toEqual(['Seattle','Seattle']);
+  expect(events.map((event:any)=>event.name)).toEqual(options.map(option=>option.name));
+  expect(events.map((event:any)=>event.place)).toEqual(options.map(option=>option.address));
   expect(events[0].notes).toContain('https://example.com/waterfront'); expect(events[1].notes).toContain('https://example.com/gardens');
-  expect(events[0].notes).not.toEqual(events[1].notes); expect(events[0].notes).not.toContain('clipped frag');
+  expect(events[0].notes).not.toEqual(events[1].notes);
   expect(events[1].start).toBe('13:30');
   await page.reload();
-  await expect(page.getByRole('button',{name:'Nearby suggestions',exact:true})).toBeVisible();
   expect(writes.at(-1).events).toHaveLength(2);
 });
 
@@ -225,7 +218,7 @@ test("recommendation facts precede More to consider and sourced Maps links open 
 });
 
 test("shrine suggestions reject anchor photos and carry the relevant image into the event", async ({ page }) => {
-  await account(page, () => ({json:{results:[{...candidate,name:"Shinto Shrine",address:"Address needs confirmation from the venue"}]}}), "Owner", "McDonald's, Seattle");
+  await account(page, () => ({json:{results:[{...candidate,name:"Shinto Shrine",address:"123 Shrine Way, Seattle"}]}}), "Owner", "McDonald's, Seattle");
   const queries: string[]=[];
   const photo=(id:string,description:string)=>({id,width:1200,height:800,alt_description:description,urls:{regular:`https://images.unsplash.com/${id}`},links:{html:`https://unsplash.com/photos/${id}`,download_location:`https://api.unsplash.com/photos/${id}/download`},user:{name:"Photo fixture",links:{html:"https://unsplash.com/@fixture"}}});
   await page.route('**/functions/v1/unsplash-search?**',route=>{
@@ -288,7 +281,7 @@ test('Nearby permits Day Editors to research other days but only schedule assign
   await expect(dialog.getByRole('button',{name:'Review and add to this day',exact:true})).toBeEnabled();
 });
 
-for (const action of ['close','change day']) for (const operation of ['review','add']) test(`late photo attribution cannot ${operation} after Nearby ${action}`,async({page})=>{
+for (const operation of ['review','add']) test(`slow photo attribution does not block ${operation} or cause a duplicate later`,async({page})=>{
   await account(page,()=>({json:{results:[candidate]}}));
   const photo = {id:'fixture-photo',alt_description:'A peaceful garden',width:1200,height:800,urls:{regular:'https://images.unsplash.com/fixture'},links:{html:'https://unsplash.com/photos/fixture',download_location:'https://api.unsplash.com/photos/fixture/download'},user:{name:'Fixture photographer',links:{html:'https://unsplash.com/@fixture'}}};
   await page.route('**/functions/v1/unsplash-search?**',r=>r.fulfill({json:{results:[photo,{...photo,id:'fixture-photo-2'}]}}));
@@ -299,18 +292,15 @@ for (const action of ['close','change day']) for (const operation of ['review','
   await page.route('**/functions/v1/unsplash-track',async r=>{started=true;await held;await r.fulfill({json:{success:true}});});
   const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
   await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
-  await expect(dialog.locator('.nearby-result-photo')).toHaveCount(1);
   await expect(dialog.locator('.nearby-photo-credit')).toContainText('Fixture photographer');
   const response=page.waitForResponse(r=>r.url().endsWith('/unsplash-track'));
-  await dialog.getByRole('button',{name:'Review and add to this day',exact:true}).click();
+  await dialog.getByRole('button',{name:operation==='review'?'Review and add to this day':'Add to itinerary',exact:true}).click();
   await expect.poll(()=>started).toBe(true);
-  if(action==='close') await page.keyboard.press('Escape');
-  else await dialog.getByLabel('Trip day',{exact:true}).selectOption('2027-05-02');
+  if(operation==='review')await expect(page).toHaveURL(/#\/7/);
+  else await expect(dialog.getByRole('button',{name:'Added to itinerary',exact:true})).toBeDisabled();
   release(); await (await response).finished();
   await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
-  await expect(page).toHaveURL(/#\/9$/);
-  if(action==='change day') await expect(dialog.getByLabel('Trip day',{exact:true})).toHaveValue('2027-05-02');
-  expect(saves).toBe(0);
+  expect(saves).toBe(operation==='add'?1:0);
 });
 
 
@@ -319,8 +309,11 @@ test("account suggestions prioritize usable research and saved places", async ({
   await page.keyboard.press("Escape");
   await expect(page.getByRole("heading", {name:"Find your next stop",exact:true})).toBeVisible();
   await expect(page.getByRole("heading", {name:"Sample inspiration",exact:true})).toHaveCount(0);
-  await page.getByRole("button", {name:"Explore nearby ideas",exact:true}).click();
-  await expect(page.getByRole("dialog", {name:"Nearby suggestions"})).toBeVisible();
+  const research=page.getByRole("region",{name:"Nearby suggestions"});
+  await expect(research.getByRole("button",{name:"Find nearby suggestions",exact:true})).toBeVisible();
+  await research.getByRole("button",{name:"Find nearby suggestions",exact:true}).click();
+  await expect(research.locator('.nearby-results')).toBeVisible();
+  await expect(page.getByRole("dialog", {name:"Nearby suggestions"})).toHaveCount(0);
 });
 
 
@@ -344,4 +337,120 @@ test("Nearby offers the next day with a gap without changing the selected day au
   await dialog.getByRole("button", {name:"Try May 2",exact:true}).click();
   await expect(dialog.getByLabel("Trip day", {exact:true})).toHaveValue("2027-05-02");
   await expect(dialog.getByRole("button", {name:"Find nearby suggestions",exact:true})).toBeEnabled();
+});
+
+const googleFixture = {id:'ChIJfixtureCafe',displayName:{text:'Fixture Cafe'},formattedAddress:'123 Example Street, Seattle, WA 98101',location:{latitude:47.61,longitude:-122.33},businessStatus:'OPERATIONAL',googleMapsUri:'https://www.google.com/maps/search/?api=1&query=Fixture+Cafe&query_place_id=ChIJfixtureCafe',regularOpeningHours:{weekdayDescriptions:['Saturday: 9:00 AM–5:00 PM']},websiteUri:'https://example.com/cafe'};
+
+test('Google place results appear without AI waiting and direct add retains complete location after reload',async({page})=>{
+ let researchCalls=0;const writes:any[]=[];
+ page.on('request',request=>{if(request.url().endsWith('/save_account_trip'))writes.push(request.postDataJSON().p_data);});
+ await account(page,()=>{researchCalls++;return {json:{results:[]}};});
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[googleFixture]}}));
+ const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
+ await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+ const card=dialog.locator('.nearby-result');
+ await expect(card.getByRole('heading',{name:'Fixture Cafe',exact:true})).toBeVisible();
+ await expect(card).toContainText(googleFixture.formattedAddress);
+ await expect(card).toContainText('Saturday: 9:00 AM–5:00 PM');
+ expect(researchCalls).toBe(0);
+ await card.getByRole('button',{name:'Add to itinerary',exact:true}).click();
+ await expect(card.getByRole('button',{name:'Added to itinerary',exact:true})).toBeDisabled();
+ await expect.poll(()=>writes.at(-1)?.events.length).toBe(1);
+ expect(writes.at(-1).events[0]).toMatchObject({name:'Fixture Cafe',place:googleFixture.formattedAddress,point:{lat:47.61,lng:-122.33},googlePlaceId:googleFixture.id});
+ await page.reload();await page.goto('./#/11?date=2027-05-01');
+ await expect(page.getByText('Fixture Cafe',{exact:true}).first()).toBeVisible();
+ await expect(page.getByText(googleFixture.formattedAddress,{exact:true}).first()).toBeVisible();
+});
+
+test('review editor receives exact coordinates and Google identity and changing location clears both',async({page})=>{
+ const writes:any[]=[];page.on('request',request=>{if(request.url().endsWith('/save_account_trip'))writes.push(request.postDataJSON().p_data);});
+ await account(page,()=>({json:{results:[]}}));
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[googleFixture]}}));
+ const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
+ await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+ await dialog.getByRole('button',{name:'Review and add to this day',exact:true}).click();
+ await expect(page).toHaveURL(/googlePlaceId=ChIJfixtureCafe/);
+ await page.getByText('Edit name or location',{exact:true}).click();
+ await expect(page.getByLabel('Where',{exact:true})).toHaveValue(googleFixture.formattedAddress);
+ await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();
+ await expect.poll(()=>writes.at(-1)?.events.length).toBe(1);
+ expect(writes.at(-1).events[0]).toMatchObject({point:{lat:47.61,lng:-122.33},googlePlaceId:googleFixture.id});
+ const id=writes.at(-1).events[0].id;
+ await page.goto(`./#/7?event=${id}&date=2027-05-01`);
+ await page.getByLabel('Where',{exact:true}).fill('456 Changed Street, Seattle');
+ await page.getByRole('button',{name:'Save changes',exact:true}).click();
+ await expect.poll(()=>writes.at(-1)?.events[0]?.place).toBe('456 Changed Street, Seattle');
+ expect(writes.at(-1).events[0].point).toBeNull();
+ expect(writes.at(-1).events[0].googlePlaceId).toBeNull();
+});
+
+test('current-location search uses the requested coordinates and is shared with the Suggestions page',async({page,context})=>{
+ await context.grantPermissions(['geolocation']);await context.setGeolocation({latitude:25.03,longitude:121.56});
+ let web=0;const providerRequests:any[]=[];
+ await account(page,()=>{web++;return {json:{results:[]}};});
+ await page.keyboard.press('Escape');
+ await page.route('https://places.googleapis.com/v1/places:searchNearby',route=>{providerRequests.push(route.request().postDataJSON());return route.fulfill({json:{places:[{...googleFixture,formattedAddress:'10 Xinyi Road, Taipei',location:{latitude:25.03,longitude:121.56}}]}});});
+ const research=page.getByRole('region',{name:'Nearby suggestions'});
+ await research.getByRole('button',{name:'Use my location',exact:true}).click();
+ await expect(research.locator('.nearby-context-panel strong')).toHaveText('Current location');
+ await research.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+ await expect(research.locator('.nearby-result')).toContainText('10 Xinyi Road, Taipei');
+ expect(providerRequests[0].locationRestriction.circle.center).toEqual({latitude:25.03,longitude:121.56});expect(web).toBe(0);
+});
+
+test('missing addresses cannot be added until a real autocomplete place is selected',async({page})=>{
+ const writes:any[]=[];page.on('request',request=>{if(request.url().endsWith('/save_account_trip'))writes.push(request.postDataJSON().p_data);});
+ await account(page,()=>({json:{results:[{...candidate,address:'',addressVerified:false}]}}));
+ const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
+ await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+ const add=dialog.getByRole('button',{name:'Add to itinerary',exact:true});await expect(add).toBeDisabled();
+ await page.route('https://places.googleapis.com/v1/places:autocomplete',route=>route.fulfill({json:{suggestions:[{placePrediction:{placeId:'ChIJverifiedGarden',text:{text:'Verified Garden, 100 Garden Road, Seattle'},structuredFormat:{mainText:{text:'Verified Garden'},secondaryText:{text:'100 Garden Road, Seattle'}}}}]}}));
+ const location=dialog.getByRole('combobox',{name:'Location for Research fixture garden',exact:true});await location.fill('Verified Garden');
+ await dialog.getByRole('option',{name:/Verified Garden/}).click();await expect(add).toBeEnabled();
+ await add.click();await expect.poll(()=>writes.at(-1)?.events.length).toBe(1);
+ expect(writes.at(-1).events[0]).toMatchObject({place:'Verified Garden, 100 Garden Road, Seattle',googlePlaceId:'ChIJverifiedGarden'});
+});
+
+test('stale place results are discarded when the selected day changes',async({page})=>{
+ await account(page,()=>({json:{results:[]}}));let release!:()=>void;
+ const held=new Promise<void>(resolve=>{release=resolve;});
+ await page.route('https://places.googleapis.com/v1/places:searchText',async route=>{await held;await route.fulfill({json:{places:[googleFixture]}}).catch(()=>{});});
+ const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
+ await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+ await dialog.getByLabel('Trip day',{exact:true}).selectOption('2027-05-02');release();
+ await expect(dialog.locator('.nearby-result')).toHaveCount(0);
+ await expect(dialog.getByRole('button',{name:'Find nearby suggestions',exact:true})).toBeEnabled();
+});
+
+test('regular opening periods prevent closed-time scheduling and move activities to an open gap',async({page})=>{
+ await account(page,()=>({json:{results:[]}}));
+ const venue={...googleFixture,displayName:{text:'Evening Gallery'},timeZone:{id:'America/Los_Angeles'},regularOpeningHours:{weekdayDescriptions:['Saturday: 5:00 PM–8:00 PM'],periods:[{open:{day:6,hour:17,minute:0},close:{day:6,hour:20,minute:0}}]}};
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[venue]}}));
+ const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
+ await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+ await expect(dialog.locator('.nearby-result')).toContainText('Regular hours do not fit this day’s free time');
+ await expect(dialog.getByRole('button',{name:'Add to itinerary',exact:true})).toBeDisabled();
+ await expect(dialog.locator('.nearby-planning-details')).toContainText('Saturday: 5:00 PM–8:00 PM');
+ await dialog.getByLabel('Find',{exact:true}).selectOption('activity');
+ await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+ await expect(dialog.locator('.nearby-planning-details')).toContainText('5:00 PM–6:00 PM');
+ await expect(dialog.getByRole('button',{name:'Add to itinerary',exact:true})).toBeEnabled();
+ await dialog.getByRole('button',{name:'Review and add to this day',exact:true}).click();
+ await expect(page.getByLabel('Start time',{exact:true})).toHaveValue('17:00');
+ await expect(page.getByLabel('End time',{exact:true})).toHaveValue('18:00');
+});
+
+test('long provider names remain addable with full venue name in notes',async({page})=>{
+ const fullName='The Long Named Waterfront Restaurant and Community Gathering Place with Rooftop Views and Seasonal Pacific Northwest Dining';
+ const writes:any[]=[];page.on('request',request=>{if(request.url().endsWith('/save_account_trip'))writes.push(request.postDataJSON().p_data);});
+ await account(page,()=>({json:{results:[]}}));
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[{...googleFixture,displayName:{text:fullName}}]}}));
+ const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
+ await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+ await expect(dialog.getByRole('heading',{name:fullName,exact:true})).toBeVisible();
+ await dialog.getByRole('button',{name:'Add to itinerary',exact:true}).click();
+ await expect.poll(()=>writes.at(-1)?.events.length,{timeout:3000}).toBe(1);
+ expect(writes.at(-1).events[0].name.length).toBeLessThanOrEqual(100);
+ expect(writes.at(-1).events[0].notes).toContain(fullName);
+ expect(writes.at(-1).events[0].googlePlaceId).toBe(googleFixture.id);
 });

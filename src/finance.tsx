@@ -24,7 +24,13 @@ import { Badge, Button, Empty, ErrorBox, Field, Modal, PageHead } from "./ui";
 import { repaymentPaid, recordRepayment } from "./repayments";
 import { CurrencyConverter } from "./currency-converter";
 import { useChartColors } from "./theme";
-import { readReceipt, receiptPath, receiptSource } from "./receipt-photo";
+import { scanReceiptPhoto, receiptSource } from "./receipt-photo";
+import { ReceiptCapture } from "./receipt-capture";
+import { ReceiptReview } from "./receipt-review";
+import { normalizeReceiptDocument, type ReceiptScanResult } from "./receipt-items";
+import { saveReceiptPhoto, saveReceiptDetails, loadReceipt, deleteReceipt, type ReceiptIdentity } from "./receipt-storage";
+import { validatePhoto } from "./image-validation";
+import "./receipt.css";
 import {
   money,
   spent,
@@ -790,7 +796,7 @@ export function BudgetSetup() {
   );
 }
 export function ExpenseForm() {
-  const { trip: t, s, overlay, updateTrip, close, toast } = useApp();
+  const { trip: t, s, overlay, updateTrip, updateTripConfirmed, close, toast } = useApp();
   if (!t) return null;
   const travelerId = member(t, s.userId)!.id;
   const original = t.expenses.find((e) => e.id === overlay?.data?.id);
@@ -818,6 +824,8 @@ export function ExpenseForm() {
   const splitTravelers = t.members.filter(m => m.status === "accepted" || Object.hasOwn(original?.shares ?? {}, m.id));
   const splitRef = useRef<HTMLFieldSetElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const deletionTarget = useRef<Expense | undefined>(undefined);
+  const deletionConfirmed = useRef(false);
   const [submitted, setSubmitted] = useState(false);
   const [photoUrl, setPhotoUrl] = useState("");
   const active = useRef(true);
@@ -825,14 +833,68 @@ export function ExpenseForm() {
     active.current = true;
     return () => { active.current = false; };
   }, []);
-  const photoPath = (id: string) => receiptPath(s.userId!, t.id, id);
+  const receiptId = useRef(original?.id || uid());
+  const receiptIdentity: ReceiptIdentity = {account:t.persistence === "account",accountId:s.userId!,tripId:t.id,expenseId:receiptId.current};
+  const [receiptPhoto,setReceiptPhoto] = useState<File>();
+  const [receiptResult,setReceiptResult] = useState<ReceiptScanResult>();
+  const [receiptReviewed,setReceiptReviewed] = useState(false);
+  const [receiptValid,setReceiptValid] = useState(true);
+  const [scanning,setScanning] = useState(false);
+  const [preparingReceipt,setPreparingReceipt] = useState(false);
+  const [scanStatus,setScanStatus] = useState("");
+  const [savingExpense,setSavingExpense] = useState(false);
+  const savingExpenseRef = useRef(false);
+  const uploadedReceipt = useRef(false);
+  const scanRequest = useRef<AbortController | undefined>(undefined);
+  const categoryTouched = useRef(false);
+  const autoFields = useRef({purpose:"",amount:""});
+  useEffect(() => () => scanRequest.current?.abort(), []);
   const viewPhoto = async () => {
     try {
-      const data = await readReceipt(photoPath(original!.id));
-      if (active.current) setPhotoUrl(URL.createObjectURL(data));
+      const data = await loadReceipt(receiptIdentity);
+      if (active.current) {
+        if(data.photo) setPhotoUrl(URL.createObjectURL(data.photo));
+        if(data.details) setReceiptResult(data.details);
+      }
     } catch {
       if (active.current) setError("Could not open the receipt. Try again.");
     }
+  };
+  const scanPhoto = async (photo: File) => {
+    scanRequest.current?.abort();
+    const controller = new AbortController(); scanRequest.current = controller;
+    setError(""); setScanning(true); setScanStatus("Preparing receipt…"); setReceiptReviewed(false);setReceiptValid(true);
+    let photoAccepted=false;
+    try {
+      await validatePhoto(photo,10);
+      if(controller.signal.aborted) return;
+      photoAccepted=true;
+      setReceiptPhoto(photo); setPhotoUrl(URL.createObjectURL(photo)); setReceiptResult(undefined); uploadedReceipt.current=false;
+      setPurpose(current=>current===autoFields.current.purpose ? "" : current);
+      setAmount(current=>current===autoFields.current.amount ? "" : current);
+      const result = await scanReceiptPhoto(photo,t.persistence === "account" && import.meta.env.VITE_RECEIPT_VISION === "true",undefined,{signal:controller.signal,onProgress:(_,status)=>{
+        if(!controller.signal.aborted) setScanStatus(status+"…");
+      }});
+      if(controller.signal.aborted) return;
+      setReceiptResult(result);
+      const name=result.purpose.slice(0,TEXT_LIMITS.expense);
+      setPurpose(current=>current.trim()?current:name);
+      setAmount(current=>current.trim()?current:result.amount);
+      if(result.category && !categoryTouched.current) setCategory(result.category);
+      autoFields.current={purpose:name,amount:result.amount};
+      setScanStatus("");
+    } catch(issue) {
+      if(controller.signal.aborted) return;
+      setError(issue instanceof Error ? issue.message : "Could not read the receipt. Enter the details below.");
+      if(photoAccepted) setReceiptResult(normalizeReceiptDocument({warnings:["The photo could not be read. Enter and check the expense details."]}));
+    } finally { if(scanRequest.current===controller){setScanning(false);setScanStatus("");} }
+  };
+  const stopReading = () => {
+    scanRequest.current?.abort();setScanning(false);setScanStatus("");
+    setReceiptResult(normalizeReceiptDocument({warnings:["Reading was stopped. Enter and check the expense details."]}));
+  };
+  const removePhoto = () => {
+    scanRequest.current?.abort();setScanning(false);setReceiptPhoto(undefined);setReceiptResult(undefined);setPhotoUrl("");setReceiptReviewed(false);setReceiptValid(true);setScanStatus("");
   };
   useEffect(() => () => {
     if (photoUrl) URL.revokeObjectURL(photoUrl);
@@ -884,6 +946,7 @@ export function ExpenseForm() {
         <>
           {!photoUrl && <Button variant="text" onClick={() => void viewPhoto()}>View receipt</Button>}
           {photoUrl && <img src={photoUrl} alt="Receipt photo" className="expense-receipt-photo" />}
+          {receiptResult && <ReceiptReview value={receiptResult}/>}
           <ErrorBox text={error} />
         </>
       )}
@@ -902,24 +965,46 @@ export function ExpenseForm() {
     </div>
     <Button variant="full" onClick={close}>Done</Button>
   </Modal>;
-  if (confirmDelete && original) return <Modal title="Delete this expense?">
-    <p><strong>{original.purpose}</strong> · {money(original.amount)}</p>
-    <p>This removes the expense and its unpaid shares. This cannot be undone.</p>
-    <div className="form-actions"><Button variant="outline" onClick={() => setConfirmDelete(false)}>Keep expense</Button><Button variant="danger" onClick={() => {
-      // Recheck settlement history at the destructive action, not only on opening.
-      if (original.settled.length) { setConfirmDelete(false); setError("Completed repayments must stay in the history. Add an adjustment expense instead."); return; }
-      updateTrip(trip => { trip.expenses = trip.expenses.filter(expense => expense.id !== original.id); });
-      toast("Expense deleted. Your totals are up to date.", "budget");
-      close();
-    }}>Delete expense</Button></div>
-  </Modal>;
+  if (confirmDelete && deletionTarget.current) {
+    const target = deletionTarget.current;
+    return <Modal title={deletionConfirmed.current ? "Remove the receipt" : "Delete this expense?"} onClose={() => { if (!savingExpenseRef.current) close(); }}>
+      <p><strong>{target.purpose}</strong> · {money(target.amount)}</p>
+      <p>{deletionConfirmed.current ? "The expense is deleted. Retry to remove its receipt photo." : "This removes the expense and its unpaid shares. This cannot be undone."}</p>
+      <ErrorBox text={error}/>
+      <div className="form-actions">
+        <Button variant="outline" disabled={savingExpense} onClick={() => { if (deletionConfirmed.current) close(); else { setConfirmDelete(false); setError(""); } }}>{deletionConfirmed.current ? "Close" : "Keep expense"}</Button>
+        <Button variant="danger" disabled={savingExpense} onClick={async () => {
+          if (savingExpenseRef.current) return;
+          savingExpenseRef.current=true;setSavingExpense(true);setError("");
+          try {
+            if (!deletionConfirmed.current) {
+              await updateTripConfirmed(trip => {
+                if (trip.id !== receiptIdentity.tripId || member(trip,s.userId)?.id !== travelerId) throw new Error("The active trip changed. Reopen this expense in its original trip.");
+                const current = trip.expenses.find(expense => expense.id === target.id);
+                if (current && (current.payer !== travelerId || current.settled.length)) throw new Error("This expense changed or has repayment history. Close it and check the latest details.");
+                trip.expenses = trip.expenses.filter(expense => expense.id !== target.id);
+              });
+              deletionConfirmed.current=true;
+            }
+            if (target.source === receiptSource) await deleteReceipt(receiptIdentity);
+            toast("Expense deleted. Your totals are up to date.", "budget");
+            close();
+          } catch (issue) {
+            if (active.current) setError(issue instanceof Error ? issue.message : "Could not delete the expense. Try again.");
+          } finally { savingExpenseRef.current=false;if(active.current)setSavingExpense(false); }
+        }}>{savingExpense ? "Deleting…" : deletionConfirmed.current ? "Retry receipt removal" : "Delete expense"}</Button>
+      </div>
+    </Modal>;
+  }
   return (
-    <Modal title={original ? "Edit an expense" : "Add an expense"}>
+    <Modal title={original ? "Edit an expense" : "Add an expense"} onClose={() => {if(!savingExpenseRef.current) close();}}>
       <form
         className="expense-form"
+        aria-busy={savingExpense}
         noValidate
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
+          if(savingExpenseRef.current || scanning || preparingReceipt || !receiptValid) return;
           if (original && original.payer !== travelerId) {
             setError("Only the payer can edit this expense.");
             return;
@@ -945,34 +1030,42 @@ export function ExpenseForm() {
             );
             return;
           }
+          if(receiptPhoto && !receiptReviewed){setError("Check the receipt details and USD amount, then confirm the review below.");return;}
           const record: Expense = {
-            id: original?.id || uid(),
+            id: receiptId.current,
             purpose: purpose.trim(),
             amount: cents,
             category,
             payer: travelerId,
             shares: customSplit ? customShares : splitCents(cents, shared ? people : [travelerId]),
             date: original?.date || s.date,
-            source: original?.source || "Manual",
+            source: receiptPhoto ? receiptSource : original?.source || "Manual",
             settled: [],
           };
           const saveExpense = (trip: typeof t) => {
+            if(trip.id !== receiptIdentity.tripId || member(trip,s.userId)?.id !== travelerId) throw new Error("The active trip changed. Reopen this expense in its original trip.");
+            const current=trip.expenses.find(expense=>expense.id===record.id);
+            if(current && (current.payer!==travelerId || current.settled.length)) throw new Error("This expense changed or has repayment history. Close it and check the latest details.");
             const index = trip.expenses.findIndex(expense => expense.id === record.id);
             if (index >= 0) trip.expenses[index] = record;
             else trip.expenses.unshift(record);
           };
-          updateTrip(saveExpense);
-          // Saving a demo split should not open a pretend-message dialog.
-          toast(
-            shared && t.persistence !== "account"
-                ? "Expense recorded. Shares updated; no message sent."
-                : "Expense recorded. Your totals are up to date.",
-            "budget",
-          );
-          close();
-          overlay?.data?.onSaved?.(record);
+          savingExpenseRef.current=true;setSavingExpense(true);
+          try {
+            if(receiptPhoto){
+              if(!uploadedReceipt.current){await saveReceiptPhoto(receiptIdentity,receiptPhoto);uploadedReceipt.current=true;}
+              await updateTripConfirmed(saveExpense);
+              await saveReceiptDetails(receiptIdentity,receiptResult || normalizeReceiptDocument({}));
+            } else updateTrip(saveExpense);
+            toast("Expense recorded. Your totals are up to date.","budget");
+            close();
+            overlay?.data?.onSaved?.(record);
+          } catch(issue){
+            if(active.current) setError(issue instanceof Error ? issue.message : "Could not save this expense. Your details are still here; try again.");
+          } finally {savingExpenseRef.current=false;if(active.current) setSavingExpense(false);}
         }}
       >
+        <fieldset className="expense-save-fields" disabled={savingExpense}>
         <div className="expense-fields">
           {original && original.payer === travelerId && original.settled.length > 0 && <p className="note">This expense has completed repayments and cannot be deleted. Add an adjustment expense to preserve the history.</p>}
           {original && original.payer === travelerId && original.settled.length === 0 && (
@@ -985,6 +1078,8 @@ export function ExpenseForm() {
                   );
                   return;
                 }
+                deletionTarget.current = original;
+                setError("");
                 setConfirmDelete(true);
               }}
             >
@@ -994,7 +1089,11 @@ export function ExpenseForm() {
           {original?.source === receiptSource && original.payer === travelerId && !photoUrl && (
             <Button variant="text" onClick={() => void viewPhoto()}>View receipt</Button>
           )}
-          {photoUrl && <img src={photoUrl} alt="Receipt photo" className="expense-receipt-photo" />}
+          {!original && <ReceiptCapture onPhoto={photo=>void scanPhoto(photo)} onPreparingChange={setPreparingReceipt} disabled={savingExpense || uploadedReceipt.current}/>}
+          {photoUrl && <details className="receipt-photo-disclosure"><summary>View receipt photo</summary><img src={photoUrl} alt="Receipt photo" className="receipt-photo-review" /></details>}
+          {scanning && <div className="receipt-scan-progress" role="status"><span>{scanStatus || "Reading receipt…"}</span><Button variant="text" onClick={stopReading}>Stop reading</Button></div>}
+          {receiptResult && <ReceiptReview value={receiptResult} onValidityChange={setReceiptValid} onChange={receiptPhoto && !savingExpense ? next=>{setReceiptResult(next);setReceiptReviewed(false);} : undefined} onUseTotal={value=>{setAmount(value);setReceiptReviewed(false);}}/>}
+          {receiptPhoto && !scanning && <><label className="check-row receipt-reviewed"><input type="checkbox" checked={receiptReviewed} disabled={savingExpense} onChange={event=>setReceiptReviewed(event.target.checked)}/><span>I checked the receipt details and the USD expense amount.</span></label><Button variant="text" disabled={savingExpense || uploadedReceipt.current} onClick={removePhoto}>Remove receipt</Button></>}
           <p className="expense-date-context">Expense date: {dateText(original?.date || s.date)}{t.persistence !== "account" && " · Demo date"}</p>
           <div className="expense-validated-field">
           <Field label="What was it for?">
@@ -1025,7 +1124,7 @@ export function ExpenseForm() {
                 max={MONEY_LIMITS.expense / 100}
                 step="0.01"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => {setAmount(e.target.value);setReceiptReviewed(false);}}
                 placeholder="0.00"
               />
             </Field>
@@ -1034,7 +1133,7 @@ export function ExpenseForm() {
             <Field label="Category">
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => {categoryTouched.current=true;setCategory(e.target.value);}}
               >
                 {CATEGORIES.map((c) => (
                   <option key={c}>{c}</option>
@@ -1110,11 +1209,12 @@ export function ExpenseForm() {
           {customSplit && <p id="expense-split-status" role="status" className="expense-split-status">
             {splitFeedback}
           </p>}
-          <Button variant="text" onClick={close}>
+          <Button variant="text" disabled={savingExpense} onClick={close}>
             Cancel
           </Button>
-          <Button type="submit">Save expense</Button>
+          <Button type="submit" disabled={savingExpense || scanning || preparingReceipt || !receiptValid}>{savingExpense ? "Saving expense…" : "Save expense"}</Button>
         </div>
+        </fieldset>
       </form>
     </Modal>
   );

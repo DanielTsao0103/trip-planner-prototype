@@ -13,9 +13,14 @@ test("Groq receives a receipt image and returns only a valid USD total", async (
     assert.equal(payload.messages[1].content[1].image_url.url, "data:image/png;base64,Zml4dHVyZQ==");
     return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(fields) } }] });
   });
-  assert.deepEqual(await invoke({ cents: 7452, currency: "USD", category: "Other", purpose: "Walmart" }), {
-    purpose: "Walmart", category: "Other", amount: "74.52", needsManualAmount: false,
-  });
+  const receipt = await invoke({ totalCents: 7452, currency: "USD", category: "Other", purpose: "Walmart", subtotalCents: 6900, taxCents: 552,
+    items: [{ description: "Groceries", quantity: null, amountCents: 6900 }] });
+  assert.equal(receipt.purpose, "Walmart");
+  assert.equal(receipt.amount, "74.52");
+  assert.equal(receipt.needsManualAmount, false);
+  assert.equal(receipt.items.length, 1);
+  assert.equal(receipt.reconciliation.matches, true);
+  assert.equal(receipt.method, "vision");
   assert.equal((await invoke({ cents: 7452, currency: "CAD", category: "Food" })).amount, "");
   assert.equal((await invoke({ cents: null, currency: "USD", category: "Food" })).amount, "");
   await assert.rejects(invoke({ cents: 7452, currency: "USD", category: "Invalid" }));

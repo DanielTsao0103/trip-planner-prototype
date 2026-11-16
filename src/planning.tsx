@@ -1,3 +1,5 @@
+import { NearbySuggestions } from "./nearby-suggestions";
+import { suggestionLocationParams } from "./nearby-places";
 import { readPhotoDataUrl, validatePhoto } from "./image-validation";
 import { resolveSavedLocation } from "./google-maps";
 import { EventLocationInput } from "./event-location-input";
@@ -488,6 +490,7 @@ export function EventForm() {
   const stale = changedElsewhere(original) || openedSavedPlace.current !== savedPlaceVersion(savedPlace);
   const dateParam = route.params.get("date") || t.start;
   const suggested = route.params.get("suggestion");
+  const suggestedLocation = suggestionLocationParams(route.params);
   // Seed only a new, unscheduled draft. Editing or an explicit calendar selection
   // must retain its time, and later background updates must not move the draft.
   const [initialSlot] = useState(() => !original && !route.params.has("start") && !route.params.has("end")
@@ -497,8 +500,8 @@ export function EventForm() {
     [place, setPlace] = useState(
       original?.place || savedPlace?.place || route.params.get("place") || "",
     ),
-    [point, setPoint] = useState(original?.point ?? savedPlace?.point ?? null),
-    [selectedGooglePlaceId, setSelectedGooglePlaceId] = useState(original?.googlePlaceId ?? savedPlace?.googlePlaceId ?? null),
+    [point, setPoint] = useState(original ? original.point ?? null : savedPlace ? savedPlace.point ?? null : suggestedLocation.point),
+    [selectedGooglePlaceId, setSelectedGooglePlaceId] = useState(original ? original.googlePlaceId ?? null : savedPlace ? savedPlace.googlePlaceId ?? null : suggestedLocation.googlePlaceId),
     [date, setDate] = useState(original?.date || dateParam),
     [endDate, setEndDate] = useState(original ? eventEndDate(original) : route.params.get("endDate") || dateParam),
     [start, setStart] = useState(
@@ -692,7 +695,7 @@ export function EventForm() {
       id: original?.id || fromBooking || uid(),
       name: name.trim(),
       place: place.trim(),
-      googlePlaceId: point ? null : selectedGooglePlaceId,
+      googlePlaceId: selectedGooglePlaceId,
       point,
       date,
       endDate,
@@ -1274,7 +1277,7 @@ export function Suggestions() {
           </div>
         )}
       </>}
-      {(!t.sample || t.persistence === "account") && <section className="card"><h2>Find your next stop</h2><p>Explore nearby activities and foods for {dateText(selectedDay, true)}, with your group’s preferences in mind.</p><div className="row"><Button onClick={() => open("nearby", {date:selectedDay})}>Explore nearby ideas <Sparkles size={16}/></Button><Button variant="text" onClick={() => { dismissMessage(); go(15, {return:"9",date:selectedDay}); }}>Update your preferences</Button></div></section>}
+      {(!t.sample || t.persistence === "account") && <section className="card suggestion-research"><div className="section-title"><h2>Find your next stop</h2><Button variant="text" onClick={() => { dismissMessage(); go(15, {return:"9",date:selectedDay}); }}>Update your preferences</Button></div><NearbySuggestions embedded initialDate={selectedDay} /></section>}
     </>
   );
 }

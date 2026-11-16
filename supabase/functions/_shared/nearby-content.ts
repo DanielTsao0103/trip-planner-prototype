@@ -15,7 +15,7 @@ export function sentenceExcerpt(value: string, preferredLength = 300): string {
 }
 
 export function recommendationLocation(result: Pick<NearbyResult, "kind" | "address" | "researchArea">, context: Pick<PlanningContext, "destinations" | "area">): string {
-  if (result.kind !== "guide" && result.kind !== "dish" && result.address && result.address !== "Address needs confirmation from the venue") return result.address;
+  if (result.kind !== "guide" && result.address && result.address !== "Food idea · choose a local restaurant" && result.address !== "Address needs confirmation from the venue") return result.address;
   const area = result.researchArea || (result.kind === "guide" ? result.address : context.area);
   return context.destinations.find(destination => area.toLowerCase().includes(destination.split(/[,，]/u)[0].trim().toLowerCase()))
     || (context.destinations.length === 1 ? context.destinations[0] : "")
@@ -65,7 +65,12 @@ export function recommendationNotes(result: NearbyResult, context: Pick<Planning
   return notes;
 }
 
-export function recommendationSlot(result: NearbyResult, gaps: { start: string; end: string }[]) {
+export function recommendationSlot(result: NearbyResult & { openingWindows?: {start:string;end:string}[] }, gaps: { start: string; end: string }[]) {
+  if (result.openingWindows) gaps = gaps.flatMap(gap => result.openingWindows!.flatMap(window => {
+    const start = Math.max(minutes(gap.start),minutes(window.start)), end = Math.min(minutes(gap.end),minutes(window.end));
+    const clock = (value:number) => `${String(Math.floor(value/60)).padStart(2,"0")}:${String(value%60).padStart(2,"0")}`;
+    return end > start ? [{start:clock(start),end:clock(end)}] : [];
+  }));
   const duration = Number.isInteger(result.durationMinutes) && result.durationMinutes >= 15 && result.durationMinutes <= 240 ? result.durationMinutes : 60;
   const proposed = result.proposedTime;
   if (proposed && minutes(proposed.end) - minutes(proposed.start) === duration && gaps.some(gap => minutes(gap.start) <= minutes(proposed.start) && minutes(gap.end) >= minutes(proposed.end))) return proposed;

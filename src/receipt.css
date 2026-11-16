@@ -1,0 +1,27 @@
+.receipt-capture { padding-bottom: 1rem; border-bottom: 1px solid var(--line); margin-bottom: 1rem; }
+.receipt-capture-actions { display:flex; flex-wrap:wrap; gap:.6rem; }
+.receipt-camera { margin-top:1rem; }
+.receipt-camera video { width:100%; max-height:55vh; background:#111; border-radius:12px; object-fit:contain; }
+.receipt-camera p,.receipt-review>p { font-size:.88rem; line-height:1.5; }
+.receipt-review { margin-block:1rem; padding:1rem; border:1px solid var(--line); border-radius:12px; min-width:0; }
+.receipt-review-heading { display:flex; align-items:baseline; justify-content:space-between; gap:.5rem; flex-wrap:wrap; }
+.receipt-review h3 { margin:0; font-size:1rem; }
+.receipt-review-heading>span { color:var(--muted); font-size:.8rem; }
+.receipt-items { display:grid; gap:.75rem; }
+.receipt-item { display:grid; grid-template-columns:minmax(0,1fr) 4rem 6.5rem auto; gap:.5rem; align-items:end; padding-block:.5rem; border-bottom:1px solid var(--line); }
+.receipt-item:has(>span) { grid-template-columns:minmax(0,1fr) auto; align-items:start; }
+.receipt-item>span { overflow-wrap:anywhere; }
+.receipt-item label,.receipt-adjustments label { display:grid; gap:.3rem; font-size:.75rem; color:var(--muted); min-width:0; }
+.receipt-item input,.receipt-adjustments input,.receipt-adjustments select { min-width:0; width:100%; border:1px solid var(--line); background:var(--paper); color:var(--ink); border-radius:7px; padding:.6rem .5rem; font:inherit; font-size:.9rem; }
+.receipt-item input:focus-visible,.receipt-adjustments input:focus-visible,.receipt-adjustments select:focus-visible { outline:2px solid var(--ui-focus); outline-offset:2px; }
+.receipt-adjustments { margin-top:.8rem; }
+.receipt-adjustments summary { cursor:pointer; padding:.5rem 0; font-weight:600; }
+.receipt-adjustment-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.7rem; margin-block:.6rem; }
+.receipt-total { display:flex; gap:1rem; justify-content:space-between; border-top:1px solid var(--line); padding-top:.8rem; }
+.receipt-reconciliation,.receipt-currency-note { color:var(--muted); }
+.receipt-scan-progress { display:flex; align-items:center; justify-content:space-between; gap:.5rem; flex-wrap:wrap; padding:.7rem 0; }
+.receipt-photo-review { max-width:100%; max-height:300px; object-fit:contain; display:block; margin:.75rem auto; border-radius:8px; }
+.receipt-reviewed { margin-block:1rem; }
+@media(max-width:450px) { .receipt-item { grid-template-columns:minmax(0,1fr) 4rem 6rem; } .receipt-item>.btn { grid-column:1/-1; justify-self:start; min-height:36px; padding:.25rem 0; } .receipt-review {padding:.75rem;} }
+
+.expense-save-fields { display:contents; border:0; padding:0; margin:0; min-width:0; }

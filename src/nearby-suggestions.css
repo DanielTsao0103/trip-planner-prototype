@@ -47,3 +47,19 @@
 .nearby-result-actions .nearby-add { flex-basis: 100%; margin-top: 4px; }
 @media (prefers-reduced-motion: reduce) { .nearby-more > summary svg { transition: none; } }
 @media (max-width: 480px) { .nearby-research-controls { grid-template-columns: 1fr; gap: 0; } .nearby-context-panel dl { grid-template-columns: 1fr; gap: 4px; } .nearby-context-panel dd { margin-bottom: 8px; } }
+
+.nearby-location-actions { display:flex; flex-wrap:wrap; gap:.4rem; }
+.nearby-results-heading { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:.5rem; }
+.nearby-results-heading h3 { margin:0; }
+.nearby-provider { font-family:Arial,sans-serif; font-weight:500; font-size:.85rem; color:var(--muted); }
+.nearby-provider a + a { margin-inline-start:.5rem; }
+.nearby-research-page .nearby-context-panel { padding:1rem; }
+.nearby-location-confirm { border-block:1px solid var(--line); padding-block:1rem; }
+.nearby-planning-details dd { white-space:pre-line; }
+.suggestion-research { margin-top:1.5rem; }
+@media(min-width:1000px) { .nearby-research-page .nearby-result-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+.nearby-hours-zone { display:block; color:var(--muted); margin-top:.25rem; font-size:.75rem; }
+.nearby-weekly-hours { padding-left:1.2rem; }
+
+.nearby-research-page .nearby-research-controls { grid-template-columns:minmax(0,24rem); }

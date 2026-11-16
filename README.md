@@ -10,6 +10,10 @@ Trip Planner brings group trips, itineraries, shared maps, traveler preferences,
 
 The [site audit and implementation plan](SITE_USEFULNESS_PLAN.md) covers every page. The release adds relevant trip ordering/search, shared planning dates, selectable free time, a saved-place Suggestions workspace, researched-place retention, persistent map-day filters, and clearer group preference follow-up. Schedule availability excludes travel time; Today remains the travel guide. Budget, account/authentication, appearance and OKR calculations were retained after review.
 
+## November 16 suggestions and receipt update
+
+Nearby and the account Suggestions page share a Google demo-key fast path and bounded source-backed web research. Place identity and opening hours survive itinerary handoff. Budget accepts camera capture or receipt upload, extracts editable line items and totals, and saves private receipt details after review. See [implementation and verification boundaries](SUGGESTIONS_RECEIPTS_VERIFICATION.md).
+
 ## Current features
 
 | Area | Implemented behavior |
@@ -21,7 +25,7 @@ The [site audit and implementation plan](SITE_USEFULNESS_PLAN.md) covers every p
 | Maps | Google road/satellite maps, itinerary pins, automatic location resolution, saved coordinates/place IDs, pin adjustment and links to the matching daily itinerary item. |
 | Preferences | Each accepted traveler can save their own survey; the group can view aggregated preferences. |
 | Budget | Group and individual budgets, tracking mode, expenses, split allocations and audited repayment corrections stored in relational tables. Money is stored in integer cents. |
-| Reminders | Trip reminders and completion state persist. Dismissed suggestion IDs also persist; suggestion content is still illustrative. |
+| Reminders and suggestions | Trip reminders persist. Account Suggestions and Nearby share live place search, saved places, and itinerary handoff; sample trips retain illustrative ideas. |
 | Appearance | Account theme, light/dark mode, heading font and corner preferences save to Supabase; demo styling stays local. |
 | Save recovery | Serialized autosaves, atomic owner writes, revision checks, transient retries, validated recovery journals and visible failure/download controls. |
 
@@ -215,13 +219,13 @@ These are historical reports with explicit scope, revisions and verification bou
 | Apple sign-in | Not enabled on the hosted project; email/password and Google are the available paths. |
 | Email change and account deletion | Not built. |
 | Automatic concurrent-edit merging | Not built; revisions detect conflicts and preserve recovery choices. |
-| Recommendations and nearby alerts | Illustrative suggestions/proximity fixtures, not live recommendations, background geofencing or delivered notifications. |
+| Nearby alerts | Account recommendations use live providers. Proximity alert fixtures are not background geofencing or delivered notifications. |
 | Banking and payments | Expense splits and repayment markers persist, but no bank connection or money movement occurs. |
-| Gmail/social connections and receipt OCR | Connection/receipt previews do not represent live inbox access or OCR. |
+| Gmail/social connections | Connection previews do not represent live inbox access. Receipt camera/upload uses real OCR with required review; see [receipt and suggestion verification](SUGGESTIONS_RECEIPTS_VERIFICATION.md). |
 | Forwarded bookings | Rule-based Mailtrap import. Each booking can be sorted into a trip through the prefilled event form, so it becomes a normal shared itinerary event; times and costs are entered by the person. The booking is marked added right after the event save, so a later failed trip save can leave it marked added without its event ("Move back" fixes that). The importer reads the booking name, day, start time (when written next to the date), street address and confirmation code; the form opens with those filled in and a one hour length, and the trip picker preselects the one trip whose dates contain the booking. Sender matching is unverified and parsing can be incomplete. Availability depends on deployed service configuration. |
 | Automated receipt-review portal | Separate from the implemented admin allowlist and OKR dashboards; an automated admin receipt-review workflow and AWS database are not implemented. |
 
-The proposed receipt flow is: **traveler emails a receipt and trip reference to a dedicated Gmail inbox → automation/AI extracts a draft → admin reviews it → authorized server writes an approved expense to Supabase → traveler sees it in the app**. It does not scan a traveler's personal inbox. Proposed admin hosting is Express/Node.js on AWS Elastic Beanstalk, with RDS PostgreSQL for processing/review records; customer trip data stays in Supabase. Automation and AI/OCR providers remain undecided.
+The separately proposed email-to-admin receipt flow is: **traveler emails a receipt and trip reference to a dedicated Gmail inbox → automation/AI extracts a draft → admin reviews it → authorized server writes an approved expense to Supabase → traveler sees it in the app**. It does not scan a traveler's personal inbox. Proposed admin hosting is Express/Node.js on AWS Elastic Beanstalk, with RDS PostgreSQL for processing/review records; customer trip data stays in Supabase. Providers for that separate email-to-admin workflow remain undecided. The in-app receipt flow uses browser OCR and an optional existing vision pilot.
 
 [Architecture illustration with planned receipt flow](assignment/system-architecture.png) · [SVG](assignment/system-architecture.svg) · [FigJam](https://www.figma.com/board/I4HBVhgTCyki0lvjDZyMZ8/Untitled?node-id=44-271)
 
@@ -271,7 +275,7 @@ The final design review did **not** reach 9.7 in both UI and UX across every are
 
 Nearby buttons open a shared research popup. Required behavior: use current sources and every accepted traveler's preferences; consider plans and budgets; show uncertainty; return up to 3 candidates without automatically scheduling. The free Groq + Tavily integration enforces 5 generations/user/day plus shared limits of 1/minute, 24/day and 500/month. There is no paid fallback. The backend and quota migration are deployed, and a real browser research journey passed. Frontend publication uses the existing GitHub Pages workflow. Independent route, availability and critical suitability verification remain incomplete. See [NEARBY_AI.md](NEARBY_AI.md).
 
-Nearby research includes a targeted public Yelp search alongside venue/official-tourism-oriented research, explains unavailable Yelp coverage, and provides Google Maps and Yelp viewing links. It uses the existing free two-search allowance; a direct Yelp business link requires a cited source.
+Nearby research includes a targeted public Yelp search alongside venue/official-tourism-oriented research, explains unavailable Yelp coverage, and provides Google Maps and Yelp viewing links. It uses the reserved three-search allowance; a direct Yelp business link requires a cited source.
 
 ## Planning workspace update (November 13, 2026)
 

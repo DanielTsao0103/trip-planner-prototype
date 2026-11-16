@@ -901,8 +901,9 @@ test("a manually entered receipt total saves once and survives reload", async ({
   await page.goto("./#/12");
   await page.getByRole("button", { name: "Add expense", exact: true }).first().click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.locator('input[type="file"]')).toHaveCount(0);
-  await expect(dialog.getByRole("button", { name: "Take photo" })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Take photo", exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Upload receipt", exact: true })).toBeVisible();
+  // Manual entry remains available without selecting a photo or invoking OCR.
   await dialog.getByLabel("What was it for?").fill("Cedar Cafe");
   await dialog.getByLabel("Amount (USD)").fill("24.95");
   await dialog.getByRole("button", { name: "Save expense" }).click();

@@ -82,9 +82,47 @@ jobs:
             test-results/
           retention-days: 7
 
+  # A real browser media stream carries a generated receipt through capture, OCR and save.
+  receipt-camera:
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f
+      options: --ipc=host
+    timeout-minutes: 10
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_GOOGLE_MAPS_API_KEY: ${{ vars.VITE_GOOGLE_MAPS_API_KEY }}
+      VITE_GOOGLE_MAPS_DEMO_API_KEY: ${{ vars.VITE_GOOGLE_MAPS_DEMO_API_KEY }}
+      TRIP_QA_URL: http://127.0.0.1:4213/trip-planner-prototype/
+      TRIP_QA_OUTPUT: /tmp/receipt-camera-evidence
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build:pages
+      - name: Exercise virtual camera and real OCR
+        run: |
+          npm run preview -- --port 4213 --strictPort --base=/trip-planner-prototype/ > /tmp/receipt-preview.log 2>&1 &
+          node scripts/run-receipt-camera-ci.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: receipt-camera-evidence
+          path: |
+            /tmp/receipt-camera-evidence/*.json
+            /tmp/receipt-camera-evidence/*.png
+            /tmp/receipt-camera-evidence/*.zip
+            /tmp/receipt-camera-evidence/video/*.webm
+            /tmp/receipt-preview.log
+          retention-days: 7
+
   # One stable gate that passes only when the build and all four browser shards pass.
   test-build:
-    needs: [build, e2e]
+    needs: [build, e2e, receipt-camera]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:

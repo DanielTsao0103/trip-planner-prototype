@@ -1,5 +1,24 @@
 /** Shared planning contract. No browser state, credentials, or provider calls. */
 export type Intent = "lunch" | "dinner" | "activity";
+export type SearchLocation = { label: string; point?: { lat: number; lng: number }; googlePlaceId?: string };
+/** A search override is explicit user input, never inferred from stale device coordinates. */
+export function parseSearchLocation(value: unknown): SearchLocation | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Choose a valid search location.");
+  const location = value as Record<string, unknown>;
+  if (typeof location.label !== "string" || !location.label.trim() || location.label.length > 500) throw new Error("Choose a valid search location.");
+  const result: SearchLocation = { label: location.label.trim() };
+  if (location.point !== undefined) {
+    const point = location.point as Record<string, unknown>;
+    if (!point || typeof point !== "object" || typeof point.lat !== "number" || typeof point.lng !== "number" || !Number.isFinite(point.lat) || !Number.isFinite(point.lng) || Math.abs(point.lat) > 90 || Math.abs(point.lng) > 180) throw new Error("Choose valid map coordinates.");
+    result.point = { lat: point.lat, lng: point.lng };
+  }
+  if (location.googlePlaceId !== undefined) {
+    if (typeof location.googlePlaceId !== "string" || !/^[A-Za-z0-9_-]{5,300}$/.test(location.googlePlaceId)) throw new Error("Choose a valid map place.");
+    result.googlePlaceId = location.googlePlaceId;
+  }
+  return result;
+}
 type Preferences = { diet: string[]; access: string[]; walk: number; interests: string[]; food: string; spending: string; dining: string; atmosphere: string; destinations: string; tickets: string; notes: string };
 export type PlanningTrip = {
   id: string; start: string; end: string; zone: string; destinations: string[];
@@ -12,7 +31,7 @@ export type PlanningTrip = {
 export type PlanningContext = ReturnType<typeof planningContext> & { feedbackSignal?: { responses: number; tripSatisfactionRate: number; wouldRecommendRate: number } | null };
 export const minutes = (time: string) => { const [h, m] = time.split(":").map(Number); return h * 60 + m; };
 const clock = (time: number) => `${String(Math.floor(time / 60)).padStart(2, "0")}:${String(time % 60).padStart(2, "0")}`;
-export function planningContext(trip: PlanningTrip, actor: string, date: string, intent: Intent, anchorId?: string, now = new Date()) {
+export function planningContext(trip: PlanningTrip, actor: string, date: string, intent: Intent, anchorId?: string, now = new Date(), searchLocation?: SearchLocation) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date || date < trip.start || date > trip.end) throw new Error("Choose a day within this trip.");
   const travelers = trip.members.filter(m => m.status === "accepted");
   const self = travelers.find(m => m.id === actor || m.accountId === actor);
@@ -52,7 +71,7 @@ export function planningContext(trip: PlanningTrip, actor: string, date: string,
   });
   return {
     date, zone: trip.zone, intent, destinations: trip.destinations,
-    area: location.area, locationNote: location.note, anchorId: anchor?.id,
+    area: searchLocation?.label || location.area, locationNote: searchLocation ? "" : location.note, anchorId: anchor?.id, searchLocation,
     travelers: travelers.length, answered: answers.length, preferences: answers,
     diet: [...new Set(answers.flatMap(p => p.diet))].filter(v => v !== "No restrictions"),
     access: [...new Set(answers.flatMap(p => p.access))],
@@ -101,7 +120,13 @@ export type ReviewRejections = Partial<Record<"evidence" | "budget" | "conflicts
 export type Candidate = {
   name: string; address: string; reason: string; fitNote?: string; durationMinutes: number;
   pricePerPersonCents: number | null; currency: string | null;
-  recommendationType?: "dish" | "activity";
+  recommendationType?: "dish" | "activity" | "place";
+  addressVerified?: boolean;
+  addressSourced?: boolean;
+  point?: { lat: number; lng: number };
+  googlePlaceId?: string;
+  website?: string;
+  openingHours?: string[];
   facts: { topic: string; detail: string; sourceUrl: string }[];
   concerns: string[]; conflicts: string[];
 };
@@ -110,7 +135,7 @@ export const YELP_SEARCH_MESSAGES = {
   found: "Public Yelp results were found. Available excerpts may be incomplete; confirm critical details with the venue.",
   no_results: "The targeted Yelp search returned no usable public excerpts. Other retrieved sources are still considered.",
   unavailable: "The targeted Yelp search was unavailable. Research continued with the other retrieved sources.",
-  not_searched: "Yelp isn’t used for dish recommendations because no restaurant is being selected.",
+  not_searched: "Yelp isn’t used for dish recommendations because a restaurant has not been selected.",
 } as const;
 export type YelpSearchStatus = keyof typeof YELP_SEARCH_MESSAGES;
 export function isYelpSource(value: string): boolean {
@@ -151,7 +176,7 @@ export function reviewCandidates(raw: unknown, context: PlanningContext, retriev
     const c = value as Candidate;
     if (typeof c.name !== "string" || !c.name.trim() || c.name.length > 160 || typeof c.address !== "string" || c.address.length > 500 || typeof c.reason !== "string" || c.reason.length > 1000 || (c.fitNote !== undefined && (typeof c.fitNote !== "string" || c.fitNote.length > 400)) || !Number.isInteger(c.durationMinutes) || c.durationMinutes < 15 || c.durationMinutes > 240 || !Array.isArray(c.facts) || !Array.isArray(c.concerns) || !Array.isArray(c.conflicts) || !c.concerns.every(v => typeof v === "string" && v.length <= 500)) return reject("invalid");
     if (c.conflicts.length) return reject("conflicts");
-    if (context.intent === "activity" ? c.recommendationType !== "activity" : c.recommendationType !== "dish") return reject("invalid");
+    if (context.intent === "activity" ? c.recommendationType !== "activity" : !(["dish", "place"].includes(c.recommendationType || ""))) return reject("invalid");
     if (c.pricePerPersonCents !== null && (!Number.isSafeInteger(c.pricePerPersonCents) || c.pricePerPersonCents < 0)) return reject("invalid");
     const facts = c.facts.filter(f => f && typeof f.topic === "string" && f.topic.length <= 100 && typeof f.detail === "string" && f.detail.length <= 1000 && sources.has(f.sourceUrl));
     if (!facts.length) return reject("evidence");
@@ -161,7 +186,7 @@ export function reviewCandidates(raw: unknown, context: PlanningContext, retriev
     if (usdPrice !== null && ((context.remainingGroupCents !== null && usdPrice * context.travelers > context.remainingGroupCents) || context.individualRemaining.some(v => v !== null && usdPrice > v))) return reject("budget");
     seen.add(c.name.toLowerCase());
     const gap = context.gaps.find(g => minutes(g.end) - minutes(g.start) >= c.durationMinutes);
-    return [{ ...c, kind: c.recommendationType === "dish" ? "dish" : undefined, address: c.recommendationType === "dish" ? "Food idea · choose a local restaurant" : c.address, reason: "Found during research for this trip day. Review the source excerpts and confirm suitability before scheduling.", fitNote: c.fitNote?.trim() || "This option appears in the retrieved sources and may fit the available time on this day. Review its details and confirm suitability before scheduling.", facts, concerns: [...new Set([...c.concerns,
+    return [{ ...c, kind: c.recommendationType === "dish" ? "dish" : undefined, address: c.recommendationType === "dish" && !c.addressVerified ? "Food idea · choose a local restaurant" : c.address, reason: "Found during research for this trip day. Review the source excerpts and confirm suitability before scheduling.", fitNote: c.fitNote?.trim() || "This option appears in the retrieved sources and may fit the available time on this day. Review its details and confirm suitability before scheduling.", facts, concerns: [...new Set([...c.concerns,
       "Sources were found by web research; suitability has not been independently verified.",
       "Confirm opening hours for the trip date, booking availability and the route before scheduling.",
       ...(context.diet.length ? ["Confirm every dietary restriction and cross-contact risk directly with the venue."] : []),

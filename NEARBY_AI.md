@@ -1,5 +1,14 @@
 # Nearby research — free providers
 
+## Current pipeline (November 16, 2026)
+
+Account Suggestions and Nearby use the same UI and Google Places fast path through the existing demo/no-payment key only. Place name, formatted address, coordinates and place ID come from Google; weekly opening periods are translated into the trip clock before proposing a slot. Known closed windows require a different time. Google data does not establish holiday hours, availability or suitability.
+
+When Google is unavailable, bounded parallel Tavily searches feed Groq source-backed candidates. Meals now name actual venues. Model coordinates and place IDs are discarded; unresolved addresses require selecting a real place before adding. Exact authenticated requests reuse a two-minute cache after current membership and trip-revision checks; failed and empty results are not cached. A cold web lookup can take several seconds. Existing free quotas remain enforced.
+
+See [measured verification and limitations](SUGGESTIONS_RECEIPTS_VERIFICATION.md). The dated sections below preserve earlier implementation history; earlier dish-only and serial-search descriptions are superseded.
+
+
 > **November 16, 2026 update:** Every meal result is a named dish and every activity result is a specific activity matching the selected Find option. Searches broaden geographically to the destination city/region when narrow searches fail; generic guide cards are not returned as substitutes. Each result keeps a related photo or uses an area/city image. The completed-trip survey now captures whole-trip satisfaction in a separate private table; nearby generation receives aggregate trip-satisfaction signals only. Its migration is applied and `nearby-suggestions` is active at version 19.
 
 Nearby entry points on Itinerary, Daily itinerary, Today, Map and Suggestions open one themed popup. Itinerary and Map pass their selected day/event. Account research uses the current database snapshot; samples show context without calling external providers. Recommendations use live retrieval, not model training on tourism sources. Results appear as up to three source-backed tiles with attributed Unsplash or illustrative fallback photos.

@@ -11,20 +11,20 @@ const candidate = { name: "Vegetarian dumplings", address: "Seattle", reason: "L
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 const bytesForTest = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
 
-test("free provider flow uses three basic searches and bounded structured Groq passes", async () => {
+test("free provider flow uses three fast searches and skips enrichment once a useful option exists", async () => {
   const calls: { url: string; body: any }[] = [];
   const fetcher: typeof fetch = async (url, init) => {
     const body = JSON.parse(init!.body as string); calls.push({ url: String(url), body });
     return String(url).includes("tavily") ? json({ results: [source] }) : json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [candidate] }) } }] });
   };
   const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, fetcher);
-  assert.equal(calls.length, 5); assert.equal(calls.filter(c => c.url === "https://api.tavily.com/search").length, 3);
-  for (const call of calls.slice(0, 3)) { assert.equal(call.body.search_depth, "basic"); assert.equal(call.body.auto_parameters, false); assert.equal(call.body.include_raw_content, false); }
+  assert.equal(calls.length, 4); assert.equal(calls.filter(c => c.url === "https://api.tavily.com/search").length, 3);
+  for (const call of calls.slice(0, 3)) { assert.equal(call.body.search_depth, "fast"); assert.equal(call.body.auto_parameters, false); assert.equal(call.body.include_raw_content, false); }
   assert.equal(calls[0].body.include_domains, undefined);
   assert.equal(calls[1].body.include_domains, undefined);
-  assert.match(calls[0].body.query, /specific lunch dishes and foods to try/);
-  assert.match(calls[2].body.query, /official tourism food guide/);
-  const last = calls[4]; assert.equal(last.url, "https://api.groq.com/openai/v1/chat/completions"); assert.equal(last.body.response_format.json_schema.strict, true);
+  assert.match(calls[0].body.query, /restaurants cafes for lunch/);
+  assert.match(calls[2].body.query, /official tourism restaurant address/);
+  const last = calls[3]; assert.equal(last.url, "https://api.groq.com/openai/v1/chat/completions"); assert.equal(last.body.response_format.json_schema.strict, true);
   assert.ok(new TextEncoder().encode(JSON.stringify({ model: last.body.model, messages: last.body.messages, response_format: last.body.response_format })).length + 1800 + 512 <= 8000);
   assert.equal(result.candidates[0].facts.length, 1);
 });
@@ -47,12 +47,12 @@ test("unavailable supplemental Yelp search preserves primary evidence and contin
     if (String(url).includes("tavily")) return calls === 1 || calls === 3 ? json({ results: [source] }) : json({}, 403);
     return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: calls === 4 ? [{ ...candidate, recommendationType: "activity" }] : [] }) } }] });
   });
-  assert.equal(calls, 5); assert.equal(result.yelpStatus, "unavailable"); assert.equal(result.candidates.length, 1);
+  assert.equal(calls, 4); assert.equal(result.yelpStatus, "unavailable"); assert.equal(result.candidates.length, 1);
 });
 test("a quota response on supplemental Yelp search pauses research rather than retrying", async () => {
   let calls = 0;
   await assert.rejects(researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async () => ++calls === 1 ? json({ results: [source] }) : json({}, 429)), (e: unknown) => e instanceof ResearchError && e.status === 429);
-  assert.equal(calls, 2);
+  assert.equal(calls, 3);
 });
 test("invented URLs and fabricated evidence quotes cannot appear as supported facts", () => {
   const result = supportedFacts([{ ...candidate, facts: [candidate.facts[0], { ...candidate.facts[0], quote: "Peanut free with no cross contact" }, { ...candidate.facts[0], sourceUrl: "https://invented.example" }] }], [source]);
@@ -63,10 +63,10 @@ test("invented URLs and fabricated evidence quotes cannot appear as supported fa
   assert.equal(routing[0].facts.length, 0);
   assert.equal(supportedFacts([{ ...candidate, name: "Invented venue" }], [source])[0].facts.length, 0);
 });
-test("search rate limits stop the pipeline without retries or model calls", async () => {
+test("search rate limits stop after the reserved parallel batch without retries or model calls", async () => {
   let calls = 0;
   await assert.rejects(researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async () => { calls++; return json({}, 429); }), (error: unknown) => error instanceof ResearchError && error.status === 429);
-  assert.equal(calls, 1);
+  assert.equal(calls, 3);
 });
 test("empty search results skip the AI; oversized context uses neither provider", async () => {
   let calls = 0;
@@ -218,4 +218,101 @@ test("unsupported categories do not redirect users to a generic city guide", asy
     return json({choices:[{finish_reason:"stop",message:{content:JSON.stringify({candidates:[]})}}]});
   })(new Request("https://edge.example/nearby",{method:"POST",body:JSON.stringify({tripId:trip.id,revision:2,date:trip.start,intent:"lunch"})}));
   const body=await response.json(); assert.equal(body.results.length,0); assert.equal(body.emptyReason,"no_candidates");
+});
+
+
+test("parallel search latency is one batch and never an automatic second model pass", async () => {
+  let active = 0, maximum = 0, modelCalls = 0;
+  const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async url => {
+    if (String(url).includes("tavily")) {
+      maximum = Math.max(maximum, ++active);
+      await new Promise(resolve => setTimeout(resolve, 20));
+      active--;
+      return json({ results: [source] });
+    }
+    modelCalls++;
+    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [candidate] }) } }] });
+  });
+  assert.equal(maximum, 3); assert.equal(modelCalls, 1); assert.equal(result.recoveryAttempted, false);
+});
+
+test("same-context cache rechecks membership and coalesces requests without consuming quota twice", async () => {
+  let actor = "owner", revision = 2, accessible = true, reservations = 0, providerCalls = 0;
+  const row = { tripID: trip.id, revision: 2, start_date: trip.start, end_date: trip.end, timezone: trip.zone, destinations: trip.destinations, content: trip };
+  const gateway: ResearchGateway = { actor: async () => actor, trip: async () => accessible ? { ...row, revision } : null, reserve: async () => { reservations++; return "reservation"; }, finish: async () => {} };
+  const handler = createNearbyHandler({ enabled: true, groq: "fixture", tavily: "fixture" }, () => gateway, async url => {
+    providerCalls++;
+    await new Promise(resolve => setTimeout(resolve, 15));
+    return String(url).includes("tavily") ? json({ results: [source] }) : json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [candidate] }) } }] });
+  });
+  const request = (extra = {}) => new Request("https://edge.example/nearby", { method: "POST", body: JSON.stringify({ tripId: trip.id, date: trip.start, revision, intent: "lunch", ...extra }) });
+  const concurrent = await Promise.all([handler(request()), handler(request())]);
+  assert.ok(concurrent.every(response => response.status === 200));
+  assert.equal(reservations, 1); assert.equal(providerCalls, 4);
+  const hit = await (await handler(request())).json();
+  assert.equal(hit.cached, true); assert.equal(reservations, 1);
+  accessible = false; assert.equal((await handler(request())).status, 403); accessible = true;
+  revision = 3; assert.equal((await handler(request({ revision: 2 }))).status, 409);
+  await handler(request()); assert.equal(reservations, 2);
+  actor = "other"; await handler(request()); assert.equal(reservations, 3);
+  await handler(request({ location: { label: "Portland", point: { lat: 45.52, lng: -122.67 } } })); assert.equal(reservations, 4);
+  const invalid = await handler(request({ location: { label: "Nowhere", point: { lat: 91, lng: 0 } } }));
+  assert.equal(invalid.status, 400); assert.equal(reservations, 4);
+});
+
+test("empty research remains retryable rather than being retained as a cache hit", async () => {
+  let reservations = 0;
+  const row = { tripID: trip.id, revision: 2, start_date: trip.start, end_date: trip.end, timezone: trip.zone, destinations: trip.destinations, content: trip };
+  const handler = createNearbyHandler({ enabled: true, groq: "fixture", tavily: "fixture" }, () => ({ actor: async () => "owner", trip: async () => row, reserve: async () => { reservations++; return "reservation"; }, finish: async () => {} }), async () => json({ results: [] }));
+  const request = () => new Request("https://edge.example/nearby", { method: "POST", body: JSON.stringify({ tripId: trip.id, date: trip.start, revision: 2, intent: "lunch" }) });
+  await handler(request()); await handler(request()); assert.equal(reservations, 2);
+});
+
+
+test("truncated completion gets one bounded repair rather than losing all research", async () => {
+  let modelCalls = 0;
+  const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async (url, init) => {
+    if (String(url).includes("tavily")) return json({ results: [source] });
+    const request = JSON.parse(init!.body as string);
+    if (++modelCalls === 1) {
+      assert.equal(request.max_completion_tokens, 1800);
+      return json({ choices: [{ finish_reason: "length", message: { content: '{"candidates":[' } }] });
+    }
+    assert.equal(request.max_completion_tokens, 900); assert.match(request.messages[0].content, /ONE candidate only/);
+    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [candidate] }) } }] });
+  });
+  assert.equal(modelCalls, 2); assert.equal(result.candidates.length, 1); assert.equal(result.recoveryAttempted, true);
+});
+
+test("repeated incomplete output is bounded to two model calls", async () => {
+  let modelCalls = 0;
+  await assert.rejects(researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async url => {
+    if (String(url).includes("tavily")) return json({ results: [source] });
+    modelCalls++; return json({ choices: [{ finish_reason: "length", message: { content: '{"candidates":[' } }] });
+  }), /Research was incomplete/);
+  assert.equal(modelCalls, 2);
+});
+
+
+test("address-bearing venue pages precede generic directory introductions", async () => {
+  let searches = 0;
+  const venue = { url: "https://museum.example/visit", title: "Art Museum", content: "Art Museum welcomes visitors at 100 Main Street, Provo. Visit our permanent exhibits." };
+  const directory = { url: "https://directory.example/provo", title: "Best attractions guide", content: "A travel directory for the city's many attractions. ".repeat(40) };
+  await researchWithFreeProviders(planningContext(trip, "owner", trip.start, "activity"), { groq: "fixture", tavily: "fixture" }, async (url, init) => {
+    if (String(url).includes("tavily")) return json({ results: ++searches === 1 ? [directory, venue] : [] });
+    const supplied = JSON.parse(JSON.parse(init!.body as string).messages[1].content).sources;
+    assert.equal(supplied[0].url, venue.url); assert.ok(supplied.some((item: any) => item.content.includes("100 Main Street")));
+    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [] }) } }] });
+  });
+});
+
+
+test("malformed search rows are ignored and malformed model bodies use only one repair", async () => {
+  let modelCalls = 0;
+  const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async url => {
+    if (String(url).includes("tavily")) return json({ results: [null, false, {url:"javascript:alert(1)"}, source] });
+    if (++modelCalls === 1) return new Response("not json", {status:200});
+    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [candidate] }) } }] });
+  });
+  assert.equal(modelCalls, 2); assert.equal(result.candidates.length, 1);
 });
