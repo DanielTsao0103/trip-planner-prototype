@@ -1145,6 +1145,8 @@ export function Suggestions() {
     (i) =>
       walkLimit >= (i.id === "gallery" ? 180 : i.id === "garden" ? 300 : 80),
   );
+  const discoveryFirst = t.persistence === "account" && !t.savedPlaces?.length;
+  const discovery = (!t.sample || t.persistence === "account") && <section className="card suggestion-research"><div className="section-title"><h2>Find your next stop</h2><Button variant="text" onClick={() => { dismissMessage(); go(15, {return:"9",date:selectedDay}); }}>Update your preferences</Button></div><NearbySuggestions embedded initialDate={selectedDay} /></section>;
   return (
     <>
       <PageHead
@@ -1163,6 +1165,7 @@ export function Suggestions() {
       />
       {message === "Trip preferences saved." && <div className="inline-success" role="status"><span>{message}</span><button className="icon-btn" aria-label="Dismiss message" onClick={dismissMessage}><X size={16}/></button></div>}
       <div className="ideas-day"><Field label="Planning day"><select value={selectedDay} onChange={event => go(9, {date: event.target.value}, true)}>{days(t.start,t.end).map((day,index) => <option key={day} value={day}>Day {index + 1} · {dateText(day)}</option>)}</select></Field><Button variant="text" onClick={() => go(11, {date:selectedDay})}>View this day <ArrowRight size={16}/></Button></div>
+      {discoveryFirst && discovery}
       <SavedPlaces key={t.id} date={selectedDay} view="ideas" initiallyExpanded />
       {t.sample && t.persistence !== "account" && <>
       <div className="section-title"><div><h2>Sample inspiration</h2><p>Starting points to personalize and verify.</p></div></div>
@@ -1277,7 +1280,7 @@ export function Suggestions() {
           </div>
         )}
       </>}
-      {(!t.sample || t.persistence === "account") && <section className="card suggestion-research"><div className="section-title"><h2>Find your next stop</h2><Button variant="text" onClick={() => { dismissMessage(); go(15, {return:"9",date:selectedDay}); }}>Update your preferences</Button></div><NearbySuggestions embedded initialDate={selectedDay} /></section>}
+      {!discoveryFirst && discovery}
     </>
   );
 }

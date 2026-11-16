@@ -22,12 +22,13 @@ test("nearby entry points share a responsive context popup without fictional res
   }
 });
 
-async function account(page: Page, generation: (request: Record<string, unknown>) => { status?: number; json: unknown }, role: "Owner" | "Day Editor" = "Owner", anchorPlace = "", blockedFirstDay = false) {
+async function account(page: Page, generation: (request: Record<string, unknown>) => { status?: number; json: unknown }, role: "Owner" | "Day Editor" = "Owner", anchorPlace = "", blockedFirstDay = false, hasSavedPlace = false) {
   await page.route("https://places.googleapis.com/**", route => route.abort());
   const owner = { id: "11111111-1111-4111-8111-111111111111", aud: "authenticated", role: "authenticated", email: "qa@example.com", user_metadata: { name: "QA Traveler" }, app_metadata: { provider: "email" } };
   const trip = seed().trips[0];
   trip.members = [{ id: owner.id, name: "QA Traveler", email: owner.email, role, status: "accepted", days: role === "Day Editor" ? ["2027-05-02"] : [], ...(role === "Day Editor" ? {accountId:owner.id} : {}) }];
   trip.start = "2027-05-01"; trip.end = "2027-05-03"; trip.events = anchorPlace ? [{ ...trip.events[0], id:"anchor", name:"Earlier planned stop", place:anchorPlace, date:trip.start, start:"09:00", end:"10:00", cost:0, attendees:[], image:"", notes:"" }] : []; trip.prefs = role === "Day Editor" ? {[owner.id]:blankPrefs()} : {};
+  trip.savedPlaces = hasSavedPlace ? [{id:"saved-cafe",name:"Saved cafe",place:"123 Example St, Seattle",notes:""}] : [];
   if (blockedFirstDay) trip.events = [{...seed().trips[0].events[0], date:trip.start, start:"09:00",end:"21:00"}];
   const row = { tripID: "22222222-2222-4222-8222-222222222222", owner_id: owner.id, created_by: owner.id, trip_name: "Research trip", destination: "Seattle", destinations: ["Seattle"], start_date: trip.start, end_date: trip.end, timezone: "America/Los_Angeles", revision: 1, content_version: 1, content: trip };
   await page.route("https://*.supabase.co/**", async route => {
@@ -453,4 +454,22 @@ test('long provider names remain addable with full venue name in notes',async({p
  expect(writes.at(-1).events[0].name.length).toBeLessThanOrEqual(100);
  expect(writes.at(-1).events[0].notes).toContain(fullName);
  expect(writes.at(-1).events[0].googlePlaceId).toBe(googleFixture.id);
+});
+
+for(const populated of [false,true]) test(`Suggestions discovery order follows saved collection state (${populated ? 'populated' : 'empty'})`,async({page})=>{
+ await account(page,()=>({json:{results:[]}}),'Owner','',false,populated);await page.keyboard.press('Escape');
+ const research=page.getByRole('region',{name:'Nearby suggestions'}),saved=page.getByRole('region',{name:'Saved places'});
+ await expect(research).toBeVisible();await expect(saved).toBeVisible();
+ const order=await page.evaluate(()=>{const discovery=document.querySelector('.suggestion-research')!;const collection=document.querySelector('[aria-label="Saved places"]')!;return !!(discovery.compareDocumentPosition(collection)&Node.DOCUMENT_POSITION_FOLLOWING);});
+ expect(order).toBe(!populated);
+ if(populated)await expect(saved).toContainText('Saved cafe');
+});
+
+test('overnight event draft keeps suggestion location identity and end day together',async({page})=>{
+ const writes:any[]=[];page.on('request',request=>{if(request.url().endsWith('/save_account_trip'))writes.push(request.postDataJSON().p_data);});
+ await account(page,()=>({json:{results:[]}}));await page.keyboard.press('Escape');
+ const params=new URLSearchParams({suggestion:'Late dinner',place:googleFixture.formattedAddress,lat:'47.61',lng:'-122.33',googlePlaceId:googleFixture.id,date:'2027-05-01',endDate:'2027-05-02',start:'23:00',end:'01:00'});
+ await page.goto('./#/7?'+params);await expect(page.getByLabel('End day',{exact:true})).toHaveValue('2027-05-02');
+ await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();await expect.poll(()=>writes.at(-1)?.events.length).toBe(1);
+ expect(writes.at(-1).events[0]).toMatchObject({name:'Late dinner',place:googleFixture.formattedAddress,date:'2027-05-01',endDate:'2027-05-02',start:'23:00',end:'01:00',point:{lat:47.61,lng:-122.33},googlePlaceId:googleFixture.id});
 });
