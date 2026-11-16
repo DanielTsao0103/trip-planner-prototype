@@ -15,6 +15,7 @@ async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuar
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname;
+    if (path === "/rest/v1/rpc/okr4_receipt_stats") return route.fulfill({ json: { eligible_travelers: 0, repeat_travelers: 0 } });
     if (path === "/rest/v1/rpc/get_daniel_okr_metrics") return route.fulfill({ status: 503, json: { message: "Metrics fixture is unavailable" } });
     if (path === "/rest/v1/rpc/is_admin") {
       log.rpc += 1;

@@ -33,7 +33,7 @@ async function login(page:Page){await page.goto('./');await page.getByLabel('Ema
 test('admin sees real metrics, denominator definitions and responsive chart table',async({page},info)=>{
  await api(page);await login(page);await page.goto('./#/21');
  await expect(page.getByTestId('okr1-percent')).toHaveText('85%');
- await expect(page.getByText('Target met',{exact:true})).toBeVisible();
+ await expect(page.getByTestId('okr1').getByText('Target met',{exact:true})).toBeVisible();
  await expect(page.getByText('85 of 100',{exact:true})).toBeVisible();
  await expect(page.getByText('85% of users',{exact:true})).toBeVisible();
  await expect(page.getByRole('heading',{name:'Planner adoption'})).toHaveCount(0);
@@ -77,7 +77,7 @@ test('percentage rings distinguish empty denominators from genuine zero rates',a
  await page.getByRole('button',{name:'Refresh data',exact:true}).click();
  await expect(page.getByTestId('okr1-percent')).toHaveText('0%');
  await expect(page.getByText('85 more users need to meet this cadence to reach 85%',{exact:false})).toBeVisible();
- await expect(page.getByText('Below target',{exact:true})).toBeVisible();
+ await expect(page.getByTestId('okr1').getByText('Below target',{exact:true})).toBeVisible();
 });
 
 test('automatic refresh preserves expanded details and keyboard focus',async({page})=>{
@@ -103,7 +103,7 @@ test('preliminary activity shows real visits, short cadence and graduation witho
  await expect(page.getByRole('heading',{name:'Plan access today',exact:true})).toBeVisible();
  await expect(page.getByTestId('okr1-percent')).toHaveText('42%');
  await expect(page.getByText('Preliminary',{exact:true})).toBeVisible();
- await expect(page.getByText('Target met',{exact:true})).toHaveCount(0);
+ await expect(page.getByTestId('okr1').getByText('Target met',{exact:true})).toHaveCount(0);
  await page.getByRole('slider',{name:'Inspect day'}).fill('0');
  await expect(page.locator('.okr1-chart-readout')).toContainText('12 people · Nov 12 · Partial day');
  await page.getByText('View daily numbers',{exact:true}).click();
@@ -130,12 +130,12 @@ test('preliminary activity shows real visits, short cadence and graduation witho
  await page.getByRole('button',{name:'Refresh data',exact:true}).click();
  await expect(page.getByTestId('okr1-percent')).toHaveText('90%');
  await expect(page.getByText('9 of 10',{exact:true})).toBeVisible();
- await expect(page.getByText('Target met',{exact:true})).toHaveCount(0);
+ await expect(page.getByTestId('okr1').getByText('Target met',{exact:true})).toHaveCount(0);
  await expect(page.getByText('Early result, not the official 14-day score.',{exact:false})).toBeVisible();
  state.metrics=structuredClone(fixture);
  await page.getByRole('button',{name:'Refresh data',exact:true}).click();
  await expect(page.getByTestId('okr1-percent')).toHaveText('85%');
- await expect(page.getByText('Target met',{exact:true})).toBeVisible();
+ await expect(page.getByTestId('okr1').getByText('Target met',{exact:true})).toBeVisible();
  await expect(page.getByRole('heading',{name:'Activity so far'})).toHaveCount(0);
  await expect(page.getByTestId('okr1-trend-line')).toBeVisible();
 });
