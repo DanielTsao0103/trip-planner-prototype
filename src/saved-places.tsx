@@ -26,7 +26,7 @@ export function SavedPlaces({ date, view = "list", initiallyExpanded = false }: 
   useEffect(() => {
     if (removing || !restoreHeading.current) return;
     restoreHeading.current = false;
-    const target = !trip?.savedPlaces?.length && view !== "ideas" && addButton.current
+    const target = !trip?.savedPlaces?.length && addButton.current
       ? addButton.current : heading.current;
     target?.focus();
   }, [removing]);
@@ -34,7 +34,7 @@ export function SavedPlaces({ date, view = "list", initiallyExpanded = false }: 
   const role = member(trip, s.userId)?.role;
   const allowed = role === "Owner" || role === "Editor";
   const places = trip.savedPlaces ?? [];
-  const compactEmpty = allowed && places.length === 0 && view !== "ideas";
+  const compactEmpty = allowed && places.length === 0;
   const close = () => {
     if (name || place || notes) setDiscarding(true);
     else setEditing(false);
@@ -80,7 +80,7 @@ export function SavedPlaces({ date, view = "list", initiallyExpanded = false }: 
         </div>
       </div>
       <ErrorBox text={notice} />
-      {initiallyExpanded && !places.length && <p className="saved-places-empty">Save a place you have in mind, or research nearby ideas for your selected day.</p>}
+      {initiallyExpanded && !places.length && !compactEmpty && <p className="saved-places-empty">Save a place you have in mind, or research nearby ideas for your selected day.</p>}
       {expanded &&
         places.map((item) => (
           <div className="saved-place-row" key={item.id}>

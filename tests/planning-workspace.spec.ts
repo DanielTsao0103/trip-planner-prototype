@@ -184,7 +184,7 @@ test("day and stop selections survive reload and Show on map reveals the selecte
 
 test("saved-place actions stay complete and reachable on a narrow phone", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 600 });
-  for (const route of ['8?view=list', '11?date=2026-10-16']) {
+  for (const route of ['8?view=list', '11?date=2026-10-16', '9']) {
     await page.goto(`./#/${route}`);
     const save = page.getByRole('region', { name: 'Saved places', exact: true })
       .getByRole('button', { name: 'Save a place', exact: true });
