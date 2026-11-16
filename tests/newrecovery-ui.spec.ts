@@ -57,7 +57,18 @@ test("reloaded unsaved itinerary keeps the focused event below its sticky recove
   await banner.locator('summary').click();
   await expect.poll(clearance).toBeGreaterThanOrEqual(10);
   await page.setViewportSize({width:320,height:600});
+  // Users can return to an event after layout observers have already settled.
+  // This isolates anchor clearance from a lucky resize-observer correction.
+  await expect.poll(()=>banner.evaluate(el=>Math.abs(parseFloat(document.documentElement.style.getPropertyValue('--trip-recovery-height'))-el.getBoundingClientRect().height))).toBeLessThan(1);
+  await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
   await event.focus();
+  await event.evaluate(e=>e.scrollIntoView({block:'start'}));
+  await expect.poll(clearance).toBeGreaterThanOrEqual(10);
+  // Late font metrics or enlarged text can grow the notice without navigation.
+  await page.addStyleTag({content:'.trip-recovery-banner > span { font-size: 20px; }'});
+  await expect.poll(clearance).toBeGreaterThanOrEqual(10);
+  await expect.poll(()=>banner.evaluate(el=>Math.abs(parseFloat(document.documentElement.style.getPropertyValue('--trip-recovery-height'))-el.getBoundingClientRect().height))).toBeLessThan(1);
+  await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
   await event.evaluate(e=>e.scrollIntoView({block:'start'}));
   await expect.poll(clearance).toBeGreaterThanOrEqual(10);
   await page.screenshot({path:test.info().outputPath('focused-recovery-phone.png')});

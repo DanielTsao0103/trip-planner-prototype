@@ -1,5 +1,6 @@
 import { parseReceiptDocument, normalizeReceiptDocument, receiptCents, type ReceiptScanResult } from "./receipt-items";
 import { getSupabase } from "./supabase";
+import { searchRequest } from "./search-request";
 import workerPath from "tesseract.js/dist/worker.min.js?url";
 import type { Worker } from "tesseract.js";
 
@@ -64,9 +65,9 @@ export async function scanReceiptPhoto(photo: File, useVision = false, totalPosi
   if (useVision && totalPosition === undefined) {
     options.onProgress?.(0, "Reading receipt");
     try {
-      const { data, error } = await getSupabase().functions.invoke<ReceiptScanResult>("read-receipt", {
-        body: photo, headers: { "Content-Type": photo.type }, signal: options.signal,
-      });
+      const { data, error } = await searchRequest(signal => getSupabase().functions.invoke<ReceiptScanResult>("read-receipt", {
+        body: photo, headers: { "Content-Type": photo.type }, signal,
+      }), options.signal ?? new AbortController().signal, 4000);
       if (options.signal?.aborted) throw new DOMException("Receipt reading cancelled.", "AbortError");
       // Older deployments provide only a total. Use OCR until item extraction is available.
       if (!error && data && Array.isArray(data.items) && data.items.length) return normalizeReceiptDocument(data, "vision");

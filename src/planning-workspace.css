@@ -582,9 +582,13 @@
   :root .day-map-jump { display: inline-flex; }
 }
 
-/* Anchor targets clear the actual wrapped toolbar, including enlarged type. */
+/* Anchor targets clear whichever sticky surface is active, even after resize
+   observers settle or recovery text wraps following a late font load. */
 :root :is(.page-8,.page-11) :is(.day-section,[id^="day-event-"],[id^="itinerary-event-"],.day-map-panel) {
-  scroll-margin-top: calc(var(--planning-toolbar-height, 100px) + var(--release-notice-height, 0px) + 16px);
+  scroll-margin-top: max(
+    calc(var(--planning-toolbar-height, 100px) + var(--release-notice-height, 0px) + 16px),
+    calc(var(--trip-recovery-height, 0px) + var(--release-notice-height, 0px) + 12px)
+  );
 }
 
 :root .saved-places.saved-places-compact { border: 0; background: transparent; padding: 0; margin: 16px 0; }
