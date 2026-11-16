@@ -43,3 +43,17 @@
 :root .okr-note { font-size: 13px; opacity: 0.75; }
 @keyframes okr-pulse { 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { :root .okr-live-dot { animation: none; } :root .okr-meter i { transition: none; } }
+
+:root .okr-trend { display: grid; gap: 8px; }
+:root .okr-trend h3 { margin: 0; }
+:root .okr-trend svg { width: 100%; height: auto; overflow: visible; }
+:root .okr-grid { stroke: currentColor; opacity: 0.12; stroke-width: 1; }
+:root .okr-target { stroke: currentColor; opacity: 0.5; stroke-width: 1; stroke-dasharray: 4 4; }
+:root .okr-axis { font-size: 11px; fill: currentColor; opacity: 0.7; }
+:root .okr-line { fill: none; stroke: var(--primary, #23426b); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+:root .okr-dot { fill: var(--primary, #23426b); stroke: var(--surface, #fff); stroke-width: 2; outline: none; }
+:root .okr-dot:focus-visible { stroke: currentColor; }
+:root .okr-hit { fill: transparent; }
+:root .okr-readout { font-weight: 600; }
+:root .okr-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+:root .okr-table th, :root .okr-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid rgba(128, 128, 128, 0.25); }

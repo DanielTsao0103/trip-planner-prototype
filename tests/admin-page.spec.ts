@@ -8,7 +8,7 @@ const account = {
 const seeded = ["ivysanford13@gmail.com", "danieljuntsao@gmail.com", "thefergusondrew@gmail.com", "sethshireman@gmail.com"];
 
 /** Mocked Supabase with an in-memory admin list. `admin: false` mimics a signed-in account that is not listed. */
-async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuard?: boolean; stats?: { total_trips: number; shared_trips: number }[] }) {
+async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuard?: boolean; stats?: { total_trips: number; shared_trips: number }[]; history?: { day: string; total_trips: number; shared_trips: number }[] }) {
   let rows = seeded.map((email, index) => ({ email, added_at: `2026-11-12T15:00:0${index}Z` }));
   const log = { rpc: 0, statsCalls: 0, inserts: [] as string[], deletes: [] as string[] };
   await page.route("https://*.supabase.co/**", async (route) => {
@@ -21,6 +21,7 @@ async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuar
       log.rpc += 1;
       return route.fulfill({ json: options.admin });
     }
+    if (path === "/rest/v1/rpc/okr2_history") return route.fulfill({ json: options.history ?? [] });
     if (path === "/rest/v1/rpc/okr2_sharing_stats") {
       const sequence = options.stats ?? [{ total_trips: 0, shared_trips: 0 }];
       const row = sequence[Math.min(log.statsCalls, sequence.length - 1)];
@@ -201,4 +202,31 @@ test("Ivy's tracker shows OKR #2 and updates on its own", async ({ page }) => {
   await expect(tracker.getByText("Target met")).toBeVisible();
   expect(log.statsCalls).toBeGreaterThanOrEqual(2);
   await page.screenshot({ path: test.info().outputPath("okr2-met.png"), fullPage: true });
+});
+
+test("Ivy's tracker charts the last 14 days with a table and a readout", async ({ page }) => {
+  const history = [
+    { day: "2026-11-14", total_trips: 10, shared_trips: 3 },
+    { day: "2026-11-15", total_trips: 12, shared_trips: 6 },
+    { day: "2026-11-16", total_trips: 12, shared_trips: 9 },
+  ];
+  await mockSupabase(page, { admin: true, stats: [{ total_trips: 12, shared_trips: 9 }], history });
+  await signIn(page);
+  await page.goto("./#/22");
+  const trend = page.getByTestId("okr2-trend");
+  await expect(trend.getByRole("heading", { name: "Last 14 days" })).toBeVisible();
+  await expect(trend.getByText("Up 45 percentage points since Nov 14.")).toBeVisible();
+  await expect(page.getByTestId("okr2-readout")).toHaveText("Nov 16: 75% (9 of 12 trips)");
+  await trend.getByRole("img", { name: /Nov 14: 30%/ }).focus();
+  await expect(page.getByTestId("okr2-readout")).toHaveText("Nov 14: 30% (3 of 10 trips)");
+  await trend.getByText("Show as a table").click();
+  await expect(trend.getByRole("row")).toHaveCount(4);
+  await page.screenshot({ path: test.info().outputPath("okr2-trend.png"), fullPage: true });
+});
+
+test("a first-day trend says tracking just started", async ({ page }) => {
+  await mockSupabase(page, { admin: true, history: [{ day: "2026-11-15", total_trips: 4, shared_trips: 1 }] });
+  await signIn(page);
+  await page.goto("./#/22");
+  await expect(page.getByTestId("okr2-trend").getByText("Tracking started.")).toBeVisible();
 });

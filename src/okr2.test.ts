@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatPercent, sharingProgress } from "./okr2.ts";
+import { dayLabel, formatPercent, historyPoints, sharingProgress, trendChange } from "./okr2.ts";
 
 test("no trips is 0% and not met", () => {
   const p = sharingProgress({ totalTrips: 0, sharedTrips: 0 });
@@ -31,4 +31,20 @@ test("rounds the needed count up and clamps bad input", () => {
 test("formats percent to one decimal", () => {
   assert.equal(formatPercent(33.333), "33.3%");
   assert.equal(formatPercent(75), "75%");
+});
+
+test("history is sorted, converted to percent, and summarized as a change", () => {
+  const pts = historyPoints([
+    { day: "2026-11-16", totalTrips: 10, sharedTrips: 6 },
+    { day: "2026-11-15", totalTrips: 10, sharedTrips: 4 },
+  ]);
+  assert.deepEqual(pts.map((p) => p.percent), [40, 60]);
+  assert.equal(trendChange(pts), 20);
+  assert.equal(trendChange(pts.slice(0, 1)), null);
+  assert.equal(trendChange([]), null);
+});
+
+test("day labels do not shift with time zones", () => {
+  assert.equal(dayLabel("2026-11-15"), "Nov 15");
+  assert.equal(dayLabel("2026-01-01"), "Jan 1");
 });

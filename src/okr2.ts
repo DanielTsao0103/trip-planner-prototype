@@ -42,3 +42,35 @@ export async function fetchSharingStats(): Promise<SharingStats> {
   const row = Array.isArray(data) ? data[0] : data;
   return { totalTrips: Number(row?.total_trips ?? 0), sharedTrips: Number(row?.shared_trips ?? 0) };
 }
+
+export type HistoryRow = { day: string; totalTrips: number; sharedTrips: number };
+export type HistoryPoint = HistoryRow & { percent: number };
+
+/** Admin only. Last 14 days that have a record, oldest first. */
+export async function fetchSharingHistory(): Promise<HistoryRow[]> {
+  const { data, error } = await getSupabase().rpc("okr2_history");
+  if (error) throw new Error(error.message);
+  return (Array.isArray(data) ? data : []).map((r: { day: string; total_trips: number; shared_trips: number }) => ({
+    day: String(r.day),
+    totalTrips: Number(r.total_trips),
+    sharedTrips: Number(r.shared_trips),
+  }));
+}
+
+export function historyPoints(rows: HistoryRow[]): HistoryPoint[] {
+  return [...rows]
+    .sort((a, b) => a.day.localeCompare(b.day))
+    .map((r) => ({ ...r, percent: sharingProgress({ totalTrips: r.totalTrips, sharedTrips: r.sharedTrips }).percent }));
+}
+
+/** Change in percentage points from the first to the last recorded day, or null with fewer than two days. */
+export function trendChange(points: HistoryPoint[]): number | null {
+  if (points.length < 2) return null;
+  return points[points.length - 1].percent - points[0].percent;
+}
+
+/** "2026-11-15" as "Nov 15" without time zone shifts. */
+export function dayLabel(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}

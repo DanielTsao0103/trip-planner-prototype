@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge, Button, ErrorBox } from "../ui";
 import { OkrTrackerShell } from "./okr-shell";
-import { fetchSharingStats, formatPercent, sharingProgress, type SharingStats } from "../okr2";
+import {
+  dayLabel, fetchSharingHistory, fetchSharingStats, formatPercent, historyPoints, OKR2_TARGET_PERCENT, sharingProgress, trendChange,
+  type HistoryPoint, type SharingStats,
+} from "../okr2";
 
 /** How often the numbers refresh while the page is open. */
 export const LIVE_REFRESH_MS = 15000;
@@ -21,15 +24,21 @@ function Okr2Live() {
   const [stats, setStats] = useState<SharingStats | null>(null);
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [history, setHistory] = useState<HistoryPoint[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const alive = useRef(true);
 
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
-      const next = await fetchSharingStats();
+      const [next, rows] = await Promise.all([
+        fetchSharingStats(),
+        // The trend is secondary: if it fails, the headline numbers still show.
+        fetchSharingHistory().catch(() => null),
+      ]);
       if (!alive.current) return;
       setStats(next);
+      if (rows) setHistory(historyPoints(rows));
       setError("");
       setUpdatedAt(new Date());
     } catch {
@@ -99,6 +108,8 @@ function Okr2Live() {
         </>
       )}
 
+      {history && <TrendChart points={history} />}
+
       <div className="okr-live-bar">
         <span className="okr-live-dot" aria-hidden="true" />
         <span data-testid="okr2-updated">
@@ -113,5 +124,71 @@ function Okr2Live() {
         travelers without an account are not counted.
       </p>
     </section>
+  );
+}
+
+const W = 640;
+const H = 220;
+const PAD = { l: 40, r: 16, t: 14, b: 28 };
+
+/** Share of trips with more than one account, per day for the last 14 days. One series, so the heading names it. */
+function TrendChart({ points }: { points: HistoryPoint[] }) {
+  const [active, setActive] = useState<number | null>(null);
+  const change = trendChange(points);
+  const x = (i: number) => PAD.l + (points.length < 2 ? (W - PAD.l - PAD.r) / 2 : (i * (W - PAD.l - PAD.r)) / (points.length - 1));
+  const y = (pct: number) => PAD.t + ((100 - Math.min(100, Math.max(0, pct))) * (H - PAD.t - PAD.b)) / 100;
+  const line = points.map((p, i) => `${x(i)},${y(p.percent)}`).join(" ");
+  const shown = active === null ? points[points.length - 1] : points[active];
+  const summary =
+    change === null
+      ? "Tracking started. The trend appears after the second day."
+      : `${change >= 0 ? "Up" : "Down"} ${Math.round(Math.abs(change) * 10) / 10} percentage points since ${dayLabel(points[0].day)}.`;
+
+  return (
+    <div className="okr-trend" data-testid="okr2-trend">
+      <h3>Last 14 days</h3>
+      <p className="okr-note">{summary} History is recorded from the day this tracker went live, so it fills in over two weeks.</p>
+      {points.length > 0 && (
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Share of trips with more than one account, ${points.length} days. ${summary}`}>
+          {[0, 25, 50, 75, 100].map((t) => (
+            <g key={t}>
+              <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} className={t === OKR2_TARGET_PERCENT ? "okr-target" : "okr-grid"} />
+              <text x={PAD.l - 6} y={y(t) + 4} textAnchor="end" className="okr-axis">{t}%</text>
+            </g>
+          ))}
+          <text x={W - PAD.r} y={y(OKR2_TARGET_PERCENT) - 5} textAnchor="end" className="okr-axis">Target {OKR2_TARGET_PERCENT}%</text>
+          {points.length > 1 && <polyline points={line} className="okr-line" />}
+          {points.map((p, i) => (
+            <g key={p.day}>
+              <circle
+                cx={x(i)} cy={y(p.percent)} r={active === i ? 5 : 3.5} className="okr-dot"
+                tabIndex={0} role="img" aria-label={`${dayLabel(p.day)}: ${formatPercent(p.percent)}, ${p.sharedTrips} of ${p.totalTrips} trips`}
+                onMouseEnter={() => setActive(i)} onMouseLeave={() => setActive(null)} onFocus={() => setActive(i)} onBlur={() => setActive(null)}
+              />
+              <circle cx={x(i)} cy={y(p.percent)} r={14} className="okr-hit" onMouseEnter={() => setActive(i)} onMouseLeave={() => setActive(null)} />
+              {(i === 0 || i === points.length - 1) && (
+                <text x={x(i)} y={H - 8} textAnchor={i === 0 && points.length > 1 ? "start" : "end"} className="okr-axis">{dayLabel(p.day)}</text>
+              )}
+            </g>
+          ))}
+        </svg>
+      )}
+      {shown && (
+        <p className="okr-readout" aria-live="polite" data-testid="okr2-readout">
+          {dayLabel(shown.day)}: {formatPercent(shown.percent)} ({shown.sharedTrips} of {shown.totalTrips} trips)
+        </p>
+      )}
+      <details>
+        <summary>Show as a table</summary>
+        <table className="okr-table">
+          <thead><tr><th>Day</th><th>Shared trips</th><th>All trips</th><th>Share</th></tr></thead>
+          <tbody>
+            {points.map((p) => (
+              <tr key={p.day}><td>{dayLabel(p.day)}</td><td>{p.sharedTrips}</td><td>{p.totalTrips}</td><td>{formatPercent(p.percent)}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
+    </div>
   );
 }
