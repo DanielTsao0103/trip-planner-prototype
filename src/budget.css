@@ -897,7 +897,7 @@ body:has(.budget-page) .modal-head .icon-btn {
 
 /* Large totals retain the entire currency value, including cents. */
 .budget-page .budget-stats > div > strong { white-space: nowrap; overflow-wrap: normal; }
-.budget-page .budget-stats-wide > div > strong { font-size: clamp(22px, 3vw, 34px); }
+.budget-page .budget-stats-wide > div > strong { font-size: clamp(22px, 2.8cqi, 34px); }
 @media (max-width: 760px) {
   .budget-page .budget-stats-wide { grid-template-columns: minmax(0, 1fr); }
   .budget-page .budget-stats-wide > div, .budget-page .budget-stats-wide > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -1020,4 +1020,47 @@ body:has(.budget-page) .modal-head .icon-btn {
   border-top: 2px solid var(--ink);
   box-shadow: 0 0 0 1px var(--paper);
   pointer-events: none;
+}
+
+/* Available content width, not the browser width, determines whether totals fit.
+   This also handles a visible sidebar and enlarged browser/text rendering. */
+.budget-page { container: budget-content / inline-size; }
+.budget-page .budget-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.budget-page .budget-stats > div { min-width: 0; }
+@container budget-content (max-width: 50rem) {
+  .budget-page .budget-intro { display: block; margin-bottom: 18px; }
+  .budget-page .budget-intro .budget-toolbar { margin-top: 12px; justify-content: flex-start; }
+  .budget-page .budget-stats { grid-template-columns: minmax(0, 1fr); }
+  .budget-page .budget-stats > div,
+  .budget-page .budget-stats > div:first-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px 16px;
+    padding: 14px 18px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    background: transparent;
+  }
+  .budget-page .budget-stats > div:last-child { border-bottom: 0; }
+  .budget-page .budget-stats > div > span { min-height: 0; display: block; flex: 1 1 8rem; }
+  .budget-page .budget-stats > div > strong {
+    flex: 0 0 auto;
+    margin: 0;
+    font-size: clamp(22px, 5cqi, 32px);
+  }
+  .budget-page .budget-stats small { flex-basis: 100%; }
+  .budget-page .finance-layout { grid-template-columns: minmax(0, 1fr); }
+  .budget-page .chart-card { padding: 0 22px; }
+}
+
+/* The sample/account controls must also fit when enlarged beside the sidebar. */
+.budget-shell .main-wrap { container: budget-shell / inline-size; }
+@media (min-width: 761px) {
+  @container budget-shell (max-width: 38rem) {
+    .budget-shell .topbar { height: auto; min-height: 76px; flex-wrap: wrap; gap: 12px; padding-block: 12px; }
+    .budget-shell .topbar-left { flex: 1 1 100%; }
+    .budget-shell .topbar-right { max-width: 100%; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+  }
 }
