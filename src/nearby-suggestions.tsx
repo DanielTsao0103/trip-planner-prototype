@@ -12,6 +12,11 @@ import { distinctRecommendationThoughts, recommendationLocation, recommendationT
 import "./nearby-suggestions.css";
 
 type NearbyPhoto = { url: string; alt: string; label: string; credit?: UnsplashPhoto["credit"]; selection?: UnsplashPhoto };
+const cityIdeasSearch = (area: string) => {
+  const search = new URL("https://www.google.com/search");
+  search.searchParams.set("q", `official tourism city and region ideas ${area}`);
+  return search.href;
+};
 
 export function NearbySuggestions() {
   const { trip, s, overlay, route, updateTrip, pendingTripIds, go } = useApp();
@@ -183,7 +188,7 @@ export function NearbySuggestions() {
     finally { if (generation === continuation.current) setPreparing(false); }
   }
   return <Modal title="Nearby suggestions" wide className="nearby-research-modal">
-    <p className="nearby-intro">Find places around your plans, with your group’s needs in mind.</p>
+    <p className="nearby-intro">{intent === "activity" ? "Find a specific activity to do around your plans." : `Find a specific ${intent} dish to try. We’ll name the food itself; you can choose where to eat it.`} Your group’s needs are considered.</p>
     <p className="fine-print">Up to 3 ideas per generation · 5 generations per person each day · resets at midnight UTC.</p>
     <div className="nearby-research-controls">
       <Field label="Trip day"><select value={date} onChange={e => setDate(e.target.value)}>{days(trip.start, trip.end).map(day => <option key={day} value={day}>{dateText(day)}</option>)}</select></Field>
@@ -206,7 +211,7 @@ export function NearbySuggestions() {
     {loading && <p role="status">Checking current sources against your plans and preferences. You can close this window to cancel.</p>}
     {error && <p role="alert" className="error-box">{error}</p>}
     {results !== null && <section className="nearby-results" aria-label="Research results" aria-live="polite">
-      <h3>Options to review</h3>
+      <h3>{intent === "activity" ? "Activities to do" : "Foods to try"}</h3>
       {!results.length && <div className="nearby-empty-explanation"><h4>{NEARBY_EMPTY_MESSAGES[emptyReason].title}</h4><p>{NEARBY_EMPTY_MESSAGES[emptyReason].message}</p>{diagnostics?.recoveryAttempted && <p>The AI made one follow-up pass using the same sources and trip constraints; it still found no supportable candidate.</p>}<p>{NEARBY_EMPTY_MESSAGES[emptyReason].action}</p></div>}
       {diagnostics && <details className="nearby-search-details"><summary>Search details</summary><p>{diagnostics.sourcesFound} sources found; {diagnostics.sourcesUsed} source excerpts used; {diagnostics.candidatesReturned} candidates returned{diagnostics.recoveryAttempted ? " after one follow-up pass" : ""}.</p>
         {diagnostics.yelpStatus && Object.hasOwn(YELP_SEARCH_MESSAGES, diagnostics.yelpStatus) && <p>{YELP_SEARCH_MESSAGES[diagnostics.yelpStatus]} {diagnostics.yelpSourcesUsed ?? 0} Yelp excerpt{diagnostics.yelpSourcesUsed === 1 ? "" : "s"} used.</p>}
@@ -219,7 +224,7 @@ export function NearbySuggestions() {
         <aside className="nearby-fit-note"><strong>A thought for your day</strong><p>{result.fitNote || "Explore this option alongside your plans."}</p></aside>
         <dl className="nearby-planning-details">
           <dt>{added ? "Scheduled time" : "Proposed time"}</dt><dd>{slot ? `${timeText(slot.start)}–${timeText(slot.end)} · ${context.zone}` : "No suitable time gap found"}</dd>
-          <dt>{result.kind === "guide" ? "Area" : "Venue"}</dt><dd>{resultPlace(result)}{result.facts.filter(f => safeSource(f.sourceUrl) && f.topic === "Venue" && f.detail !== result.address).map((fact, i) => <p className="nearby-venue-description" key={i}>{fact.detail}</p>)}</dd>
+          <dt>{result.kind === "guide" ? "Area" : result.kind === "dish" ? "Where to try it" : "Venue"}</dt><dd>{result.kind === "dish" ? `A dish to look for in ${resultPlace(result)} · no restaurant selected` : resultPlace(result)}{result.facts.filter(f => safeSource(f.sourceUrl) && f.topic === "Venue" && f.detail !== result.address).map((fact, i) => <p className="nearby-venue-description" key={i}>{fact.detail}</p>)}</dd>
           <dt>Price</dt><dd>{result.pricePerPersonCents !== null && result.currency ? `${(result.pricePerPersonCents / 100).toFixed(2)} ${result.currency} per person · source estimate` : "Price not confirmed"}</dd>
           {result.facts.filter(f => safeSource(f.sourceUrl) && f.topic !== "Venue").map((fact, i) => <div className="nearby-planning-fact" key={i}><dt>{fact.topic === "Price" ? "Price details" : fact.topic}</dt><dd>{fact.topic === "Guide excerpt" ? sentenceExcerpt(fact.detail) || "Read the complete guide in More to consider." : fact.detail}</dd></div>)}
         </dl>
@@ -227,7 +232,9 @@ export function NearbySuggestions() {
           <div className="nearby-listing-links">
             {links.maps ? <a href={links.maps} target="_blank" rel="noopener noreferrer">View on Google Maps <ExternalLink size={14} aria-hidden="true" /></a> : <a href={links.google} target="_blank" rel="noopener noreferrer">Search on Google <ExternalLink size={14} aria-hidden="true" /></a>}
             {links.yelp && <a href={links.yelp} target="_blank" rel="noopener noreferrer" title={links.yelpIsListing ? `Open the sourced Yelp business page for ${result.name}` : `Search Yelp for ${result.name}`}>View on Yelp <ExternalLink size={14} aria-hidden="true" /></a>}
-            {result.kind === "guide" && result.facts.find(fact=>safeSource(fact.sourceUrl)) && <a href={result.facts.find(fact=>safeSource(fact.sourceUrl))!.sourceUrl} target="_blank" rel="noopener noreferrer">Explore city and region ideas <ExternalLink size={14} aria-hidden="true" /></a>}
+            {result.kind === "guide" && result.facts.find(fact=>safeSource(fact.sourceUrl))
+              ? <a href={result.facts.find(fact=>safeSource(fact.sourceUrl))!.sourceUrl} target="_blank" rel="noopener noreferrer">Explore city and region ideas <ExternalLink size={14} aria-hidden="true" /></a>
+              : <a href={cityIdeasSearch(context.area)} target="_blank" rel="noopener noreferrer">Explore city and region ideas <ExternalLink size={14} aria-hidden="true" /></a>}
           </div>
           <h5>Sources</h5>
           <ul className="nearby-source-links">{[...new Set(result.facts.filter(f => safeSource(f.sourceUrl)).map(fact=>fact.sourceUrl))].map(url => <li key={url}><a href={url} target="_blank" rel="noopener noreferrer">{url} <ExternalLink size={12} aria-hidden="true" /></a></li>)}</ul>

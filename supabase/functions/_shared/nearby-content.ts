@@ -15,7 +15,7 @@ export function sentenceExcerpt(value: string, preferredLength = 300): string {
 }
 
 export function recommendationLocation(result: Pick<NearbyResult, "kind" | "address" | "researchArea">, context: Pick<PlanningContext, "destinations" | "area">): string {
-  if (result.kind !== "guide" && result.address && result.address !== "Address needs confirmation from the venue") return result.address;
+  if (result.kind !== "guide" && result.kind !== "dish" && result.address && result.address !== "Address needs confirmation from the venue") return result.address;
   const area = result.researchArea || (result.kind === "guide" ? result.address : context.area);
   return context.destinations.find(destination => area.toLowerCase().includes(destination.split(/[,，]/u)[0].trim().toLowerCase()))
     || (context.destinations.length === 1 ? context.destinations[0] : "")
@@ -44,13 +44,14 @@ export function distinctRecommendationThoughts(results: NearbyResult[]): NearbyR
 }
 
 export function recommendationNotes(result: NearbyResult, context: Pick<PlanningContext, "destinations" | "area">): string {
-  const lines = [result.kind === "guide" ? `Explore ${recommendationLocation(result, context)} — ${result.name}` : result.name];
+  const lines = [result.kind === "guide" ? `Explore ${recommendationLocation(result, context)} — ${result.name}` : result.kind === "dish" ? `Food to try: ${result.name}` : result.name];
   const used = new Set<string>();
   const add = (value: string) => {
     const clean = value.trim(), key = clean.toLocaleLowerCase().replace(/\s+/gu, " ");
     if (clean && !used.has(key)) { lines.push(clean); used.add(key); }
   };
   if (result.kind === "guide") add("An exploration idea; choose a specific activity and confirm its location, access and price.");
+  else if (result.kind === "dish") add(`A specific dish to seek out in ${recommendationLocation(result, context)}; no restaurant is selected.`);
   else if (result.fitNote && !result.fitNote.startsWith("Found during research")) add(result.fitNote);
   for (const fact of result.facts.filter(fact => safeSource(fact.sourceUrl))) {
     add(fact.sourceUrl);

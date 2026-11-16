@@ -60,7 +60,7 @@ test("account popup displays sourced review candidates, resets stale results and
   });
   const dialog = page.getByRole("dialog", { name: "Nearby suggestions" });
   await dialog.getByRole("button", { name: "Find nearby suggestions", exact: true }).click();
-  await expect(dialog.getByRole("heading", { name: "Options to review" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Foods to try" })).toBeVisible();
   await expect(dialog.locator(".nearby-more")).not.toHaveAttribute("open", "");
   await expect(dialog).not.toContainText("Found during research for this trip day");
   await dialog.getByText("More to consider", { exact: true }).click();
@@ -74,7 +74,7 @@ test("account popup displays sourced review candidates, resets stale results and
 
   await expect(dialog).toContainText("Confirm access and dietary needs");
   await dialog.getByLabel("Find", { exact: true }).selectOption("dinner");
-  await expect(dialog.getByRole("heading", { name: "Options to review" })).toHaveCount(0);
+  await expect(dialog.getByRole("heading", { name: "Foods to try" })).toHaveCount(0);
   expect(requests).toHaveLength(1);
 });
 test("suggestions retain a loaded illustrative photo when venue and area searches fail", async ({ page }) => {

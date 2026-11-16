@@ -565,7 +565,7 @@ export function Home() {
       </section>
       <div className="section-title home-ideas-heading">
         <h2 id="preplanned-trips" ref={templateHeading} tabIndex={-1}>Pre-planned trips</h2>
-        <span className="muted">Estimated per person</span>
+        <Button variant="text" onClick={() => go(26)}>Browse all {PREPLANNED_TRIPS.length} trips <ArrowRight size={16}/></Button>
       </div>
       <div className="planned-carousel" role="region" aria-roledescription="carousel" aria-label="Pre-planned trip carousel">
         <div className="planned-carousel-controls">

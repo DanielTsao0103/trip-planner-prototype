@@ -9,7 +9,7 @@ const trip = (): PlanningTrip => ({
   expenses: [{ amount: 1000, shares: { a: 500, b: 500 } }], budget: 10000, budgetMode: "group", individual: {},
 });
 const context = () => planningContext(trip(), "account", "2027-01-02", "lunch", undefined, new Date("2026-12-01T12:00:00Z"));
-const candidate = (): Candidate => ({ name: "Real candidate", address: "A published street address", reason: "Near the museum", durationMinutes: 60, pricePerPersonCents: 2000, currency: "USD", facts: [{ topic: "Menu", detail: "Published menu", sourceUrl: "https://venue.example/menu" }], concerns: [], conflicts: [] });
+const candidate = (): Candidate => ({ name: "Real candidate", address: "A published street address", reason: "Near the museum", recommendationType: "dish", durationMinutes: 60, pricePerPersonCents: 2000, currency: "USD", facts: [{ topic: "Menu", detail: "Published menu", sourceUrl: "https://venue.example/menu" }], concerns: [], conflicts: [] });
 test("nearby context uses active group, personal responses, day area and conservative budgets without identities", () => {
   const c = context();
   assert.equal(c.area, "Museum, Portland"); assert.equal(c.travelers, 2); assert.equal(c.preferences.filter(p => p.requester).length, 1);
@@ -27,6 +27,7 @@ test("unretrieved source URLs, explicit conflicts, overspending, duplicates and 
 test("sourced candidates remain review-only and proposed time respects deterministic gap", () => {
   const results = reviewCandidates([candidate(), candidate(), { ...candidate(), name: "Two" }, { ...candidate(), name: "Three" }, { ...candidate(), name: "Four" }], context(), ["https://venue.example/menu"]);
   assert.ok(results.length <= 3); assert.equal(results[0].status, "review"); assert.deepEqual(results[0].proposedTime, { start: "12:30", end: "13:30" });
+  assert.equal(results[0].kind, "dish");
   assert.ok(results[0].concerns.some(c => c.includes("cross-contact")));
   const unsafe = reviewCandidates([{ ...candidate(), reason: "Guaranteed allergy safe and accessible within your walking limit" }], context(), ["https://venue.example/menu"]);
   assert.equal(unsafe[0].reason.includes("Guaranteed"), false);
@@ -64,8 +65,12 @@ test("candidate filtering records distinct rejection reasons", () => {
   reviewCandidates([{ ...candidate(), facts: [] }, { ...candidate(), conflicts: ["Incompatible"] }, { ...candidate(), pricePerPersonCents: 4000 }], context(), ["https://venue.example/menu"], rejected);
   assert.deepEqual(rejected, { evidence: 1, conflicts: 1, budget: 1 });
 });
+test("Find intent rejects recommendation types that do not match its category", () => {
+  const result = reviewCandidates([{ ...candidate(), recommendationType: "activity" }], context(), ["https://venue.example/menu"]);
+  assert.deepEqual(result, []);
+});
 test("external listing links encode venue names, preserve sourced Yelp business URLs and reject spoofed hosts", () => {
-  const c = { ...candidate(), name: "Café & Bakery", address: "100 Main St, Portland, OR" };
+  const c = { ...candidate(), recommendationType: undefined, name: "Café & Bakery", address: "100 Main St, Portland, OR" };
   const links = nearbyListingLinks(c, context());
   assert.equal(links.maps, null);
   assert.equal(new URL(links.google).searchParams.get("q"), "Café & Bakery 100 Main St, Portland, OR");
@@ -87,4 +92,7 @@ test("external listing links encode venue names, preserve sourced Yelp business 
   const guide = nearbyListingLinks({ ...c, kind: "guide" }, context());
   assert.equal(guide.maps, null); assert.equal(guide.yelp, null);
   assert.equal(new URL(guide.google).searchParams.get("q"), c.name);
+  const dish = nearbyListingLinks({ ...c, name: "Café & Bakery", address: "Food idea · choose a local restaurant", kind: "dish" }, context());
+  assert.equal(dish.maps, null); assert.equal(dish.yelp, null);
+  assert.equal(new URL(dish.google).searchParams.get("q"), "Café & Bakery Portland");
 });

@@ -1,4 +1,4 @@
-type Suggestion = { name: string; address: string; kind?: "guide" };
+type Suggestion = { name: string; address: string; kind?: "guide" | "dish" };
 const normalize = (value: string) => value.normalize("NFKC").toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const categories = [
   { names: /shrine|temple|pagoda|sanctuary|神社|寺|廟/u, query: "temple shrine", terms: /shrine|temple|pagoda|sanctuary|神社|寺|廟/u },

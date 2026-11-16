@@ -111,3 +111,7 @@ To repeat the role and bypass checks with disposable accounts, run `node scripts
 
 Run `supabase/migrations/20261113220000_forwarded_booking_trip_link.sql` once (SQL editor). It adds `trip_id` and `added_at` to `forwarded_booking` and lets an account update only those two columns on its own rows, and only to a trip it can already see. The event itself is saved through the normal trip save, so no other table or policy changes. Run it before deploying the app, because the app now reads the new column.
 
+## Nearby feedback and budget cadence (November 15, 2026)
+
+`20261115120000_trip_feedback_and_budget_cadence.sql` was applied to the existing team project through the SQL Editor after read-only checks confirmed the deployed trip-access and atomic-save insertion points. It adds private feedback and budget-cadence tables, recording functions, and aggregate RPCs. Existing trip and expense rows were not rewritten. The Supabase CLI migration-history baseline remains unset; do not use `supabase db push` to replay the historical SQL files. Deploy the `nearby-suggestions` Edge Function separately after the CLI confirms the production target.
+

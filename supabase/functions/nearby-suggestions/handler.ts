@@ -1,5 +1,5 @@
 import { distinctRecommendationThoughts } from "../_shared/nearby-content.ts";
-import { planningContext, reviewCandidates, type PlanningTrip, type EmptyReason, type ReviewRejections } from "../_shared/nearby.ts";
+import { planningContext, reviewCandidates, type PlanningTrip, type PlanningContext, type EmptyReason, type ReviewRejections } from "../_shared/nearby.ts";
 import { assertContextFits, researchWithFreeProviders, ResearchError } from "./providers.ts";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Access-Control-Allow-Methods": "POST, OPTIONS" };
@@ -8,6 +8,7 @@ export type TripSnapshot = { tripID: string; revision: number; start_date: strin
 export type ResearchGateway = {
   actor(): Promise<string | null>; trip(id: string): Promise<TripSnapshot | null>;
   reserve(actor: string): Promise<string>; finish(id: string, outcome: "complete" | "failed"): Promise<void>;
+  feedbackSignal?(): Promise<{ responses: number; specificSuccessRate: number; categoryMatchRate: number } | null>;
 };
 export function createNearbyHandler(config: { enabled: boolean; groq?: string; tavily?: string }, gateway: (authorization: string) => ResearchGateway, fetcher: typeof fetch = fetch) {
   return async (request: Request): Promise<Response> => {
@@ -26,9 +27,12 @@ export function createNearbyHandler(config: { enabled: boolean; groq?: string; t
       const row = await service.trip(body.tripId);
       if (!row?.content) return reply({ message: "This trip is unavailable or you no longer have access." }, 403);
       if (row.revision !== body.revision) return reply({ message: "The trip changed. Wait for the latest changes to load, then try again." }, 409);
-      let context;
+      let context: PlanningContext;
       try { context = planningContext({ ...row.content, id: row.tripID, start: row.start_date, end: row.end_date, zone: row.timezone, destinations: row.destinations }, actor, body.date, body.intent, body.anchorId); }
       catch { return reply({ message: "Choose a day within this trip." }, 400); }
+      if (service.feedbackSignal) {
+        try { context.feedbackSignal = await service.feedbackSignal(); } catch { context.feedbackSignal = null; }
+      }
       if (!context.area) return reply({ results: [], emptyReason: "missing_area", checkedAt: new Date().toISOString() });
       if (!config.enabled || !config.groq || !config.tavily) return reply({ message: "Nearby research is not connected yet. Your trip and preferences are ready; please try again once the service is enabled." }, 503);
       assertContextFits(context); // Reject oversized context before consuming any quota.
@@ -36,7 +40,7 @@ export function createNearbyHandler(config: { enabled: boolean; groq?: string; t
       const research = await researchWithFreeProviders(context, { groq: config.groq, tavily: config.tavily }, fetcher);
       const rejected: ReviewRejections = {};
       const reviewed = reviewCandidates(research.candidates, context, research.sources, rejected);
-      const results = distinctRecommendationThoughts(reviewed.length ? reviewed : research.guides || []);
+      const results = distinctRecommendationThoughts(reviewed);
       if (research.candidateCount && !research.candidates.length) rejected.invalid = research.candidateCount;
       const reasons = Object.keys(rejected) as (keyof ReviewRejections)[];
       const emptyReason: EmptyReason | undefined = results.length ? undefined : !research.sourceCount ? "no_sources" : !research.candidateCount ? "no_candidates" : reasons.length === 1 ? reasons[0] : "filtered";

@@ -9,7 +9,7 @@ export type PlanningTrip = {
   expenses: { amount: number; shares: Record<string, number> }[];
   budget: number | null; budgetMode: string; individual: Record<string, number>;
 };
-export type PlanningContext = ReturnType<typeof planningContext>;
+export type PlanningContext = ReturnType<typeof planningContext> & { feedbackSignal?: { responses: number; specificSuccessRate: number; categoryMatchRate: number } | null };
 export const minutes = (time: string) => { const [h, m] = time.split(":").map(Number); return h * 60 + m; };
 const clock = (time: number) => `${String(Math.floor(time / 60)).padStart(2, "0")}:${String(time % 60).padStart(2, "0")}`;
 export function planningContext(trip: PlanningTrip, actor: string, date: string, intent: Intent, anchorId?: string, now = new Date()) {
@@ -95,14 +95,16 @@ export type ReviewRejections = Partial<Record<"evidence" | "budget" | "conflicts
 export type Candidate = {
   name: string; address: string; reason: string; fitNote?: string; durationMinutes: number;
   pricePerPersonCents: number | null; currency: string | null;
+  recommendationType?: "dish" | "activity";
   facts: { topic: string; detail: string; sourceUrl: string }[];
   concerns: string[]; conflicts: string[];
 };
-export type NearbyResult = Candidate & { proposedTime: { start: string; end: string } | null; status: "review"; kind?: "guide"; researchArea?: string };
+export type NearbyResult = Candidate & { proposedTime: { start: string; end: string } | null; status: "review"; kind?: "guide" | "dish"; researchArea?: string };
 export const YELP_SEARCH_MESSAGES = {
   found: "Public Yelp results were found. Available excerpts may be incomplete; confirm critical details with the venue.",
   no_results: "The targeted Yelp search returned no usable public excerpts. Other retrieved sources are still considered.",
   unavailable: "The targeted Yelp search was unavailable. Research continued with the other retrieved sources.",
+  not_searched: "Yelp isn’t used for dish recommendations because no restaurant is being selected.",
 } as const;
 export type YelpSearchStatus = keyof typeof YELP_SEARCH_MESSAGES;
 export function isYelpSource(value: string): boolean {
@@ -111,12 +113,12 @@ export function isYelpSource(value: string): boolean {
   return host === "yelp.com" || host.endsWith(".yelp.com");
 }
 /** Search links require no API key. Direct business links come only from cited evidence. */
-export function nearbyListingLinks(candidate: Candidate & { kind?: "guide" }, context: Pick<PlanningContext, "area" | "destinations">) {
-  const knownAddress = candidate.address && candidate.address !== "Address needs confirmation from the venue";
+export function nearbyListingLinks(candidate: Candidate & { kind?: "guide" | "dish" }, context: Pick<PlanningContext, "area" | "destinations">) {
+  const knownAddress = candidate.kind !== "dish" && candidate.address && candidate.address !== "Address needs confirmation from the venue" && candidate.address !== "Food idea · choose a local restaurant";
   // Use the anchor only to identify a saved destination, never as the suggested
   // venue's address. A search URL does not establish a real Maps listing.
   const location = knownAddress ? candidate.address : context.destinations.find(d => context.area.toLowerCase().includes(d.split(/[,，]/u)[0].trim().toLowerCase())) || (context.destinations.length === 1 ? context.destinations[0] : "");
-  const mapsSource = candidate.kind === "guide" ? undefined : candidate.facts.find(f => {
+  const mapsSource = candidate.kind === "guide" || candidate.kind === "dish" ? undefined : candidate.facts.find(f => {
     if (!safeSource(f.sourceUrl)) return false;
     const url = new URL(f.sourceUrl), host = url.hostname.toLowerCase();
     return ((host === "www.google.com" || host === "google.com" || host === "maps.google.com") && (url.pathname.startsWith("/maps/place/") || url.searchParams.has("cid") || url.searchParams.has("query_place_id"))) || host === "maps.app.goo.gl";
@@ -126,7 +128,7 @@ export function nearbyListingLinks(candidate: Candidate & { kind?: "guide" }, co
   const yelpSource = candidate.facts.find(f => isYelpSource(f.sourceUrl) && new URL(f.sourceUrl).pathname.startsWith("/biz/"));
   const yelp = new URL("https://www.yelp.com/search");
   yelp.searchParams.set("find_desc", candidate.name.slice(0, 80)); yelp.searchParams.set("find_loc", location.slice(0, 110));
-  return { maps: mapsSource?.sourceUrl || null, google: google.href, yelp: candidate.kind === "guide" ? null : yelpSource?.sourceUrl || yelp.href, yelpIsListing: !!yelpSource };
+  return { maps: mapsSource?.sourceUrl || null, google: google.href, yelp: candidate.kind === "guide" || candidate.kind === "dish" ? null : yelpSource?.sourceUrl || yelp.href, yelpIsListing: !!yelpSource };
 }
 export function safeSource(value: unknown): value is string {
   if (typeof value !== "string") return false;
@@ -143,6 +145,7 @@ export function reviewCandidates(raw: unknown, context: PlanningContext, retriev
     const c = value as Candidate;
     if (typeof c.name !== "string" || !c.name.trim() || c.name.length > 160 || typeof c.address !== "string" || c.address.length > 500 || typeof c.reason !== "string" || c.reason.length > 1000 || (c.fitNote !== undefined && (typeof c.fitNote !== "string" || c.fitNote.length > 400)) || !Number.isInteger(c.durationMinutes) || c.durationMinutes < 15 || c.durationMinutes > 240 || !Array.isArray(c.facts) || !Array.isArray(c.concerns) || !Array.isArray(c.conflicts) || !c.concerns.every(v => typeof v === "string" && v.length <= 500)) return reject("invalid");
     if (c.conflicts.length) return reject("conflicts");
+    if (context.intent === "activity" ? c.recommendationType !== "activity" : c.recommendationType !== "dish") return reject("invalid");
     if (c.pricePerPersonCents !== null && (!Number.isSafeInteger(c.pricePerPersonCents) || c.pricePerPersonCents < 0)) return reject("invalid");
     const facts = c.facts.filter(f => f && typeof f.topic === "string" && f.topic.length <= 100 && typeof f.detail === "string" && f.detail.length <= 1000 && sources.has(f.sourceUrl));
     if (!facts.length) return reject("evidence");
@@ -152,7 +155,7 @@ export function reviewCandidates(raw: unknown, context: PlanningContext, retriev
     if (usdPrice !== null && ((context.remainingGroupCents !== null && usdPrice * context.travelers > context.remainingGroupCents) || context.individualRemaining.some(v => v !== null && usdPrice > v))) return reject("budget");
     seen.add(c.name.toLowerCase());
     const gap = context.gaps.find(g => minutes(g.end) - minutes(g.start) >= c.durationMinutes);
-    return [{ ...c, reason: "Found during research for this trip day. Review the source excerpts and confirm suitability before scheduling.", fitNote: c.fitNote?.trim() || "This option appears in the retrieved sources and may fit the available time on this day. Review its details and confirm suitability before scheduling.", facts, concerns: [...new Set([...c.concerns,
+    return [{ ...c, kind: c.recommendationType === "dish" ? "dish" : undefined, address: c.recommendationType === "dish" ? "Food idea · choose a local restaurant" : c.address, reason: "Found during research for this trip day. Review the source excerpts and confirm suitability before scheduling.", fitNote: c.fitNote?.trim() || "This option appears in the retrieved sources and may fit the available time on this day. Review its details and confirm suitability before scheduling.", facts, concerns: [...new Set([...c.concerns,
       "Sources were found by web research; suitability has not been independently verified.",
       "Confirm opening hours for the trip date, booking availability and the route before scheduling.",
       ...(context.diet.length ? ["Confirm every dietary restriction and cross-contact risk directly with the venue."] : []),

@@ -26,6 +26,9 @@ import { IvyOkrTracker } from "./okr/ivy-tracker";
 import { SethOkrTracker } from "./okr/seth-tracker";
 import { DrewOkrTracker } from "./okr/drew-tracker";
 import { AccountPage } from "./account-page";
+import { PreplannedTripsPage } from "./preplanned-trips-page";
+import { TripFeedback } from "./trip-feedback";
+import { BudgetCadenceOkr } from "./okr/budget-cadence";
 import { Shell, Empty, Button } from "./ui";
 import { PAGES } from "./data";
 import { member, type Trip } from "./domain";
@@ -57,7 +60,10 @@ export function PrototypeApp() {
       target.scrollIntoView({ block: "center" });
     } else if (!sameDailyItem && previousRoute.current !== routeKey && route.page !== 16 &&
         !([11, 17].includes(route.page) && previousRoute.current.startsWith(`${route.page}?`))) {
-      document.getElementById("main-content")?.focus({ preventScroll: true });
+      const focusTarget = route.page === 26
+        ? document.querySelector<HTMLElement>(".preplanned-page h1")
+        : document.getElementById("main-content");
+      focusTarget?.focus({ preventScroll: true });
     }
     previousDailyItem.current = itemKey;
     previousRoute.current = routeKey;
@@ -116,6 +122,8 @@ export function PrototypeApp() {
       23: <SethOkrTracker />,
       24: <DrewOkrTracker />,
       25: <AdminAccessPage />,
+      26: <PreplannedTripsPage />,
+      27: <BudgetCadenceOkr />,
     };
     content = (
       <Shell>
@@ -145,6 +153,7 @@ export function PrototypeApp() {
       </a>
       {content}
       <Overlays />
+      <TripFeedback disabled={Boolean(pendingSurvey)} />
     </>
   );
 }

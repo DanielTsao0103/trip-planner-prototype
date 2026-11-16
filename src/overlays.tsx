@@ -656,7 +656,7 @@ export function Overlays() {
         <nav className="menu-sections" aria-label="All pages">
           <section><h3>Workspace</h3><div className="menu-links">
             {[[4, "Home"], [5, "My trips"], [6, "New trip"]].map(([page, label]) => <button key={page} aria-current={app.route.page === page ? "page" : undefined} onClick={() => go(Number(page))}>{label}</button>)}
-            <button onClick={() => go(4, {section:"templates"})}>Pre-planned trips</button>
+            <button onClick={() => go(26)}>Pre-planned trips</button>
           </div></section>
           <section><h3>Your trip{t?.title ? ` - ${t.title}` : ""}</h3><div className="menu-links">
             {[[8, "Itinerary"], [11, "Map & list"], [17, "Map"], [12, "Budget"], [13, "The group"], [9, "Suggestions"], [15, "My preferences"], ...(t && isActive(t, s.date) ? [[10, "Today"]] : [])].map(([page, label]) => <button key={page} aria-current={app.route.page === page ? "page" : undefined} onClick={() => tripGo(Number(page))}>{label}</button>)}
@@ -803,7 +803,7 @@ function PlannedTripPreview() {
         <div>
           <span className="eyebrow">{planned.days} day starter itinerary</span>
           <p>{planned.summary}</p>
-          <p className="planned-modal-estimate"><strong>${planned.estimate}</strong> / person · illustrative estimate</p>
+          <p className="planned-modal-estimate"><strong>${planned.estimate}</strong> / person · planning estimate</p>
         </div>
       </div>
       <h3 className="planned-modal-subhead">A look at the itinerary</h3>
@@ -815,7 +815,8 @@ function PlannedTripPreview() {
           </li>
         ))}
       </ol>
-      <p className="muted planned-estimate-note">Choose your dates and destinations next. You can edit activities after creating the trip.</p>
+      <p className="muted planned-estimate-note">{planned.estimateBasis} Choose your dates and destinations next. You can edit activities after creating the trip.</p>
+      <p className="muted planned-estimate-note">Reference: <a href="https://www.gsa.gov/travel/plan-book/per-diem-rates" target="_blank" rel="noreferrer">GSA FY2027 CONUS lodging and meals rates</a>{planned.destinations[0]?.startsWith("Honolulu") && <> · <a href="https://www.travel.dod.mil/Travel-Transportation-Rates/Per-Diem/Per-Diem-Rate-Lookup/" target="_blank" rel="noreferrer">DoD Hawaii per diem rates</a></>}. Federal reimbursement rates are benchmarks, not hotel quotes.</p>
     </Modal>
   );
 }

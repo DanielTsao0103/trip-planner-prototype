@@ -54,7 +54,7 @@ test("prototype sections are directly reachable on desktop tablet and short phon
   }
 });
 
-test("navigation opens the existing template collection and focuses its heading", async ({ page }) => {
+test("navigation opens the pre-planned trips page and focuses its heading", async ({ page }) => {
   await enterDemo(page);
   await page.goto("./#/12");
   await page.setViewportSize({ width: 390, height: 844 });
@@ -84,11 +84,11 @@ test("navigation opens the existing template collection and focuses its heading"
   expect(tripSectionStyle.fontSize).toBeGreaterThanOrEqual(menuItemFontSize * 1.45);
   expect(tripSectionStyle.divider).toBe("solid");
   await dialog.getByRole("button", { name: "Pre-planned trips", exact: true }).click();
-  await expect(page).toHaveURL(/#\/4\?section=templates$/);
+  await expect(page).toHaveURL(/#\/26$/);
   const heading = page.getByRole("heading", { name: "Pre-planned trips", exact: true });
   await expect(heading).toBeFocused();
   await expect(heading).toBeInViewport();
-  await expect(page.getByRole("region", { name: "Pre-planned trip carousel" })).toBeVisible();
+  await expect(page.locator(".preplanned-grid")).toBeVisible();
   await expect(dialog).toHaveCount(0);
   await page.screenshot({ path: test.info().outputPath("template-destination.png") });
 });

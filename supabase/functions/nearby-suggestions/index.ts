@@ -11,6 +11,7 @@ Deno.serve(request => {
     return {
       async actor() { const { data, error } = await client.auth.getUser(); return error ? null : data.user?.id || null; },
       async trip(id) { const { data, error } = await client.rpc("nearby_trip_context", { p_trip_id: id }); return error ? null : data; },
+      async feedbackSignal() { const { data, error } = await client.rpc("get_nearby_feedback_signal"); return error ? null : data; },
       async reserve(actor) { const { data, error } = await admin().rpc("reserve_nearby_generation", { p_actor: actor }); if (error) throw new ResearchError(error.code === "P0001" ? error.message : "Research limits are unavailable. Please try later.", error.code === "P0001" ? 429 : 503); return data as string; },
       async finish(id, outcome) { await admin().rpc("finish_nearby_generation", { p_request: id, p_outcome: outcome }); },
     };

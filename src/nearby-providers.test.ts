@@ -6,8 +6,8 @@ import { createNearbyHandler, type ResearchGateway } from "../supabase/functions
 
 const trip: PlanningTrip = { id: "11111111-1111-4111-8111-111111111111", start: "2027-06-01", end: "2027-06-03", zone: "America/Los_Angeles", destinations: ["Seattle"], members: [{ id: "owner", role: "Owner", status: "accepted" }], prefs: {}, events: [], expenses: [], budget: 10000, budgetMode: "group", individual: {} };
 const context = () => planningContext(trip, "owner", trip.start, "lunch");
-const source = { url: "https://venue.example/menu", title: "Official venue menu", content: "Our lunch menu includes vegetarian dishes. Lunch is served from noon." };
-const candidate = { name: "Venue", address: "Seattle", reason: "Lunch option", durationMinutes: 60, pricePerPersonCents: null, currency: null, concerns: [], conflicts: [], facts: [{ topic: "Menu", detail: "Vegetarian dishes on the lunch menu", sourceUrl: source.url, quote: "Our lunch menu includes vegetarian dishes." }] };
+const source = { url: "https://venue.example/menu", title: "Official venue menu", content: "Our lunch menu includes vegetarian dumplings. Lunch is served from noon." };
+const candidate = { name: "Vegetarian dumplings", address: "Seattle", reason: "Lunch option", recommendationType: "dish", durationMinutes: 60, pricePerPersonCents: null, currency: null, concerns: [], conflicts: [], facts: [{ topic: "Menu", detail: "Vegetarian dumplings are available on the lunch menu", sourceUrl: source.url, quote: "Our lunch menu includes vegetarian dumplings." }] };
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 const bytesForTest = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
 
@@ -21,29 +21,31 @@ test("free provider flow uses three basic searches and bounded structured Groq p
   assert.equal(calls.length, 5); assert.equal(calls.filter(c => c.url === "https://api.tavily.com/search").length, 3);
   for (const call of calls.slice(0, 3)) { assert.equal(call.body.search_depth, "basic"); assert.equal(call.body.auto_parameters, false); assert.equal(call.body.include_raw_content, false); }
   assert.equal(calls[0].body.include_domains, undefined);
-  assert.deepEqual(calls[1].body.include_domains, ["yelp.com"]); assert.equal(calls[1].body.include_domains_mode, "restrict");
-  assert.match(calls[2].body.query, /official tourism/);
+  assert.equal(calls[1].body.include_domains, undefined);
+  assert.match(calls[0].body.query, /specific lunch dishes and foods to try/);
+  assert.match(calls[2].body.query, /official tourism food guide/);
   const last = calls[4]; assert.equal(last.url, "https://api.groq.com/openai/v1/chat/completions"); assert.equal(last.body.response_format.json_schema.strict, true);
   assert.ok(new TextEncoder().encode(JSON.stringify({ model: last.body.model, messages: last.body.messages, response_format: last.body.response_format })).length + 1800 + 512 <= 8000);
   assert.equal(result.candidates[0].facts.length, 1);
 });
-test("Yelp sources are included alongside primary sources and remain restricted to the real Yelp domain", async () => {
+test("activity Yelp sources remain restricted to the real Yelp domain", async () => {
   let searches = 0;
-  const yelp = { url: "https://www.yelp.com/biz/venue-seattle", title: "Venue - Yelp", content: "Guests mention a vegetarian lunch menu." };
-  const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async (url, init) => {
+  const yelp = { url: "https://www.yelp.com/biz/venue-seattle", title: "Venue - Yelp", content: "Venue offers a public art tour every Saturday." };
+  const activityContext = planningContext(trip, "owner", trip.start, "activity");
+  const result = await researchWithFreeProviders(activityContext, { groq: "fixture", tavily: "fixture" }, async (url, init) => {
     if (String(url).includes("tavily")) return json({ results: ++searches === 2 ? [yelp, { ...yelp, url: "https://yelp.com.evil.example/biz/a" }] : [source] });
     const prompt = JSON.parse(init!.body as string).messages[1].content;
     assert.ok(prompt.includes(yelp.url)); assert.equal(prompt.includes("evil.example"), false);
-    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [{ ...candidate, facts: [{ ...candidate.facts[0], sourceUrl: yelp.url, quote: yelp.content }] }] }) } }] });
+    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [{ ...candidate, name: "Venue", recommendationType: "activity", facts: [{ ...candidate.facts[0], topic: "Venue", sourceUrl: yelp.url, quote: yelp.content }] }] }) } }] });
   });
   assert.equal(searches, 3); assert.equal(result.yelpStatus, "found"); assert.equal(result.yelpSourcesUsed, 1); assert.equal(result.candidates[0].facts[0].sourceUrl, yelp.url);
 });
 test("unavailable supplemental Yelp search preserves primary evidence and continues through tourism fallback", async () => {
   let calls = 0;
-  const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async url => {
+  const result = await researchWithFreeProviders(planningContext(trip, "owner", trip.start, "activity"), { groq: "fixture", tavily: "fixture" }, async url => {
     calls++;
     if (String(url).includes("tavily")) return calls === 1 || calls === 3 ? json({ results: [source] }) : json({}, 403);
-    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: calls === 4 ? [candidate] : [] }) } }] });
+    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: calls === 4 ? [{ ...candidate, recommendationType: "activity" }] : [] }) } }] });
   });
   assert.equal(calls, 5); assert.equal(result.yelpStatus, "unavailable"); assert.equal(result.candidates.length, 1);
 });
@@ -152,16 +154,16 @@ test("handler enforces server quota before provider calls and records failed att
 });
 
 
-test("recovery replaces three rejected candidates with a supported city activity", async () => {
+test("recovery replaces rejected candidates with a supported dish matching the selected category", async () => {
   let modelCalls = 0;
-  const activitySource = { url: "https://tourism.example/park", title: "City Park", content: "City Park offers walking trails and public gardens. Open daily for visitors." };
-  const activity = { ...candidate, name: "City Park", facts: [{ topic: "Venue", detail: activitySource.content, sourceUrl: activitySource.url, quote: "City Park offers walking trails and public gardens." }] };
+  const dishSource = { url: "https://tourism.example/dumplings", title: "Seattle dumplings to try", content: "Seattle-style salmon dumplings are served at the market. Made with local salmon." };
+  const dish = { ...candidate, name: "Seattle-style salmon dumplings", recommendationType: "dish", facts: [{ topic: "Menu", detail: dishSource.content, sourceUrl: dishSource.url, quote: "Seattle-style salmon dumplings are served at the market." }] };
   const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async url => {
-    if (String(url).includes("tavily")) return json({ results: [activitySource] });
-    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: ++modelCalls === 1 ? [candidate, candidate, candidate] : [activity] }) } }] });
+    if (String(url).includes("tavily")) return json({ results: [dishSource] });
+    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: ++modelCalls === 1 ? [candidate, candidate, candidate] : [dish] }) } }] });
   });
   assert.equal(modelCalls, 2); assert.equal(result.recoveryAttempted, true);
-  assert.equal(result.candidates.length, 1); assert.equal(result.candidates[0].name, "City Park");
+  assert.equal(result.candidates.length, 1); assert.equal(result.candidates[0].name, "Seattle-style salmon dumplings");
   assert.equal(result.candidates[0].facts.length, 1);
 });
 test("broader tourism search stays in the active city and region on multi-city trips", () => {
@@ -207,7 +209,7 @@ test("invalid provider JSON uses one reserved repair call and returns a suggesti
 });
 
 
-test("unsupported venues fall back to a real city guide that cannot be scheduled", async () => {
+test("unsupported categories do not redirect users to a generic city guide", async () => {
   const row = { tripID: trip.id, revision: 2, start_date: trip.start, end_date: trip.end, timezone: trip.zone, destinations: trip.destinations, content: trip };
   const gateway: ResearchGateway = { actor: async () => "owner", trip: async () => row, reserve: async () => "request", finish: async () => {} };
   let searches=0;
@@ -215,6 +217,5 @@ test("unsupported venues fall back to a real city guide that cannot be scheduled
     if(String(url).includes("tavily")) return json({results: ++searches===3 ? [{url:"https://tourism.example/city",title:"Seattle city activities",content:"Explore public gardens, local museums and city neighborhoods in Seattle."}] : []});
     return json({choices:[{finish_reason:"stop",message:{content:JSON.stringify({candidates:[]})}}]});
   })(new Request("https://edge.example/nearby",{method:"POST",body:JSON.stringify({tripId:trip.id,revision:2,date:trip.start,intent:"lunch"})}));
-  const body=await response.json(); assert.equal(body.results.length,1); assert.equal(body.results[0].kind,"guide");
-  assert.equal(body.results[0].proposedTime,null); assert.equal(body.results[0].facts[0].sourceUrl,"https://tourism.example/city");
+  const body=await response.json(); assert.equal(body.results.length,0); assert.equal(body.emptyReason,"no_candidates");
 });

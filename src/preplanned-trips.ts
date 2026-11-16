@@ -15,10 +15,38 @@ export type PlannedTrip = {
   destinations: string[];
   days: number;
   estimate: number;
+  estimateBasis: string;
   image: string;
   summary: string;
   stops: PlannedStop[];
 };
+
+// FY2027 maximum lodging and M&IE benchmarks by destination. For CONUS cities
+// without a locality-specific entry here, use the published GSA standard.
+// Honolulu uses the DoD Honolulu locality table. The caps are reference inputs,
+// not claims about retail hotel availability or a quote for specific dates.
+const FY27_DAILY: Record<string, [lodging: number, meals: number]> = {
+  Seattle: [255, 92], "San Diego": [249, 86], Chicago: [238, 92], "New York": [358, 92],
+  "San Francisco": [272, 92], Portland: [161, 86], "New Orleans": [188, 80],
+  "Washington": [295, 92], Boston: [365, 92], Honolulu: [202, 130], Austin: [184, 80],
+  Denver: [227, 92], Nashville: [230, 86], "Las Vegas": [173, 86], Miami: [244, 92],
+  Charleston: [288, 92], Philadelphia: [227, 92], Phoenix: [232, 86], Atlanta: [207, 86],
+  Minneapolis: [153, 92], "Salt Lake City": [152, 80], Savannah: [186, 80],
+  "Santa Fe": [175, 80], Louisville: [185, 80], Cleveland: [167, 80], Tampa: [212, 80],
+  "San Antonio": [149, 74], Raleigh: [142, 74], "Oklahoma City": [121, 80],
+};
+const estimatePerPerson = (destinations: string[], days: number, stops: PlannedStop[]) => {
+  const city = destinations[0]?.split(",")[0]?.trim() || "";
+  const [lodging, meals] = FY27_DAILY[city] || [113, 68];
+  const nights = Math.max(0, days - 1);
+  const mealDays = days > 1 ? days - 0.5 : days * 0.75;
+  // Allowances cover basic city transit and ordinary paid admissions. Known
+  // nightlife/show ideas get a larger ticket buffer; booking prices still vary.
+  const activities = days * 35 + stops.filter(stop => /evening show|broadway|live music/i.test(stop.name)).length * 100;
+  const transit = days * 25;
+  return Math.round((lodging * nights / 2 + meals * mealDays + activities + transit) / 10) * 10;
+};
+const ESTIMATE_BASIS = "Per traveler; FY2027 lodging and meal benchmarks, room shared by two, plus $25/day local transit and $35/day activity allowance. Show tickets add $100. Airfare and lodging taxes excluded. Not a booking quote; check prices for your dates.";
 
 const trip = (
   id: string,
@@ -29,7 +57,7 @@ const trip = (
   image: string,
   summary: string,
   stops: PlannedStop[],
-): PlannedTrip => ({ id, title, destinations, days, estimate, image, summary, stops });
+): PlannedTrip => ({ id, title, destinations, days, estimate: estimatePerPerson(destinations, days, stops), estimateBasis: ESTIMATE_BASIS, image, summary, stops });
 
 /** Curated starter itineraries. They are copied into a traveler's account on add. */
 export const PREPLANNED_TRIPS: PlannedTrip[] = [
@@ -153,5 +181,44 @@ export const PREPLANNED_TRIPS: PlannedTrip[] = [
     { day: 2, name: "Folly Beach afternoon", start: "13:00", end: "16:00", place: "Folly Beach, SC", notes: "Optional beach outing; allow time for the drive." },
   ]),
 ];
+
+// Additional ready-to-use itineraries built from the same editable-stop format as
+// the original catalog. Estimates include a shared hotel room, meals, transit,
+// and an activity allowance. They are trip-planning baselines, not live quotes.
+const tripIdeas = [
+  ["Philadelphia", "PA", "Philadelphia Museum of Art", "Reading Terminal Market", "Independence Hall", "Old City"],
+  ["Phoenix", "AZ", "Desert Botanical Garden", "Heard Museum", "Papago Park", "Roosevelt Row"],
+  ["Atlanta", "GA", "Georgia Aquarium", "Atlanta Botanical Garden", "Martin Luther King Jr. National Historical Park", "Ponce City Market"],
+  ["Pittsburgh", "PA", "Andy Warhol Museum", "Phipps Conservatory", "Point State Park", "Strip District"],
+  ["Minneapolis", "MN", "Minneapolis Institute of Art", "Mill City Museum", "Minnehaha Falls", "North Loop"],
+  ["Salt Lake City", "UT", "Natural History Museum of Utah", "Red Butte Garden", "Temple Square", "9th and 9th"],
+  ["Savannah", "GA", "Forsyth Park", "Telfair Museums", "River Street", "Starland District"],
+  ["Santa Fe", "NM", "Georgia O’Keeffe Museum", "Museum of International Folk Art", "Santa Fe Plaza", "Canyon Road"],
+  ["Louisville", "KY", "Muhammad Ali Center", "Louisville Slugger Museum", "Waterfront Park", "NuLu"],
+  ["Cleveland", "OH", "Cleveland Museum of Art", "Rock & Roll Hall of Fame", "West Side Market", "Ohio City"],
+  ["Tampa", "FL", "Tampa Riverwalk", "Tampa Museum of Art", "Florida Aquarium", "Ybor City"],
+  ["San Antonio", "TX", "The Alamo", "San Antonio Museum of Art", "San Antonio River Walk", "Pearl District"],
+  ["Raleigh", "NC", "North Carolina Museum of Art", "North Carolina Museum of Natural Sciences", "Dorothea Dix Park", "Warehouse District"],
+  ["Oklahoma City", "OK", "Oklahoma City National Memorial", "First Americans Museum", "Scissortail Park", "Paseo Arts District"],
+  ["Boise", "ID", "Boise Art Museum", "Old Idaho Penitentiary", "Boise River Greenbelt", "Basque Block"],
+] as const;
+const tripStyles = [
+  { key: "culture", label: "Museum & culture", description: "A culture-focused city break with time for a neighborhood meal.", stops: [0, 1, 2] as const },
+  { key: "outdoors", label: "Parks & outdoors", description: "Green spaces, easy walks and one indoor stop for a balanced visit.", stops: [2, 0, 3] as const },
+  { key: "neighborhoods", label: "Neighborhoods & food", description: "A relaxed route through local districts, markets and city landmarks.", stops: [3, 1, 2] as const },
+  { key: "weekend", label: "First-time weekend", description: "A first visit with signature sights, a museum and a walkable district.", stops: [2, 1, 0] as const },
+] as const;
+const localImage: Record<string, string> = { Philadelphia: IMAGES.city, Phoenix: IMAGES.coast, Atlanta: IMAGES.city, Pittsburgh: IMAGES.city, Minneapolis: IMAGES.city, "Salt Lake City": IMAGES.museum, Savannah: IMAGES.city, "Santa Fe": IMAGES.city, Louisville: IMAGES.city, Cleveland: IMAGES.museum, Tampa: IMAGES.coast, "San Antonio": IMAGES.city, Raleigh: IMAGES.city, "Oklahoma City": IMAGES.city, Boise: IMAGES.coast };
+const generatedTrips = tripIdeas.flatMap(([city, state, ...places]) => tripStyles.map(style => {
+  const days = style.key === "weekend" ? 3 : 4;
+  const destinations = [`${city}, ${state}`];
+  const stops: PlannedStop[] = style.stops.map((placeIndex, index) => ({
+    day: index, name: places[placeIndex], start: index === 0 ? "10:00" : "13:00", end: index === 0 ? "12:00" : "15:00",
+    place: `${places[placeIndex]}, ${city}, ${state}`,
+    notes: `Plan a visit to ${places[placeIndex]}. Check current admission, opening hours and transit options before you go.`,
+  }));
+  return trip(`idea-${city.toLowerCase().replaceAll(" ", "-")}-${style.key}`, `${city}: ${style.label}`, destinations, days, 0, localImage[city], style.description, stops);
+}));
+PREPLANNED_TRIPS.push(...generatedTrips);
 
 export const plannedTrip = (id: string | null) => PREPLANNED_TRIPS.find(item => item.id === id);

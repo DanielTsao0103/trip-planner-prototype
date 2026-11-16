@@ -23,6 +23,10 @@ export function AdminPage() {
             ))}
           </div>
         </section>
+        <section className="card account-section" aria-labelledby="admin-budget-cadence">
+          <h2 id="admin-budget-cadence">Team measurement</h2>
+          <div className="menu-links"><button onClick={() => go(27)}><span>Budget cadence<small className="tracker-availability">85% target · account data</small></span><ArrowRight size={16} /></button></div>
+        </section>
         <div>
           <Button variant="outline" onClick={() => go(ADMIN_ACCESS_PAGE)}>
             <ShieldCheck size={16} aria-hidden="true" /> Manage admin access
