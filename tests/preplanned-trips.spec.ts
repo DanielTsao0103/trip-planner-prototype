@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("the full pre-planned catalog is searchable and opens editable trip templates", async ({ page }) => {
   await page.goto("./");
-  await page.getByRole("button", { name: "Try demo as Maya", exact: true }).click();
+  await page.getByRole("button", { name: "Explore a sample trip", exact: true }).click();
   await page.goto("./#/26");
   await expect(page.getByRole("heading", { name: "Pre-planned trips", exact: true })).toBeFocused();
   await expect(page.getByRole("status")).toContainText("76 trips");

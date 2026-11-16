@@ -8,8 +8,16 @@ for (const width of [320, 390, 768, 1440]) {
     await page.goto("./#/4");
     const carousel = page.getByRole("region", { name: "Pre-planned trip carousel" });
     const window = carousel.locator(".planned-carousel-window");
+    const track = carousel.locator(".planned-track");
     const card = carousel.locator('.planned-trip-card[tabindex="0"]').first();
     await expect(carousel.getByText("Trip 1 of 76", { exact: true })).toBeVisible();
+
+    async function expectCarouselSettled(): Promise<void> {
+      await expect.poll(() => track.evaluate(element =>
+        !element.classList.contains("without-transition")
+        && element.getAnimations().every(animation => animation.playState === "finished")
+      )).toBe(true);
+    }
 
     async function expectCompleteCard(): Promise<void> {
       // Waiting on geometry also catches a stale movement step after responsive resizing.
@@ -24,12 +32,15 @@ for (const width of [320, 390, 768, 1440]) {
     await expectCompleteCard();
     await carousel.getByRole("button", { name: "Previous trips", exact: true }).click();
     await expect(carousel.getByText("Trip 76 of 76", { exact: true })).toBeVisible();
+    await expectCarouselSettled();
     await expectCompleteCard();
     await carousel.getByRole("button", { name: "Next trips", exact: true }).click();
     await expect(carousel.getByText("Trip 1 of 76", { exact: true })).toBeVisible();
+    await expectCarouselSettled();
     await expectCompleteCard();
     await carousel.getByRole("button", { name: "Next trips", exact: true }).click();
     await expect(carousel.getByText("Trip 2 of 76", { exact: true })).toBeVisible();
+    await expectCarouselSettled();
     await expectCompleteCard();
     await card.focus();
     await page.keyboard.press("Enter");
