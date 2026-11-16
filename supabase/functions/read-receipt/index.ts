@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
-import { readReceiptWithVision } from "./vision.ts";
+import { readReceiptWithVision, VisionServiceError } from "./vision.ts";
 
 const allowedOrigins = new Set([
   "https://danieltsao0103.github.io",
@@ -22,13 +22,13 @@ Deno.serve(async request => {
   if (request.method !== "POST") return fail(405);
   const token = request.headers.get("authorization")?.match(/^Bearer (\S+)$/i)?.[1];
   if (!token) return fail(401);
-  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  const apiKey = Deno.env.get("GROQ_API_KEY");
   if (!apiKey) return fail(503);
   const client = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
     { auth: { persistSession: false } });
   const { data, error } = await client.auth.getUser(token);
   if (error || !data.user) return fail(401);
-  // Enable the paid pilot only for explicitly listed accounts.
+  // Enable the pilot only for explicitly listed accounts.
   const pilot = (Deno.env.get("RECEIPT_VISION_USER_IDS") ?? "").split(",").map(id => id.trim());
   if (!pilot.includes(data.user.id)) return fail(403);
   const type = request.headers.get("content-type") ?? "";
@@ -50,9 +50,9 @@ Deno.serve(async request => {
     }
     if (!length) return fail(400);
     const photo = new Blob(parts, { type });
-    const result = await readReceiptWithVision(photo, apiKey, Deno.env.get("RECEIPT_VISION_MODEL") || "gpt-4.1-mini");
+    const result = await readReceiptWithVision(photo, apiKey, Deno.env.get("RECEIPT_VISION_MODEL") || "qwen/qwen3.8-27b");
     return Response.json(result, { headers });
-  } catch {
-    return fail(502);
+  } catch (issue) {
+    return fail(issue instanceof VisionServiceError && issue.status === 429 ? 429 : 502);
   }
 });
