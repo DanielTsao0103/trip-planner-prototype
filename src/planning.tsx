@@ -51,6 +51,7 @@ import {
   PhotoCredit,
   ReadOnly,
   revealFocusedFormField,
+  useFocusedFormClearance,
 } from "./ui";
 import { IMAGES } from "./data";
 import {
@@ -472,6 +473,7 @@ function eventFormVersion(event?: Event): string {
 }
 
 export function EventForm() {
+  const formClearanceRef = useFocusedFormClearance();
   const { trip: t, s, route, go, mutate, updateTrip, updateTripConfirmed, toast } = useApp();
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const cancelEventButton = useRef<HTMLButtonElement>(null);
@@ -802,7 +804,7 @@ export function EventForm() {
         action={original && <Button variant="outline event-delete-trigger" aria-label="Delete event" disabled={busy || stale || photoUploading} onClick={() => setMode("delete")}><Trash2 size={18} /> Delete</Button>}
       />
       <div className="form-layout">
-        <form className={`card form-card event-editor-form${suggested ? " is-suggested" : ""}`} onSubmit={submit} onInvalidCapture={(event) => {
+        <form ref={formClearanceRef} className={`card form-card event-editor-form${suggested ? " is-suggested" : ""}`} onSubmit={submit} onInvalidCapture={(event) => {
           // Native validation must be able to reveal a required field in a disclosure.
           let parent = (event.target as HTMLElement).parentElement;
           while (parent && parent !== event.currentTarget) {

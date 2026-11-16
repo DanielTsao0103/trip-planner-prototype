@@ -66,27 +66,59 @@ export function Button({
   );
 }
 /** Keep keyboard fields in the usable space between recovery and form actions. */
+function revealFormControl(target: HTMLElement, form: HTMLFormElement): void {
+  if (!target.isConnected || document.activeElement !== target || !target.matches("input, textarea, select, summary")) return;
+  const actions = form.querySelector<HTMLElement>("[data-fixed-actions]");
+  const fixedActions = actions && ["fixed", "sticky"].includes(getComputedStyle(actions).position);
+  const notice = document.querySelector<HTMLElement>(".trip-recovery-banner");
+  const stickyNotice = notice && ["fixed", "sticky"].includes(getComputedStyle(notice).position);
+  if (!fixedActions && !stickyNotice) return;
+  const bounds = target.getBoundingClientRect();
+  const header = document.querySelector(".topbar")?.getBoundingClientRect().bottom ?? 0;
+  const top = Math.max(0, header, stickyNotice ? notice.getBoundingClientRect().bottom : 0) + 12;
+  const bottom = (fixedActions ? actions.getBoundingClientRect().top : window.innerHeight) - 12;
+  if (bounds.top >= top && bounds.bottom <= bottom) return;
+  const field = target.closest(".field")?.getBoundingClientRect();
+  // Include its label when it fits, and center within the actual unobscured area.
+  const visible = field && field.height <= bottom - top ? field : bounds;
+  window.scrollBy({top: (visible.top + visible.bottom - top - bottom) / 2, behavior:"instant"});
+}
+
 export function revealFocusedFormField(event: React.FocusEvent<HTMLFormElement>): void {
-  const target = event.target as HTMLElement;
-  const form = event.currentTarget;
-  if (!target.matches("input, textarea, select")) return;
-  requestAnimationFrame(() => {
-    if (!target.isConnected || document.activeElement !== target) return;
-    const actions = form.querySelector<HTMLElement>("[data-fixed-actions]");
-    const fixedActions = actions && ["fixed", "sticky"].includes(getComputedStyle(actions).position);
-    const notice = document.querySelector<HTMLElement>(".trip-recovery-banner");
-    const stickyNotice = notice && ["fixed", "sticky"].includes(getComputedStyle(notice).position);
-    if (!fixedActions && !stickyNotice) return;
-    const bounds = target.getBoundingClientRect();
-    const header = document.querySelector(".topbar")?.getBoundingClientRect().bottom ?? 0;
-    const top = Math.max(0, header, stickyNotice ? notice.getBoundingClientRect().bottom : 0) + 12;
-    const bottom = (fixedActions ? actions.getBoundingClientRect().top : window.innerHeight) - 12;
-    if (bounds.top >= top && bounds.bottom <= bottom) return;
-    const field = target.closest(".field")?.getBoundingClientRect();
-    // Include its label when it fits, and center within the actual unobscured area.
-    const visible = field && field.height <= bottom - top ? field : bounds;
-    window.scrollBy({top: (visible.top + visible.bottom - top - bottom) / 2, behavior:"instant"});
-  });
+  const target = event.target as HTMLElement, form = event.currentTarget;
+  requestAnimationFrame(() => revealFormControl(target, form));
+}
+
+/** Keep an already-focused field visible when rotation or late layout changes occur. */
+export function useFocusedFormClearance(): React.RefCallback<HTMLFormElement> {
+  const [form, setForm] = useState<HTMLFormElement | null>(null);
+  useEffect(() => {
+    if (!form) return;
+    let frame = 0;
+    const reveal = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const target = document.activeElement;
+        if (target instanceof HTMLElement && form.contains(target)) revealFormControl(target, form);
+      });
+    };
+    const observer = new ResizeObserver(reveal);
+    observer.observe(form);
+    for (const element of [form.querySelector('[data-fixed-actions]'), document.querySelector('.trip-recovery-banner'), document.querySelector('.release-notice')]) {
+      if (element) observer.observe(element);
+    }
+    window.addEventListener('resize', reveal);
+    window.visualViewport?.addEventListener('resize', reveal);
+    document.fonts.addEventListener('loadingdone', reveal);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('resize', reveal);
+      window.visualViewport?.removeEventListener('resize', reveal);
+      document.fonts.removeEventListener('loadingdone', reveal);
+    };
+  }, [form]);
+  return setForm;
 }
 
 export function Field({

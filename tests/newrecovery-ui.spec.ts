@@ -168,6 +168,8 @@ test("keyboard editing keeps fields between expanded recovery and fixed actions"
   await page.setViewportSize({width:1440,height:900});
   const activeName=page.getByLabel('Event name',{exact:true});
   await activeName.focus();
+  // Resizing may happen long after the focus handler's animation frame ran.
+  await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
   await page.setViewportSize({width:320,height:600});
   await expect(activeName).toBeFocused();
   await expect.poll(async()=>{
