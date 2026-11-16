@@ -189,7 +189,7 @@ test('dashboard remains accessible in light and dark appearance',async({page},in
 test('budget OKR shows progress, refreshes, and distinguishes an empty cohort', async ({ page }, info) => {
  const state = await api(page);
  await login(page);
- await page.goto('./#/21');
+ await page.goto('./#/24');
  const tracker = page.getByRole('region', { name: 'Help people stay within their trip budgets' });
  await expect(tracker.getByText('50%', { exact: true })).toBeVisible();
  await expect(tracker.getByText('2 of 4', { exact: true })).toBeVisible();

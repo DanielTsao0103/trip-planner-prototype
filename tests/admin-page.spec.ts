@@ -131,7 +131,7 @@ test("the Admin page shows tracker pages and the budget cadence team measurement
   await expect(page.getByRole("heading", { name: "Admin", exact: true, level: 1 })).toBeVisible();
   const owners = ["Daniel", "Ivy", "Seth", "Drew"];
   const menu = page.locator(".admin-page .menu-links");
-  await expect(menu.locator(".tracker-availability")).toHaveText(["Available · account data", "Available · account data", "Not built yet", "Not built yet", "85% target · account data"]);
+  await expect(menu.locator(".tracker-availability")).toHaveText(["Available · account data", "Available · account data", "Not built yet", "Available · account data", "85% target · account data"]);
   // The access list is a secondary page now, not the main content here.
   await expect(page.getByLabel("Add an email")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Manage admin access" })).toBeVisible();
@@ -139,6 +139,7 @@ test("the Admin page shows tracker pages and the budget cadence team measurement
     await menu.getByRole("button", { name: `${owner}’s OKR tracker`, exact: true }).click();
     await expect(page.getByRole("heading", { name: `${owner}’s OKR tracker`, exact: true, level: 1 })).toBeVisible();
     if (owner === "Daniel") await expect(page.getByText("Dashboard unavailable")).toBeVisible();
+    else if (owner === "Drew") await expect(page.getByRole("heading", { name: "Help people stay within their trip budgets" })).toBeVisible();
     else if (owner !== "Ivy") await expect(page.getByText("Nothing here yet.")).toBeVisible();
     const trail = page.getByRole("navigation", { name: "Breadcrumb" });
     await expect(trail.locator('[aria-current="page"]')).toHaveText(`${owner}’s OKR tracker`);

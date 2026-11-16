@@ -1,6 +1,7 @@
 import { OkrTrackerShell } from "./okr-shell";
+import { BudgetOkrTracker } from "./budget-tracker";
+import "./daniel-tracker.css";
 
-/** Drew's OKR tracker. Build it here and pass it to the shell as children; no other file needs to change. */
 export function DrewOkrTracker() {
-  return <OkrTrackerShell owner="Drew" />;
+  return <OkrTrackerShell owner="Drew"><BudgetOkrTracker /></OkrTrackerShell>;
 }

@@ -4,7 +4,6 @@ import { Badge, Button } from "../ui";
 import { fetchOkr1Metrics, okr1Display, type Okr1Metrics } from "../okr1";
 import { OkrTrackerShell } from "./okr-shell";
 import "./daniel-tracker.css";
-import { BudgetOkrTracker } from "./budget-tracker";
 import { DailyActivity, PercentRing, ReturnTrend } from "./daniel-charts";
 
 const dateLabel = (date: string) => new Date(`${date.slice(0, 10)}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -12,7 +11,7 @@ const countLabel = (count: number) => count.toLocaleString("en-US");
 
 /** Mount data fetching inside the gate: denied and demo users never request metrics. */
 export function DanielOkrTracker() {
-  return <OkrTrackerShell owner="Daniel"><DanielDashboard /><BudgetOkrTracker /></OkrTrackerShell>;
+  return <OkrTrackerShell owner="Daniel"><DanielDashboard /></OkrTrackerShell>;
 }
 
 function DanielDashboard() {

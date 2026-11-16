@@ -64,7 +64,7 @@ Current Supabase references checked: [database functions](https://supabase.com/d
 
 ## OKR #4 — staying within trip budgets
 
-Target: **At least 50% of completed trips with a budget set before departure finish at or below that budget.** The second card on `#/21` shows the aggregate rate, trip counts, target status, and the number of eligible trips with no expenses recorded.
+Target: **At least 50% of completed trips with a budget set before departure finish at or below that budget.** Drew’s tracker at `#/24` shows the aggregate rate, trip counts, target status, and the number of eligible trips with no expenses recorded.
 
 A trip qualifies after its last day has passed in the trip's saved time zone. The database compares all logged expenses on that trip, including prepaid expenses, with the last positive combined group budget saved before the first day. Individual spending limits do not establish a trip-wide budget. A trip with no expenses logged stays in the denominator and is reported separately. Logged spending can be incomplete, and the result can change when expenses are edited or added.
 
