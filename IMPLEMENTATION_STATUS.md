@@ -12,6 +12,8 @@ Current behavior and measured checks are recorded in [SUGGESTIONS_RECEIPTS_VERIF
 
 # Implementation status
 
+Receipt reading performance (November 16): the camera/upload action prepares one OCR worker while the traveler selects a photo. Successful scans reuse it for up to one idle minute, then terminate it. Local OCR and optional cloud recognition start together; only confident, reconciled local results may return before the cloud. Incomplete local readings still wait for the bounded cloud response. Explicit review, cancellation, and the existing receipt-saving path remain required. The development acceptance script measures cold/repeated reads with a stalled cloud, checks exact receipt values, worker reuse, both provider outcomes and cancellation; physical iPhone speed remains unmeasured.
+
 Source and live database audit: October 28, 2026. Full account-trip persistence is verified with disposable QA accounts; external simulations are not implemented services. Budget (12) and Suggestions (9) omit implementation commentary, including the shared footer. Other pages and dialogs retain their existing notes. Keep the technical details here and beside the relevant handlers. A clean interface does not mean every action is backed by a server.
 
 ## November 14 site usefulness pass

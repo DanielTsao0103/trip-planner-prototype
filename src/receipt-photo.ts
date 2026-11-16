@@ -1,8 +1,7 @@
 import { parseReceiptDocument, normalizeReceiptDocument, receiptCents, type ReceiptScanResult } from "./receipt-items";
 import { getSupabase } from "./supabase";
 import { searchRequest } from "./search-request";
-import workerPath from "tesseract.js/dist/worker.min.js?url";
-import type { Worker } from "tesseract.js";
+import { takeReceiptScanner } from "./receipt-scanner";
 
 export const receiptSource = "Receipt photo";
 const bucket = () => getSupabase().storage.from("expense-receipts");
@@ -61,33 +60,62 @@ export type ReceiptScanOptions = { signal?: AbortSignal; onProgress?: (progress:
 export async function scanReceiptPhoto(photo: File, useVision = false, totalPosition?: number, options: ReceiptScanOptions = {}): Promise<ReceiptScanResult> {
   if (options.signal?.aborted) throw new DOMException("Receipt reading cancelled.", "AbortError");
   if (!["image/jpeg", "image/png", "image/webp"].includes(photo.type) || !photo.size || photo.size > 10 * 1024 * 1024) throw new Error("Choose a JPEG, PNG or WebP receipt photo under 10 MB.");
+  if (!useVision || totalPosition !== undefined) return scanReceiptLocally(photo, totalPosition, options);
+  const controller = new AbortController();
+  const cancel = () => controller.abort(options.signal?.reason);
+  options.signal?.addEventListener("abort", cancel, { once: true });
   let cloudUnavailable = false;
-  if (useVision && totalPosition === undefined) {
-    options.onProgress?.(0, "Reading receipt");
+  const cloud = (async (): Promise<ReceiptScanResult | null> => {
     try {
       const { data, error } = await searchRequest(signal => getSupabase().functions.invoke<ReceiptScanResult>("read-receipt", {
         body: photo, headers: { "Content-Type": photo.type }, signal,
-      }), options.signal ?? new AbortController().signal, 4000);
-      if (options.signal?.aborted) throw new DOMException("Receipt reading cancelled.", "AbortError");
+      }), controller.signal, 4000);
+      controller.signal.throwIfAborted();
       // Older deployments provide only a total. Use OCR until item extraction is available.
       if (!error && data && Array.isArray(data.items) && data.items.length) return normalizeReceiptDocument(data, "vision");
       cloudUnavailable = !!error && error.context?.status !== 403;
     } catch (error) {
-      if (options.signal?.aborted) throw error;
       cloudUnavailable = true;
     }
+    return null;
+  })();
+  // Start local OCR immediately. Only a confident, reconciled reading may win
+  // before the cloud; incomplete readings still get the cloud's full budget.
+  const local = scanReceiptLocally(photo, totalPosition, { ...options, signal: controller.signal });
+  try {
+    const result = await Promise.race([
+      cloud.then(result => result ?? local),
+      local.then(async result => {
+        if (result.items.length && result.totalCents && !result.needsManualAmount &&
+          (result.confidence ?? 0) >= 65 && result.reconciliation.matches === true) return result;
+        return (await cloud) ?? result;
+      }, async error => {
+        const result = await cloud;
+        if (result) return result;
+        throw error;
+      }),
+    ]);
+    options.signal?.throwIfAborted();
+    if (cloudUnavailable && !result.items.length) result.warnings.push("Some receipt details could not be read automatically. Check the photo and enter missing items.");
+    return result;
+  } finally {
+    options.signal?.removeEventListener("abort", cancel);
+    controller.abort();
   }
-  const { createWorker, PSM } = await import("tesseract.js");
-  let worker: Worker | undefined, ended = false;
+}
+
+async function scanReceiptLocally(photo: File, totalPosition: number | undefined, options: ReceiptScanOptions): Promise<ReceiptScanResult> {
+  options.signal?.throwIfAborted();
+  options.onProgress?.(0, "Preparing scanner");
+  const scanner = takeReceiptScanner(options.onProgress);
+  let ended = false, completed = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let abort: (() => void) | undefined;
   const recognize = async () => {
-    const instance = await createWorker("eng", 1, {
-      workerPath, workerBlobURL: false,
-      logger: progress => options.onProgress?.(Math.max(0, Math.min(1, progress.progress || 0)), progress.status === "recognizing text" ? "Reading receipt" : "Preparing scanner"),
-    });
-    if (ended) { await instance.terminate(); throw new DOMException("Receipt reading cancelled.", "AbortError"); }
-    worker = instance;
+    const [instance, { PSM }] = await Promise.all([scanner.worker, import("tesseract.js")]);
+    if (ended) throw new DOMException("Receipt reading cancelled.", "AbortError");
+    // A previous sparse/cropped retry must not change the next receipt's layout.
+    await instance.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK });
     const image = await prepareReceiptImage(photo).catch(() => photo);
     if (totalPosition !== undefined) {
       if (image instanceof File || !Number.isFinite(totalPosition) || totalPosition < 0 || totalPosition > 1) throw new Error("Could not crop the receipt.");
@@ -112,11 +140,10 @@ export async function scanReceiptPhoto(photo: File, useVision = false, totalPosi
       if (rank(alternate) > rank(result)) result = alternate;
       if (conflicting) result = normalizeReceiptDocument({ ...result, needsManualAmount: true, warnings: [...result.warnings, "Two readings disagree on the final total. Confirm it from the receipt."] });
     }
-    if (cloudUnavailable && !result.items.length) result.warnings.push("Some receipt details could not be read automatically. Check the photo and enter missing items.");
     return result;
   };
   try {
-    return await Promise.race([
+    const result = await Promise.race([
       recognize(),
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error("Receipt reading took too long. Try a clearer photo or enter the details manually.")), 45000);
@@ -125,10 +152,12 @@ export async function scanReceiptPhoto(photo: File, useVision = false, totalPosi
         if (options.signal?.aborted) abort();
       }),
     ]);
+    completed = true;
+    return result;
   } finally {
     ended = true;
     clearTimeout(timer);
     if (abort) options.signal?.removeEventListener("abort", abort);
-    await worker?.terminate().catch(() => undefined);
+    scanner.release(completed);
   }
 }
