@@ -10,7 +10,7 @@ Every account recommendation has an Add to itinerary action. It rechecks editing
 
 Broader guides use the destination as their itinerary title, with the original guide title, specific excerpt and full source links in their notes. Their Explore city and region ideas link is inside More to consider. Source labels show actual URLs and duplicate links are removed. Guide excerpts end at complete sentences, including Chinese punctuation; an unfinished source fragment is replaced by a link to the full guide. AI ranking explicitly prioritizes named venues and schedulable activities. Repeated thought text is replaced with each option's own source details, and stored notes avoid repeated lines.
 
-Verification: 220 unit checks, 34 focused desktop/mobile cases, and a live Taipei browser → Edge Function → trip-save → fresh database readback using disposable accounts. The live run returned three broader guides and confirmed one was saved with the destination title and source link; QA accounts/trips were removed. This verifies the fallback and save path, not the existence of a specific venue match in that run.
+Verification: 221 unit checks, 34 focused desktop/mobile cases, and live Taipei/Seattle browser → Edge Function → trip-save → fresh database readbacks using disposable accounts. Taipei returned three broader guides; Seattle returned a concrete venue. Both confirmed itinerary saves with their source links, and QA accounts/trips were removed. Cards retain their original research area across subsequent itinerary edits and display the saved time after adding.
 
 ## Workflow and evidence
 

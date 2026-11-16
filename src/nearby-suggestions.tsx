@@ -45,7 +45,7 @@ export function NearbySuggestions() {
       return searches.get(query)!;
     };
     void Promise.all(results.slice(0, 3).map(async result => {
-      const plan = suggestionPhotoSearch(result, trip.destinations, photoArea);
+      const plan = suggestionPhotoSearch(result, trip.destinations, result.researchArea || photoArea);
       let photo = (await search(plan.exact)).find(photo => plan.matchesSubject(photo.searchText || ""));
       let label = "Illustrative photo of this place or activity";
       if (!photo && plan.category) {
@@ -90,7 +90,7 @@ export function NearbySuggestions() {
       }
       if (!data || !Array.isArray(data.results)) throw new Error("Research returned an invalid response.");
       if (!controller.signal.aborted) {
-        setResults(distinctRecommendationThoughts(data.results));
+        setResults(distinctRecommendationThoughts(data.results.map((result: NearbyResult)=>({...result,researchArea:context.area}))));
         setEmptyReason(typeof data.emptyReason === "string" && Object.hasOwn(NEARBY_EMPTY_MESSAGES, data.emptyReason) ? data.emptyReason as EmptyReason : "filtered");
         setDiagnostics(data.diagnostics || null);
       }

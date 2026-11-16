@@ -35,3 +35,13 @@ test("direct itinerary costs reserve the whole group's supported estimate",()=>{
   assert.equal(recommendationGroupCost({currency:"EUR",pricePerPersonCents:2000},4),0);
   assert.equal(recommendationGroupCost({currency:"USD",pricePerPersonCents:null},4),0);
 });
+
+test("guide locations stay tied to their research area after other itinerary edits",()=>{
+  const guide=idea({kind:"guide",name:"Taipei visitor guide",address:"McDonald's · Taipei, Taiwan"});
+  const changed={area:"Museum, Tokyo, Japan",destinations:["Tokyo, Japan","Taipei, Taiwan"]};
+  assert.equal(recommendationTitle(guide,changed),"Taipei, Taiwan");
+  assert.ok(recommendationNotes(guide,changed).startsWith("Explore Taipei, Taiwan"));
+  const venue=idea({address:"Address needs confirmation from the venue",researchArea:"Museum, Taipei, Taiwan"});
+  assert.ok(recommendationNotes(venue,changed).includes("museum"));
+  assert.equal(recommendationTitle({...venue,kind:"guide"},changed),"Taipei, Taiwan");
+});

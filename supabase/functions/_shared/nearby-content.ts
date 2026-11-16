@@ -14,11 +14,12 @@ export function sentenceExcerpt(value: string, preferredLength = 300): string {
   return excerpt;
 }
 
-export function recommendationLocation(result: Pick<NearbyResult, "kind" | "address">, context: Pick<PlanningContext, "destinations" | "area">): string {
+export function recommendationLocation(result: Pick<NearbyResult, "kind" | "address" | "researchArea">, context: Pick<PlanningContext, "destinations" | "area">): string {
   if (result.kind !== "guide" && result.address && result.address !== "Address needs confirmation from the venue") return result.address;
-  return context.destinations.find(destination => context.area.toLowerCase().includes(destination.split(/[,，]/u)[0].trim().toLowerCase()))
+  const area = result.researchArea || (result.kind === "guide" ? result.address : context.area);
+  return context.destinations.find(destination => area.toLowerCase().includes(destination.split(/[,，]/u)[0].trim().toLowerCase()))
     || (context.destinations.length === 1 ? context.destinations[0] : "")
-    || context.area.split("·").at(-1)!.split(/[,，]/u).slice(-2).join(",").trim();
+    || area.split("·").at(-1)!.split(/[,，]/u).slice(-2).join(",").trim();
 }
 
 export function recommendationTitle(result: NearbyResult, context: Pick<PlanningContext, "destinations" | "area">): string {
