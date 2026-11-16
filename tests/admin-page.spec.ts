@@ -16,6 +16,12 @@ async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuar
     const url = new URL(request.url());
     const path = url.pathname;
     if (path === "/rest/v1/rpc/okr4_trip_budget_stats") return route.fulfill({ json: { eligible_trips: 0, within_budget_trips: 0, trips_without_expenses: 0 } });
+    if (path === "/rest/v1/rpc/pending_trip_recommendation_feedback") return route.fulfill({ json: [] });
+    if (path === "/rest/v1/rpc/get_budget_cadence_metrics") return route.fulfill({ json: {
+      windowStart: "2026-11-01", windowEnd: "2026-11-14", windowDays: 14,
+      observedDays: 14, eligibleUsers: 0, consistentUsers: 0, percent: null,
+      targetPercent: 85, definition: "test fixture",
+    } });
     if (path === "/rest/v1/rpc/get_daniel_okr_metrics") return route.fulfill({ status: 503, json: { message: "Metrics fixture is unavailable" } });
     if (path === "/rest/v1/rpc/is_admin") {
       log.rpc += 1;
@@ -118,7 +124,7 @@ test("an approved admin sees the Admin link beside Style and manages the access 
   await page.screenshot({ path: test.info().outputPath("admin-page.png"), fullPage: true });
 });
 
-test("the Admin page is a menu of four OKR tracker pages, with live trackers and planned placeholders", async ({ page }) => {
+test("the Admin page shows tracker pages and the budget cadence team measurement", async ({ page }) => {
   await mockSupabase(page, { admin: true });
   await signIn(page);
   await page.locator(".menu-links").getByRole("button", { name: "Admin", exact: true }).click();
@@ -140,6 +146,8 @@ test("the Admin page is a menu of four OKR tracker pages, with live trackers and
     await trail.getByRole("link", { name: "Admin", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Admin", exact: true, level: 1 })).toBeVisible();
   }
+  await menu.getByRole("button", { name: /Budget cadence/ }).click();
+  await expect(page.getByRole("heading", { name: "Budget cadence", exact: true, level: 1 })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("admin-menu.png"), fullPage: true });
 });
 

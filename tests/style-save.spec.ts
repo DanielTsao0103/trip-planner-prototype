@@ -48,6 +48,7 @@ test("account style failure stays visible through navigation and retries the sel
         ? route.fulfill({ status: 201, json: null })
         : route.fulfill({ status: 403, json: { message: "QA denied save", code: "42501" } });
     }
+    if (path === "/rest/v1/rpc/pending_trip_recommendation_feedback") return route.fulfill({ json: [] });
     if (path.endsWith("/token")) return route.fulfill({ json: {
       access_token: "test-access-token", token_type: "bearer", expires_in: 3600,
       refresh_token: "test-refresh-token", user: account,

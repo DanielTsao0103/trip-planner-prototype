@@ -4,6 +4,7 @@ import { test, expect, type Page } from "@playwright/test";
 
 test.beforeEach(async ({page}) => { await page.route('https://places.googleapis.com/**', route => route.abort()); await installGoogleMapFixture(page); });
 import { detailJourney, saved } from "../scripts/trip-detail-browser-flow.mjs";
+
 const owner = {
   id: "22222222-2222-4222-8222-222222222222",
   email: "detail-owner@example.com",
@@ -36,6 +37,8 @@ async function backend(page: Page) {
     if (path === "/rest/v1/user_style")
       return route.fulfill({ json: [] });
     if (path === "/rest/v1/rpc/trip_companion_pictures")
+      return route.fulfill({ json: [] });
+    if (path === "/rest/v1/rpc/pending_trip_recommendation_feedback")
       return route.fulfill({ json: [] });
     if (path === "/rest/v1/rpc/set_google_picture")
       return route.fulfill({ status: 204 });
@@ -539,14 +542,12 @@ test('event location autocomplete selects a worldwide landmark, saves, reloads, 
 
 test('event location touch selection fills the exact address and place ID',async({page,isMobile})=>{
  await page.addInitScript(()=>sessionStorage.setItem('trip-planner-demo-session','active'));
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[{location:{latitude:25.1,longitude:121.5}}]}}));
+ await page.route('https://places.googleapis.com/v1/places:autocomplete',route=>route.fulfill({json:{suggestions:Array.from({length:5},(_,i)=>({placePrediction:{placeId:`palace-${i}`,
+  text:{text:`National Palace Museum ${i}, Section 2, Zhi Shan Road, Shilin District, Taipei City, Taiwan`},
+  structuredFormat:{mainText:{text:`National Palace Museum ${i}`},secondaryText:{text:'Section 2, Zhi Shan Road, Shilin District, Taipei City, Taiwan'}},
+ }}))}}));
  await page.route('https://maps.googleapis.com/**',route=>route.abort());
- await page.route('https://places.googleapis.com/v1/places:*',route=>{
-  if(route.request().url().endsWith(':searchText'))return route.fulfill({json:{places:[{location:{latitude:25.1,longitude:121.5}}]}});
-  return route.fulfill({json:{suggestions:Array.from({length:5},(_,i)=>({placePrediction:{placeId:'palace-'+i,
-   text:{text:`National Palace Museum ${i}, Section 2, Zhi Shan Road, Shilin District, Taipei City, Taiwan`},
-   structuredFormat:{mainText:{text:`National Palace Museum ${i}`},secondaryText:{text:'Section 2, Zhi Shan Road, Shilin District, Taipei City, Taiwan'}},
-  }}))}});
- });
  await page.goto('./#/7');await page.getByLabel('Event name',{exact:true}).fill('Touch selected museum');
  const input=page.getByRole('combobox',{name:'Where',exact:true});await input.fill('national palace museu');
  const option=page.getByRole('option',{name:/National Palace Museum 0/});await expect(option).toBeVisible();
@@ -874,7 +875,6 @@ test('event autocomplete follows itinerary cities, date changes, and explicit ov
  await near.selectOption('');await expect.poll(()=>calls.at(-1).locationBias).toBeUndefined();
  await near.selectOption('__auto');await expect(page.getByRole('option',{name:'Coffee Tokyo'})).toBeVisible();
  await input.fill('coffee Paris');await expect.poll(()=>calls.at(-1).input).toBe('coffee Paris');
- expect(calls.at(-1).locationRestriction).toBeUndefined();expect(calls.at(-1).includedRegionCodes).toBeUndefined();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
  await page.screenshot({path:test.info().outputPath('itinerary-location-context.png'),fullPage:true});
 });

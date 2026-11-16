@@ -53,6 +53,8 @@ test("account saves recover from lost responses without duplicate trips, reload,
       return route.fulfill({ json: [] });
     if (url.pathname === "/rest/v1/rpc/trip_companion_pictures")
       return route.fulfill({ json: [] });
+    if (url.pathname === "/rest/v1/rpc/pending_trip_recommendation_feedback")
+      return route.fulfill({ json: [] });
     if (url.pathname === "/rest/v1/rpc/set_google_picture")
       return route.fulfill({ status: 204 });
     if (url.pathname.endsWith("/token"))
@@ -249,6 +251,8 @@ test("failed account load offers retry and never pretends the account is empty",
     if (url.pathname === "/rest/v1/user_style")
       return route.fulfill({ json: [] });
     if (url.pathname === "/rest/v1/rpc/trip_companion_pictures")
+      return route.fulfill({ json: [] });
+    if (url.pathname === "/rest/v1/rpc/pending_trip_recommendation_feedback")
       return route.fulfill({ json: [] });
     if (url.pathname === "/rest/v1/rpc/set_google_picture")
       return route.fulfill({ status: 204 });
