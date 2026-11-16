@@ -1161,7 +1161,7 @@ export function Suggestions() {
             onClick={() => open("nearby", {date: selectedDay})}
           >
             <Sparkles size={16} />
-            <span>Nearby suggestions</span>
+            <span>Nearby</span>
           </Button>
         }
       />
