@@ -134,7 +134,10 @@ export function supportedFacts(candidates: unknown, sources: Source[]): Candidat
       return { currency: amount[1] || amount[4], cents: Math.round(Number((amount[2] || amount[3]).replace(/,/g, "")) * 100) };
     });
     const priceSupported = supportedPrices.length > 0 && supportedPrices.every((price: { currency: string; cents: number } | null) => price?.currency === c.currency && price?.cents === c.pricePerPersonCents);
-    return { ...sourceFields, name, addressSourced: addressSupported, addressVerified: false, address: addressSupported ? c.address.trim() : "", pricePerPersonCents: priceSupported ? c.pricePerPersonCents : null, currency: priceSupported ? c.currency : null, facts };
+    // Unquoted prose can smuggle admission, opening or access claims around the
+    // fact checks. Use the planner's deterministic guidance instead; preserve
+    // conflict flags so an incompatible candidate is still rejected.
+    return { ...sourceFields, name, fitNote: undefined, concerns: [], addressSourced: addressSupported, addressVerified: false, address: addressSupported ? c.address.trim() : "", pricePerPersonCents: priceSupported ? c.pricePerPersonCents : null, currency: priceSupported ? c.currency : null, facts };
   });
 }
 export function researchQueries(context: PlanningContext) {

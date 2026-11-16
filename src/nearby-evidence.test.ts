@@ -106,3 +106,12 @@ test("practical quotes naming two venues do not transfer hours between them", ()
     assert.equal(supportedFacts([raw],[evidence])[0].facts.length,0);
   }
 });
+
+test('unquoted summary and concern claims cannot bypass source evidence checks', () => {
+  const quote = 'Museum One is located at 123 Main Street.';
+  const raw = {...candidate('Museum One', quote), fitNote:'Free admission and 90 shops', concerns:['Open 24 hours and wheelchair accessible'], conflicts:['Known dietary conflict']};
+  const [safe] = supportedFacts([raw], [{url:'https://tourism.example/place',title:'Museum One',content:quote}]);
+  assert.equal(safe.fitNote, undefined);
+  assert.deepEqual(safe.concerns, []);
+  assert.deepEqual(safe.conflicts, ['Known dietary conflict']);
+});
