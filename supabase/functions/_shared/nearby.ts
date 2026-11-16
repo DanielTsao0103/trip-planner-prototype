@@ -44,18 +44,19 @@ export function planningContext(trip: PlanningTrip, actor: string, date: string,
     return start < 1440 && end > 0 ? [{...event, start: clock(Math.max(0, start)), end: clock(Math.min(1440, end))}] : [];
   }).sort((a, b) => a.start.localeCompare(b.start));
   const window = intent === "lunch" ? [11 * 60, 15 * 60] : intent === "dinner" ? [17 * 60, 21 * 60] : [9 * 60, 20 * 60];
-  // Reserve 30 minutes each side, explicitly provisional until routing is available.
+  // Use the actual unplanned intervals. The old fixed 30-minute padding hid
+  // usable time and could leave a day looking fully booked when it was not.
   const gaps: { start: string; end: string }[] = [];
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: trip.zone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now);
   const part = (key: string) => parts.find(p => p.type === key)!.value;
   const today = `${part("year")}-${part("month")}-${part("day")}`;
   let cursor = date < today ? 1440 : Math.max(window[0], date === today ? Number(part("hour")) * 60 + Number(part("minute")) + 1 : 0);
   for (const event of events) {
-    const end = Math.min(window[1], minutes(event.start) - 30);
-    if (end - cursor >= 60) gaps.push({ start: clock(cursor), end: clock(end) });
-    cursor = Math.max(cursor, minutes(event.end) + 30);
+    const end = Math.min(window[1], minutes(event.start));
+    if (end - cursor >= 15) gaps.push({ start: clock(cursor), end: clock(end) });
+    cursor = Math.max(cursor, minutes(event.end));
   }
-  if (window[1] - cursor >= 60) gaps.push({ start: clock(cursor), end: clock(window[1]) });
+  if (window[1] - cursor >= 15) gaps.push({ start: clock(cursor), end: clock(window[1]) });
   const anchor = events.find(e => e.id === anchorId) || [...events].reverse().find(e => minutes(e.end) <= (gaps[0] ? minutes(gaps[0].start) : window[0])) || events[0];
   const location = nearbySearchArea(trip, anchor, date);
   const planned = trip.events.reduce((sum, e) => sum + e.cost, 0);
@@ -105,7 +106,7 @@ export function nearbySearchArea(trip: Pick<PlanningTrip, "destinations" | "even
 }
 export const NEARBY_EMPTY_MESSAGES = {
   missing_area: { title: "Add a search location", message: "No destination or event location is saved for this search.", action: "Add a trip destination or an event address, then try again." },
-  no_time: { title: "No planning time is available", message: "This day has no upcoming free hour in the selected category’s time window, including the provisional travel buffers.", action: "Choose another day or category, or review the existing plans." },
+  no_time: { title: "No planning time is available", message: "This day has no open time block in the selected category’s time window.", action: "Choose another day or category, or add a time manually in the itinerary editor." },
   no_sources: { title: "No usable sources found", message: "The web search returned no usable source excerpts for this location and category.", action: "Check the location shown above. Add the venue’s full address or choose another category." },
   no_candidates: { title: "No source-backed options found", message: "The search looked across the requested category and official tourism activity sources, but found no option that passed the evidence and trip checks.", action: "Check the location, choose another category or day, or add a more precise event address." },
   evidence: { title: "Not enough supporting evidence", message: "Candidates were returned, but none retained a matching source quote and venue reference after the evidence checks.", action: "A more precise event address may improve the search. You can also try another category." },

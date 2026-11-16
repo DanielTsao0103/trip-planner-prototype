@@ -41,7 +41,7 @@ export function createNearbyHandler(config: { enabled: boolean; groq?: string; t
       catch { return reply({ message: "Choose a day within this trip." }, 400); }
       if (!context.area) return reply({ results: [], emptyReason: "missing_area", checkedAt: new Date().toISOString() });
       if (!config.enabled || !config.groq || !config.tavily) return reply({ message: "Nearby research is not connected yet. Your trip and preferences are ready; please try again once the service is enabled." }, 503);
-      assertContextFits(context); // Reject oversized context before consuming any quota.
+      assertContextFits(context);
       const key = JSON.stringify([actor, body.tripId, row.revision, context]);
       const cached = cache.get(key);
       if (cached && cached.expires > Date.now()) return reply({ ...cached.body, cached: true, elapsedMs: Math.round(performance.now() - started) });
@@ -49,7 +49,6 @@ export function createNearbyHandler(config: { enabled: boolean; groq?: string; t
       const inFlight = pending.get(key);
       if (inFlight) return reply({ ...await inFlight, cached: true, elapsedMs: Math.round(performance.now() - started) });
       const generate = async () => {
-        let reservation: string | undefined;
         try {
           // Aggregate feedback is optional context, never a serial gate before a
           // useful search. Bound its wait and avoid it entirely for cached hits.
@@ -59,7 +58,6 @@ export function createNearbyHandler(config: { enabled: boolean; groq?: string; t
             try { context.feedbackSignal = await Promise.race([feedback, new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 250); })]); }
             finally { if (timer) clearTimeout(timer); }
           }
-          reservation = await service!.reserve(actor);
           const research = await researchWithFreeProviders(context, { groq: config.groq!, tavily: config.tavily! }, fetcher);
           const rejected: ReviewRejections = {};
           const reviewed = reviewCandidates(research.candidates, context, research.sources, rejected);
@@ -67,7 +65,6 @@ export function createNearbyHandler(config: { enabled: boolean; groq?: string; t
           if (research.candidateCount && !research.candidates.length) rejected.invalid = research.candidateCount;
           const reasons = Object.keys(rejected) as (keyof ReviewRejections)[];
           const emptyReason: EmptyReason | undefined = results.length ? undefined : !research.sourceCount ? "no_sources" : !research.candidateCount ? "no_candidates" : reasons.length === 1 ? reasons[0] : "filtered";
-          await service!.finish(reservation, "complete");
           const resultBody = { results, emptyReason, diagnostics: { sourcesFound: research.sourceCount, sourcesUsed: research.sources.length, candidatesReturned: research.candidateCount, recoveryAttempted: research.recoveryAttempted, rejected, yelpStatus: research.yelpStatus, yelpSourcesUsed: research.yelpSourcesUsed }, checkedAt: new Date().toISOString(), revision: row.revision };
           // Do not retain an empty/provider-failed answer that prevents retry.
           if (results.length) {
@@ -77,9 +74,7 @@ export function createNearbyHandler(config: { enabled: boolean; groq?: string; t
           }
           return resultBody;
         } catch (error) {
-          if (reservation) await service!.finish(reservation, "failed").catch(() => undefined);
           const failure = error instanceof ResearchError ? error : new ResearchError("Research could not be completed with reliable sources. Please try later.");
-          if (reservation) Object.assign(failure, { attemptUsed: true });
           throw failure;
         }
       };
@@ -88,7 +83,7 @@ export function createNearbyHandler(config: { enabled: boolean; groq?: string; t
       try { return reply({ ...await work, cached: false, elapsedMs: Math.round(performance.now() - started) }); }
       finally { pending.delete(key); }
     } catch (error) {
-      return reply({ message: error instanceof ResearchError ? error.message : "Research could not be completed with reliable sources. Please try later.", ...(error && typeof error === "object" && "attemptUsed" in error ? { attemptUsed: true } : {}) }, error instanceof ResearchError ? error.status : 502);
+      return reply({ message: error instanceof ResearchError ? error.message : "Research could not be completed with reliable sources. Please try later." }, error instanceof ResearchError ? error.status : 502);
     }
   };
 }

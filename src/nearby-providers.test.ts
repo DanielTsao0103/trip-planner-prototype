@@ -122,7 +122,7 @@ test("handler distinguishes empty search, empty AI, evidence rejection and no ti
   assert.equal(busyResult.results.length, 1); assert.equal(busyResult.results[0].proposedTime, null); assert.equal(reservations, before + 1);
 });
 
-test("handler blocks unauthorized, inaccessible, stale and disabled requests before reserving quota", async () => {
+test("handler blocks unauthorized, inaccessible, stale and disabled requests before provider calls", async () => {
   let reservations = 0, providerCalls = 0;
   const row = { tripID: trip.id, revision: 2, start_date: trip.start, end_date: trip.end, timezone: trip.zone, destinations: trip.destinations, content: trip };
   const gateway: ResearchGateway = { actor: async () => "owner", trip: async () => row, reserve: async () => { reservations++; return "request"; }, finish: async () => {} };
@@ -140,17 +140,15 @@ test("handler blocks unauthorized, inaccessible, stale and disabled requests bef
   assert.equal(oversized.status, 422);
   assert.equal(reservations, 0); assert.equal(providerCalls, 0);
 });
-test("handler enforces server quota before provider calls and records failed attempts", async () => {
+test("handler does not enforce the app generation cap; provider rate limits still surface", async () => {
   let calls = 0; const outcomes: string[] = [];
   const row = { tripID: trip.id, revision: 2, start_date: trip.start, end_date: trip.end, timezone: trip.zone, destinations: trip.destinations, content: trip };
   const gateway: ResearchGateway = { actor: async () => "owner", trip: async () => row, reserve: async () => "reservation", finish: async (_, outcome) => { outcomes.push(outcome); } };
   const config = { enabled: true, groq: "fixture", tavily: "fixture" };
   const request = () => new Request("https://edge.example/nearby", { method: "POST", body: JSON.stringify({ tripId: trip.id, date: trip.start, revision: 2, intent: "lunch" }) });
   const fetcher: typeof fetch = async () => { calls++; return json({}, 429); };
-  const limited = await createNearbyHandler(config, () => ({ ...gateway, reserve: async () => { throw new ResearchError("Daily user limit reached", 429); } }), fetcher)(request());
-  assert.equal(limited.status, 429); assert.equal(calls, 0);
   const failed = await createNearbyHandler(config, () => gateway, fetcher)(request());
-  assert.equal(failed.status, 429); assert.deepEqual(outcomes, ["failed"]); assert.equal((await failed.json()).attemptUsed, true);
+  assert.equal(failed.status, 429); assert.equal(calls, 1); assert.deepEqual(outcomes, []); assert.equal((await failed.json()).attemptUsed, undefined);
 });
 
 
