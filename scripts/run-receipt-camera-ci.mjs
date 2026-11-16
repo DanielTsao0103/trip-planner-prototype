@@ -64,6 +64,7 @@ try {
   });
   await server.listen();
   await waitForSite(recoverySite);
+  await runScript("test-receipt-cloud-timeout.mjs", recoverySite, 90_000);
   await runScript("test-receipt-outbox.mjs", recoverySite, 90_000);
   await runScript("test-receipt-recovery.mjs", recoverySite, 150_000);
   await runScript("test-receipt-recovery-flow.mjs", recoverySite, 150_000);

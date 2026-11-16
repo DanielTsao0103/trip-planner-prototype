@@ -23,6 +23,7 @@ import { dateText } from "./domain";
 import { Badge, Button, Empty, ErrorBox, Field, Modal, PageHead } from "./ui";
 import { repaymentPaid, recordRepayment } from "./repayments";
 import { CurrencyConverter } from "./currency-converter";
+import { CURRENCIES, getExchangeRate, type Currency } from "./exchange-rates";
 import { useChartColors } from "./theme";
 import { scanReceiptPhoto, receiptSource } from "./receipt-photo";
 import { ReceiptCapture } from "./receipt-capture";
@@ -839,6 +840,9 @@ export function ExpenseForm() {
   const [receiptResult,setReceiptResult] = useState<ReceiptScanResult>();
   const [receiptReviewed,setReceiptReviewed] = useState(false);
   const [receiptValid,setReceiptValid] = useState(true);
+  const [manualAmount,setManualAmount] = useState(false);
+  const [convertingAmount,setConvertingAmount] = useState(false);
+  const [receiptAmountNote,setReceiptAmountNote] = useState("");
   const [scanning,setScanning] = useState(false);
   const [preparingReceipt,setPreparingReceipt] = useState(false);
   const [scanStatus,setScanStatus] = useState("");
@@ -847,7 +851,43 @@ export function ExpenseForm() {
   const uploadedReceipt = useRef(false);
   const scanRequest = useRef<AbortController | undefined>(undefined);
   const categoryTouched = useRef(false);
-  const autoFields = useRef({purpose:"",amount:""});
+  const autoPurpose = useRef("");
+  // Follow reviewed totals until the traveler explicitly overrides the USD amount.
+  // Cancel old conversions so a late response cannot replace a newer receipt/edit.
+  useEffect(() => {
+    if (!receiptPhoto || manualAmount) {
+      setConvertingAmount(false); setReceiptAmountNote("");
+      return;
+    }
+    const controller = new AbortController();
+    const total = receiptResult?.totalCents;
+    const currency = receiptResult?.currency;
+    setAmount(""); setReceiptReviewed(false); setConvertingAmount(false);
+    setReceiptAmountNote("");
+    if (!total || !currency) return;
+    if (currency === "USD") {
+      setAmount((total / 100).toFixed(2));
+      setReceiptAmountNote("Filled from the receipt total. You can adjust it if needed.");
+      return;
+    }
+    if (!Object.hasOwn(CURRENCIES, currency)) {
+      setReceiptAmountNote(`Automatic conversion is unavailable for ${currency}. Enter the amount paid in USD.`);
+      return;
+    }
+    setConvertingAmount(true);
+    setReceiptAmountNote(`Converting ${currency} to USD…`);
+    void getExchangeRate(currency as Currency, "USD", controller.signal).then(rate => {
+      if (controller.signal.aborted) return;
+      const converted = Math.round(total * rate.rate);
+      if (converted <= 0 || converted > MONEY_LIMITS.expense) throw new Error("Converted amount is outside the expense limit");
+      setAmount((converted / 100).toFixed(2));
+      setReceiptReviewed(false);
+      setReceiptAmountNote(`Estimated USD amount using the ${rate.date} exchange rate. You can adjust it to match your payment.`);
+    }).catch(() => {
+      if (!controller.signal.aborted) setReceiptAmountNote("Could not convert the receipt total. Enter the amount paid in USD, or reselect the receipt currency to retry.");
+    }).finally(() => { if (!controller.signal.aborted) setConvertingAmount(false); });
+    return () => controller.abort();
+  }, [receiptPhoto, receiptResult?.totalCents, receiptResult?.currency, manualAmount]);
   useEffect(() => () => scanRequest.current?.abort(), []);
   const viewPhoto = async () => {
     setError("");
@@ -872,8 +912,8 @@ export function ExpenseForm() {
       if(controller.signal.aborted) return;
       photoAccepted=true;
       setReceiptPhoto(photo); setPhotoUrl(URL.createObjectURL(photo)); setReceiptResult(undefined); setReceiptValid(true); uploadedReceipt.current=false;
-      setPurpose(current=>current===autoFields.current.purpose ? "" : current);
-      setAmount(current=>current===autoFields.current.amount ? "" : current);
+      const previousPurpose = autoPurpose.current;
+      setPurpose(current=>current===previousPurpose ? "" : current);
       const result = await scanReceiptPhoto(photo,t.persistence === "account" && import.meta.env.VITE_RECEIPT_VISION === "true",undefined,{signal:controller.signal,onProgress:(_,status)=>{
         if(!controller.signal.aborted) setScanStatus(status+"…");
       }});
@@ -881,9 +921,8 @@ export function ExpenseForm() {
       setReceiptResult(result);
       const name=result.purpose.slice(0,TEXT_LIMITS.expense);
       setPurpose(current=>current.trim()?current:name);
-      setAmount(current=>current.trim()?current:result.amount);
       if(result.category && !categoryTouched.current) setCategory(result.category);
-      autoFields.current={purpose:name,amount:result.amount};
+      autoPurpose.current=name;
       setScanStatus("");
     } catch(issue) {
       if(controller.signal.aborted) return;
@@ -1012,7 +1051,7 @@ export function ExpenseForm() {
         noValidate
         onSubmit={async (e) => {
           e.preventDefault();
-          if(savingExpenseRef.current || scanning || preparingReceipt || !receiptValid) return;
+          if(savingExpenseRef.current || scanning || preparingReceipt || convertingAmount || !receiptValid) return;
           if (original && original.payer !== travelerId) {
             setError("Only the payer can edit this expense.");
             return;
@@ -1101,7 +1140,7 @@ export function ExpenseForm() {
           {!original && <ReceiptCapture onPhoto={photo=>void scanPhoto(photo)} onPreparingChange={setPreparingReceipt} disabled={savingExpense || uploadedReceipt.current}/>}
           {photoUrl && <details className="receipt-photo-disclosure"><summary>View receipt photo</summary><img src={photoUrl} alt="Receipt photo" className="receipt-photo-review" /></details>}
           {scanning && <div className="receipt-scan-progress" role="status"><span>{scanStatus || "Reading receipt…"}</span><Button variant="text" onClick={stopReading}>Stop reading</Button></div>}
-          {receiptResult && <ReceiptReview value={receiptResult} onValidityChange={setReceiptValid} onChange={receiptPhoto && !savingExpense ? next=>{setReceiptResult(next);setReceiptReviewed(false);} : undefined} onUseTotal={value=>{setAmount(value);setReceiptReviewed(false);}}/>}
+          {receiptResult && <ReceiptReview value={receiptResult} onValidityChange={setReceiptValid} onChange={receiptPhoto && !savingExpense ? next=>{setReceiptResult(next);setReceiptReviewed(false);} : undefined} onUseTotal={manualAmount ? value=>{setManualAmount(false);setAmount(value);setReceiptReviewed(false);} : undefined}/>}
           {receiptPhoto && !scanning && <><label className="check-row receipt-reviewed"><input type="checkbox" checked={receiptReviewed} disabled={savingExpense} onChange={event=>setReceiptReviewed(event.target.checked)}/><span>I checked the receipt details and the USD expense amount.</span></label><Button variant="text" disabled={savingExpense || uploadedReceipt.current} onClick={removePhoto}>Remove receipt</Button></>}
           <p className="expense-date-context">Expense date: {dateText(original?.date || s.date)}{t.persistence !== "account" && " · Demo date"}</p>
           <div className="expense-validated-field">
@@ -1133,10 +1172,11 @@ export function ExpenseForm() {
                 max={MONEY_LIMITS.expense / 100}
                 step="0.01"
                 value={amount}
-                onChange={(e) => {setAmount(e.target.value);setReceiptReviewed(false);}}
+                onChange={(e) => {setManualAmount(Boolean(e.target.value.trim()));setAmount(e.target.value);setReceiptReviewed(false);}}
                 placeholder="0.00"
               />
             </Field>
+            {receiptAmountNote && <p id="expense-amount-hint" role="status">{receiptAmountNote}</p>}
             {submitted && amountProblem && <span id="expense-amount-error" className="error expense-field-error" role="alert">{amountProblem}</span>}
             </div>
             <Field label="Category">
@@ -1221,7 +1261,7 @@ export function ExpenseForm() {
           <Button variant="text" disabled={savingExpense} onClick={close}>
             Cancel
           </Button>
-          <Button type="submit" disabled={savingExpense || scanning || preparingReceipt || !receiptValid}>{savingExpense ? "Saving expense…" : "Save expense"}</Button>
+          <Button type="submit" disabled={savingExpense || scanning || preparingReceipt || convertingAmount || !receiptValid}>{savingExpense ? "Saving expense…" : "Save expense"}</Button>
         </div>
         </fieldset>
       </form>

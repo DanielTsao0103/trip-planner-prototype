@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import { Camera, Upload } from "lucide-react";
 import { Button, ErrorBox } from "./ui";
 import { prepareReceiptInput } from "./receipt-image";
+import { warmReceiptScanner } from "./receipt-scanner";
 
 /** Keep capture in the browser, including phones that cannot open a native camera picker. */
 export function ReceiptCapture({ onPhoto, disabled, onPreparingChange }: { onPhoto: (photo: File) => void; disabled?: boolean; onPreparingChange?: (preparing: boolean) => void }) {
@@ -45,6 +46,7 @@ export function ReceiptCapture({ onPhoto, disabled, onPreparingChange }: { onPho
   };
   const openCamera = async () => {
     if (disabled || opening || camera || preparing) return;
+    void warmReceiptScanner().catch(() => undefined);
     // Do not leave an older video track alive when starting a new capture session.
     previewCleanup.current?.(); previewCleanup.current = undefined;
     stream.current?.getTracks().forEach(track => track.stop()); stream.current = undefined;
@@ -112,7 +114,7 @@ export function ReceiptCapture({ onPhoto, disabled, onPreparingChange }: { onPho
   return <section className="receipt-capture" aria-label="Receipt photo">
     <div className="receipt-capture-actions">
       <Button variant="outline" disabled={disabled || opening || camera || preparing} onClick={() => void openCamera()}><Camera size={17}/>Take photo</Button>
-      <Button variant="outline" disabled={disabled || preparing} onClick={() => upload.current?.click()}><Upload size={17}/>Upload receipt</Button>
+      <Button variant="outline" disabled={disabled || preparing} onClick={() => { void warmReceiptScanner().catch(() => undefined); upload.current?.click(); }}><Upload size={17}/>Upload receipt</Button>
     </div>
     <input hidden ref={upload} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload receipt image" onChange={event => void selected(event.currentTarget)}/>
     <input hidden ref={nativeCamera} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" aria-label="Take receipt photo" onChange={event => void selected(event.currentTarget)}/>
