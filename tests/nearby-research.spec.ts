@@ -182,7 +182,7 @@ test("located ideas add once with precise addresses and distinct linked notes", 
   expect(events.map((event:any)=>event.place)).toEqual(options.map(option=>option.address));
   expect(events[0].notes).toContain('https://example.com/waterfront'); expect(events[1].notes).toContain('https://example.com/gardens');
   expect(events[0].notes).not.toEqual(events[1].notes);
-  expect(events[1].start).toBe('13:30');
+  expect(events[1].start).toBe('11:00');
   await page.reload();
   expect(writes.at(-1).events).toHaveLength(2);
 });
@@ -330,11 +330,12 @@ test("account event entry excludes simulated confirmation extraction", async ({p
 });
 
 
-test("Nearby offers the next day with a gap without changing the selected day automatically", async ({page}) => {
+test("Nearby remains searchable without a gap and offers the next day without changing selection", async ({page}) => {
   await account(page, () => ({json:{results:[]}}), "Owner", "", true);
   const dialog = page.getByRole("dialog", {name:"Nearby suggestions"});
   await expect(dialog.getByLabel("Trip day", {exact:true})).toHaveValue("2027-05-01");
-  await expect(dialog.getByRole("button", {name:"Find nearby suggestions",exact:true})).toBeDisabled();
+  await expect(dialog.getByRole("button", {name:"Find nearby suggestions",exact:true})).toBeEnabled();
+  await expect(dialog.getByText(/No open time block is available/)).toBeVisible();
   await dialog.getByRole("button", {name:"Try May 2",exact:true}).click();
   await expect(dialog.getByLabel("Trip day", {exact:true})).toHaveValue("2027-05-02");
   await expect(dialog.getByRole("button", {name:"Find nearby suggestions",exact:true})).toBeEnabled();
