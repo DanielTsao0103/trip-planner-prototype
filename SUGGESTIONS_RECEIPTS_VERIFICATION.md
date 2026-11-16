@@ -36,3 +36,13 @@ Supabase's scoped token cannot run the security-advisor API. Direct RLS isolatio
 Detailed local evidence is retained under `outputs/suggestions-receipts-2026-11-16` in the shared project workspace. Final release SHA, test counts and published-site verification are recorded there in `RELEASE.md` after deployment.
 
 Implementation references: [PostgreSQL deferred constraint triggers](https://www.postgresql.org/docs/current/sql-createtrigger.html), [Tesseract.js](https://github.com/naptha/tesseract.js), [Google Places search](https://developers.google.com/maps/documentation/places/web-service/text-search).
+
+## Additional adversarial review
+
+The follow-up review reproduced and corrected rejected-photo validation bypass, stale receipt retry errors, cramped numeric fields and focus loss after resize, next-day planning-label mismatch, closed venues displacing open choices, unsupported numeric prices, cross-venue practical facts, and a concurrent receipt insert/delete race. The receipt details foreign key is deferred and preserves aggregate expense replacement; cleanup runs before deferred referential checks.
+
+Reviewed receipt items now enter an account-scoped IndexedDB outbox before uploading. Confirmed expense saves, confirmed account loads and reconnects retry pending attachments. Per-expense Web Locks, version checks and session checks protect recovery; pending data is retired only after a confirmed attachment or deliberate removal. An uncertain queued expense write does not trigger blind deletion of its photo.
+
+The required cloud camera job also runs real browser outbox, validation and failed-save/reload recovery checks. Those recovery checks intercept account responses; the separate live-account camera and database scripts verify actual Supabase persistence. Eight isolated PostgreSQL checks exercise both concurrent commit orders, normal deletion, aggregate replacement, outsider access and trip deletion. Physical-camera and provider-availability limits above still apply.
+
+Constraint reference: [PostgreSQL deferred foreign keys](https://www.postgresql.org/docs/current/sql-createtable.html).

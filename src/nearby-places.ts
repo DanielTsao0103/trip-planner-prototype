@@ -51,6 +51,11 @@ export function googlePlaceResults(payload: unknown, context: PlanningContext): 
   });
   // Keep the same duplicate, budget, time and shared-needs checks as web research.
   const unplanned = candidates.filter(candidate => !context.events.some(event => event.name.trim().toLocaleLowerCase() === candidate.name.trim().toLocaleLowerCase() || event.place.trim().toLocaleLowerCase() === candidate.address.trim().toLocaleLowerCase()));
+  // Google relevance order can put closed venues ahead of usable alternatives.
+  // Prefer a verified opening that fits, then unknown hours, while retaining
+  // closed venues for review when no schedulable alternative was returned.
+  const availability = (candidate: LocatedSuggestion) => candidate.openingWindows === undefined ? 1 : recommendationSlot(candidate,context.gaps) ? 0 : 2;
+  unplanned.sort((a,b) => availability(a)-availability(b));
   return (reviewCandidates(unplanned, context, candidates.flatMap(item => item.facts.map(fact => fact.sourceUrl))) as LocatedSuggestion[]).map(result => {
     const proposedTime = recommendationSlot(result, context.gaps);
     return {...result, proposedTime, ...(result.openingWindows && !proposedTime ? {fitNote:`${result.name} has published hours, but they do not overlap your available time. Save it for later or choose another day.`} : {}), openingHoursSummary:relevantOpeningHours(result.openingHours || [],result.openingHoursZone,context,proposedTime)};

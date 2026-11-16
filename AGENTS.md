@@ -8,6 +8,9 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 ## Corrections & Lessons Learned
 
+- Receipt adversarial review (November 16, 2026): a rejected replacement image must preserve an invalid review draft and its disabled Save state. Stage reviewed details in an account-scoped outbox before uploading, and drain only against confirmed expenses; uncertain queued writes must not trigger photo deletion. Keep receipt fields readable at actual container widths and focused after rotation or enlarged text. Test concurrent attachment/deletion with a deferred expense foreign key and cleanup ordered before its constraint checks.
+- Suggestion evidence review (November 16, 2026): a price quote must support the exact currency and per-person amount, and practical facts must identify the same venue. Prefer usable opening windows before limiting cards. Trying another day must update the parent planning date before adding an event.
+
 - Question-everything review (November 16, 2026): assess each page's purpose, default state and complete interaction, while preserving the visual identity. Record observed friction separately from missing coverage; never invent fractional score deductions or certify a target without evidence.
 - Overnight events (November 16, 2026): keep one canonical event and cost with an explicit end date; derive daily displays and enforce all occupied-day permissions. Preserve legacy unrelated writes and reject legacy changes to overnight events.
 - Layout recovery (November 16, 2026): use actual toolbar/container dimensions for scroll clearance; short landscape dialogs retain actions while fields scroll. Optional location-area controls must remain reachable while autocomplete is open, and native focus scrolling must not immediately dismiss keyboard chart hints.

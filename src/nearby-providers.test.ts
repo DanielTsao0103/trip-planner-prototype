@@ -110,7 +110,7 @@ test("handler distinguishes empty search, empty AI, evidence rejection and no ti
   const request = () => new Request("https://edge.example/nearby", { method: "POST", body: JSON.stringify({ tripId: trip.id, date: trip.start, revision: 2, intent: "lunch" }) });
   const config = { enabled: true, groq: "fixture", tavily: "fixture" };
   for (const [mode, expected] of [["sources", "no_sources"], ["candidates", "no_candidates"], ["evidence", "evidence"], ["budget", "budget"], ["conflicts", "conflicts"]]) {
-    const fetcher: typeof fetch = async url => String(url).includes("tavily") ? json({ results: mode === "sources" ? [] : [source] }) : json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: mode === "candidates" ? [] : [{ ...candidate, ...(mode === "evidence" ? { facts: [] } : mode === "conflicts" ? { conflicts: ["No access"] } : mode === "budget" ? { pricePerPersonCents: 20000, currency: "USD", facts: [{ ...candidate.facts[0], topic: "Price" }] } : {}) }] }) } }] });
+    const fetcher: typeof fetch = async url => String(url).includes("tavily") ? json({ results: mode === "sources" ? [] : [mode === "budget" ? {...source, content:source.content + " Vegetarian dumplings cost USD 200.00 per person."} : source] }) : json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: mode === "candidates" ? [] : [{ ...candidate, ...(mode === "evidence" ? { facts: [] } : mode === "conflicts" ? { conflicts: ["No access"] } : mode === "budget" ? { pricePerPersonCents: 20000, currency: "USD", facts: [{ ...candidate.facts[0], topic: "Price", quote:"Vegetarian dumplings cost USD 200.00 per person." }] } : {}) }] }) } }] });
     const result = await (await createNearbyHandler(config, () => gateway, fetcher)(request())).json();
     assert.equal(result.emptyReason, expected); assert.deepEqual(result.results, []); assert.ok(result.diagnostics);
     assert.equal(JSON.stringify(result).includes("Our lunch menu"), false);
@@ -198,14 +198,37 @@ test("city tourism evidence reaches the model even when granular searches are fu
 });
 
 
-test("invalid provider JSON uses one reserved repair call and returns a suggestion", async () => {
+test("strict schema rejection uses one JSON object repair with the same validation and reservation", async () => {
   let calls = 0;
-  const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async url => {
+  const result = await researchWithFreeProviders(context(), { groq: "fixture", tavily: "fixture" }, async (url, init) => {
     if (String(url).includes("tavily")) return json({ results: [source] });
-    if (++calls === 1) return json({ error: { code: "json_validate_failed" } }, 400);
-    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [candidate] }) } }] });
+    const request=JSON.parse(init!.body as string);
+    if (++calls === 1) { assert.equal(request.response_format.type,"json_schema");return json({ error: { code: "json_validate_failed" } }, 400); }
+    assert.deepEqual(request.response_format,{type:"json_object"});
+    assert.match(request.messages[0].content,/Return only a JSON object with a candidates array/);
+    assert.equal(request.max_completion_tokens,900);assert.ok(bytesForTest(request)+900+512<=8000);
+    return json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates: [{...candidate,recommendationType:"place",fitNote:"A lunch option"}] }) } }] });
   });
   assert.equal(calls, 2); assert.equal(result.candidates.length, 1); assert.equal(result.recoveryAttempted, true);
+  assert.equal(result.candidates[0].addressVerified,false);
+});
+
+test("JSON repair rejects malformed shape and fabricated evidence without a third call", async () => {
+  for(const mode of ["missing_field","extra_identity","invented_quote"]){
+    let calls=0;
+    const repaired:any={...candidate,recommendationType:"place",fitNote:"A lunch option"};
+    if(mode==="missing_field")delete repaired.durationMinutes;
+    if(mode==="extra_identity")repaired.googlePlaceId="invented";
+    if(mode==="invented_quote")repaired.facts=[{...candidate.facts[0],quote:"Invented menu and allergy safety claim"}];
+    const work=researchWithFreeProviders(context(),{groq:"fixture",tavily:"fixture"},async url=>{
+      if(String(url).includes("tavily"))return json({results:[source]});
+      if(++calls===1)return json({error:{code:"json_validate_failed"}},400);
+      return json({choices:[{finish_reason:"stop",message:{content:JSON.stringify({candidates:[repaired]})}}]});
+    });
+    if(mode==="invented_quote")assert.equal((await work).candidates[0].facts.length,0);
+    else await assert.rejects(work,/invalid response/);
+    assert.equal(calls,2);
+  }
 });
 
 

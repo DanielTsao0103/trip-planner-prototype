@@ -1148,7 +1148,7 @@ export function Suggestions() {
       walkLimit >= (i.id === "gallery" ? 180 : i.id === "garden" ? 300 : 80),
   );
   const discoveryFirst = t.persistence === "account" && !t.savedPlaces?.length;
-  const discovery = (!t.sample || t.persistence === "account") && <section className="card suggestion-research"><div className="section-title"><h2>Find your next stop</h2><Button variant="text" onClick={() => { dismissMessage(); go(15, {return:"9",date:selectedDay}); }}>Update your preferences</Button></div><NearbySuggestions embedded initialDate={selectedDay} /></section>;
+  const discovery = (!t.sample || t.persistence === "account") && <section className="card suggestion-research"><div className="section-title"><h2>Find your next stop</h2><Button variant="text" onClick={() => { dismissMessage(); go(15, {return:"9",date:selectedDay}); }}>Update your preferences</Button></div><NearbySuggestions embedded initialDate={selectedDay} onDateChange={date => go(9, {date}, true)} /></section>;
   return (
     <>
       <PageHead

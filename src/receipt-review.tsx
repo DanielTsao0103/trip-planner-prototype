@@ -20,6 +20,36 @@ const validDraft = (draft: Draft) => draft.items.every(item => item.description.
 /** Keep editable strings separate from normalized values so typing a space or a
  * decimal point does not erase an item or move the caret. Stable keys survive removal. */
 export function ReceiptReview({ value, onChange, onUseTotal, onValidityChange }: { value: ReceiptScanResult; onChange?: (value: ReceiptScanResult) => void; onUseTotal?: (amount: string) => void; onValidityChange?: (valid: boolean) => void }) {
+  const section = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const root = section.current;
+    const scrollport = root?.closest<HTMLElement>(".expense-fields");
+    if (!root || !scrollport) return;
+    let frame = 0;
+    const reveal = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const control = document.activeElement;
+        if (!(control instanceof HTMLElement) || !root.contains(control)) return;
+        const bounds = control.getBoundingClientRect(), visible = scrollport.getBoundingClientRect();
+        const top = visible.top + 12, bottom = visible.bottom - 12;
+        if (bounds.top >= top && bounds.bottom <= bottom) return;
+        const label = control.closest("label")?.getBoundingClientRect();
+        const target = label && label.height <= bottom - top ? label : bounds;
+        scrollport.scrollBy({ top: (target.top + target.bottom - top - bottom) / 2, behavior: "instant" });
+      });
+    };
+    // Rotation and enlarged text can move an already-focused field without a new focus event.
+    const observer = new ResizeObserver(reveal);
+    observer.observe(root); observer.observe(scrollport);
+    root.addEventListener("focusin", reveal);
+    window.visualViewport?.addEventListener("resize", reveal);
+    return () => {
+      cancelAnimationFrame(frame); observer.disconnect();
+      root.removeEventListener("focusin", reveal);
+      window.visualViewport?.removeEventListener("resize", reveal);
+    };
+  }, []);
   const editable = Boolean(onChange);
   const sequence = useRef(0);
   const makeDraft = (receipt: ReceiptScanResult): Draft => ({
@@ -51,7 +81,7 @@ export function ReceiptReview({ value, onChange, onUseTotal, onValidityChange }:
   const changeItem = (key: number, change: Partial<Draft["items"][number]>) => update({ ...draft, items: draft.items.map(item => item.key === key ? { ...item, ...change } : item) });
   const subtotalDifference = value.subtotalCents === null ? null : value.reconciliation.itemTotalCents - (value.discountCents ?? 0) - value.subtotalCents;
   const difference = value.reconciliation.differenceCents || subtotalDifference || 0;
-  return <section className="receipt-review" aria-label="Receipt details">
+  return <section ref={section} className="receipt-review" aria-label="Receipt details">
     <div className="receipt-review-heading"><h3>{editable ? "Review the receipt" : "Receipt details"}</h3><span>{editable ? draft.items.length : value.items.length} line {(editable ? draft.items.length : value.items.length) === 1 ? "item" : "items"}</span></div>
     {editable && <p>Compare the photo with the items and total. Correct anything that was missed.</p>}
     <div className="receipt-items">

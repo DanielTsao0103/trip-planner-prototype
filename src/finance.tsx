@@ -28,7 +28,7 @@ import { scanReceiptPhoto, receiptSource } from "./receipt-photo";
 import { ReceiptCapture } from "./receipt-capture";
 import { ReceiptReview } from "./receipt-review";
 import { normalizeReceiptDocument, type ReceiptScanResult } from "./receipt-items";
-import { saveReceiptPhoto, saveReceiptDetails, loadReceipt, deleteReceipt, type ReceiptIdentity } from "./receipt-storage";
+import { saveReceiptPhoto, saveReceiptDetails, loadReceipt, deleteReceipt, stageReceiptDetails, discardReceiptRecovery, type ReceiptIdentity } from "./receipt-storage";
 import { validatePhoto } from "./image-validation";
 import "./receipt.css";
 import {
@@ -850,11 +850,13 @@ export function ExpenseForm() {
   const autoFields = useRef({purpose:"",amount:""});
   useEffect(() => () => scanRequest.current?.abort(), []);
   const viewPhoto = async () => {
+    setError("");
     try {
       const data = await loadReceipt(receiptIdentity);
       if (active.current) {
         if(data.photo) setPhotoUrl(URL.createObjectURL(data.photo));
         if(data.details) setReceiptResult(data.details);
+        setError([data.photoError,data.recoveryError].filter(Boolean).join(" "));
       }
     } catch {
       if (active.current) setError("Could not open the receipt. Try again.");
@@ -863,13 +865,13 @@ export function ExpenseForm() {
   const scanPhoto = async (photo: File) => {
     scanRequest.current?.abort();
     const controller = new AbortController(); scanRequest.current = controller;
-    setError(""); setScanning(true); setScanStatus("Preparing receipt…"); setReceiptReviewed(false);setReceiptValid(true);
+    setError(""); setScanning(true); setScanStatus("Preparing receipt…"); setReceiptReviewed(false);
     let photoAccepted=false;
     try {
       await validatePhoto(photo,10);
       if(controller.signal.aborted) return;
       photoAccepted=true;
-      setReceiptPhoto(photo); setPhotoUrl(URL.createObjectURL(photo)); setReceiptResult(undefined); uploadedReceipt.current=false;
+      setReceiptPhoto(photo); setPhotoUrl(URL.createObjectURL(photo)); setReceiptResult(undefined); setReceiptValid(true); uploadedReceipt.current=false;
       setPurpose(current=>current===autoFields.current.purpose ? "" : current);
       setAmount(current=>current===autoFields.current.amount ? "" : current);
       const result = await scanReceiptPhoto(photo,t.persistence === "account" && import.meta.env.VITE_RECEIPT_VISION === "true",undefined,{signal:controller.signal,onProgress:(_,status)=>{
@@ -893,8 +895,14 @@ export function ExpenseForm() {
     scanRequest.current?.abort();setScanning(false);setScanStatus("");
     setReceiptResult(normalizeReceiptDocument({warnings:["Reading was stopped. Enter and check the expense details."]}));
   };
-  const removePhoto = () => {
-    scanRequest.current?.abort();setScanning(false);setReceiptPhoto(undefined);setReceiptResult(undefined);setPhotoUrl("");setReceiptReviewed(false);setReceiptValid(true);setScanStatus("");
+  const removePhoto = async () => {
+    if(savingExpenseRef.current)return;
+    savingExpenseRef.current=true;setSavingExpense(true);
+    try{
+      await discardReceiptRecovery(receiptIdentity);
+      scanRequest.current?.abort();setScanning(false);setReceiptPhoto(undefined);setReceiptResult(undefined);setPhotoUrl("");setReceiptReviewed(false);setReceiptValid(true);setScanStatus("");
+    }catch{setError("Could not remove the pending receipt. Try again.");}
+    finally{savingExpenseRef.current=false;if(active.current)setSavingExpense(false);}
   };
   useEffect(() => () => {
     if (photoUrl) URL.revokeObjectURL(photoUrl);
@@ -944,7 +952,7 @@ export function ExpenseForm() {
       <h3>{original.purpose}</h3>
       {original.source === receiptSource && original.payer === travelerId && (
         <>
-          {!photoUrl && <Button variant="text" onClick={() => void viewPhoto()}>View receipt</Button>}
+          {(!photoUrl || error.includes("Receipt details are waiting to sync")) && <Button variant="text" onClick={() => void viewPhoto()}>View receipt</Button>}
           {photoUrl && <img src={photoUrl} alt="Receipt photo" className="expense-receipt-photo" />}
           {receiptResult && <ReceiptReview value={receiptResult}/>}
           <ErrorBox text={error} />
@@ -1053,6 +1061,7 @@ export function ExpenseForm() {
           savingExpenseRef.current=true;setSavingExpense(true);
           try {
             if(receiptPhoto){
+              await stageReceiptDetails(receiptIdentity,receiptResult || normalizeReceiptDocument({}));
               if(!uploadedReceipt.current){await saveReceiptPhoto(receiptIdentity,receiptPhoto);uploadedReceipt.current=true;}
               await updateTripConfirmed(saveExpense);
               await saveReceiptDetails(receiptIdentity,receiptResult || normalizeReceiptDocument({}));
@@ -1086,7 +1095,7 @@ export function ExpenseForm() {
               Delete expense
             </Button>
           )}
-          {original?.source === receiptSource && original.payer === travelerId && !photoUrl && (
+          {original?.source === receiptSource && original.payer === travelerId && (!photoUrl || error.includes("Receipt details are waiting to sync")) && (
             <Button variant="text" onClick={() => void viewPhoto()}>View receipt</Button>
           )}
           {!original && <ReceiptCapture onPhoto={photo=>void scanPhoto(photo)} onPreparingChange={setPreparingReceipt} disabled={savingExpense || uploadedReceipt.current}/>}

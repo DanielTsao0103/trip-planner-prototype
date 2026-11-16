@@ -473,3 +473,18 @@ test('overnight event draft keeps suggestion location identity and end day toget
  await page.getByRole('button',{name:'Add to itinerary',exact:true}).click();await expect.poll(()=>writes.at(-1)?.events.length).toBe(1);
  expect(writes.at(-1).events[0]).toMatchObject({name:'Late dinner',place:googleFixture.formattedAddress,date:'2027-05-01',endDate:'2027-05-02',start:'23:00',end:'01:00',point:{lat:47.61,lng:-122.33},googlePlaceId:googleFixture.id});
 });
+
+test('embedded next-day recovery synchronizes the planning day before saving',async({page})=>{
+ const writes:any[]=[];page.on('request',request=>{if(request.url().endsWith('/save_account_trip'))writes.push(request.postDataJSON().p_data);});
+ await account(page,()=>({json:{results:[]}}),'Owner','',true);await page.keyboard.press('Escape');
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[googleFixture]}}));
+ const research=page.getByRole('region',{name:'Nearby suggestions'});
+ await expect(page.getByLabel('Planning day',{exact:true})).toHaveValue('2027-05-01');
+ await research.getByRole('button',{name:/Try May 2/}).click();
+ await expect(page.getByLabel('Planning day',{exact:true})).toHaveValue('2027-05-02');
+ await research.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+ await research.getByRole('button',{name:'Add to itinerary',exact:true}).click();
+ await expect.poll(()=>writes.at(-1)?.events.length).toBe(2);
+ expect(writes.at(-1).events.at(-1).date).toBe('2027-05-02');
+ await page.getByRole('button',{name:'View this day',exact:true}).click();await expect(page).toHaveURL(/date=2027-05-02/);
+});

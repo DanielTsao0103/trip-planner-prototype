@@ -49,3 +49,19 @@ test('malformed provider attributions retain the valid venue and safe attributio
  assert.equal(results.length,1);assert.equal(results[0].googlePlaceId,place.id);assert.ok(hasLocatedPlace(results[0]));
  assert.deepEqual(results[0].attributions,[{displayName:'Venue directory',uri:'https://example.com/credit'},{displayName:'Unsafe URL'}]);
 });
+
+const closedSaturday=[{open:{day:0,hour:11},close:{day:0,hour:15}}];
+const openSaturday=[{open:{day:6,hour:11},close:{day:6,hour:15}}];
+const timedVenue=(index:number,periods:unknown)=>({...place,id:`ChIJtimed${index}`,displayName:{text:`Venue ${index}`},formattedAddress:`${index} Different St, Seattle`,timeZone:{id:'UTC'},regularOpeningHours:{periods}});
+test('usable opening hours are considered before the three-result limit',()=>{
+ const results=googlePlaceResults({places:[0,1,2,3,4,5].map(index=>timedVenue(index,index<3?closedSaturday:openSaturday))},context);
+ assert.deepEqual(results.map(result=>result.name),['Venue 3','Venue 4','Venue 5']);
+ assert.ok(results.every(result=>result.proposedTime?.start==='11:00'));
+});
+test('unknown hours remain useful and all-closed results remain reviewable',()=>{
+ const mixed=googlePlaceResults({places:[timedVenue(0,closedSaturday),timedVenue(1,closedSaturday),timedVenue(2,closedSaturday),timedVenue(3,undefined),timedVenue(4,openSaturday)]},context);
+ assert.deepEqual(mixed.map(result=>result.name),['Venue 4','Venue 3','Venue 0']);
+ assert.equal(mixed[1].openingWindows,undefined);assert.ok(mixed[1].proposedTime);assert.equal(mixed[2].proposedTime,null);
+ const closed=googlePlaceResults({places:[0,1,2,3].map(index=>timedVenue(index,closedSaturday))},context);
+ assert.equal(closed.length,3);assert.ok(closed.every(result=>result.proposedTime===null&&hasLocatedPlace(result)));
+});

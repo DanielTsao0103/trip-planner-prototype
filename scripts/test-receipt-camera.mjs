@@ -7,7 +7,7 @@ import { parseEnv } from 'node:util';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { resolve } from 'node:path';
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 
 const site = process.env.TRIP_QA_URL || 'http://127.0.0.1:4213/trip-planner-prototype/';
 const output = resolve(process.env.TRIP_QA_OUTPUT || '/tmp/trip-receipt-camera');
@@ -19,6 +19,7 @@ const verify = (name, condition) => { assert.ok(condition, name); results.push({
 const makeBrowser = () => chromium.launch({args:['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream',`--use-file-for-fake-video-capture=${feedPath}`]});
 let browser, live, tracingContext, failurePage, cleanupVerified=false, completed=false, failure;
 const liveMode=process.env.TRIP_QA_LIVE_RECEIPTS==='1';
+const reloadRecovery=liveMode&&process.env.TRIP_QA_RELOAD_RECOVERY==='1';
 const checked=result=>{if(result.error)throw Error(result.error.message);return result.data;};
 async function setupLive(){
  const env={...parseEnv(readFileSync('.env.local','utf8')),...parseEnv(readFileSync('.env.server.local','utf8')),...process.env};
@@ -99,6 +100,33 @@ try {
   verify('Real camera photo OCR extracts merchant and final total',await page.getByLabel('What was it for?',{exact:true}).inputValue()==='CEDAR CAFE' && await page.getByLabel('Amount (USD)',{exact:true}).inputValue()==='25.68');
   verify('Real camera photo OCR extracts both item amounts',await page.getByLabel('Receipt item 1 amount',{exact:true}).inputValue()==='9.00' && await page.getByLabel('Receipt item 2 amount',{exact:true}).inputValue()==='12.00');
   await page.screenshot({path:output+'/camera-extracted.png'});
+  const itemName=page.getByLabel('Receipt item 1',{exact:true});
+  const itemQuantity=page.getByLabel('Receipt item 1 quantity',{exact:true});
+  const itemAmount=page.getByLabel('Receipt item 1 amount',{exact:true});
+  await itemName.fill('Handcrafted locally roasted Colombian single-origin coffee with oat milk and additional espresso');
+  await itemQuantity.fill('10000');await itemAmount.fill('99999.99');
+  for(const [width,height,textScale] of [[390,650,1],[320,568,1],[320,568,2],[844,390,1]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(scale=>document.documentElement.style.fontSize=`${16*scale}px`,textScale);
+    await itemAmount.focus();
+    await expect.poll(()=>itemAmount.evaluate(input=>{
+      const field=input.getBoundingClientRect(),port=input.closest('.expense-fields').getBoundingClientRect();
+      return field.top>=port.top+8 && field.bottom<=port.bottom-8;
+    })).toBe(true);
+    const contained=await page.locator('.receipt-item').first().evaluate(item=>{
+      const section=item.closest('.receipt-review').getBoundingClientRect();
+      return [...item.querySelectorAll('input')].every(input=>{
+        const box=input.getBoundingClientRect();
+        return box.left>=section.left && box.right<=section.right && box.height>=44 &&
+          (input.type!=='number'||input.scrollWidth<=input.clientWidth+1);
+      });
+    });
+    verify(`Receipt values fit and focused amount stays visible at ${width}x${height}, ${textScale*100}% text`,contained);
+    await page.screenshot({path:output+`/receipt-layout-${width}-${height}-${textScale}.png`});
+  }
+  await page.setViewportSize({width:1440,height:1000});
+  await page.evaluate(()=>document.documentElement.style.fontSize='');
+  await itemName.fill('Latte');await itemQuantity.fill('2');await itemAmount.fill('9.00');
   await page.getByRole('button',{name:'Save expense',exact:true}).click();
   await page.getByRole('alert').filter({hasText:'confirm the review'}).waitFor();verify('Receipt requires explicit review before saving',true);
   await page.getByLabel('I checked the receipt details and the USD expense amount.',{exact:true}).check();
@@ -112,14 +140,21 @@ try {
       }
       return route.continue();
     });
-    await page.route('**/rest/v1/expense_receipt_details*',route=>{if(failNext&&route.request().method()==='POST'){failNext=false;return route.fulfill({status:503,json:{message:'Acceptance test attachment interruption'}});}return route.continue();});
+    await page.route('**/rest/v1/expense_receipt_details*',route=>{if(failNext&&route.request().method()==='POST'){return route.fulfill({status:503,json:{message:'Acceptance test attachment interruption'}});}return route.continue();});
     await page.getByRole('button',{name:'Save expense',exact:true}).dblclick();
     await page.getByRole('button',{name:'Saving expense…',exact:true}).waitFor();verify('Pending upload locks expense and receipt inputs',await page.getByLabel('Amount (USD)',{exact:true}).isDisabled() && (await page.getByLabel('Receipt item 1',{exact:true}).count()===0 || await page.getByLabel('Receipt item 1',{exact:true}).isDisabled()));releaseUpload();
     await page.getByRole('alert').filter({hasText:'receipt details could not be attached'}).waitFor({timeout:30000});
     verify('Lost successful upload response recovers through the saved photo',uploaded);
     verify('Interrupted attachment reports saved expense and offers retry',(await liveReadback()).expenses.filter(item=>item.purpose==='CEDAR CAFE').length===1);
+    failNext=false;
+    if(reloadRecovery){
+      await page.getByRole('button',{name:'Cancel',exact:true}).click();
+      await page.reload();
+      await expect.poll(async()=>checked(await live.client.from('expense_receipt_details').select('details').eq('trip_id',live.tripId)).length,{timeout:30000}).toBe(1);
+      verify('Closing failed attachment and reloading recovers reviewed items in the real database',true);
+    }
   }
-  await page.getByRole('button',{name:'Save expense',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+  if(!reloadRecovery){await page.getByRole('button',{name:'Save expense',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});}
   await page.reload();const row=page.locator('.expense-row').filter({hasText:'CEDAR CAFE'});await row.waitFor();verify('Camera expense persists exactly once after reload',await row.count()===1);
   await row.getByRole('button',{name:'Edit',exact:true}).click();await page.getByRole('button',{name:'View receipt',exact:true}).click();await page.getByRole('region',{name:'Receipt details',exact:true}).waitFor();
   verify('Saved camera receipt item details reload',await page.getByText('2 × Latte',{exact:true}).count()===1 && await page.getByText('Sandwich',{exact:true}).count()===1);

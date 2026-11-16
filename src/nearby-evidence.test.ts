@@ -72,3 +72,37 @@ test("a quoted third-party address remains unverified until a real Maps selectio
   assert.equal(result.addressSourced,true); assert.equal(result.addressVerified,false);
   assert.equal(result.address,"1 North University Avenue, Provo, Utah");
 });
+
+
+test("directory quotes cannot borrow another venue's hours or access", () => {
+  const evidence = source("Local attractions", "Museum One has exhibits. " + "Visitor information. ".repeat(20) + "Museum Two is open 24 hours with a step-free entrance.");
+  const raw = { ...candidate("Museum One", evidence.content), facts: [{topic:"Hours",quote:"Museum Two is open 24 hours with a step-free entrance.",sourceUrl:evidence.url}] };
+  assert.equal(supportedFacts([raw],[evidence])[0].facts.length,0);
+  const named = {...raw,facts:[{topic:"Venue",quote:"Museum One has exhibits.",sourceUrl:evidence.url}]};
+  assert.equal(supportedFacts([named],[evidence])[0].facts.length,1);
+});
+
+test("structured prices must match explicit currency, amount and person basis in the quote", () => {
+  const quote="Museum One adult admission is USD 25.00 per person.";
+  const evidence=source("Museum One admissions",quote);
+  const raw={...candidate("Museum One",quote),pricePerPersonCents:2500,currency:"USD",facts:[{topic:"Price",quote,sourceUrl:evidence.url}]};
+  assert.equal(supportedFacts([raw],[evidence])[0].pricePerPersonCents,2500);
+  for(const overrides of [{pricePerPersonCents:1},{currency:"EUR"}]) {
+    const result=supportedFacts([{...raw,...overrides}],[evidence])[0];
+    assert.equal(result.pricePerPersonCents,null);assert.equal(result.currency,null);
+  }
+  for(const text of ["Museum One admission is $25 per person.","Museum One adult admission is USD 25–30 per person.","Museum One adult admission is USD 25 to 30 per person.","Museum One adult admission is USD 25.001 per person.","Museum One family package is USD 25.00.","Museum One adult admission is USD 25.00 and child admission is USD 10.00.","Museum One adult admission starts from USD 25.00 per person.","Museum One admission gives USD 25.00 off per person."]) {
+    const result=supportedFacts([{...raw,facts:[{topic:"Price",quote:text,sourceUrl:evidence.url}]}],[{...evidence,content:text}])[0];
+    assert.equal(result.pricePerPersonCents,null,text);
+  }
+});
+
+
+test("practical quotes naming two venues do not transfer hours between them", () => {
+  for(const title of ["Local attractions","Museum One hours"]) {
+    const quote="Museum One has exhibits; Museum Two is open 24 hours.";
+    const evidence=source(title,quote);
+    const raw={...candidate("Museum One",quote),facts:[{topic:"Hours",quote,sourceUrl:evidence.url}]};
+    assert.equal(supportedFacts([raw],[evidence])[0].facts.length,0);
+  }
+});

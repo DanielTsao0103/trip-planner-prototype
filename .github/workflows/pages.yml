@@ -82,13 +82,13 @@ jobs:
             test-results/
           retention-days: 7
 
-  # A real browser media stream carries a generated receipt through capture, OCR and save.
+  # Generated camera/OCR acceptance plus mocked-account receipt recovery are required.
   receipt-camera:
     runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f
       options: --ipc=host
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
@@ -104,7 +104,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:pages
-      - name: Exercise virtual camera and real OCR
+      - name: Exercise production camera and receipt recovery
         run: |
           npm run preview -- --port 4213 --strictPort --base=/trip-planner-prototype/ > /tmp/receipt-preview.log 2>&1 &
           node scripts/run-receipt-camera-ci.mjs
@@ -120,13 +120,13 @@ jobs:
             /tmp/receipt-preview.log
           retention-days: 7
 
-  # One stable gate that passes only when the build and all four browser shards pass.
+  # One stable gate requires the build, all browser shards and receipt recovery.
   test-build:
     needs: [build, e2e, receipt-camera]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
-      - run: echo "Unit tests, build and all browser shards passed."
+      - run: echo "Unit tests, build, browser shards and receipt recovery passed."
 
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

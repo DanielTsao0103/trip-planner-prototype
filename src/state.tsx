@@ -151,6 +151,16 @@ export function Provider({
     stateRef.current = next;
     setS(next);
   };
+  const confirmedReceiptTrips = useRef<Trip[]>([]);
+  const recoverReceipts = (confirmed: Trip[]) => {
+    const accountId=accountRef.current.id;
+    void import("./receipt-storage").then(({recoverReceiptDetails})=>recoverReceiptDetails(accountId,confirmed)).then(result=>{
+      if(!mounted.current||accountRef.current.id!==accountId)return;
+      const notice="Some receipt details are waiting to sync. Open the receipt to retry.";
+      if(result.pending)setMessage(notice,"budget");
+      else if(result.recovered)setFeedback(current=>current.text===notice?{text:"",scope:"budget"}:current);
+    }).catch(()=>{if(mounted.current&&accountRef.current.id===accountId)setMessage("Receipt recovery could not open. Reload the page to retry.","budget");});
+  };
   if (!queueRef.current)
     queueRef.current = new TripSaveQueue(
       async (draft) => {
@@ -191,6 +201,8 @@ export function Provider({
       },
       (saved, newer) => {
         if (!mounted.current) return;
+        confirmedReceiptTrips.current=[...confirmedReceiptTrips.current.filter(trip=>trip.id!==saved.id),saved];
+        recoverReceipts([saved]);
         const current = stateRef.current;
         commit({
           ...current,
@@ -266,6 +278,8 @@ export function Provider({
             legacyTrips.current.find((t) => t.id === row.tripID),
           ),
         );
+        confirmedReceiptTrips.current=restored.map(trip=>structuredClone(trip));
+        recoverReceipts(confirmedReceiptTrips.current);
         let recovered: (Trip | Pick<PendingTrip, "draft" | "retryDraft">)[] =
           [];
         try {
@@ -344,6 +358,12 @@ export function Provider({
       active = false;
     };
   }, [cloud, account.id, loadAttempt]);
+  useEffect(()=>{
+    if(!cloud)return;
+    const retry=()=>recoverReceipts(confirmedReceiptTrips.current);
+    window.addEventListener("online",retry);
+    return ()=>window.removeEventListener("online",retry);
+  },[cloud,account.id]);
   const [route, setRoute] = useState(readRoute);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const go = (page: number, params: Record<string, string> = {}, replace = false) => {

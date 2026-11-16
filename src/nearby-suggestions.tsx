@@ -20,11 +20,12 @@ const cityIdeasSearch = (area: string) => {
   return search.href;
 };
 
-export function NearbySuggestions({ embedded = false, initialDate }: { embedded?: boolean; initialDate?: string } = {}) {
+export function NearbySuggestions({ embedded = false, initialDate, onDateChange }: { embedded?: boolean; initialDate?: string; onDateChange?: (date: string) => void } = {}) {
   const { trip, s, overlay, route, updateTrip, updateTripConfirmed, pendingTripIds, go } = useApp();
   const preferredDate = initialDate || overlay?.data?.date;
   const anchorId = embedded ? undefined : overlay?.data?.event;
   const [date, setDate] = useState(preferredDate && trip && preferredDate >= trip.start && preferredDate <= trip.end ? preferredDate : trip && s.date >= trip.start && s.date <= trip.end ? s.date : trip?.start || "");
+  const selectDate = (next: string) => { setDate(next); onDateChange?.(next); };
   const [intent, setIntent] = useState<Intent>("lunch");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -236,7 +237,7 @@ export function NearbySuggestions({ embedded = false, initialDate }: { embedded?
   const content = <>
     <p className="nearby-intro">Find real places around your plans, with addresses ready to add to your itinerary.</p>
     <div className="nearby-research-controls">
-      {!embedded && <Field label="Trip day"><select value={date} onChange={e => setDate(e.target.value)}>{days(trip.start, trip.end).map(day => <option key={day} value={day}>{dateText(day)}</option>)}</select></Field>}
+      {!embedded && <Field label="Trip day"><select value={date} onChange={e => selectDate(e.target.value)}>{days(trip.start, trip.end).map(day => <option key={day} value={day}>{dateText(day)}</option>)}</select></Field>}
       <Field label="Find"><select value={intent} onChange={e => setIntent(e.target.value as Intent)}><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="activity">Things to do</option></select></Field>
     </div>
     <div className="nearby-context-panel">
@@ -253,7 +254,7 @@ export function NearbySuggestions({ embedded = false, initialDate }: { embedded?
     </div>
     {isDemo && <p className="info-banner">Nearby research is available on account trips.</p>}
     {pending && <p role="status">Waiting for your trip changes to finish saving before researching.</p>}
-    {!context.gaps.length && <div className="nearby-day-recovery"><p role="status">No free hour in this day’s {intent === "activity" ? "planning" : intent} window including 30 minutes between stops.</p>{nextAvailableDay ? <Button variant="outline" onClick={() => setDate(nextAvailableDay)}>Try {dateText(nextAvailableDay, true)}</Button> : <p>Choose another day or a different kind of idea.</p>}</div>}
+    {!context.gaps.length && <div className="nearby-day-recovery"><p role="status">No free hour in this day’s {intent === "activity" ? "planning" : intent} window including 30 minutes between stops.</p>{nextAvailableDay ? <Button variant="outline" onClick={() => selectDate(nextAvailableDay)}>Try {dateText(nextAvailableDay, true)}</Button> : <p>Choose another day or a different kind of idea.</p>}</div>}
     <Button onClick={() => void research()} disabled={loading || isDemo || pending || !context.area || !context.gaps.length}><Search size={17} />{loading ? "Finding nearby places…" : "Find nearby suggestions"}</Button>
     {loading && <p role="status">Looking for places with real addresses. Your plans and preferences stay in view.</p>}
     {error && <p role="alert" className="error-box">{error}</p>}
