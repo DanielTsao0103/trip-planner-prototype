@@ -23,7 +23,7 @@ test("nearby entry points share a responsive context popup without fictional res
 });
 
 async function account(page: Page, generation: (request: Record<string, unknown>) => { status?: number; json: unknown }, role: "Owner" | "Day Editor" = "Owner", anchorPlace = "", blockedFirstDay = false, hasSavedPlace = false) {
-  await page.route("https://places.googleapis.com/**", route => route.abort());
+  await page.route("https://places.googleapis.com/**", route => route.fulfill({json:{places:[]}}));
   const owner = { id: "11111111-1111-4111-8111-111111111111", aud: "authenticated", role: "authenticated", email: "qa@example.com", user_metadata: { name: "QA Traveler" }, app_metadata: { provider: "email" } };
   const trip = seed().trips[0];
   trip.members = [{ id: owner.id, name: "QA Traveler", email: owner.email, role, status: "accepted", days: role === "Day Editor" ? ["2027-05-02"] : [], ...(role === "Day Editor" ? {accountId:owner.id} : {}) }];
@@ -488,7 +488,7 @@ test('embedded next-day recovery synchronizes the planning day before saving',as
 for (const failure of ['no-photo','media-error','image-error']) test(`Google ${failure} never substitutes generic city or Unsplash imagery`,async({page})=>{
  let detailsCalls=0,unsplashCalls=0;
  await account(page,()=>({json:{results:[]}}));
- await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[googleFixture]}}));
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[{...googleFixture,photos:[{name:`places/${googleFixture.id}/photos/exact-photo`}]}]}}));
  await page.route(`https://places.googleapis.com/v1/places/${googleFixture.id}`,route=>{detailsCalls++;return route.fulfill({json:{id:googleFixture.id,photos:failure==='no-photo'?[]:[{name:`places/${googleFixture.id}/photos/exact-photo`,authorAttributions:[]}]}});});
  await page.route(`https://places.googleapis.com/v1/places/${googleFixture.id}/photos/exact-photo/media?**`,route=>failure==='media-error'?route.fulfill({status:503,json:{error:{message:'Photo temporarily unavailable'}}}):route.fulfill({json:{name:`places/${googleFixture.id}/photos/exact-photo/media`,photoUri:'https://lh3.googleusercontent.com/places/unavailable-exact-photo'}}));
  await page.route('https://lh3.googleusercontent.com/places/unavailable-exact-photo',route=>route.abort());
@@ -505,11 +505,11 @@ for (const failure of ['no-photo','media-error','image-error']) test(`Google ${f
  await expect(card).not.toContainText(/Illustrative photo|Area photo/);
 });
 
-for(const operation of ['direct','review']) test(`exact Google photo shows author credit but its expiring URL is not saved through ${operation} add`,async({page})=>{
+for(const operation of ['direct','review']) test(`exact Google photo fixture shows author credit but its expiring URL is not saved through ${operation} add`,async({page})=>{
  const writes:any[]=[];const photoRequests:{url:string;mask:string|undefined}[]=[];
  page.on('request',request=>{if(request.url().endsWith('/save_account_trip'))writes.push(request.postDataJSON().p_data);});
  await account(page,()=>({json:{results:[]}}));
- await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[googleFixture]}}));
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[{...googleFixture,photos:[{name:`places/${googleFixture.id}/photos/exact-photo`}]}]}}));
  const authorUrl='https://maps.google.com/maps/contrib/123456789';
  await page.route(`https://places.googleapis.com/v1/places/${googleFixture.id}`,route=>{photoRequests.push({url:route.request().url(),mask:route.request().headers()['x-goog-fieldmask']});return route.fulfill({json:{id:googleFixture.id,photos:[{name:`places/${googleFixture.id}/photos/exact-photo`,authorAttributions:[{displayName:'Exact venue photographer',uri:authorUrl}]}]}});});
  const photoUrl='https://lh3.googleusercontent.com/places/exact-fixture-cafe';
@@ -541,4 +541,21 @@ test('Google search failure with empty web fallback shows an actionable retry er
  await expect(dialog.getByRole('alert')).toContainText('Additional research found no alternatives.');
  await expect(dialog).not.toContainText('No source-backed options found');
  await expect(dialog.getByRole('button',{name:'Find nearby suggestions',exact:true})).toBeEnabled();expect(providerCalls).toBe(1);
+});
+
+
+test('Google results without photo metadata make no photo lookup or Unsplash fallback',async({page})=>{
+ let detailsCalls=0,unsplashCalls=0;
+ await account(page,()=>({json:{results:[]}}));
+ await page.route('https://places.googleapis.com/v1/places:searchText',route=>route.fulfill({json:{places:[googleFixture]}}));
+ await page.route(`https://places.googleapis.com/v1/places/${googleFixture.id}**`,route=>{detailsCalls++;return route.fulfill({json:{id:googleFixture.id}});});
+ await page.route('**/functions/v1/unsplash-search**',route=>{unsplashCalls++;return route.fulfill({json:{results:[]}});});
+ const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});await dialog.getByRole('button',{name:'Find nearby suggestions',exact:true}).click();
+ const card=dialog.locator('.nearby-result');await expect(card.getByRole('heading',{name:'Fixture Cafe',exact:true})).toBeVisible();
+ await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+ await expect(card.locator('.nearby-result-photo')).toHaveCount(0);await expect(card.locator('.nearby-photo-credit')).toHaveCount(0);
+ expect(detailsCalls).toBe(0);expect(unsplashCalls).toBe(0);
+ await card.getByText('More to consider',{exact:true}).click();
+ await expect(card.getByRole('link',{name:'View on Google Maps',exact:true})).toHaveAttribute('href',googleFixture.googleMapsUri);
+ await expect(card.getByRole('button',{name:'Add to itinerary',exact:true})).toBeEnabled();
 });

@@ -117,3 +117,8 @@ test('an empty filtered Text Search tries nearby venues while retaining dietary 
  assert.equal(results.length,1);assert.deepEqual(endpoints.map(url=>url.split(':').at(-1)),['searchText','searchNearby']);
  assert.match(results[0].concerns.join(' '),/diet|Vegan/i);
 });
+
+test('missing provider photo metadata skips unsupported demo photo lookups', () => {
+ assert.equal(googlePlaceResults({places:[place]},context)[0].hasPhotos,false);
+ assert.equal(googlePlaceResults({places:[{...place,photos:[{name:'places/ChIJ_test/photos/reference'}]}]},context)[0].hasPhotos,true);
+});

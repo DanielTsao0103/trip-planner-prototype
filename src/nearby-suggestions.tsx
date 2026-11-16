@@ -65,7 +65,7 @@ export function NearbySuggestions({ embedded = false, initialDate, onDateChange 
     };
     void Promise.all(results.slice(0, 3).map(async result => {
       if (result.googlePlaceId) {
-        const photo = await loadNearbyPlacePhoto(result, controller.signal, import.meta.env.VITE_GOOGLE_MAPS_DEMO_API_KEY?.trim() || "");
+        const photo = result.hasPhotos ? await loadNearbyPlacePhoto(result, controller.signal, import.meta.env.VITE_GOOGLE_MAPS_DEMO_API_KEY?.trim() || "") : undefined;
         return [photoKey(result), photo] as const;
       }
       const plan = suggestionPhotoSearch(result, trip.destinations, result.researchArea || photoArea);

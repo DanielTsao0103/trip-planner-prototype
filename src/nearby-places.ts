@@ -7,13 +7,13 @@ export type SearchLocation = { label: string; point?: { lat: number; lng: number
 export type LocatedSuggestion = NearbyResult & {
   point?: { lat: number; lng: number }; googlePlaceId?: string; addressVerified?: boolean;
   website?: string; openingHours?: string[]; openingWindows?: {start:string;end:string}[]; openingHoursSummary?:string; openingHoursZone?:string; provider?: 'google' | 'web';
-  attributions?: { displayName: string; uri?: string }[];
+  attributions?: { displayName: string; uri?: string }[]; hasPhotos?: boolean;
 };
 type GooglePlace = {
   id?: unknown; displayName?: { text?: unknown }; formattedAddress?: unknown;
   location?: { latitude?: unknown; longitude?: unknown }; googleMapsUri?: unknown;
   websiteUri?: unknown; regularOpeningHours?: { weekdayDescriptions?: unknown; periods?:unknown }; timeZone?:{id?:unknown};
-  businessStatus?: unknown; types?: unknown;
+  businessStatus?: unknown; types?: unknown; photos?: unknown;
   attributions?: { provider?: unknown; providerUri?: unknown }[];
 };
 const clean = (value: unknown, limit: number) => typeof value === 'string' ? value.trim().slice(0, limit) : '';
@@ -43,7 +43,7 @@ export function googlePlaceResults(payload: unknown, context: PlanningContext): 
     const openingWindows = regularOpeningWindows(place.regularOpeningHours?.periods, openingHoursZone, context);
     const facts = [{ topic: 'Venue', detail: address, sourceUrl }];
     const candidate = { name, address, point: { lat, lng }, googlePlaceId: id, addressVerified: true, provider: 'google' as const,
-      website: url(place.websiteUri) || undefined, openingHours, openingWindows, openingHoursZone, attributions,
+      hasPhotos: Array.isArray(place.photos) && place.photos.length > 0, website: url(place.websiteUri) || undefined, openingHours, openingWindows, openingHoursZone, attributions,
       recommendationType: context.intent === 'activity' ? 'activity' as const : 'place' as const,
       durationMinutes: 60, reason: 'A place returned by Google Maps for this search.', fitNote: context.intent === 'activity' ? `Explore ${name} during a free hour. Check the visit length and route before you go.` : `A ${context.intent} option in your search area. Check the menu and dietary needs before you go.`,
       pricePerPersonCents: null, currency: null, facts, concerns: ['Visit length is an estimate, not a confirmed booking.'], conflicts: [], proposedTime: null, status: 'review' as const };
@@ -99,7 +99,7 @@ export async function searchNearbyPlaces(context: PlanningContext, location: Sea
   const search = (method: string, payload: unknown) => searchRequest(async child => {
     const response = await fetcher(`https://places.googleapis.com/v1/places:${method}`, {
       method: 'POST', signal: child, headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey,
-        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.googleMapsUri,places.websiteUri,places.regularOpeningHours,places.businessStatus,places.attributions,places.timeZone' }, body: JSON.stringify(payload),
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.googleMapsUri,places.websiteUri,places.regularOpeningHours,places.businessStatus,places.attributions,places.timeZone,places.photos' }, body: JSON.stringify(payload),
     });
     if (!response.ok) throw new Error(response.status === 429 ? 'Place search has reached its temporary limit. Select a suggested location or use your current location, then retry.' : 'Place search is temporarily unavailable. Please try again.');
     return googlePlaceResults(await response.json(), context);
