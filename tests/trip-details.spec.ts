@@ -907,3 +907,18 @@ test("a manually entered receipt total saves once and survives reload", async ({
   await page.reload();
   await expect(page.locator(".expense-row").filter({ hasText: "Cedar Cafe" })).toHaveCount(1);
 });
+
+// Rapid field replacement must not race the auto-filled end date.
+test('typing consecutive trip dates preserves the replacement selection', async ({ page }) => {
+  const api = await backend(page);
+  await page.goto('./#/6');
+  await page.getByLabel('Trip title', { exact: true }).fill('Quick date entry');
+  await page.getByLabel('Where are you going?', { exact: true }).fill('Taipei');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByLabel('Start date', { exact: true }).fill('2027-05-01');
+  await page.getByLabel('End date', { exact: true }).fill('2027-05-03');
+  await page.getByRole('button', { name: 'Create trip', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Quick date entry', exact: true })).toBeVisible();
+  expect(api.rows[0].start_date).toBe('2027-05-01');
+  expect(api.rows[0].end_date).toBe('2027-05-03');
+});

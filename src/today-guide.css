@@ -133,3 +133,28 @@
 :root .today-default-settings > summary { min-height: 44px; padding-block: 10px; color: var(--muted); }
 :root .today-next-guide .today-navigation { margin: 12px 0; }
 :root .today-secondary-guidance { margin-top: 12px; }
+
+/* Preserve complete action labels even on the smallest supported phone. */
+:root .today-origin > div { min-width: 0; }
+:root .today-origin > button { flex-shrink: 0; white-space: nowrap; }
+@media (max-width: 360px) {
+  :root .today-modes { grid-template-columns: minmax(0, 1fr); }
+  :root .today-modes button { flex-direction: row; align-items: center; justify-content: space-between; min-height: 48px; }
+  :root .today-modes button > span { flex-direction: row; align-items: center; }
+  :root .today-modes strong { white-space: nowrap; }
+}
+
+/* Short landscape screens need the next stop before optional day settings. */
+@media (min-width: 600px) and (max-width: 1000px) and (max-height: 500px) {
+  :root .today-guide > .page-head { margin-bottom: 8px; gap: 12px; align-items: center; }
+  :root .today-guide > .page-head > div:first-child { display: grid; grid-template-columns: auto minmax(0,1fr); column-gap: 12px; align-items: baseline; }
+  :root .today-guide > .page-head .eyebrow { grid-column: 1 / -1; }
+  :root .today-guide > .page-head h1 { font-size: 26px; margin-block: 4px; }
+  :root .today-guide > .page-head p { margin: 0; }
+  :root .today-default-settings { margin-bottom: 4px; }
+  :root .today-happening { padding-bottom: 8px; gap: 0; }
+  :root .today-happening > div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  :root .today-next-guide { padding: 16px; }
+  :root .today-stop-heading { gap: 12px; }
+  :root .today-stop-heading h2 { font-size: 24px; margin-block: 4px 8px; }
+}

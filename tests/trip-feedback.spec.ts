@@ -29,6 +29,7 @@ test("trip feedback appears only after trip completion and asks about the full t
   await page.getByLabel("Email", { exact: true }).fill(user.email);
   await page.getByLabel("Password", { exact: true }).fill("qa-password");
   await page.getByRole("button", { name: "Log in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
   await expect(page.getByRole("dialog", { name: "How was your trip?" })).toHaveCount(0);
 
   completed = true;

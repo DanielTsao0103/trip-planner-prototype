@@ -40,7 +40,7 @@ test("history is sorted, converted to percent, and summarized as a change", () =
   ]);
   assert.deepEqual(pts.map((p) => p.percent), [40, 60]);
   assert.deepEqual(pts.map((p) => p.estimate), [true, false]);
-  assert.equal(trendChange(pts), 20);
+  assert.equal(trendChange(pts), null, "one recorded point cannot establish measured change");
   assert.equal(trendChange(pts.slice(0, 1)), null);
   assert.equal(trendChange([]), null);
 });
@@ -48,4 +48,16 @@ test("history is sorted, converted to percent, and summarized as a change", () =
 test("day labels do not shift with time zones", () => {
   assert.equal(dayLabel("2026-11-15"), "Nov 15");
   assert.equal(dayLabel("2026-01-01"), "Jan 1");
+});
+
+
+test("measured trend excludes estimated placeholders from both endpoints", () => {
+  const points = historyPoints([
+    { day: "2026-11-13", totalTrips: 10, sharedTrips: 1, estimate: true },
+    { day: "2026-11-14", totalTrips: 10, sharedTrips: 4, estimate: false },
+    { day: "2026-11-15", totalTrips: 10, sharedTrips: 6, estimate: false },
+    { day: "2026-11-16", totalTrips: 10, sharedTrips: 9, estimate: true },
+  ]);
+  assert.equal(trendChange(points), 20);
+  assert.equal(trendChange(points.filter(point => point.estimate)), null);
 });

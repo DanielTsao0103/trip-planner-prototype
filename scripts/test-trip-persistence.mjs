@@ -430,7 +430,13 @@ try {
       const second = await observer.newPage();
       await login(second);
       await second.goto(base + "#/5");
-      await detailJourney(page, base, other.email);
+      try {
+        await detailJourney(page, base, other.email);
+      } catch (failure) {
+        await page.screenshot({ path: "/tmp/trip-account-qa/live-journey-failure.png", fullPage: true });
+        writeFileSync("/tmp/trip-account-qa/live-journey-failure.txt", await page.locator("body").innerText());
+        throw failure;
+      }
       // This session was open before the trip existed. It must update without a reload.
       await second.getByRole("button", { name: "Full detail browser QA", exact: true }).waitFor({ timeout: 15000 });
       const observedTrip = second.getByRole("button", { name: "Full detail browser QA", exact: true });

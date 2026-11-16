@@ -42,18 +42,18 @@
 /* OKR #2 live tracker */
 :root .okr-live { display: grid; gap: 14px; }
 :root .okr-live h2, :root .okr-live p { margin: 0; }
-:root .okr-eyebrow { font-size: 13px; opacity: 0.75; }
+:root .okr-eyebrow { font-size: 13px; color: var(--muted); }
 :root .okr-figure { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
 :root .okr-figure strong { font-size: 44px; line-height: 1; }
 :root .okr-meter { position: relative; height: 14px; border-radius: 999px; background: var(--tint, #e9eef3); overflow: visible; }
 :root .okr-meter i { display: block; height: 100%; border-radius: 999px; background: var(--primary, #23426b); transition: width 0.4s ease; }
 :root .okr-meter b { position: absolute; top: -4px; width: 2px; height: 22px; background: currentColor; }
 :root .okr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0; }
-:root .okr-stats dt { font-size: 13px; opacity: 0.75; }
+:root .okr-stats dt { font-size: 13px; color: var(--muted); }
 :root .okr-stats dd { margin: 2px 0 0; font-size: 22px; font-weight: 600; }
 :root .okr-live-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 :root .okr-live-dot { width: 10px; height: 10px; border-radius: 50%; background: #2f9e5b; animation: okr-pulse 2s ease-in-out infinite; }
-:root .okr-note { font-size: 13px; opacity: 0.75; }
+:root .okr-note { font-size: 13px; color: var(--muted); }
 @keyframes okr-pulse { 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { :root .okr-live-dot { animation: none; } :root .okr-meter i { transition: none; } }
 

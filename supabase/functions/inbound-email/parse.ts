@@ -387,3 +387,15 @@ export function parseBooking(input: EmailInput, now: Date = new Date()): ParsedB
   if (merged.startDate && merged.endDate && merged.endDate < merged.startDate) merged.endDate = null;
   return merged;
 }
+
+/** Only the outer subject can authorize delivery; copied email bodies never can. */
+export function forwardingSubject(subject: string): { code: string; subject: string } | null {
+  const markers = [...subject.matchAll(/\[SC:([a-f0-9]{48})\]/gi)];
+  if (markers.length !== 1) return null;
+  return { code: markers[0][1].toLowerCase(), subject: stripForwardingCodes(subject).trim() };
+}
+
+/** Never retain forwarding credentials in extracted booking fields. */
+export function stripForwardingCodes(value: string): string {
+  return value.replace(/\[SC:[a-f0-9]{48}\]/gi, "");
+}

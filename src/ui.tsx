@@ -747,7 +747,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <div className="sample-return info-banner">
               <Compass size={20} />
               <span>
-                You’re exploring a sample trip. Your own trips are saved.
+                You’re exploring a sample trip.
               </span>
               <Button variant="outline small" onClick={returnFromSample}>
                 Back to my trips <ArrowLeft size={15} />

@@ -120,7 +120,7 @@ for (const view of [
     // Retry uses the unchanged pending choice and keeps local edits intact.
     mock.releaseStyle();
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('status')).toContainText('Style saved to your account.');
+    await expect(page.getByRole('status')).toContainText('Style saved.');
     expect(mock.styleWrites[1]).toEqual(mock.styleWrites[0]);
     await page.getByRole('button', { name: 'Green', exact: true }).click();
     mock.holdStyle();
@@ -137,7 +137,7 @@ for (const view of [
     await expect(apply).toBeEnabled();
     mock.releaseStyle();
     await apply.click();
-    await expect(page.getByRole('status')).toContainText('Style saved to your account.');
+    await expect(page.getByRole('status')).toContainText('Style saved.');
     expect(mock.styleWrites.at(-1)).toMatchObject({ theme: 'green', corners: 'round' });
   });
 }

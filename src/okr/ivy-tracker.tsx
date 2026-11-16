@@ -135,6 +135,7 @@ const PAD = { l: 40, r: 16, t: 14, b: 28 };
 function TrendChart({ points }: { points: HistoryPoint[] }) {
   const [active, setActive] = useState<number | null>(null);
   const change = trendChange(points);
+  const firstRecorded = points.find(point => !point.estimate);
   const x = (i: number) => PAD.l + (points.length < 2 ? (W - PAD.l - PAD.r) / 2 : (i * (W - PAD.l - PAD.r)) / (points.length - 1));
   const y = (pct: number) => PAD.t + ((100 - Math.min(100, Math.max(0, pct))) * (H - PAD.t - PAD.b)) / 100;
   const line = points.map((p, i) => `${x(i)},${y(p.percent)}`).join(" ");
@@ -142,7 +143,7 @@ function TrendChart({ points }: { points: HistoryPoint[] }) {
   const summary =
     change === null
       ? "Tracking started. The trend appears after the second day."
-      : `${change >= 0 ? "Up" : "Down"} ${Math.round(Math.abs(change) * 10) / 10} percentage points since ${dayLabel(points[0].day)}.`;
+      : `${change >= 0 ? "Up" : "Down"} ${Math.round(Math.abs(change) * 10) / 10} percentage points since ${dayLabel(firstRecorded!.day)}.`;
 
   return (
     <div className="okr-trend" data-testid="okr2-trend">

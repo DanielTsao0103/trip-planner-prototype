@@ -71,6 +71,9 @@ export function PrototypeApp() {
     document.title = pendingSurvey ? `Trip preferences · ${pendingSurvey.title}` : `${PAGES[route.page] || "Home"} · Stir Crazy`;
     if (!pendingSurvey && route.page === 16 && user) open("nearby");
   }, [route.page, user?.id, pendingSurvey]);
+  useEffect(() => {
+    if (accountTrips && [2, 3].includes(route.page)) go(4, {}, true);
+  }, [accountTrips, route.page]);
   if (pendingSurvey) return (
     <>
     {recoveryNotice}
@@ -98,8 +101,8 @@ export function PrototypeApp() {
     );
   else {
     const pages: Record<number, React.ReactNode> = {
-      2: <Connections />,
-      3: <ConnectProvider key={route.params.get("service")} />,
+      2: accountTrips ? <Home /> : <Connections />,
+      3: accountTrips ? <Home /> : <ConnectProvider key={route.params.get("service")} />,
       4: <Home />,
       5: <Trips />,
       6: <TripForm key={route.params.toString()} />,

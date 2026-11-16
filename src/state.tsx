@@ -62,6 +62,7 @@ type Context = {
   messageScope: FeedbackScope;
   dismissMessage: () => void;
   updateTrip: (fn: (t: Trip) => void) => void;
+  updateTripConfirmed: (fn: (t: Trip) => void) => Promise<Trip>;
   login: (id: string) => void;
   explore: () => void;
   returnFromSample: () => void;
@@ -367,7 +368,7 @@ export function Provider({
     window.scrollTo(0, 0);
   };
   const mutate = (fn: (store: Store) => void) => {
-    if (!mounted.current) return;
+    if (!mounted.current) return false;
     const previous = stateRef.current;
     const next = structuredClone(previous);
     fn(next);
@@ -379,13 +380,13 @@ export function Provider({
         const reason = sharedChangeError(old, trip, previous.userId);
         if (reason) {
           setOverlay({ kind: "message", data: { title: "Trip permissions", body: reason } });
-          return;
+          return false;
         }
       }
       if (trip.persistence !== "account") continue;
       if (!cloud || previous.userId !== account.id) {
         setMessage("Return to your account before changing a saved trip.");
-        return;
+        return false;
       }
       // Keep removed travelers for historical allocations, but hide them from active groups.
       for (const removed of old?.members ?? []) {
@@ -397,6 +398,7 @@ export function Provider({
     commit(next);
     if (changed.length) setMessage("");
     changed.forEach((trip) => queue.enqueue(trip));
+    return true;
   };
   const user = s.users.find((u) => u.id === s.userId);
   const trip = s.trips.find((t) => t.id === s.tripId && member(t, s.userId));
@@ -746,6 +748,24 @@ export function Provider({
     toast: (message, scope = "global") => {
       if (!queue.pending.size) setMessage(message, scope);
     },
+    updateTripConfirmed: async (fn) => {
+      const targetId = stateRef.current.tripId;
+      let intended: Trip | undefined;
+      const applied = mutate(store => {
+        const target = store.trips.find(item => item.id === targetId);
+        if (!target) return;
+        fn(target);
+        intended = structuredClone(target);
+      });
+      if (!applied || !intended || !targetId) throw new Error("The trip could not be updated. Check your access and try again.");
+      if (intended.persistence === "account") {
+        queue.retry();
+        await queue.wait(targetId);
+      }
+      const confirmed = stateRef.current.trips.find(item => item.id === targetId);
+      if (!mounted.current || !confirmed) throw new Error("Sign back in to check this trip before continuing.");
+      return structuredClone(confirmed);
+    },
     updateTrip: (fn) =>
       mutate((v) => {
         const t = v.trips.find((t) => t.id === v.tripId);
@@ -778,7 +798,7 @@ export function Provider({
       {demoStorageError && <div className="account-save-banner demo-storage-error" role="alert">
         <span>Browser storage is unavailable. Demo changes will last until this page closes.</span>
         <button className="btn outline small" onClick={() => {
-          if (persistDemoState(stateRef.current)) setMessage("Demo changes saved in this browser.");
+          if (persistDemoState(stateRef.current)) setMessage("Changes saved.");
         }}>Retry browser save</button>
       </div>}
 

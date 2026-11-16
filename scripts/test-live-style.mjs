@@ -43,7 +43,7 @@ try{
   await page.getByRole('button',{name:/Handwritten/}).click();
   await page.getByRole('button',{name:'Round',exact:true}).click();
   await page.getByRole('button',{name:'Apply to my site',exact:true}).click();
-  await expect(page.getByText('Style saved to your account.',{exact:true})).toBeVisible({timeout:30000});
+  await expect(page.getByText('Style saved.',{exact:true})).toBeVisible({timeout:30000});
   const expected={theme:'green',match_device:false,mode:'dark',heading:'caveat',corners:'round'};
   const columns=Object.keys(expected).join(',');
   assert.deepEqual(check(await owner.client.from('user_style').select(columns).eq('user_id',owner.id).single()),expected);
@@ -59,7 +59,7 @@ try{
   await expect(phone.getByRole('button',{name:'Dark',exact:true})).toHaveAttribute('aria-pressed','true');
   await phone.getByRole('button',{name:'Purple',exact:true}).click();
   await phone.getByRole('button',{name:'Apply to my site',exact:true}).click();
-  await expect(phone.getByText('Style saved to your account.',{exact:true})).toBeVisible({timeout:30000});
+  await expect(phone.getByText('Style saved.',{exact:true})).toBeVisible({timeout:30000});
   assert.equal(check(await owner.client.from('user_style').select('theme').eq('user_id',owner.id).single()).theme,'purple');
   await fresh.close();
   console.log('PASS: desktop apply, database readback, account isolation, reload, fresh phone login and phone update.');

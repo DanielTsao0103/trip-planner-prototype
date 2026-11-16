@@ -59,6 +59,6 @@ export function ReturnJourney({ trip, last, destination, mode, onChange }: { tri
       {result?.checkedAt && <p className="today-attribution"><span translate="no">Google Maps</span> · Checked {new Intl.DateTimeFormat(undefined, { timeZone: trip.zone, hour: "numeric", minute: "2-digit" }).format(result.checkedAt)}{trip.persistence !== "account" && " · Current routes for a sample schedule"}</p>}
     </div>}
     <ErrorBox text={error} />
-    <p className="today-route-detail">Your return place stays on this device for this trip. It doesn’t add an event or change the group’s plans.</p>
+    <p className="today-route-detail">Your personal return journey.</p>
   </section>;
 }

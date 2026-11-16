@@ -85,13 +85,13 @@ test("account style failure stays visible through navigation and retries the sel
   await expect(page.getByRole("alert")).toContainText("couldn’t be saved to your account");
   allowSave = true;
   await page.getByRole("button", { name: "Retry save", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Style saved to your account." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Style saved." })).toBeVisible();
   expect(writes).toHaveLength(2);
   expect(writes[1]).toEqual(writes[0]);
   expect(writes[1].theme).toBe("purple");
   await page.getByRole("button", {name:"Reset", exact:true}).click();
   await expect(page.getByRole("status").filter({hasText:"Preview only."})).toBeVisible();
-  await expect(page.getByText("Style saved to your account.", {exact:true})).toHaveCount(0);
+  await expect(page.getByText("Style saved.", {exact:true})).toHaveCount(0);
   await expect(page.getByRole("button", {name:"Apply to my site", exact:true})).toBeEnabled();
   expect(writes).toHaveLength(2);
 });
@@ -107,9 +107,9 @@ test("demo style applies locally without an account save or account-save claim",
   await page.goto("./#/18");
   await page.getByRole("button", { name: "Green", exact: true }).click();
   await page.getByRole("button", { name: "Apply to my site", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Your style applies to every page on this device." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Style applied." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Applied", exact: true })).toBeDisabled();
-  await expect(page.getByText("Style saved to your account.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Style saved.", { exact: true })).toHaveCount(0);
   expect(cloudWrites).toEqual([]);
 });
 

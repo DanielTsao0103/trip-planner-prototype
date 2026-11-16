@@ -225,7 +225,7 @@ test("Ivy's tracker charts the last 14 days with a table and a readout", async (
   await page.goto("./#/22");
   const trend = page.getByTestId("okr2-trend");
   await expect(trend.getByRole("heading", { name: "Last 14 days" })).toBeVisible();
-  await expect(trend.getByText("Up 45 percentage points since Nov 14.")).toBeVisible();
+  await expect(trend.getByText("Up 25 percentage points since Nov 15.")).toBeVisible();
   await expect(page.getByTestId("okr2-readout")).toHaveText("Nov 16: 75% (9 of 12 trips)");
   await trend.getByRole("img", { name: /Nov 14: 30%/ }).focus();
   await expect(page.getByTestId("okr2-readout")).toHaveText("Nov 14: 30% (3 of 10 trips), estimated");
@@ -238,8 +238,8 @@ test("Ivy's tracker charts the last 14 days with a table and a readout", async (
 });
 
 test("a first-day trend says tracking just started", async ({ page }) => {
-  await mockSupabase(page, { admin: true, history: [{ day: "2026-11-15", total_trips: 4, shared_trips: 1 }] });
+  await mockSupabase(page, { admin: true, history: [{ day: "2026-11-14", total_trips: 4, shared_trips: 0, is_estimate: true }, { day: "2026-11-15", total_trips: 4, shared_trips: 1 }] });
   await signIn(page);
   await page.goto("./#/22");
-  await expect(page.getByTestId("okr2-trend").getByText("Tracking started.")).toBeVisible();
+  await expect(page.getByTestId("okr2-trend").getByText("Tracking started. The trend appears after the second day.", { exact: true })).toBeVisible();
 });

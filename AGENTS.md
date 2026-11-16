@@ -8,6 +8,8 @@ User approved direct commits to main and public GitHub Pages hosting on October 
 
 ## Corrections & Lessons Learned
 
+- Fresh product review (November 16, 2026): Dan requests new independent reviewers, a fresh app-wide UI/UX assessment toward 9.7 per area, complete vertical-flow and edge-case verification, and removal of unnecessary customer-facing implementation/storage commentary throughout the app. This supersedes earlier page-specific copy-preservation limits. Keep actionable save/error recovery and truthful availability; keep technical explanations in source/docs. Fetch and integrate GitHub main before each fresh review/test run, build, and deployment; preserve incoming work and revalidate affected flows. Do not certify zero bugs or inflate review scores.
+
 - Preliminary OKR correction (November 14, 2026): show recorded activity immediately, clearly labeled Preliminary. Before two complete UTC days, show today's access percentage; then show cadence over the shorter completed-day period until an official 14-day result exists. Preserve the official denominator and calculation. Show a single activity chart during baseline collection, including the partial launch day, instead of an empty return-rate chart; never call preliminary performance Target met.
 
 - Mobile Calendar correction (November 14, 2026): default to the actual time grid, not an agenda. Fit readable day columns to available space, show several days in landscape, and retain the viewed day when rotating. Keep Agenda as an explicit optional view.

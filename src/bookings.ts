@@ -1,6 +1,6 @@
 import { getSupabase } from "./supabase";
 import type { BookingKind, ForwardedBooking } from "./booking-event.ts";
-export { KIND_LABELS, bookingEventParams, tripForBooking, type BookingKind, type ForwardedBooking } from "./booking-event.ts";
+export { KIND_LABELS, bookingEventParams, bookingEventId, tripForBooking, type BookingKind, type ForwardedBooking } from "./booking-event.ts";
 
 
 /** The address people forward confirmations to. Empty until the inbox is set up. */
@@ -33,12 +33,13 @@ export function formatBookingDate(value: string | null): string {
 }
 
 /** Row-level security limits this to the signed-in account's own bookings. */
-export async function loadForwardedBookings(): Promise<ForwardedBooking[]> {
+export async function loadForwardedBookings(offset = 0): Promise<ForwardedBooking[]> {
   const { data, error } = await getSupabase()
     .from("forwarded_booking")
     .select("booking_id,kind,title,start_date,end_date,location,confirmation_code,sender,received_at,trip_id,details")
     .order("received_at", { ascending: false })
-    .limit(50);
+    .order("booking_id", { ascending: false })
+    .range(offset, offset + 49);
   if (error) throw new Error(error.message);
   return (Array.isArray(data) ? (data as Row[]) : []).map((r) => ({
     bookingId: r.booking_id,
@@ -62,9 +63,17 @@ export async function removeForwardedBooking(bookingId: string): Promise<void> {
 
 /** Remember which trip a booking was sorted into. Pass null to put it back in the waiting list. */
 export async function setBookingTrip(bookingId: string, tripId: string | null): Promise<void> {
-  const { error } = await getSupabase()
-    .from("forwarded_booking")
-    .update({ trip_id: tripId, added_at: tripId ? new Date().toISOString() : null })
-    .eq("booking_id", bookingId);
-  if (error) throw new Error(error.message);
+  const { data, error } = await getSupabase().rpc(
+    tripId ? "mark_forwarded_booking_added" : "undo_forwarded_booking",
+    tripId ? { p_booking: bookingId, p_trip: tripId } : { p_booking: bookingId },
+  );
+  if (error || data !== true) throw new Error("Could not update this forwarded booking. Please try again.");
+}
+
+/** Fetch only when instructions are opened. Rotating invalidates earlier subject codes. */
+export async function getBookingForwardingCode(rotate = false): Promise<string> {
+  const { data, error } = await getSupabase().rpc("get_booking_forwarding_code", { p_rotate: rotate });
+  if (error || !data || typeof data.code !== "string" || !/^[a-f0-9]{48}$/.test(data.code))
+    throw new Error("Could not prepare your forwarding code. Please try again.");
+  return `[SC:${data.code}]`;
 }

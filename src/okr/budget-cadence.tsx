@@ -32,8 +32,8 @@ export function BudgetCadenceMetrics() {
         <h3>At least one budget update in every rolling two-day window of an active trip</h3>
         <p className="budget-cadence-value">{percent === null ? "—" : `${percent}%`}</p>
         <p>{data.consistentUsers} of {data.eligibleUsers} eligible users met the cadence{percent !== null ? ` · target ${data.targetPercent}%` : ""}.</p>
-        <p className="muted">{data.observedDays} observed days · {data.windowStart} to {data.windowEnd} (UTC)</p>
-        <details><summary>How this is counted</summary><p>{data.definition} A qualifying update is a real change to the trip budget, an individual budget, or an expense saved through the trip editor. This is an access and budget-change proxy; it does not identify users in the dashboard.</p></details>
+        <p className="muted">Reporting window: {data.windowStart} to {data.windowEnd} (UTC)</p>
+        <details><summary>How this is counted</summary><p>{data.definition} Today is still in progress. A qualifying update is a real change to the trip budget, an individual budget, or an expense saved through the trip editor. This is an access and budget-change proxy; it does not identify users in the dashboard.</p></details>
       </div>
     </>}
   </section>;

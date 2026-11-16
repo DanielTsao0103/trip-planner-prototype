@@ -32,7 +32,7 @@ export function AccountPage() {
           <NameForm current={user?.name ?? ""} />
         ) : (
           <p className="account-note">
-            This is a sample account, so its name and photo are fixed. Sign up to edit them.
+            Sample profiles are fixed. Create an account to personalize your name and photo.
           </p>
         )}
       </section>
@@ -94,7 +94,7 @@ export function AccountPage() {
           </button>
         </div>
       </section>
-      {cloud && <p className="account-note">To improve trip planning, we count the days you open a saved trip plan. Admin dashboards show aggregate activity, not the contents of your trips.</p>}
+      {cloud && <p className="account-note">We count when saved trips are opened to improve planning. Admins see aggregate activity, not trip contents.</p>}
     </div>
   );
 }

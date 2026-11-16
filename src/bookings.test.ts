@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bookingEventParams, tripForBooking } from "./booking-event.ts";
+import { bookingEventParams, bookingEventId, tripForBooking } from "./booking-event.ts";
 
 const trip = { start: "2026-12-20", end: "2026-12-27" };
 const base = {
@@ -51,4 +51,13 @@ test("the trip picker preselects only when exactly one trip contains the date", 
   assert.equal(tripForBooking({ startDate: "2026-11-01" }, trips), null);
   assert.equal(tripForBooking({ startDate: null }, trips), null);
   assert.equal(tripForBooking({ startDate: "2026-12-22" }, [...trips, { id: "c", start: "2026-12-21", end: "2026-12-23" }]), null);
+});
+
+
+test("booking event identities are stable UUIDs and malformed routes do not supply event IDs", () => {
+  const id = "ABCDEF12-1234-4234-8234-123456789ABC";
+  assert.equal(bookingEventId(id), id.toLowerCase());
+  assert.equal(bookingEventId(id), bookingEventId(id));
+  assert.equal(bookingEventId("../other"), null);
+  assert.equal(bookingEventId(null), null);
 });

@@ -475,7 +475,7 @@ export function WeeklyCalendar() {
       <Button variant="outline calendar-desktop-view" onClick={() => setDesktopAgenda(value => !value)}>{desktopAgenda ? "Show time grid" : "Show agenda"}</Button>
       <Button variant="text small calendar-mobile-view" aria-label={mobileGrid ? "Show agenda" : "Show time grid"} onClick={() => setMobileGrid(value => !value)}>{mobileGrid ? "Agenda" : "Time grid"}</Button>
     </div>
-    {canEditVisibleDays && <p className="calendar-help calendar-grid-help">Click or drag an empty time slot to create an event. Dragging snaps to 15 minutes; type a time in Edit or Move for exact minutes.</p>}
+    {canEditVisibleDays && <p className="calendar-help calendar-grid-help">Select an empty time slot to add a plan.</p>}
     {!moving && <ErrorBox text={error}/>}
     <p className="sr-only" role="status" aria-live="polite">{notice}</p>
     {gridOverflows && <p id={overflowHintId} className="calendar-overflow-hint"><ArrowLeftRight size={16} aria-hidden="true"/> Scroll horizontally to see more plans.</p>}

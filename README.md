@@ -295,3 +295,9 @@ Not included: route-aware detour recommendations, live weather alerts, new booki
 The admin dashboard under Daniel's OKR uses server-dated activity from real saved/shared plan views. Its default KPI is the percentage of enrolled planners with no two consecutive inactive days across the last 14 completed UTC days, targeting 85%. Inactive planners remain in the denominator. Collection began November 14, 2026 at 19:13 UTC; no historical visits are invented, so the first full launch-cohort result is available November 29 UTC. Current saved/sharing totals are available immediately.
 
 The backend migration is deployed, with 22 isolated PostgreSQL checks and 17 hosted authorization/metric checks; all disposable fixtures were cleaned up. Tables remain private, and only current approved admins receive aggregate results. See [DANIEL_OKR.md](DANIEL_OKR.md) for definitions, privacy boundaries, RPCs, verification commands and the project-wide advisor permission limitation. Ivy's OKR #2 remains intact.
+
+## November 16 product review
+
+The fresh review fixes active-trip save failures, secures forwarded-booking ownership with private subject codes, waits for confirmed event saves before marking bookings added, and makes retries reuse the event. Catalog filters now work together and survive cancellation; account Suggestions leads with saved places and Nearby; real accounts no longer see simulated event extraction. Small-screen Today controls and routine storage commentary were cleaned up.
+
+Verification and remaining review findings are recorded in [FRESH_PRODUCT_REVIEW.md](FRESH_PRODUCT_REVIEW.md). External route estimates still depend on the educational provider allowance. Overnight events still need separate daily entries. Browser tests and simulated reviewer scores do not certify a bug-free production service.

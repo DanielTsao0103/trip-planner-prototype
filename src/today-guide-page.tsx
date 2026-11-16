@@ -52,7 +52,7 @@ function ActiveDay({ trip: t }: { trip: Trip }) {
   return <div className="today-guide">
     <PageHead title="Today" eyebrow={`${dateText(s.date)} · ${timeText(s.time)} · ${t.persistence === "account" ? zoneText(t.zone) : "DEMO TIME"}`}
       description={t.title} action={<Button variant="outline" onClick={() => go(11, { date: s.date })}>Open itinerary <ArrowUpRight size={16} /></Button>} />
-    <details className="today-default-settings"><summary>Default travel: {MODE_LABELS[choices.mode]}</summary><DayMode mode={choices.mode} onChange={mode => changeChoices({ ...choices, mode })} /><p className="today-personal-note">Remembered for this trip on this device. Custom journeys keep their own choice.</p></details>
+    <details className="today-default-settings"><summary>Default travel: {MODE_LABELS[choices.mode]}</summary><DayMode mode={choices.mode} onChange={mode => changeChoices({ ...choices, mode })} /><p className="today-personal-note">Custom journeys keep their own travel choice.</p></details>
     {ongoing.length > 0 && next && <section className="today-happening" aria-label="Happening now">
       <span className="eyebrow">SCHEDULED NOW</span>
       {ongoing.map(event => <div key={event.id}><button type="button" className="text-link" onClick={() => go(11, { date: event.date, event: event.id })}>{event.name} · until {timeText(event.end)} <ChevronRight size={16} /></button>{eventLocation(event) && <a className="btn" data-ui="button" href={navigationUrl(eventLocation(event)!, choices.overrides[incomingJourneyId(today, event)] || choices.mode)} target="_blank" rel="noreferrer">Directions to {event.name} <ArrowUpRight size={14} /></a>}</div>)}

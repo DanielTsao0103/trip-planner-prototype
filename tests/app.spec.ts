@@ -621,7 +621,7 @@ test('account page: the Maya demo has no editable account details', async ({ pag
   await demo(page);
   await page.getByRole('button', { name: 'Account and preferences', exact: true }).click();
   const panel = page.locator('.account-page');
-  await expect(panel.getByText('sample account')).toBeVisible();
+  await expect(panel.getByText(/Sample profiles are fixed/)).toBeVisible();
   await expect(panel.getByLabel('Name', { exact: true })).toHaveCount(0);
   await expect(panel.getByText('Change password')).toHaveCount(0);
   await expect(panel.getByRole('button', { name: 'Exit demo' })).toBeVisible();
@@ -693,4 +693,38 @@ test('forwarded booking removal is deliberate and a failed request can be retrie
   await dialog.getByRole('button',{name:'Remove booking',exact:true}).click();
   await expect(dialog).toHaveCount(0);await expect(page.getByRole('heading',{name:'Forwarded bookings',exact:true})).toBeFocused();
   expect(attempts).toBe(2);await page.reload();await expect(page.getByRole('heading',{name:'Harbor stay',exact:true})).toHaveCount(0);
+});
+
+
+test('forwarding instructions load a private code only on demand and require confirmation to replace it', async ({ page }) => {
+  const calls: boolean[] = [];
+  let fail = true;
+  await page.route('**/rest/v1/rpc/get_booking_forwarding_code', route => {
+    const rotate = route.request().postDataJSON().p_rotate;
+    calls.push(rotate);
+    if (fail) return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+    return route.fulfill({ json: { code: (rotate ? 'b' : 'a').repeat(48) } });
+  });
+  await page.addInitScript(() => Object.defineProperty(navigator, 'clipboard', { value: { writeText: async () => {} } }));
+  await login(page);
+  expect(calls).toHaveLength(0);
+  await page.locator('.home-bookings > summary').click();
+  expect(calls).toHaveLength(0);
+  await page.getByText('How to forward a booking', { exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Could not prepare');
+  fail = false;
+  await page.getByRole('button', { name: 'Retry forwarding setup' }).click();
+  await expect(page.getByText(`[SC:${'a'.repeat(48)}]`, { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Copy subject code', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Copy subject code', exact: true })).toHaveText('Copied');
+  await page.getByRole('button', { name: 'Replace forwarding code', exact: true }).click();
+  const confirmation = page.getByRole('dialog', { name: 'Replace your forwarding code?' });
+  await confirmation.getByRole('button', { name: 'Keep current code' }).click();
+  expect(calls).toEqual([false, false]);
+  await page.getByRole('button', { name: 'Replace forwarding code', exact: true }).click();
+  await confirmation.getByRole('button', { name: 'Replace code', exact: true }).click();
+  await expect(confirmation).toHaveCount(0);
+  await expect(page.getByText(`[SC:${'b'.repeat(48)}]`, { exact: true })).toBeVisible();
+  expect(calls).toEqual([false, false, true]);
+  await noOverflow(page);
 });

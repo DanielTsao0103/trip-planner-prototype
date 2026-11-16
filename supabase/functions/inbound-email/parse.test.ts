@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { htmlToText, parseBooking, senderEmail } from "./parse.ts";
+import { htmlToText, parseBooking, senderEmail, forwardingSubject } from "./parse.ts";
 
 const NOW = new Date("2026-10-29T12:00:00Z");
 
@@ -189,4 +189,12 @@ test("a header stamp glued onto one line is cut off too", () => {
   );
   assert.equal(r.startDate, "2026-07-03");
   assert.equal(r.startTime, "17:30");
+});
+
+
+test("forwarding authorization requires one exact outer-subject marker", () => {
+  const code = "a".repeat(48);
+  assert.deepEqual(forwardingSubject(`Fwd: [SC:${code.toUpperCase()}] Hotel`), { code, subject: "Fwd:  Hotel" });
+  assert.equal(forwardingSubject(`[SC:${code}] [SC:${code}]`), null);
+  assert.equal(forwardingSubject(`[SC:${code.slice(1)}]`), null);
 });

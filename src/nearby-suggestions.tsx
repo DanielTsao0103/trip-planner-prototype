@@ -7,7 +7,7 @@ import { MONEY_LIMITS, TEXT_LIMITS, textError } from "./limits";
 import { getSupabase } from "./supabase";
 import { searchDestinationPhotos, trackUnsplashSelection, type UnsplashPhoto } from "./trip-photos";
 import { suggestionPhotoSearch } from "./nearby-photo-search";
-import { planningContext, reviewCandidates, safeSource, nearbyListingLinks, YELP_SEARCH_MESSAGES, NEARBY_EMPTY_MESSAGES, type YelpSearchStatus, type EmptyReason, type ReviewRejections, type Intent, type NearbyResult } from "../supabase/functions/_shared/nearby.ts";
+import { planningContext, reviewCandidates, safeSource, nearbyListingLinks, NEARBY_EMPTY_MESSAGES, type EmptyReason, type Intent, type NearbyResult } from "../supabase/functions/_shared/nearby.ts";
 import { distinctRecommendationThoughts, recommendationLocation, recommendationTitle, recommendationNotes, recommendationSlot, recommendationGroupCost, sentenceExcerpt } from "../supabase/functions/_shared/nearby-content.ts";
 import "./nearby-suggestions.css";
 
@@ -31,13 +31,12 @@ export function NearbySuggestions() {
   const [preparingLabel, setPreparingLabel] = useState("Preparing the event editor…");
   const [addError, setAddError] = useState("");
   const [emptyReason, setEmptyReason] = useState<EmptyReason>("filtered");
-  const [diagnostics, setDiagnostics] = useState<{ sourcesFound: number; sourcesUsed: number; candidatesReturned: number; recoveryAttempted?: boolean; rejected: ReviewRejections; yelpStatus?: YelpSearchStatus; yelpSourcesUsed?: number } | null>(null);
   const request = useRef<AbortController | null>(null);
   const contextKey = JSON.stringify([trip?.id, trip?.destinations, trip?.zone, trip?.start, trip?.end, trip?.members, trip?.prefs, trip?.budget, trip?.budgetMode, trip?.individual, trip?.expenses, date, intent, overlay?.data?.event]);
   const eventsKey = JSON.stringify(trip?.events);
   const continuation = useRef(0);
   useEffect(() => { continuation.current += 1; setPreparing(false); return () => { continuation.current += 1; }; }, [contextKey]);
-  useEffect(() => { request.current?.abort(); setResults(null); setPhotos({}); setAddError(""); setDiagnostics(null); setError(""); setLoading(false); return () => { request.current?.abort(); }; }, [contextKey]);
+  useEffect(() => { request.current?.abort(); setResults(null); setPhotos({}); setAddError(""); setError(""); setLoading(false); return () => { request.current?.abort(); }; }, [contextKey]);
   useEffect(() => { continuation.current += 1; request.current?.abort(); setLoading(false); setPreparing(false); }, [eventsKey]);
   useEffect(() => {
     if (!results?.length || !trip) return;
@@ -73,6 +72,8 @@ export function NearbySuggestions() {
   }, [results, trip?.id, s.userId, date, intent, overlay?.data?.event]);
   if (!trip) return <Modal title="Nearby suggestions"><p>Choose a trip to research nearby places.</p></Modal>;
   const context = planningContext(trip, s.userId || "", date, intent, overlay?.data?.event);
+  const nextAvailableDay = context.gaps.length ? undefined : days(trip.start, trip.end).find(day =>
+    day > date && planningContext(trip, s.userId || "", day, intent).gaps.length > 0);
   const isDemo = trip.persistence !== "account";
   const pending = pendingTripIds.includes(trip.id);
   const bundledPhoto: NearbyPhoto = { url: `${import.meta.env.BASE_URL}images/city.jpg`, alt: "Illustrative city scene", label: "Illustrative photo · not the suggested venue" };
@@ -81,7 +82,7 @@ export function NearbySuggestions() {
     if (!trip || isDemo || pending) return;
     request.current?.abort();
     const controller = new AbortController(); request.current = controller;
-    setLoading(true); setResults(null); setDiagnostics(null); setError("");
+    setLoading(true); setResults(null); setError("");
     const timeout = setTimeout(() => controller.abort("timeout"), 90000);
     try {
       const client = getSupabase();
@@ -97,7 +98,6 @@ export function NearbySuggestions() {
       if (!controller.signal.aborted) {
         setResults(distinctRecommendationThoughts(data.results.map((result: NearbyResult)=>({...result,researchArea:context.area}))));
         setEmptyReason(typeof data.emptyReason === "string" && Object.hasOwn(NEARBY_EMPTY_MESSAGES, data.emptyReason) ? data.emptyReason as EmptyReason : "filtered");
-        setDiagnostics(data.diagnostics || null);
       }
     } catch (e) {
       if (!controller.signal.aborted || controller.signal.reason === "timeout") setError(controller.signal.reason === "timeout" ? "Research took too long. Please try again." : e instanceof Error ? e.message : "Could not research nearby places.");
@@ -188,8 +188,8 @@ export function NearbySuggestions() {
     finally { if (generation === continuation.current) setPreparing(false); }
   }
   return <Modal title="Nearby suggestions" wide className="nearby-research-modal">
-    <p className="nearby-intro">{intent === "activity" ? "Find a specific activity to do around your plans." : `Find a specific ${intent} dish to try. We’ll name the food itself; you can choose where to eat it.`} Your group’s needs are considered.</p>
-    <p className="fine-print">Up to 3 ideas per generation · 5 generations per person each day · resets at midnight UTC.</p>
+    <p className="nearby-intro">{intent === "activity" ? "Find a specific activity to do around your plans." : `Find a specific ${intent} dish to try. We’ll name the food itself; you can choose where to eat it.`}</p>
+    <p className="fine-print">Up to 3 ideas per search · 5 searches per person per day.</p>
     <div className="nearby-research-controls">
       <Field label="Trip day"><select value={date} onChange={e => setDate(e.target.value)}>{days(trip.start, trip.end).map(day => <option key={day} value={day}>{dateText(day)}</option>)}</select></Field>
       <Field label="Find"><select value={intent} onChange={e => setIntent(e.target.value as Intent)}><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="activity">Things to do</option></select></Field>
@@ -197,26 +197,21 @@ export function NearbySuggestions() {
     <div className="nearby-context-panel">
       <p><MapPin size={17} aria-hidden="true" /><strong>{context.area || "Add a trip destination first"}</strong></p>
       {context.locationNote && <p>{context.locationNote}</p>}
-      <p>{context.answered} of {context.travelers} travelers shared preferences. Your preferences and the group’s responses are considered together.</p>
+      <p>{context.answered} of {context.travelers} travelers shared preferences.</p>
       <details><summary>Planning details used</summary>
         <dl><dt>Dietary needs</dt><dd>{context.diet.join(", ") || "None shared"}</dd><dt>Accessibility</dt><dd>{context.access.join(", ") || "None shared"}</dd><dt>Walking limit</dt><dd>{context.walkMeters === null ? "Not shared" : `${context.walkMeters} m (most restrictive response)`}</dd><dt>Budget reservation</dt><dd>{context.remainingGroupCents === null ? context.individualRemaining.length ? "Individual budgets checked separately" : "No group budget set" : `${money(context.remainingGroupCents)} remaining for the group`}</dd></dl>
-        <p>{context.budgetNote}</p><p>Recommendations are generated from live retrieved sources, not model training. Group constraints are checked against the trip snapshot; account names and emails are excluded from provider searches.</p>
+        <p>{context.budgetNote}</p>
       </details>
     </div>
-    {isDemo && <p className="info-banner">Sample trip: you can explore the planning context here. Live research is available on trips saved to your account.</p>}
+    {isDemo && <p className="info-banner">Nearby research is available on account trips.</p>}
     {pending && <p role="status">Waiting for your trip changes to finish saving before researching.</p>}
-    <p className="fine-print">Free service: the group shares a limited allowance. Research pauses when that allowance is used.</p>
-    {!context.gaps.length && <p role="status">No free hour in this day’s {intent === "activity" ? "planning" : intent} window with a provisional 30-minute travel buffer. Choose another day.</p>}
+    {!context.gaps.length && <div className="nearby-day-recovery"><p role="status">No free hour in this day’s {intent === "activity" ? "planning" : intent} window including 30 minutes between stops.</p>{nextAvailableDay ? <Button variant="outline" onClick={() => setDate(nextAvailableDay)}>Try {dateText(nextAvailableDay, true)}</Button> : <p>Choose another day or a different kind of idea.</p>}</div>}
     <Button onClick={research} disabled={loading || isDemo || pending || !context.area || !context.gaps.length}><Search size={17} />{loading ? "Researching places and sources…" : "Find nearby suggestions"}</Button>
     {loading && <p role="status">Checking current sources against your plans and preferences. You can close this window to cancel.</p>}
     {error && <p role="alert" className="error-box">{error}</p>}
     {results !== null && <section className="nearby-results" aria-label="Research results" aria-live="polite">
       <h3>{intent === "activity" ? "Activities to do" : "Foods to try"}</h3>
-      {!results.length && <div className="nearby-empty-explanation"><h4>{NEARBY_EMPTY_MESSAGES[emptyReason].title}</h4><p>{NEARBY_EMPTY_MESSAGES[emptyReason].message}</p>{diagnostics?.recoveryAttempted && <p>The AI made one follow-up pass using the same sources and trip constraints; it still found no supportable candidate.</p>}<p>{NEARBY_EMPTY_MESSAGES[emptyReason].action}</p></div>}
-      {diagnostics && <details className="nearby-search-details"><summary>Search details</summary><p>{diagnostics.sourcesFound} sources found; {diagnostics.sourcesUsed} source excerpts used; {diagnostics.candidatesReturned} candidates returned{diagnostics.recoveryAttempted ? " after one follow-up pass" : ""}.</p>
-        {diagnostics.yelpStatus && Object.hasOwn(YELP_SEARCH_MESSAGES, diagnostics.yelpStatus) && <p>{YELP_SEARCH_MESSAGES[diagnostics.yelpStatus]} {diagnostics.yelpSourcesUsed ?? 0} Yelp excerpt{diagnostics.yelpSourcesUsed === 1 ? "" : "s"} used.</p>}
-        {Object.entries(diagnostics.rejected).length > 0 && <ul>{Object.entries(diagnostics.rejected).map(([reason, count]) => <li key={reason}>{count} removed: {reason === "evidence" ? "insufficient source evidence" : reason === "budget" ? "above a saved budget" : reason === "conflicts" ? "flagged constraint conflict" : reason === "duplicates" ? "duplicate place" : "incomplete or invalid details"}</li>)}</ul>}
-      </details>}
+      {!results.length && <div className="nearby-empty-explanation"><h4>{NEARBY_EMPTY_MESSAGES[emptyReason].title}</h4><p>{NEARBY_EMPTY_MESSAGES[emptyReason].message}</p><p>{NEARBY_EMPTY_MESSAGES[emptyReason].action}</p></div>}
       <div className="nearby-result-grid">{results.map((result, index) => { const links = nearbyListingLinks(result, context); const photo = photos[result.name] || fallbackPhoto; const scheduled = trip.events.find(event=>matchesIdea(event,result)); const slot = scheduled ? {start:scheduled.start,end:scheduled.end} : recommendationSlot(result,context.gaps); const added = !!scheduled; return <article className="nearby-result" key={result.name + index}>
         <img className="nearby-result-photo" src={photo.url} alt={photo.alt} loading="lazy" onError={() => setPhotos(current => current[result.name]?.url === bundledPhoto.url ? current : { ...current, [result.name]: bundledPhoto })} />
         <small className="nearby-photo-credit">{photo.label}{photo.credit && <> · Photo by <a href={photo.credit.profileUrl} target="_blank" rel="noreferrer">{photo.credit.name}</a> on <a href={photo.credit.photoUrl} target="_blank" rel="noreferrer">Unsplash</a></>}</small>
@@ -238,7 +233,7 @@ export function NearbySuggestions() {
           </div>
           <h5>Sources</h5>
           <ul className="nearby-source-links">{[...new Set(result.facts.filter(f => safeSource(f.sourceUrl)).map(fact=>fact.sourceUrl))].map(url => <li key={url}><a href={url} target="_blank" rel="noopener noreferrer">{url} <ExternalLink size={12} aria-hidden="true" /></a></li>)}</ul>
-          <div className="nearby-considerations fine-print"><p>Research ideas, not confirmed bookings. Check current hours, availability, travel time and your group’s needs.</p>{slot && <p>Proposed times include a provisional travel buffer; the route has not been confirmed.</p>}<ul>{result.concerns.map((concern, i) => <li key={i}>{concern}</li>)}</ul></div>
+          <div className="nearby-considerations fine-print"><p>Research ideas, not confirmed bookings. Check current hours, availability, travel time and your group’s needs.</p>{slot && <p>Proposed times include time between stops. Check the route before setting out.</p>}<ul>{result.concerns.map((concern, i) => <li key={i}>{concern}</li>)}</ul></div>
         </details>
         {trip.persistence === "account" && <div className="nearby-result-actions"><Button variant="text" disabled={pending || preparing || added || !canEdit(trip,s.userId,date)} onClick={() => void continueToEvent(result)}>{slot ? "Review and add to this day" : "Choose another time"}</Button>{canSave && <Button variant="text" disabled={pending || alreadyKept(result)} onClick={() => saveForLater(result)}>{alreadyKept(result) ? "Already in your plans" : "Save for later"}</Button>}<Button variant="nearby-add" disabled={pending || preparing || added || !slot || !canEdit(trip,s.userId,date)} onClick={() => void addToItinerary(result)}>{added ? pending ? "Adding to itinerary…" : "Added to itinerary" : "Add to itinerary"}</Button></div>}
       </article>; })}</div>

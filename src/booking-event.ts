@@ -69,3 +69,9 @@ export function tripForBooking(
   const fits = trips.filter((t) => booking.startDate! >= t.start && booking.startDate! <= t.end);
   return fits.length === 1 ? fits[0].id : null;
 }
+
+/** Reusing the booking UUID makes repeated imports target one persisted event. */
+export function bookingEventId(value: string | null | undefined): string | null {
+  return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+    ? value.toLowerCase() : null;
+}

@@ -282,12 +282,12 @@ export function StylePage() {
           <p className="style-note" ref={feedbackRef} role={saveStatus === "save-error" || saveStatus === "load-error" ? "alert" : "status"}>
             {unapplied && saveStatus !== "save-error" && saveStatus !== "load-error" && saveStatus !== "loading"
               ? (saveStatus === "saving" ? "Your previous choice is saving. Apply this preview when you’re ready." : "Preview only. Apply to use these choices across the app.")
-              : saveStatus === "device" ? "Your style applies to every page on this device."
-              : saveStatus === "saving" ? "Your style is applied here. Saving to your account…"
+              : saveStatus === "device" ? "Style applied."
+              : saveStatus === "saving" ? "Saving your style…"
               : saveStatus === "save-error" ? "Your style is applied here, but couldn’t be saved to your account. Try again."
               : saveStatus === "load-error" ? "We couldn’t load your saved style. Your current look is unchanged."
               : saveStatus === "loading" ? "Loading your saved style…"
-              : saveStatus === "saved" ? "Style saved to your account."
+              : saveStatus === "saved" ? "Style saved."
               : "This is your current style. Change a choice to preview a new look."}
           </p>
           {saveStatus === "load-error" && <Button variant="text" onClick={retryStyleSync}>Try loading again</Button>}

@@ -364,3 +364,31 @@ test("quota failure stops automatic transit refresh while retaining explicit ret
   await expect(page.locator('.today-route-error')).toContainText('limit has been reached');
   expect(calls).toBe(initial);
 });
+
+
+test("320px Today keeps origin actions and transport values on one line", async ({page}) => {
+  await page.setViewportSize({width:320,height:568});
+  await setup(page, "11:30");
+  const change = page.locator(".today-origin").getByRole("button", {name:"Change",exact:true});
+  await expect(change).toBeVisible();
+  // A text range detects mid-word wrapping that document overflow checks miss.
+  const lines = await change.evaluate(element => { const range=document.createRange(); range.selectNodeContents(element); return range.getClientRects().length; });
+  expect(lines).toBe(1);
+  const modes = page.getByRole("group", {name:"Transportation"});
+  await expect(modes.getByRole("button", {name:/Walk/})).toBeVisible();
+  expect(await modes.locator("strong").evaluateAll(elements => elements.every(element => { const range=document.createRange(); range.selectNodeContents(element); return range.getClientRects().length === 1; }))).toBe(true);
+  await modes.getByRole("button", {name:/Transit/}).click();
+  await expect(modes.getByRole("button", {name:/Transit/})).toHaveAttribute("aria-pressed", "true");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
+
+
+test("short landscape Today exposes the next stop without hiding current directions", async ({page}) => {
+  await page.setViewportSize({width:844,height:390});
+  await setup(page, "11:30");
+  const next = page.getByRole("region", {name:"Next stop",exact:true}).getByRole("heading",{name:"Wander through Pike Place",exact:true});
+  await expect(next).toBeInViewport();
+  await expect(page.getByRole("region", {name:"Happening now"}).getByRole("link", {name:"Directions to A morning of art",exact:true})).toBeVisible();
+  await page.locator(".today-default-settings > summary").click();
+  await expect(page.getByRole("group",{name:"Default travel preference"})).toBeVisible();
+});

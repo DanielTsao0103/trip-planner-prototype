@@ -11,9 +11,9 @@ test('optional connection setup keeps consent actions clear of trip navigation',
   await page.setViewportSize({ width: 390, height: 664 });
   await page.goto('./#/2');
   await expect(page.getByRole('navigation', { name: 'Mobile navigation', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: /^(Connect|Review) Gmail$/ }).click();
+  await page.getByRole('button', { name: 'Preview Gmail access', exact: true }).click();
   await expect(page.getByRole('navigation', { name: 'Mobile navigation', exact: true })).toHaveCount(0);
-  const save = page.getByRole('button', { name: /^(Save permissions|Allow selected access|Continue without access)$/ });
+  const save = page.getByRole('button', { name: /^(Save preview|Continue with preview|Continue without access)$/ });
   await save.scrollIntoViewIfNeeded();
   // Hit testing catches a fixed layer covering a button even when it is visible.
   await expect.poll(() => save.evaluate(button => {
@@ -475,11 +475,11 @@ test('optional connections can be skipped immediately and phone prototype sectio
   await page.getByRole('button',{name:'Sample trip tools',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'Sample trip tools',exact:true});
   await dialog.getByRole('button',{name:'Date & time',exact:true}).click();
-  await expect(dialog.getByLabel('Demo date',{exact:true})).toBeVisible();
+  await expect(dialog.getByLabel('Sample date',{exact:true})).toBeVisible();
   await expect(dialog.getByRole('button',{name:'Explore the sample trip',exact:true})).not.toBeVisible();
   await dialog.getByRole('button',{name:'Screens',exact:true}).click();
   await expect(dialog.locator('.screen-index')).toBeVisible();
-  await expect(dialog.getByLabel('Demo date',{exact:true})).not.toBeVisible();
+  await expect(dialog.getByLabel('Sample date',{exact:true})).not.toBeVisible();
   await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'Open navigation menu',exact:true}).click();
   await expect(page.getByRole('navigation',{name:'All pages'})).toBeVisible();
@@ -684,7 +684,7 @@ test('phone event editor keeps one action bar and restores trip navigation after
 test('direct demo dates open the time tab', async ({ page }) => {
   await page.goto('./#/10');
   await page.getByRole('button',{name:'Change demo date'}).click();
-  await expect(page.getByLabel('Demo date',{exact:true})).toBeVisible();
+  await expect(page.getByLabel('Sample date',{exact:true})).toBeVisible();
 });
 
 
@@ -793,7 +793,7 @@ test('suggested event puts scheduling first and Nearby recognizes an existing pl
   await page.getByRole('button',{name:'Open itinerary',exact:true}).click();
   await page.getByRole('button',{name:'Find something nearby',exact:true}).click();
   const dialog=page.getByRole('dialog');
-  await expect(dialog).toContainText('Sample trip: you can explore the planning context here.');
+  await expect(dialog).toContainText('Nearby research is available on account trips.');
   await expect(dialog.getByRole('button',{name:'Find nearby suggestions',exact:true})).toBeDisabled();
 });
 
@@ -866,10 +866,10 @@ test('Today trip picker distinguishes inactive trips from an empty collection', 
 test('connection feedback stays outside the expense ledger after navigation', async ({page}) => {
   await page.goto('./#/3?service=Instagram');
   await page.getByRole('button',{name:'Cancel',exact:true}).click();
-  await expect(page.getByRole('status').filter({hasText:'Connection canceled.'})).toBeVisible();
+  await expect(page.getByRole('status').filter({hasText:'Preview canceled.'})).toBeVisible();
   await page.goto('./#/12');
   await expect(page.getByRole('heading',{name:'Budget',exact:true})).toBeVisible();
-  await expect(page.getByText('Connection canceled. No new access granted.',{exact:true})).toHaveCount(0);
+  await expect(page.getByText('Preview canceled. No access changed.',{exact:true})).toHaveCount(0);
   await expect(page.locator('.budget-feedback')).toHaveCount(0);
 });
 
@@ -1097,7 +1097,8 @@ test('sample idea dismissal does not masquerade as researched nearby results', a
  await page.getByRole('button',{name:'Nearby suggestions',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Nearby suggestions'});
  await expect(dialog).not.toContainText('Cedar Gallery');
- await expect(dialog).toContainText('Sample trip:');
+ await expect(dialog).toContainText('Nearby research is available on account trips.');
+ await expect(dialog.getByRole('button', { name: 'Find nearby suggestions', exact: true })).toBeDisabled();
 });
 
 test('Nearby research remains in a popup and never silently schedules an event', async ({page}) => {

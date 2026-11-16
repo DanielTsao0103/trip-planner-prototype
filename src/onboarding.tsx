@@ -164,12 +164,6 @@ export function Auth() {
         <div className="auth-mobile-logo">
           <BrandLogo className="brand-logo" />
         </div>
-        <div className="auth-top">
-          <Badge>INTERACTIVE PROTOTYPE</Badge>
-          <button className="text-link" onClick={() => open("demo", {section:"screens"})}>
-            Explore the screens <ArrowUpRight size={14} />
-          </button>
-        </div>
         <div className="auth-form-wrap">
           <div className="eyebrow">YOUR NEXT CHAPTER</div>
           <h2>
@@ -177,7 +171,7 @@ export function Auth() {
           </h2>
           <p>
             {signup
-              ? "Create a fictional account to try planning a trip."
+              ? "Create a sample account to try planning a trip."
               : "A little planning. More time together."}
           </p>
           {!signup && (
@@ -195,40 +189,15 @@ export function Auth() {
               <Button variant="outline full" onClick={explore}>
                 Explore the sample trip <ArrowUpRight size={16} />
               </Button>
-              <small>No real account or connections needed.</small>
+              <small>No account needed to explore the sample.</small>
             </div>
           )}
           <p className="auth-signin-label">
-            {signup ? "Choose how to join" : "Already tried it? Sign in below."}
+            {signup ? "Create a sample account" : "Sign in with email"}
           </p>
-          <div className="provider-buttons">
-            <Button
-              variant="outline"
-              onClick={() =>
-                open("authProvider", { service: "Google", signup })
-              }
-            >
-              <span className="provider-letter" aria-hidden="true">
-                G
-              </span>
-              Continue with Google
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => open("authProvider", { service: "Apple", signup })}
-            >
-              <span className="apple-mark" aria-hidden="true">
-                ●
-              </span>
-              Continue with Apple
-            </Button>
-          </div>
-          <div className="divider">
-            <span>or with email</span>
-          </div>
           <form onSubmit={submit}>
             {signup && (
-              <Field label="Your fictional name">
+              <Field label="Your name">
                 <input
                   ref={nameInput}
                   autoComplete="off"
@@ -253,11 +222,7 @@ export function Auth() {
             </Field>
             <Field
               label="Password"
-              hint={
-                signup
-                  ? "Use any fictional password with 8+ characters. To return later, use travel123."
-                  : "For every demo account, the password is travel123."
-              }
+              hint="Sample accounts use the password travel123."
             >
               <div className="password-control">
                 <input
@@ -267,7 +232,7 @@ export function Auth() {
                   autoComplete="off"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Your demo password"
+                  placeholder="Password"
                 />
                 <button
                   type="button"
@@ -297,21 +262,7 @@ export function Auth() {
               ? "Already have an account? Log in"
               : "New here? Create an Account"}
           </button>
-          <p className="fine-print">
-            Use fictional details only. Demo login:{" "}
-            <button
-              className="inline-link"
-              onClick={() => {
-                setEmail("maya@example.com");
-                setPassword("travel123");
-                setSignup(false);
-              }}
-            >
-              maya@example.com / travel123
-            </button>
-            <br />
-            Nothing is sent, charged, or connected to a real account.
-          </p>
+          <p className="fine-print">Sample accounts aren’t connected to real accounts.</p>
         </div>
         <div className="auth-footer">Thoughtfully planned. Happily shared.</div>
       </div>
@@ -332,8 +283,7 @@ export function Connections() {
       <div className="info-banner">
         <Link2 size={18} />
         <span>
-          These connections are simulated. Signing in with Google grants
-          identity access only, not Gmail or social content.
+          Preview only. No Google, Gmail, or social account is connected.
         </span>
       </div>
       <div className="connection-list">
@@ -350,10 +300,10 @@ export function Connections() {
                   <h3>{service}</h3>
                   <Badge tone={granted.length === all.length ? "green" : ""}>
                     {granted.length === all.length
-                      ? "Demo connected"
+                      ? "Preview active"
                       : granted.length
-                        ? "Partial demo access"
-                        : "Not connected"}
+                        ? "Partial preview"
+                        : "Not previewed"}
                   </Badge>
                 </div>
                 {all.map((p) => (
@@ -372,17 +322,14 @@ export function Connections() {
                   </p>
                 ))}
               </div>
-              <Button variant="outline" aria-label={`${granted.length ? "Review" : "Connect"} ${service}`} onClick={() => go(3, { service })}>
-                {granted.length ? "Review" : "Connect"}
+              <Button variant="outline" aria-label={`Preview ${service} access`} onClick={() => go(3, { service })}>
+                Preview access
               </Button>
             </div>
           );
         })}
       </div>
-      <p className="fine-print">
-        Social permissions are conceptual demo permissions. Gmail read access
-        covers messages and settings; the demo uses fictional receipts only.
-      </p>
+      <p className="fine-print">No account data is accessed in these previews.</p>
       <div className="form-actions">
         <Button onClick={continuePlanning}>
           Continue <ArrowRight size={16} />
@@ -412,31 +359,24 @@ export function ConnectProvider() {
       setBusy(false);
       if (fail) {
         setError(
-          reviewing
-            ? "The demo permissions could not be updated. Your existing permissions are unchanged. Retry or cancel."
-            : "The provider could not connect. Your existing permissions are unchanged. Retry or cancel.",
+          "The preview couldn’t be updated. Your choices are unchanged. Retry or cancel.",
         );
         return;
       }
       mutate((v) => {
         v.users.find((u) => u.id === v.userId)!.connections[service] = selected;
       });
-      toast(
-        `${service}: ${selected.length ? "demo permissions updated" : "no access granted"}.`,
-        "connections",
-      );
+      toast(`${service} preview updated.`, "connections");
       go(2);
     }, 650);
   };
   return (
     <div className="consent-page">
-      <Badge>SIMULATED AUTHORIZATION</Badge>
+      <Badge>PREVIEW ONLY</Badge>
       <div className="consent-brand">{service.slice(0, 1)}</div>
-      <h1>{reviewing ? `Review ${service} access` : `Connect ${service}`}</h1>
+      <h1>{reviewing ? `Review ${service} preview` : `Preview ${service} access`}</h1>
       <p>
-        {reviewing ? "Review the simulated access for" : "Stir Crazy would like the following access for"}
-        <br />
-        <strong>{user?.email}</strong>
+        Choose which sample permissions to display. No account is connected.
       </p>
       <div className="card consent-list">
         {permissions.map((p) => (
@@ -464,23 +404,21 @@ export function ConnectProvider() {
           </label>
         ))}
       </div>
-      <p className="fine-print">
-        No account is accessed. These controls only update this prototype.
-      </p>
+      <p className="fine-print">No account is accessed or changed.</p>
       <div className="consent-recovery" ref={recoveryActions}>
       <ErrorBox text={error} />
       <div className="form-actions">
         <Button
           variant="outline"
           onClick={() => {
-            toast(reviewing ? "Permission review canceled. Your permissions are unchanged." : "Connection canceled. No new access granted.", "connections");
+            toast("Preview canceled. No access changed.", "connections");
             go(2);
           }}
         >
           Cancel
         </Button>
         <Button disabled={busy} onClick={() => finish()}>
-          {busy ? "Updating…" : reviewing ? "Save permissions" : selected.length ? "Allow selected access" : "Continue without access"}
+          {busy ? "Updating…" : reviewing ? "Save preview" : selected.length ? "Continue with preview" : "Continue without access"}
         </Button>
       </div>
       </div>
@@ -714,7 +652,7 @@ export function Trips() {
             >
               <Photo src={t.image} alt={t.destinations[0]} />
               <Badge tone="white">
-                {tripPhase(t,s.date) === "Past"
+                {t.sample && t.persistence !== "account" ? "Sample trip" : tripPhase(t,s.date) === "Past"
                   ? "Past trip"
                   : tripPhase(t,s.date) === "Active"
                     ? "Happening now"
@@ -737,13 +675,9 @@ export function Trips() {
                   {t.title}
                 </button>
               </h2>
-              <p className="fine-print">
-                {pendingTripIds.includes(t.id)
-                  ? "Not saved yet"
-                  : t.persistence === "account"
-                    ? "Saved to your account"
-                    : "Saved in this browser"}
-              </p>
+              {pendingTripIds.includes(t.id) && (
+                <p className="fine-print">Not saved yet</p>
+              )}
               <p>
                 <MapPin size={14} />
                 {t.destinations.join(" · ")}
@@ -806,6 +740,8 @@ export function TripForm() {
   const cancelTripButton = useRef<HTMLButtonElement>(null);
   const editing = route.params.get("edit") === "true" && trip;
   const original = editing ? trip : undefined;
+  // Treat only the known catalog origin as a special return destination.
+  const cancelPage = original ? 8 : route.params.get("returnTo") === "26" ? 26 : 4;
   const template = original ? undefined : plannedTrip(route.params.get("template"));
   const [title, setTitle] = useState(original?.title || template?.title || ""),
     [locations, setLocations] = useState<string[]>(
@@ -924,7 +860,7 @@ export function TripForm() {
     ? `${zoneError} ${zoneByDestination[locations[0]]
       ? `Event times use ${timeZoneLabel(zoneByDestination[locations[0]]!)}.`
       : "Choose the calendar time zone below."}`
-    : "Each time zone follows its destination order.";
+    : "";
   const addPlace = (selectedPlace = place) => {
     if (!selectedPlace.trim()) return;
     const problem = textError(
@@ -1330,7 +1266,7 @@ export function TripForm() {
                     setConfirmDiscard(true);
                     return;
                   }
-                  go(original ? 8 : 4);
+                  go(cancelPage);
                 }}
               >
                 Cancel
@@ -1356,7 +1292,7 @@ export function TripForm() {
           <p><Check size={17} /> {original ? "Update the trip details. Your existing plans stay with this trip." : template ? "Edit this starter plan and choose your trip dates." : "Your new trip starts empty. Add only the plans you want."}</p>
         </aside>
       </form>
-      {confirmDiscard && <ConfirmDialog title="Discard trip changes?" onCancel={() => setConfirmDiscard(false)} onConfirm={() => go(original ? 8 : 4)}>
+      {confirmDiscard && <ConfirmDialog title="Discard trip changes?" onCancel={() => setConfirmDiscard(false)} onConfirm={() => go(cancelPage)}>
         Your unsaved changes will be lost.
       </ConfirmDialog>}
     </>

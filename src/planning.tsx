@@ -34,7 +34,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useApp } from "./state";
-import { setBookingTrip } from "./bookings";
+import { setBookingTrip, bookingEventId } from "./bookings";
 import {
   Avatar,
   Badge,
@@ -458,15 +458,21 @@ function eventFormVersion(event?: Event): string {
 }
 
 export function EventForm() {
-  const { trip: t, s, route, go, mutate, updateTrip, toast } = useApp();
+  const { trip: t, s, route, go, mutate, updateTrip, updateTripConfirmed, toast } = useApp();
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const cancelEventButton = useRef<HTMLButtonElement>(null);
   if (!t) return null;
-  const original = t.events.find((e) => e.id === route.params.get("event"));
+  const sampleExtraction = t.sample === true && t.persistence !== "account";
+  const fromBooking = bookingEventId(route.params.get("booking"));
+  const original = t.events.find((e) => e.id === (route.params.get("event") || fromBooking));
   const savedPlace = t.savedPlaces?.find(p => p.id === route.params.get("savedPlace"));
   const openedSavedPlace = useRef(savedPlaceVersion(savedPlace));
   const openedVersion = useRef(eventFormVersion(original));
-  const changedElsewhere = (current?: Event) => openedVersion.current !== eventFormVersion(current);
+  const submittedVersion = useRef<string | null>(null);
+  const changedElsewhere = (current?: Event) => {
+    const version = eventFormVersion(current);
+    return openedVersion.current !== version && submittedVersion.current !== version;
+  };
   const stale = changedElsewhere(original) || openedSavedPlace.current !== savedPlaceVersion(savedPlace);
   const dateParam = route.params.get("date") || t.start;
   const suggested = route.params.get("suggestion");
@@ -658,7 +664,7 @@ export function EventForm() {
     return <Empty title="Event permissions" body={EVENT_PERMISSION_MESSAGE}
       action={<Button onClick={() => leaveForm(original?.date ?? dateParam, original?.id)}>Back to itinerary</Button>} />;
   }
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy || stale || photoUploading) return;
     const inputProblem =
@@ -670,7 +676,7 @@ export function EventForm() {
       return;
     }
     const event: Event = {
-      id: original?.id || uid(),
+      id: original?.id || fromBooking || uid(),
       name: name.trim(),
       place: place.trim(),
       googlePlaceId: point ? null : selectedGooglePlaceId,
@@ -694,7 +700,7 @@ export function EventForm() {
     }
     setBusy(true);
     let applied = false;
-    updateTrip((v) => {
+    const applyEvent = (v: typeof t) => {
       if (v.id !== t.id) return;
       const index = v.events.findIndex((e) => e.id === event.id);
       if (changedElsewhere(v.events[index])) return;
@@ -708,7 +714,25 @@ export function EventForm() {
       if (index >= 0) v.events[index] = event;
       else v.events.push(event);
       applied = true;
-    });
+      if (fromBooking) submittedVersion.current = eventFormVersion(event);
+    };
+    if (fromBooking) {
+      try {
+        const confirmed = await updateTripConfirmed(applyEvent);
+        if (!applied || !confirmed.events.some(item => item.id === event.id)) throw new Error("The itinerary changed. Reopen the booking to try again.");
+      } catch (issue) {
+        setBusy(false);
+        setError(issue instanceof Error ? issue.message : "Your plan is not saved yet. Please retry.");
+        return;
+      }
+      try {
+        await setBookingTrip(fromBooking, t.id);
+      } catch {
+        setBusy(false);
+        setError("Your plan is saved, but the forwarded booking list could not update. Try again to finish adding it.");
+        return;
+      }
+    } else updateTrip(applyEvent);
     if (!applied) {
       setBusy(false);
       setError("The itinerary changed. Reopen the item to try again.");
@@ -726,12 +750,6 @@ export function EventForm() {
             && current.place === event.place && !current.point && !current.googlePlaceId) current.googlePlaceId = placeId;
         });
       });
-    }
-    // A forwarded booking leaves the waiting list once its event is on the trip. This only records
-    // which trip it went to; the event itself is saved and shared by the normal trip save above.
-    const fromBooking = route.params.get("booking");
-    if (!original && fromBooking) {
-      void setBookingTrip(fromBooking, t.id).catch(() => toast("The event was added, but the booking is still in your forwarded list."));
     }
     toast(
       original
@@ -788,7 +806,7 @@ export function EventForm() {
             </div>
           )}
           {role === "Day Editor" && <ReadOnly day />}
-          <div className="tabs">
+          {sampleExtraction && <div className="tabs">
             <button
               type="button"
               className={mode === "manual" ? "active" : ""}
@@ -804,9 +822,9 @@ export function EventForm() {
               <ImagePlus size={16} />
               Use a confirmation
             </button>
-          </div>
+          </div>}
           {mode === "delete" && original && <div className="delete-event-panel" ref={deletePanel} tabIndex={-1}><h3>Delete this event?</h3><p>Are you sure you want to delete “{original.name}” from this trip?</p><div className="form-actions"><Button variant="outline" onClick={() => setMode("manual")}>Keep editing</Button><Button type="button" variant="danger" disabled={busy || stale || photoUploading} onClick={() => { let deleted=false;updateTrip(trip=>{const current=trip.events.find(e=>e.id===original.id);if(!current||changedElsewhere(current))return;trip.events=trip.events.filter(e=>e.id!==original.id);deleted=true;});if(deleted)leaveForm(original.date);}}>Delete event</Button></div></div>}
-          {mode === "upload" && (
+          {sampleExtraction && mode === "upload" && (
             <div className="upload-panel">
               <Upload size={33} />
               <h3>A screenshot is a good start.</h3>
@@ -1121,6 +1139,7 @@ export function Suggestions() {
       {message === "Trip preferences saved." && <div className="inline-success" role="status"><span>{message}</span><button className="icon-btn" aria-label="Dismiss message" onClick={dismissMessage}><X size={16}/></button></div>}
       <div className="ideas-day"><Field label="Planning day"><select value={selectedDay} onChange={event => go(9, {date: event.target.value}, true)}>{days(t.start,t.end).map((day,index) => <option key={day} value={day}>Day {index + 1} · {dateText(day)}</option>)}</select></Field><Button variant="text" onClick={() => go(11, {date:selectedDay})}>View this day <ArrowRight size={16}/></Button></div>
       <SavedPlaces key={t.id} date={selectedDay} view="ideas" initiallyExpanded />
+      {t.sample && t.persistence !== "account" && <>
       <div className="section-title"><div><h2>Sample inspiration</h2><p>Starting points to personalize and verify.</p></div></div>
       <div className="suggestion-context">
         <Badge tone="green">
@@ -1232,6 +1251,8 @@ export function Suggestions() {
             </Button>
           </div>
         )}
+      </>}
+      {(!t.sample || t.persistence === "account") && <section className="card"><h2>Find your next stop</h2><p>Explore nearby activities and foods for {dateText(selectedDay, true)}, with your group’s preferences in mind.</p><div className="row"><Button onClick={() => open("nearby", {date:selectedDay})}>Explore nearby ideas <Sparkles size={16}/></Button><Button variant="text" onClick={() => { dismissMessage(); go(15, {return:"9",date:selectedDay}); }}>Update your preferences</Button></div></section>}
     </>
   );
 }

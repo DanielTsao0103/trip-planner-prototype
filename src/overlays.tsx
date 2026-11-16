@@ -351,9 +351,6 @@ function Demo() {
         {[["experience", "Scenario"], ["time", "Date & time"], ["screens", "Screens"]].map(([id,label]) => <Button key={id} variant="outline" aria-pressed={section === id} onClick={() => setSection(id)}>{label}</Button>)}
       </div>
     } footer={section === "time" ? <div className="demo-time-footer"><Button variant="full" disabled={!s.userId || !date || !time} onClick={landing}>{landingLabel} <ArrowRight size={15}/></Button></div> : undefined}>
-      <p className="fine-print">
-        Explore sample trips in this browser.
-      </p>
       <div className="demo-grid" data-active={section}>
         <div className="card" data-section="experience">
           <h3>Try the experience</h3>
@@ -429,14 +426,14 @@ function Demo() {
         <div className="card" data-section="time">
           <h3>Travel through time</h3>
           <div className="form-columns">
-            <Field label="Demo date">
+            <Field label="Sample date">
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
             </Field>
-            <Field label="Demo time">
+            <Field label="Sample time">
               <input
                 type="time"
                 value={time}
@@ -467,12 +464,6 @@ function Demo() {
           >
             {landingLabel} <ArrowRight size={15} />
           </Button>
-          <h3>Your testing session</h3>
-          <p className="fine-print">
-            Demo trips stay in this browser. Real account trips save to the
-            database. Another tester opens their own independent copy. A share
-            link does not synchronize trip edits.
-          </p>
         </div>
       </div>
       <section className="demo-screen-section" data-active={section}>
@@ -528,11 +519,7 @@ function DeleteTrip() {
   return (
     <Modal title="Delete this trip?">
       <p>
-        Delete <strong>{target.title}</strong>{" "}
-        {target.persistence === "account"
-          ? "from your account"
-          : "from this browser"}
-        ? This cannot be undone.
+        Delete <strong>{target.title}</strong>? This cannot be undone.
       </p>
       <ErrorBox text={error} />
       <div className="form-actions">
@@ -550,7 +537,7 @@ function DeleteTrip() {
               await deleteTrip(target);
               go(5);
               if (target.persistence !== "account")
-                toast("Trip deleted from this browser.");
+                toast("Trip deleted.");
             } catch (issue) {
               setError(
                 issue instanceof Error
@@ -790,13 +777,17 @@ export function Overlays() {
 }
 
 function PlannedTripPreview() {
-  const { overlay, close, go } = useApp();
+  const { overlay, close, go, route } = useApp();
   const planned = plannedTrip(overlay?.data?.id ?? null);
   if (!planned) return null;
+  // Only the catalog needs a dedicated return path; Home keeps its usual flow.
+  const formParams: Record<string, string> = route.page === 26
+    ? { template: planned.id, returnTo: "26" }
+    : { template: planned.id };
   return (
     <Modal title={planned.title} wide footer={      <div className="form-actions planned-modal-actions">
         <Button variant="outline" onClick={close}>Keep browsing</Button>
-        <Button onClick={() => go(6, { template: planned.id })}>Add this trip <ArrowRight size={17} /></Button>
+        <Button onClick={() => go(6, formParams)}>Add this trip <ArrowRight size={17} /></Button>
       </div>}>
       <div className="planned-modal-intro">
         <img src={planned.image} alt={`${planned.destinations[0]} scenery`} />

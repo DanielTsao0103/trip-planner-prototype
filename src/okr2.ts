@@ -64,10 +64,11 @@ export function historyPoints(rows: HistoryRow[]): HistoryPoint[] {
     .map((r) => ({ ...r, percent: sharingProgress({ totalTrips: r.totalTrips, sharedTrips: r.sharedTrips }).percent }));
 }
 
-/** Change in percentage points from the first to the last recorded day, or null with fewer than two days. */
+/** Placeholder estimates never count as measured progress. */
 export function trendChange(points: HistoryPoint[]): number | null {
-  if (points.length < 2) return null;
-  return points[points.length - 1].percent - points[0].percent;
+  const recorded = points.filter(point => !point.estimate);
+  if (recorded.length < 2) return null;
+  return recorded[recorded.length - 1].percent - recorded[0].percent;
 }
 
 /** "2026-11-15" as "Nov 15" without time zone shifts. */

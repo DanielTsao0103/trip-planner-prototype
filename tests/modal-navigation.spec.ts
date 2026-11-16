@@ -42,10 +42,10 @@ test("prototype sections are directly reachable on desktop tablet and short phon
     const dialog = page.getByRole('dialog', { name: 'Sample trip tools', exact: true });
     await dialog.getByRole('button', { name: 'Screens', exact: true }).click();
     await expect(dialog.locator('.screen-index > button').first()).toBeInViewport({ ratio: 1 });
-    await expect(dialog.getByLabel('Demo date', { exact: true })).toBeHidden();
+    await expect(dialog.getByLabel('Sample date', { exact: true })).toBeHidden();
     await dialog.getByRole('button', { name: 'Date & time', exact: true }).click();
     await dialog.getByRole('button', { name: 'During', exact: true }).click();
-    await dialog.getByLabel('Demo time', { exact: true }).fill('09:30');
+    await dialog.getByLabel('Sample time', { exact: true }).fill('09:30');
     const apply = dialog.getByRole('button', { name: 'Apply & open Today', exact: true }).filter({ visible: true });
     await expect(apply).toBeInViewport({ ratio: 1 });
     await page.screenshot({ path: test.info().outputPath(`prototype-time-${width}.png`) });

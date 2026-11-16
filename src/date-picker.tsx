@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useId, useMemo, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { dateText } from "./domain";
 
@@ -100,8 +100,11 @@ export function DatePicker({
   const [view, setView] = useState({ y: Number(seed.slice(0, 4)), m: Number(seed.slice(5, 7)) - 1 });
 
   // Keep the visible text in step with the real value unless the person is typing.
-  useEffect(() => {
-    if (!focused && !typedError) setText(value ? dateText(value) : "");
+  useLayoutEffect(() => {
+    // Focus can move from Start to End before React commits the focus state.
+    // Do not replace the focused input and destroy its selected text in that gap.
+    if (!focused && document.activeElement !== input.current && !typedError)
+      setText(value ? dateText(value) : "");
   }, [value, focused, typedError]);
   // Jump the calendar to the chosen month when the value changes from outside.
   useEffect(() => {

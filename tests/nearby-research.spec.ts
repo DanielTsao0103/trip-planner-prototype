@@ -11,7 +11,7 @@ test("nearby entry points share a responsive context popup without fictional res
     await page.getByRole("button", { name: button, exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Nearby suggestions" });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText(/Sample trip: you can explore/)).toBeVisible();
+    await expect(dialog.getByText("Nearby research is available on account trips.", {exact:true})).toBeVisible();
     await expect(dialog.getByRole("button", { name: "Find nearby suggestions", exact: true })).toBeDisabled();
     await dialog.getByText("Planning details used", { exact: true }).click();
     await expect(dialog).toContainText("Dietary needs");
@@ -22,11 +22,12 @@ test("nearby entry points share a responsive context popup without fictional res
   }
 });
 
-async function account(page: Page, generation: (request: Record<string, unknown>) => { status?: number; json: unknown }, role: "Owner" | "Day Editor" = "Owner", anchorPlace = "") {
+async function account(page: Page, generation: (request: Record<string, unknown>) => { status?: number; json: unknown }, role: "Owner" | "Day Editor" = "Owner", anchorPlace = "", blockedFirstDay = false) {
   const owner = { id: "11111111-1111-4111-8111-111111111111", aud: "authenticated", role: "authenticated", email: "qa@example.com", user_metadata: { name: "QA Traveler" }, app_metadata: { provider: "email" } };
   const trip = seed().trips[0];
   trip.members = [{ id: owner.id, name: "QA Traveler", email: owner.email, role, status: "accepted", days: role === "Day Editor" ? ["2027-05-02"] : [], ...(role === "Day Editor" ? {accountId:owner.id} : {}) }];
   trip.start = "2027-05-01"; trip.end = "2027-05-03"; trip.events = anchorPlace ? [{ ...trip.events[0], id:"anchor", name:"Earlier planned stop", place:anchorPlace, date:trip.start, start:"09:00", end:"10:00", cost:0, attendees:[], image:"", notes:"" }] : []; trip.prefs = role === "Day Editor" ? {[owner.id]:blankPrefs()} : {};
+  if (blockedFirstDay) trip.events = [{...seed().trips[0].events[0], date:trip.start, start:"09:00",end:"21:00"}];
   const row = { tripID: "22222222-2222-4222-8222-222222222222", owner_id: owner.id, created_by: owner.id, trip_name: "Research trip", destination: "Seattle", destinations: ["Seattle"], start_date: trip.start, end_date: trip.end, timezone: "America/Los_Angeles", revision: 1, content_version: 1, content: trip };
   await page.route("https://*.supabase.co/**", async route => {
     const url = new URL(route.request().url());
@@ -122,7 +123,7 @@ test("city guide fallback displays a photo and source exploration without schedu
   await page.screenshot({ path: test.info().outputPath("city-guide.png") });
 });
 
-test("a sourced Yelp business page opens directly and supplemental availability is explained", async ({ page }) => {
+test("a sourced Yelp business page opens directly without implementation diagnostics", async ({ page }) => {
   const source = "https://www.yelp.com/biz/fixture-venue-seattle";
   await account(page, () => ({ json: { results: [{ name: "Fixture venue", address: "Address needs confirmation from the venue", reason: "Fixture", durationMinutes: 60, pricePerPersonCents: null, currency: null, facts: [{ topic: "Menu", detail: "Fixture Yelp excerpt", sourceUrl: source }], concerns: ["Confirm with venue"], conflicts: [], status: "review", proposedTime: null }], diagnostics: { sourcesFound: 2, sourcesUsed: 2, candidatesReturned: 1, rejected: {}, yelpStatus: "found", yelpSourcesUsed: 1 } } }));
   const dialog = page.getByRole("dialog", { name: "Nearby suggestions" });
@@ -130,9 +131,7 @@ test("a sourced Yelp business page opens directly and supplemental availability 
   await dialog.getByText("More to consider", { exact: true }).click();
   await expect(dialog.getByRole("link", { name: "View on Yelp", exact: true })).toHaveAttribute("href", source);
   await expect(dialog.getByRole("link", { name: source, exact: true })).toHaveAttribute("href", source);
-  await dialog.getByText("Search details", { exact: true }).click();
-  await expect(dialog).toContainText("Public Yelp results were found");
-  await expect(dialog).toContainText("1 Yelp excerpt used");
+  await expect(dialog.getByText("Search details", {exact:true})).toHaveCount(0);
   expect(await dialog.evaluate(e => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
 });
 
@@ -144,14 +143,13 @@ test("daily quota errors are visible and do not automatically retry", async ({ p
   await expect(dialog.getByRole("alert")).toContainText("Daily user limit reached");
   expect(calls).toBe(1);
 });
-test("empty research shows the specific cause and rejection counts", async ({ page }) => {
+test("empty research shows a specific cause and recovery without implementation diagnostics", async ({ page }) => {
   await account(page, () => ({ json: { results: [], emptyReason: "evidence", diagnostics: { sourcesFound: 4, sourcesUsed: 3, candidatesReturned: 2, rejected: { evidence: 2 } } } }));
   const dialog = page.getByRole("dialog", { name: "Nearby suggestions" });
   await dialog.getByRole("button", { name: "Find nearby suggestions", exact: true }).click();
   await expect(dialog.getByRole("heading", { name: "Not enough supporting evidence", exact: true })).toBeVisible();
   await expect(dialog).toContainText("more precise event address");
-  await dialog.getByText("Search details", { exact: true }).click();
-  await expect(dialog).toContainText("4 sources found"); await expect(dialog).toContainText("2 removed: insufficient source evidence");
+  await expect(dialog.getByText("Search details", {exact:true})).toHaveCount(0);
   await expect(dialog).not.toContainText("No sourced options passed");
   await dialog.getByLabel("Find", { exact: true }).selectOption("activity");
   await expect(dialog.getByText("Search details", { exact: true })).toHaveCount(0);
@@ -313,4 +311,37 @@ for (const action of ['close','change day']) for (const operation of ['review','
   await expect(page).toHaveURL(/#\/9$/);
   if(action==='change day') await expect(dialog.getByLabel('Trip day',{exact:true})).toHaveValue('2027-05-02');
   expect(saves).toBe(0);
+});
+
+
+test("account suggestions prioritize usable research and saved places", async ({page}) => {
+  await account(page, () => ({json:{results:[]}}));
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("heading", {name:"Find your next stop",exact:true})).toBeVisible();
+  await expect(page.getByRole("heading", {name:"Sample inspiration",exact:true})).toHaveCount(0);
+  await page.getByRole("button", {name:"Explore nearby ideas",exact:true}).click();
+  await expect(page.getByRole("dialog", {name:"Nearby suggestions"})).toBeVisible();
+});
+
+
+test("account event entry excludes simulated confirmation extraction", async ({page}) => {
+  await account(page, () => ({json:{results:[]}}));
+  await page.keyboard.press("Escape");
+  await page.goto("./#/7?date=2027-05-01");
+  await expect(page.getByLabel("Event name", {exact:true})).toBeVisible();
+  await expect(page.getByRole("button", {name:"Use a confirmation",exact:true})).toHaveCount(0);
+  await expect(page.getByLabel("Upload confirmation image", {exact:true})).toHaveCount(0);
+  await page.getByText("Event photo", {exact:false}).first().click();
+  await expect(page.getByRole("button", {name:"Find with Unsplash",exact:true})).toBeVisible();
+});
+
+
+test("Nearby offers the next day with a gap without changing the selected day automatically", async ({page}) => {
+  await account(page, () => ({json:{results:[]}}), "Owner", "", true);
+  const dialog = page.getByRole("dialog", {name:"Nearby suggestions"});
+  await expect(dialog.getByLabel("Trip day", {exact:true})).toHaveValue("2027-05-01");
+  await expect(dialog.getByRole("button", {name:"Find nearby suggestions",exact:true})).toBeDisabled();
+  await dialog.getByRole("button", {name:"Try May 2",exact:true}).click();
+  await expect(dialog.getByLabel("Trip day", {exact:true})).toHaveValue("2027-05-02");
+  await expect(dialog.getByRole("button", {name:"Find nearby suggestions",exact:true})).toBeEnabled();
 });
