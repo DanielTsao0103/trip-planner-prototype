@@ -115,3 +115,7 @@ Run `supabase/migrations/20261113220000_forwarded_booking_trip_link.sql` once (S
 
 `20261115120000_trip_feedback_and_budget_cadence.sql` was applied to the existing team project through the SQL Editor after read-only checks confirmed the deployed trip-access and atomic-save insertion points. It adds private feedback and budget-cadence tables, recording functions, and aggregate RPCs. Existing trip and expense rows were not rewritten. The Supabase CLI migration-history baseline remains unset; do not use `supabase db push` to replay the historical SQL files. Deploy the `nearby-suggestions` Edge Function separately after the CLI confirms the production target.
 
+## Whole-trip survey (November 16, 2026)
+
+`20261116000000_trip_experience_feedback.sql` adds a separate private table and RPCs for the completed-trip survey. The pending-survey RPC only returns trips whose end date has passed in that trip’s timezone. Existing trip rows and recommendation-specific feedback remain unchanged. This reviewed SQL was applied directly to the linked production project with `supabase db query --remote --file ...`; the CLI migration-history baseline is still unset, so continue avoiding `supabase db push` until a deliberate baseline is established. The nearby suggestions function was redeployed to consume the new aggregate trip-satisfaction signal.
+

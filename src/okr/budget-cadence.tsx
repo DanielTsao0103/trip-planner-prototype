@@ -2,14 +2,10 @@ import { useEffect, useState } from "react";
 import { RefreshCw, Target } from "lucide-react";
 import { getSupabase } from "../supabase";
 import { useApp } from "../state";
-import { Button, PageHead } from "../ui";
-import { AdminGate } from "../admin-gate";
+import { Button } from "../ui";
 
 type Metrics = { windowStart: string; windowEnd: string; windowDays: number; observedDays: number; eligibleUsers: number; consistentUsers: number; percent: number | null; targetPercent: number; definition: string };
-export function BudgetCadenceOkr() {
-  return <AdminGate><Dashboard /></AdminGate>;
-}
-function Dashboard() {
+export function BudgetCadenceMetrics() {
   const { accountInfo } = useApp();
   const [refresh, setRefresh] = useState(0), [data, setData] = useState<Metrics | null>(null), [error, setError] = useState(""), [busy, setBusy] = useState(true);
   useEffect(() => {
@@ -27,18 +23,18 @@ function Dashboard() {
     return () => controller.abort();
   }, [accountInfo.cloud, refresh]);
   const percent = data?.percent;
-  return <div className="account-page admin-page budget-cadence-page">
-    <PageHead eyebrow="Team OKR" title="Budget cadence" description="Measure whether travelers keep trip budgets current during active trips." action={<Button variant="outline" disabled={busy} onClick={() => setRefresh(value => value + 1)}><RefreshCw size={16}/>{busy ? "Loading…" : "Refresh"}</Button>} />
-    {error && <section className="card" role="alert"><h2>Dashboard unavailable</h2><p>{error}</p><Button onClick={() => setRefresh(value => value + 1)}>Retry</Button></section>}
+  return <section className="card account-section budget-cadence-page" aria-labelledby="budget-cadence-title">
+    <div className="section-heading"><div><span className="eyebrow">Team key result</span><h2 id="budget-cadence-title">Budget cadence</h2><p>Measure whether travelers keep trip budgets current during active trips.</p></div><Button variant="outline" disabled={busy} onClick={() => setRefresh(value => value + 1)}><RefreshCw size={16}/>{busy ? "Loading…" : "Refresh"}</Button></div>
+    {error && <div role="alert"><h3>Dashboard unavailable</h3><p>{error}</p><Button onClick={() => setRefresh(value => value + 1)}>Retry</Button></div>}
     {busy && !data && !error && <p role="status">Loading budget cadence…</p>}
     {data && <>
-      <section className="card account-section"><span className="eyebrow"><Target size={15}/> Key result · 14 UTC days</span>
-        <h2>At least one budget update in every rolling two-day window of an active trip</h2>
+      <div><span className="eyebrow"><Target size={15}/> Key result · 14 UTC days</span>
+        <h3>At least one budget update in every rolling two-day window of an active trip</h3>
         <p className="budget-cadence-value">{percent === null ? "—" : `${percent}%`}</p>
         <p>{data.consistentUsers} of {data.eligibleUsers} eligible users met the cadence{percent !== null ? ` · target ${data.targetPercent}%` : ""}.</p>
         <p className="muted">{data.observedDays} observed days · {data.windowStart} to {data.windowEnd} (UTC)</p>
         <details><summary>How this is counted</summary><p>{data.definition} A qualifying update is a real change to the trip budget, an individual budget, or an expense saved through the trip editor. This is an access and budget-change proxy; it does not identify users in the dashboard.</p></details>
-      </section>
+      </div>
     </>}
-  </div>;
+  </section>;
 }

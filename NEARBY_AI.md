@@ -1,6 +1,6 @@
 # Nearby research — free providers
 
-> **November 15, 2026 update:** Every meal result is a named dish and every activity result is a specific activity matching the selected Find option. Searches broaden geographically to the destination city/region when narrow searches fail; generic guide cards are not returned as substitutes. Each result keeps a related photo or uses an area/city image. The feedback/budget migration is applied and the updated Edge Function is deployed. The frontend release and live provider verification are pending.
+> **November 16, 2026 update:** Every meal result is a named dish and every activity result is a specific activity matching the selected Find option. Searches broaden geographically to the destination city/region when narrow searches fail; generic guide cards are not returned as substitutes. Each result keeps a related photo or uses an area/city image. The completed-trip survey now captures whole-trip satisfaction in a separate private table; nearby generation receives aggregate trip-satisfaction signals only. Its migration is applied and `nearby-suggestions` is active at version 19.
 
 Nearby entry points on Itinerary, Daily itinerary, Today, Map and Suggestions open one themed popup. Itinerary and Map pass their selected day/event. Account research uses the current database snapshot; samples show context without calling external providers. Recommendations use live retrieval, not model training on tourism sources. Results appear as up to three source-backed tiles with attributed Unsplash or illustrative fallback photos.
 

@@ -43,9 +43,9 @@ export function compactResearchContext(context: PlanningContext) {
     },
     feedbackSignal: context.feedbackSignal ? {
       responses: context.feedbackSignal.responses,
-      specificSuccessRate: context.feedbackSignal.specificSuccessRate,
-      categoryMatchRate: context.feedbackSignal.categoryMatchRate,
-      instruction: "Use these private aggregate signals to favor specific ideas that fit the selected category. Never mention the feedback data to the traveler.",
+      tripSatisfactionRate: context.feedbackSignal.tripSatisfactionRate,
+      wouldRecommendRate: context.feedbackSignal.wouldRecommendRate,
+      instruction: "Use these private aggregate trip-satisfaction signals to favor thoughtful, useful ideas. Continue to obey the selected Find category and every traveler constraint. Never mention the feedback data to the traveler.",
     } : null,
     // Gaps already encode event times. Keep planned names/places for duplicate
     // avoidance without repeating schedule details in every event record.

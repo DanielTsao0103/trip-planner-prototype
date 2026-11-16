@@ -38,7 +38,7 @@ async function backend(page: Page) {
       return route.fulfill({ json: [] });
     if (path === "/rest/v1/rpc/trip_companion_pictures")
       return route.fulfill({ json: [] });
-    if (path === "/rest/v1/rpc/pending_trip_recommendation_feedback")
+    if (path === "/rest/v1/rpc/pending_trip_experience_feedback")
       return route.fulfill({ json: [] });
     if (path === "/rest/v1/rpc/set_google_picture")
       return route.fulfill({ status: 204 });
@@ -128,7 +128,7 @@ async function backend(page: Page) {
       return route.fulfill({ json: row });
     }
     if (path.endsWith("/record_trip_plan_access")) return route.fulfill({ json: true });
-    if (path.endsWith("/pending_trip_recommendation_feedback")) return route.fulfill({ json: [] });
+    if (path.endsWith("/pending_trip_experience_feedback")) return route.fulfill({ json: [] });
     throw new Error(`Unexpected API ${path}`);
   });
   await page.goto("./");

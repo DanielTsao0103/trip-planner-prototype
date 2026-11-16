@@ -28,7 +28,6 @@ import { DrewOkrTracker } from "./okr/drew-tracker";
 import { AccountPage } from "./account-page";
 import { PreplannedTripsPage } from "./preplanned-trips-page";
 import { TripFeedback } from "./trip-feedback";
-import { BudgetCadenceOkr } from "./okr/budget-cadence";
 import { Shell, Empty, Button } from "./ui";
 import { PAGES } from "./data";
 import { member, type Trip } from "./domain";
@@ -123,7 +122,8 @@ export function PrototypeApp() {
       24: <DrewOkrTracker />,
       25: <AdminAccessPage />,
       26: <PreplannedTripsPage />,
-      27: <BudgetCadenceOkr />,
+      // Preserve old bookmarks while keeping the cadence metric in Seth's tracker.
+      27: <SethOkrTracker />,
     };
     content = (
       <Shell>

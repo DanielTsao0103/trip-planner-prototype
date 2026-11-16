@@ -8,7 +8,7 @@ export type TripSnapshot = { tripID: string; revision: number; start_date: strin
 export type ResearchGateway = {
   actor(): Promise<string | null>; trip(id: string): Promise<TripSnapshot | null>;
   reserve(actor: string): Promise<string>; finish(id: string, outcome: "complete" | "failed"): Promise<void>;
-  feedbackSignal?(): Promise<{ responses: number; specificSuccessRate: number; categoryMatchRate: number } | null>;
+  feedbackSignal?(): Promise<{ responses: number; tripSatisfactionRate: number; wouldRecommendRate: number } | null>;
 };
 export function createNearbyHandler(config: { enabled: boolean; groq?: string; tavily?: string }, gateway: (authorization: string) => ResearchGateway, fetcher: typeof fetch = fetch) {
   return async (request: Request): Promise<Response> => {

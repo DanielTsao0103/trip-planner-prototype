@@ -16,7 +16,7 @@ async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuar
     const url = new URL(request.url());
     const path = url.pathname;
     if (path === "/rest/v1/rpc/okr4_trip_budget_stats") return route.fulfill({ json: { eligible_trips: 0, within_budget_trips: 0, trips_without_expenses: 0 } });
-    if (path === "/rest/v1/rpc/pending_trip_recommendation_feedback") return route.fulfill({ json: [] });
+    if (path === "/rest/v1/rpc/pending_trip_experience_feedback") return route.fulfill({ json: [] });
     if (path === "/rest/v1/rpc/get_budget_cadence_metrics") return route.fulfill({ json: {
       windowStart: "2026-11-01", windowEnd: "2026-11-14", windowDays: 14,
       observedDays: 14, eligibleUsers: 0, consistentUsers: 0, percent: null,
@@ -65,7 +65,7 @@ async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuar
       return route.fulfill({ json: [] });
     }
     if (new URL(route.request().url()).pathname.endsWith("/record_trip_plan_access")) return route.fulfill({ json: null });
-    if (path === "/rest/v1/rpc/pending_trip_recommendation_feedback") return route.fulfill({ json: [] });
+    if (path === "/rest/v1/rpc/pending_trip_experience_feedback") return route.fulfill({ json: [] });
     throw Error(`Unexpected mocked request: ${request.method()} ${path}`);
   });
   return log;
@@ -124,14 +124,15 @@ test("an approved admin sees the Admin link beside Style and manages the access 
   await page.screenshot({ path: test.info().outputPath("admin-page.png"), fullPage: true });
 });
 
-test("the Admin page shows tracker pages and the budget cadence team measurement", async ({ page }) => {
+test("budget cadence lives in Seth's OKR tracker without a separate team section", async ({ page }) => {
   await mockSupabase(page, { admin: true });
   await signIn(page);
   await page.locator(".menu-links").getByRole("button", { name: "Admin", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Admin", exact: true, level: 1 })).toBeVisible();
   const owners = ["Daniel", "Ivy", "Seth", "Drew"];
   const menu = page.locator(".admin-page .menu-links");
-  await expect(menu.locator(".tracker-availability")).toHaveText(["Available · account data", "Available · account data", "Not built yet", "Available · account data", "85% target · account data"]);
+  await expect(menu.locator(".tracker-availability")).toHaveText(Array(4).fill("Available · account data"));
+  await expect(page.getByRole("heading", { name: "Team measurement", exact: true })).toHaveCount(0);
   // The access list is a secondary page now, not the main content here.
   await expect(page.getByLabel("Add an email")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Manage admin access" })).toBeVisible();
@@ -139,6 +140,7 @@ test("the Admin page shows tracker pages and the budget cadence team measurement
     await menu.getByRole("button", { name: `${owner}’s OKR tracker`, exact: true }).click();
     await expect(page.getByRole("heading", { name: `${owner}’s OKR tracker`, exact: true, level: 1 })).toBeVisible();
     if (owner === "Daniel") await expect(page.getByText("Dashboard unavailable")).toBeVisible();
+    else if (owner === "Seth") await expect(page.getByRole("heading", { name: "Budget cadence", exact: true })).toBeVisible();
     else if (owner === "Drew") await expect(page.getByRole("heading", { name: "Help people stay within their trip budgets" })).toBeVisible();
     else if (owner !== "Ivy") await expect(page.getByText("Nothing here yet.")).toBeVisible();
     const trail = page.getByRole("navigation", { name: "Breadcrumb" });
@@ -147,8 +149,6 @@ test("the Admin page shows tracker pages and the budget cadence team measurement
     await trail.getByRole("link", { name: "Admin", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Admin", exact: true, level: 1 })).toBeVisible();
   }
-  await menu.getByRole("button", { name: /Budget cadence/ }).click();
-  await expect(page.getByRole("heading", { name: "Budget cadence", exact: true, level: 1 })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("admin-menu.png"), fullPage: true });
 });
 

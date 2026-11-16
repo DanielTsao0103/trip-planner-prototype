@@ -551,7 +551,7 @@ function Breadcrumbs() {
     const tracker = OKR_TRACKERS.find((entry) => entry.page === page);
     if (tracker) add(okrLabel(tracker.owner), page);
     else if (page === ADMIN_ACCESS_PAGE) add("Admin access", page);
-    else if (page === 27) add("Budget cadence OKR", page);
+    else if (page === 27) add(okrLabel("Seth"), 23);
   } else if (page === 2 || page === 3) {
     add("Connected accounts", 2);
     if (page === 3) add(route.params.get("service") || "Connect provider", 3);

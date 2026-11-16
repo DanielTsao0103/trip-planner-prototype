@@ -26,6 +26,19 @@
 /* Give long access-list emails the same working width as other focused forms. */
 :root .account-page.admin-page { max-width: 900px; }
 
+:root .budget-cadence-page { display: grid; gap: 14px; }
+:root .budget-cadence-page .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+:root .budget-cadence-page .section-heading h2,
+:root .budget-cadence-page .section-heading p,
+:root .budget-cadence-page h3 { margin: 4px 0 0; }
+:root .budget-cadence-page .section-heading p,
+:root .budget-cadence-page .muted { color: var(--muted); }
+:root .budget-cadence-page .section-heading > .btn { flex-shrink: 0; }
+:root .budget-cadence-page .budget-cadence-value { margin: 8px 0; font-size: 48px; line-height: 1; font-weight: 700; }
+@media (max-width: 520px) {
+  :root .budget-cadence-page .section-heading { flex-wrap: wrap; }
+}
+
 /* OKR #2 live tracker */
 :root .okr-live { display: grid; gap: 14px; }
 :root .okr-live h2, :root .okr-live p { margin: 0; }

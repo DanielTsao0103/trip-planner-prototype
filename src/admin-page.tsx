@@ -17,15 +17,11 @@ export function AdminPage() {
           <div className="menu-links">
             {OKR_TRACKERS.map(({ owner, page }) => (
               <button key={page} aria-label={okrLabel(owner)} onClick={() => go(page)}>
-                <span>{okrLabel(owner)}<small className="tracker-availability">{owner === "Daniel" || owner === "Ivy" || owner === "Drew" ? "Available · account data" : "Not built yet"}</small></span>
+                <span>{okrLabel(owner)}<small className="tracker-availability">Available · account data</small></span>
                 <ArrowRight size={16} />
               </button>
             ))}
           </div>
-        </section>
-        <section className="card account-section" aria-labelledby="admin-budget-cadence">
-          <h2 id="admin-budget-cadence">Team measurement</h2>
-          <div className="menu-links"><button onClick={() => go(27)}><span>Budget cadence<small className="tracker-availability">85% target · account data</small></span><ArrowRight size={16} /></button></div>
         </section>
         <div>
           <Button variant="outline" onClick={() => go(ADMIN_ACCESS_PAGE)}>

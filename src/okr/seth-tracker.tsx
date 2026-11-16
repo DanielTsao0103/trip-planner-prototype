@@ -1,6 +1,7 @@
 import { OkrTrackerShell } from "./okr-shell";
+import { BudgetCadenceMetrics } from "./budget-cadence";
 
 /** Seth's OKR tracker. Build it here and pass it to the shell as children; no other file needs to change. */
 export function SethOkrTracker() {
-  return <OkrTrackerShell owner="Seth" />;
+  return <OkrTrackerShell owner="Seth"><BudgetCadenceMetrics /></OkrTrackerShell>;
 }

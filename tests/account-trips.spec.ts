@@ -53,7 +53,7 @@ test("account saves recover from lost responses without duplicate trips, reload,
       return route.fulfill({ json: [] });
     if (url.pathname === "/rest/v1/rpc/trip_companion_pictures")
       return route.fulfill({ json: [] });
-    if (url.pathname === "/rest/v1/rpc/pending_trip_recommendation_feedback")
+    if (url.pathname === "/rest/v1/rpc/pending_trip_experience_feedback")
       return route.fulfill({ json: [] });
     if (url.pathname === "/rest/v1/rpc/set_google_picture")
       return route.fulfill({ status: 204 });
@@ -134,7 +134,7 @@ test("account saves recover from lost responses without duplicate trips, reload,
       });
     }
     if (new URL(route.request().url()).pathname.endsWith("/record_trip_plan_access")) return route.fulfill({ json: null });
-    if (new URL(route.request().url()).pathname.endsWith("/pending_trip_recommendation_feedback")) return route.fulfill({ json: [] });
+    if (new URL(route.request().url()).pathname.endsWith("/pending_trip_experience_feedback")) return route.fulfill({ json: [] });
     throw new Error(`Unexpected request ${request.method()} ${url.pathname}`);
   });
   await login(page);
@@ -252,7 +252,7 @@ test("failed account load offers retry and never pretends the account is empty",
       return route.fulfill({ json: [] });
     if (url.pathname === "/rest/v1/rpc/trip_companion_pictures")
       return route.fulfill({ json: [] });
-    if (url.pathname === "/rest/v1/rpc/pending_trip_recommendation_feedback")
+    if (url.pathname === "/rest/v1/rpc/pending_trip_experience_feedback")
       return route.fulfill({ json: [] });
     if (url.pathname === "/rest/v1/rpc/set_google_picture")
       return route.fulfill({ status: 204 });
@@ -265,7 +265,7 @@ test("failed account load offers retry and never pretends the account is empty",
       return route.fulfill({ json: [] });
     }
     if (new URL(route.request().url()).pathname.endsWith("/record_trip_plan_access")) return route.fulfill({ json: null });
-    if (new URL(route.request().url()).pathname.endsWith("/pending_trip_recommendation_feedback")) return route.fulfill({ json: [] });
+    if (new URL(route.request().url()).pathname.endsWith("/pending_trip_experience_feedback")) return route.fulfill({ json: [] });
     throw new Error(`Unexpected request ${url.pathname}`);
   });
   await login(page);

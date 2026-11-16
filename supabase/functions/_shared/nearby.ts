@@ -9,7 +9,7 @@ export type PlanningTrip = {
   expenses: { amount: number; shares: Record<string, number> }[];
   budget: number | null; budgetMode: string; individual: Record<string, number>;
 };
-export type PlanningContext = ReturnType<typeof planningContext> & { feedbackSignal?: { responses: number; specificSuccessRate: number; categoryMatchRate: number } | null };
+export type PlanningContext = ReturnType<typeof planningContext> & { feedbackSignal?: { responses: number; tripSatisfactionRate: number; wouldRecommendRate: number } | null };
 export const minutes = (time: string) => { const [h, m] = time.split(":").map(Number); return h * 60 + m; };
 const clock = (time: number) => `${String(Math.floor(time / 60)).padStart(2, "0")}:${String(time % 60).padStart(2, "0")}`;
 export function planningContext(trip: PlanningTrip, actor: string, date: string, intent: Intent, anchorId?: string, now = new Date()) {

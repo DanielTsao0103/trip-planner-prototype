@@ -73,7 +73,7 @@ export const PAGES: Record<number, string> = {
   24: "Drew’s OKR tracker",
   25: "Admin access",
   26: "Pre-planned trips",
-  27: "Budget cadence OKR",
+  27: "Seth’s OKR tracker",
 };
 export const SERVICES = ["Instagram", "Facebook", "TikTok", "Gmail"];
 export const PERMISSIONS = (service: string) =>
