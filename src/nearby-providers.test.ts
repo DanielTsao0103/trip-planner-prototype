@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { planningContext, type PlanningTrip } from "../supabase/functions/_shared/nearby.ts";
-import { researchWithFreeProviders, researchQueries, supportedFacts, compactResearchContext, ResearchError } from "../supabase/functions/nearby-suggestions/providers.ts";
+import { researchWithFreeProviders, researchQueries, supportedFacts, compactResearchContext, assertContextFits, ResearchError } from "../supabase/functions/nearby-suggestions/providers.ts";
 import { createNearbyHandler, type ResearchGateway } from "../supabase/functions/nearby-suggestions/handler.ts";
 
 const trip: PlanningTrip = { id: "11111111-1111-4111-8111-111111111111", start: "2027-06-01", end: "2027-06-03", zone: "America/Los_Angeles", destinations: ["Seattle"], members: [{ id: "owner", role: "Owner", status: "accepted" }], prefs: {}, events: [], expenses: [], budget: 10000, budgetMode: "group", individual: {} };
@@ -9,6 +9,7 @@ const context = () => planningContext(trip, "owner", trip.start, "lunch");
 const source = { url: "https://venue.example/menu", title: "Official venue menu", content: "Our lunch menu includes vegetarian dishes. Lunch is served from noon." };
 const candidate = { name: "Venue", address: "Seattle", reason: "Lunch option", durationMinutes: 60, pricePerPersonCents: null, currency: null, concerns: [], conflicts: [], facts: [{ topic: "Menu", detail: "Vegetarian dishes on the lunch menu", sourceUrl: source.url, quote: "Our lunch menu includes vegetarian dishes." }] };
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+const bytesForTest = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
 
 test("free provider flow uses three basic searches and bounded structured Groq passes", async () => {
   const calls: { url: string; body: any }[] = [];
@@ -76,8 +77,22 @@ test("identical group answers compact without losing their vote count or request
   const c = context();
   const answers = { diet: ["Vegan"], access: [], walk: 500, interests: ["Art"], food: "Local", spending: "Moderate", dining: "Casual", atmosphere: "Quiet", destinations: "", tickets: "", notes: "", requester: false };
   c.preferences = Array.from({ length: 20 }, (_, i) => ({ ...answers, requester: i === 0 }));
-  const groups = compactResearchContext(c).preferences;
+  const groups = compactResearchContext(c).constraints.groupPreferences;
   assert.equal(groups.length, 2); assert.equal(groups.reduce((sum, g) => sum + g.count, 0), 20);
+});
+test("crowded day and group hard constraints fit in compact context", () => {
+  const t = structuredClone(trip);
+  t.events = Array.from({ length: 24 }, (_, i) => ({ id: `event-${i}`, name: `Museum visit ${i}`, place: `Venue ${i}, Seattle`, date: t.start, start: `${String(8 + Math.floor(i / 4)).padStart(2, "0")}:${i % 2 ? "00" : "30"}`, end: `${String(8 + Math.floor(i / 4)).padStart(2, "0")}:${i % 2 ? "30" : "59"}`, cost: 0, attendees: ["owner"] }));
+  t.prefs.owner = { diet: ["Peanut avoidance"], access: ["Step-free entrance"], walk: 250, interests: ["Art"], food: "Local", spending: "Moderate", dining: "Casual", atmosphere: "Quiet", destinations: "", tickets: "Call ahead for wheelchair access", notes: "Severe peanut allergy; avoid any venue without a clear allergen policy." };
+  const c = planningContext(t, "owner", t.start, "activity");
+  const payload = assertContextFits(c);
+  const compact = compactResearchContext(c);
+  assert.ok(bytesForTest(payload) < 8000);
+  assert.match(JSON.stringify(compact), /Peanut avoidance/);
+  assert.match(JSON.stringify(compact), /Severe peanut allergy/);
+  assert.match(JSON.stringify(compact), /Call ahead for wheelchair access/);
+  assert.equal(compact.plannedPlaces.length, 24);
+  assert.deepEqual(compact.gaps, c.gaps);
 });
 test("both real search requests retain the venue and its trip destination", async () => {
   const t = structuredClone(trip); t.events = [{ id: "m", name: "Meet", place: "McDonald's", date: t.start, start: "10:00", end: "11:00", cost: 0, attendees: ["owner"] }];
@@ -116,6 +131,11 @@ test("handler blocks unauthorized, inaccessible, stale and disabled requests bef
   assert.equal((await createNearbyHandler(enabled, () => ({ ...gateway, trip: async () => null }), fetcher)(request())).status, 403);
   assert.equal((await createNearbyHandler(enabled, () => gateway, fetcher)(request(1))).status, 409);
   assert.equal((await createNearbyHandler({ enabled: false }, () => gateway, fetcher)(request())).status, 503);
+  assert.equal(reservations, 0); assert.equal(providerCalls, 0);
+  const oversizedTrip = structuredClone(row);
+  oversizedTrip.content.prefs.owner = { diet: [], access: [], walk: 500, interests: [], food: "", spending: "", dining: "", atmosphere: "", destinations: "", tickets: "", notes: "hard constraint ".repeat(3000) };
+  const oversized = await createNearbyHandler(enabled, () => ({ ...gateway, trip: async () => oversizedTrip }), fetcher)(request());
+  assert.equal(oversized.status, 422);
   assert.equal(reservations, 0); assert.equal(providerCalls, 0);
 });
 test("handler enforces server quota before provider calls and records failed attempts", async () => {
