@@ -147,7 +147,14 @@ function TrendChart({ points }: { points: HistoryPoint[] }) {
   return (
     <div className="okr-trend" data-testid="okr2-trend">
       <h3>Last 14 days</h3>
-      <p className="okr-note">{summary} History is recorded from the day this tracker went live, so it fills in over two weeks.</p>
+      <p className="okr-note">{summary}</p>
+      {points.some((p) => p.estimate) ? (
+        <p className="okr-note" data-testid="okr2-estimate-note">
+          Hollow points are estimated placeholders for the days before tracking started. Filled points are real daily records.
+        </p>
+      ) : (
+        <p className="okr-note">History is recorded from the day this tracker went live, so it fills in over two weeks.</p>
+      )}
       {points.length > 0 && (
         <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Share of trips with more than one account, ${points.length} days. ${summary}`}>
           {[0, 25, 50, 75, 100].map((t) => (
@@ -161,8 +168,8 @@ function TrendChart({ points }: { points: HistoryPoint[] }) {
           {points.map((p, i) => (
             <g key={p.day}>
               <circle
-                cx={x(i)} cy={y(p.percent)} r={active === i ? 5 : 3.5} className="okr-dot"
-                tabIndex={0} role="img" aria-label={`${dayLabel(p.day)}: ${formatPercent(p.percent)}, ${p.sharedTrips} of ${p.totalTrips} trips`}
+                cx={x(i)} cy={y(p.percent)} r={active === i ? 5 : 3.5} className={p.estimate ? "okr-dot okr-dot-estimate" : "okr-dot"}
+                tabIndex={0} role="img" aria-label={`${dayLabel(p.day)}: ${formatPercent(p.percent)}, ${p.sharedTrips} of ${p.totalTrips} trips${p.estimate ? ", estimated" : ""}`}
                 onMouseEnter={() => setActive(i)} onMouseLeave={() => setActive(null)} onFocus={() => setActive(i)} onBlur={() => setActive(null)}
               />
               <circle cx={x(i)} cy={y(p.percent)} r={14} className="okr-hit" onMouseEnter={() => setActive(i)} onMouseLeave={() => setActive(null)} />
@@ -175,16 +182,16 @@ function TrendChart({ points }: { points: HistoryPoint[] }) {
       )}
       {shown && (
         <p className="okr-readout" aria-live="polite" data-testid="okr2-readout">
-          {dayLabel(shown.day)}: {formatPercent(shown.percent)} ({shown.sharedTrips} of {shown.totalTrips} trips)
+          {dayLabel(shown.day)}: {formatPercent(shown.percent)} ({shown.sharedTrips} of {shown.totalTrips} trips){shown.estimate ? ", estimated" : ""}
         </p>
       )}
       <details>
         <summary>Show as a table</summary>
         <table className="okr-table">
-          <thead><tr><th>Day</th><th>Shared trips</th><th>All trips</th><th>Share</th></tr></thead>
+          <thead><tr><th>Day</th><th>Shared trips</th><th>All trips</th><th>Share</th><th>Source</th></tr></thead>
           <tbody>
             {points.map((p) => (
-              <tr key={p.day}><td>{dayLabel(p.day)}</td><td>{p.sharedTrips}</td><td>{p.totalTrips}</td><td>{formatPercent(p.percent)}</td></tr>
+              <tr key={p.day}><td>{dayLabel(p.day)}</td><td>{p.sharedTrips}</td><td>{p.totalTrips}</td><td>{formatPercent(p.percent)}</td><td>{p.estimate ? "Estimated" : "Recorded"}</td></tr>
             ))}
           </tbody>
         </table>

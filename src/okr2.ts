@@ -43,17 +43,18 @@ export async function fetchSharingStats(): Promise<SharingStats> {
   return { totalTrips: Number(row?.total_trips ?? 0), sharedTrips: Number(row?.shared_trips ?? 0) };
 }
 
-export type HistoryRow = { day: string; totalTrips: number; sharedTrips: number };
+export type HistoryRow = { day: string; totalTrips: number; sharedTrips: number; estimate: boolean };
 export type HistoryPoint = HistoryRow & { percent: number };
 
 /** Admin only. Last 14 days that have a record, oldest first. */
 export async function fetchSharingHistory(): Promise<HistoryRow[]> {
   const { data, error } = await getSupabase().rpc("okr2_history");
   if (error) throw new Error(error.message);
-  return (Array.isArray(data) ? data : []).map((r: { day: string; total_trips: number; shared_trips: number }) => ({
+  return (Array.isArray(data) ? data : []).map((r: { day: string; total_trips: number; shared_trips: number; is_estimate?: boolean }) => ({
     day: String(r.day),
     totalTrips: Number(r.total_trips),
     sharedTrips: Number(r.shared_trips),
+    estimate: r.is_estimate === true,
   }));
 }
 

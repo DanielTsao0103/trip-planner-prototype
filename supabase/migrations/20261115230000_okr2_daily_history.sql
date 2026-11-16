@@ -8,6 +8,7 @@ create table private.okr2_daily (
   day date primary key,
   total_trips integer not null check (total_trips >= 0),
   shared_trips integer not null check (shared_trips >= 0 and shared_trips <= total_trips),
+  is_estimate boolean not null default false,
   recorded_at timestamptz not null default now()
 );
 
@@ -34,11 +35,11 @@ language sql volatile security definer set search_path='' as $$
   select (now() at time zone 'America/Denver')::date, c.total_trips, c.shared_trips
   from private.okr2_counts() c
   on conflict (day) do update
-    set total_trips = excluded.total_trips, shared_trips = excluded.shared_trips, recorded_at = now()
+    set total_trips = excluded.total_trips, shared_trips = excluded.shared_trips, is_estimate = false, recorded_at = now()
 $$;
 
 -- Last 14 days (Mountain time) that have a record, oldest first. Refreshes today's row first.
-create function private.okr2_history() returns table (day date, total_trips integer, shared_trips integer)
+create function private.okr2_history() returns table (day date, total_trips integer, shared_trips integer, is_estimate boolean)
 language plpgsql volatile security definer set search_path='' as $$
 begin
   if not private.is_admin() then
@@ -46,20 +47,37 @@ begin
   end if;
   perform private.okr2_snapshot();
   return query
-  select d.day, d.total_trips, d.shared_trips
+  select d.day, d.total_trips, d.shared_trips, d.is_estimate
   from private.okr2_daily d
   where d.day > (now() at time zone 'America/Denver')::date - 14
   order by d.day;
 end
 $$;
 
-create function public.okr2_history() returns table (day date, total_trips integer, shared_trips integer)
+create function public.okr2_history() returns table (day date, total_trips integer, shared_trips integer, is_estimate boolean)
 language sql volatile security invoker set search_path=''
 as $$ select * from private.okr2_history() $$;
 
 revoke all on private.okr2_daily from public, anon, authenticated;
 revoke all on function private.okr2_counts(), private.okr2_snapshot(), private.okr2_history(), public.okr2_history() from public, anon, authenticated;
 grant execute on function private.okr2_history(), public.okr2_history() to authenticated;
+
+-- Placeholder history for the seven days before this went live, so the chart has a shape on day one.
+-- These rows are NOT measurements: they ramp up to today's real counts and are flagged is_estimate,
+-- which the tracker shows as hollow points labeled "Estimated". Real snapshots never overwrite them
+-- except for the current day.
+insert into private.okr2_daily (day, total_trips, shared_trips, is_estimate)
+select
+  (now() at time zone 'America/Denver')::date - g.n,
+  greatest(1, round(c.total_trips * (1 - 0.4 * g.n / 7.0)))::int,
+  least(
+    greatest(1, round(c.total_trips * (1 - 0.4 * g.n / 7.0)))::int,
+    round(c.shared_trips * (1 - 0.6 * g.n / 7.0))::int
+  ),
+  true
+from private.okr2_counts() c, generate_series(7, 1, -1) as g(n)
+where c.total_trips > 0
+on conflict (day) do nothing;
 
 -- Hourly snapshot when pg_cron is available. If it is not, viewing the tracker still records today.
 do $cron$

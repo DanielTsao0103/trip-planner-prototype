@@ -8,7 +8,7 @@ const account = {
 const seeded = ["ivysanford13@gmail.com", "danieljuntsao@gmail.com", "thefergusondrew@gmail.com", "sethshireman@gmail.com"];
 
 /** Mocked Supabase with an in-memory admin list. `admin: false` mimics a signed-in account that is not listed. */
-async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuard?: boolean; stats?: { total_trips: number; shared_trips: number }[]; history?: { day: string; total_trips: number; shared_trips: number }[] }) {
+async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuard?: boolean; stats?: { total_trips: number; shared_trips: number }[]; history?: { day: string; total_trips: number; shared_trips: number; is_estimate?: boolean }[] }) {
   let rows = seeded.map((email, index) => ({ email, added_at: `2026-11-12T15:00:0${index}Z` }));
   const log = { rpc: 0, statsCalls: 0, inserts: [] as string[], deletes: [] as string[] };
   await page.route("https://*.supabase.co/**", async (route) => {
@@ -206,7 +206,7 @@ test("Ivy's tracker shows OKR #2 and updates on its own", async ({ page }) => {
 
 test("Ivy's tracker charts the last 14 days with a table and a readout", async ({ page }) => {
   const history = [
-    { day: "2026-11-14", total_trips: 10, shared_trips: 3 },
+    { day: "2026-11-14", total_trips: 10, shared_trips: 3, is_estimate: true },
     { day: "2026-11-15", total_trips: 12, shared_trips: 6 },
     { day: "2026-11-16", total_trips: 12, shared_trips: 9 },
   ];
@@ -218,8 +218,11 @@ test("Ivy's tracker charts the last 14 days with a table and a readout", async (
   await expect(trend.getByText("Up 45 percentage points since Nov 14.")).toBeVisible();
   await expect(page.getByTestId("okr2-readout")).toHaveText("Nov 16: 75% (9 of 12 trips)");
   await trend.getByRole("img", { name: /Nov 14: 30%/ }).focus();
-  await expect(page.getByTestId("okr2-readout")).toHaveText("Nov 14: 30% (3 of 10 trips)");
+  await expect(page.getByTestId("okr2-readout")).toHaveText("Nov 14: 30% (3 of 10 trips), estimated");
+  await expect(page.getByTestId("okr2-estimate-note")).toBeVisible();
+  await expect(trend.getByRole("img", { name: /Nov 14: 30%.*estimated/ })).toBeVisible();
   await trend.getByText("Show as a table").click();
+  await expect(trend.getByRole("cell", { name: "Estimated" })).toHaveCount(1);
   await expect(trend.getByRole("row")).toHaveCount(4);
   await page.screenshot({ path: test.info().outputPath("okr2-trend.png"), fullPage: true });
 });

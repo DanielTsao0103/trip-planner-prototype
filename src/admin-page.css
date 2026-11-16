@@ -57,3 +57,4 @@
 :root .okr-readout { font-weight: 600; }
 :root .okr-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 :root .okr-table th, :root .okr-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid rgba(128, 128, 128, 0.25); }
+:root .okr-dot-estimate { fill: var(--surface, #fff); stroke: var(--primary, #23426b); stroke-width: 2; }
