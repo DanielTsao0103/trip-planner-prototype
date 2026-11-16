@@ -9,7 +9,7 @@ const tripId='22222222-2222-4222-8222-222222222222';
 const fixture:Okr1Metrics={trackingStartedAt:'2026-10-01T12:00:00Z',windowStart:'2026-11-01',windowEnd:'2026-11-14',observedDays:14,windowDays:14,targetPercent:85,registeredUsers:120,planners:100,currentPlanners:98,savedTrips:150,sharedTrips:62,sharingOwners:48,acceptedCollaborators:50,eligiblePlanners:100,consistentPlanners:85,eligibleUsers:120,consistentUsers:85,retentionPercent:85,allUserRetentionPercent:70.833333,activeToday:42,activeYesterday:46,activeInWindow:92,newPlanners:0,lastActivityAt:'2026-11-15T10:00:00Z',daily:Array.from({length:14},(_,i)=>({date:`2026-11-${String(i+1).padStart(2,'0')}`,activeUsers:30+i})),trend:Array.from({length:14},(_,i)=>({date:`2026-11-${String(i+1).padStart(2,'0')}`,percent:59+i*2,allUserPercent:49+i*1.5}))};
 
 async function api(page:Page,{admin=true,savedTrip=false}={}){
- const state={metrics:structuredClone(fixture),fail:false,receiptStats:{eligible_travelers:4,repeat_travelers:2},receiptCalls:0,metricCalls:0,accessCalls:[] as unknown[],days:[] as number[]};
+ const state={metrics:structuredClone(fixture),fail:false,budgetStats:{eligible_trips:4,within_budget_trips:2,trips_without_expenses:1},budgetCalls:0,metricCalls:0,accessCalls:[] as unknown[],days:[] as number[]};
  const trip=seed().trips[0];
  const content={...trip,sample:false,members:[{id:user.id,name:'Metrics QA',email:user.email,role:'Owner',days:[],status:'accepted'}],events:[],expenses:[],prefs:{}};
  const row={tripID:tripId,owner_id:user.id,created_by:user.id,trip_name:'Tracked trip',destination:trip.destinations[0],destinations:trip.destinations,start_date:trip.start,end_date:trip.end,timezone:trip.zone,revision:1,content_version:1,content};
@@ -17,7 +17,7 @@ async function api(page:Page,{admin=true,savedTrip=false}={}){
  await page.route('https://*.supabase.co/**',async route=>{
   const request=route.request();const path=new URL(request.url()).pathname;
   if(path.endsWith('/is_admin'))return route.fulfill({json:admin});
-  if(path.endsWith('/okr4_receipt_stats')){state.receiptCalls++;return route.fulfill({json:state.receiptStats});}
+  if(path.endsWith('/okr4_trip_budget_stats')){state.budgetCalls++;return route.fulfill({json:state.budgetStats});}
   if(path.endsWith('/get_daniel_okr_metrics')){state.metricCalls++;const days=request.postDataJSON().p_days;state.days.push(days);return state.fail?route.fulfill({status:403,json:{message:'Admin access removed'}}):route.fulfill({json:{...state.metrics,windowDays:days,observedDays:Math.min(state.metrics.observedDays,days)}});}
   if(path.endsWith('/record_trip_plan_access')){state.accessCalls.push(request.postDataJSON());return route.fulfill({json:null});}
   if(path.endsWith('/token'))return route.fulfill({json:{access_token:'qa-token',refresh_token:'qa-refresh',token_type:'bearer',expires_in:3600,user}});
@@ -186,7 +186,7 @@ test('dashboard remains accessible in light and dark appearance',async({page},in
  }
 });
 
-test('receipt OKR shows progress, refreshes, and distinguishes an empty cohort', async ({ page }) => {
+test('budget OKR shows progress, refreshes, and distinguishes an empty cohort', async ({ page }, info) => {
  const state = await api(page);
  await login(page);
  await page.goto('./#/21');
@@ -194,9 +194,16 @@ test('receipt OKR shows progress, refreshes, and distinguishes an empty cohort',
  await expect(tracker.getByText('50%', { exact: true })).toBeVisible();
  await expect(tracker.getByText('2 of 4', { exact: true })).toBeVisible();
  await expect(tracker.getByText('Target met')).toBeVisible();
+ await expect(tracker.getByText('Eligible trips with no logged expenses: 1.')).toBeVisible();
 
- state.receiptStats = { eligible_travelers: 0, repeat_travelers: 0 };
- await tracker.getByRole('button', { name: 'Refresh receipt activity' }).click();
- await expect(tracker.getByText('No eligible travelers yet.')).toBeVisible();
- expect(state.receiptCalls).toBeGreaterThanOrEqual(2);
+ await page.addScriptTag({ content: axe.source });
+ const violations = await tracker.evaluate(async element =>
+  (await (window as any).axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations);
+ expect(violations).toEqual([]);
+ await tracker.screenshot({ path: info.outputPath('okr4-budget-tracker.png') });
+
+ state.budgetStats = { eligible_trips: 0, within_budget_trips: 0, trips_without_expenses: 0 };
+ await tracker.getByRole('button', { name: 'Refresh budget results' }).click();
+ await expect(tracker.getByText('No completed trips with a recorded pre-departure budget yet.')).toBeVisible();
+ expect(state.budgetCalls).toBeGreaterThanOrEqual(2);
 });

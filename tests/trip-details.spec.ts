@@ -125,6 +125,7 @@ async function backend(page: Page) {
       return route.fulfill({ json: row });
     }
     if (path.endsWith("/record_trip_plan_access")) return route.fulfill({ json: true });
+    if (path.endsWith("/pending_trip_recommendation_feedback")) return route.fulfill({ json: [] });
     throw new Error(`Unexpected API ${path}`);
   });
   await page.goto("./");
@@ -878,7 +879,7 @@ test('event autocomplete follows itinerary cities, date changes, and explicit ov
  await page.screenshot({path:test.info().outputPath('itinerary-location-context.png'),fullPage:true});
 });
 
-test("receipt saves using scanned details and its amount counts once", async ({ page, isMobile }) => {
+test("a manually entered receipt total saves once and survives reload", async ({ page }) => {
   const api = await backend(page);
   const tripId = "99999999-9999-4999-8999-999999999999";
   api.rows.push({
@@ -889,88 +890,20 @@ test("receipt saves using scanned details and its amount counts once", async ({ 
       budget: 10000, budgetMode: "group", individual: {},
       members: [{ id: owner.id, name: owner.user_metadata.name, email: owner.email, role: "Owner", status: "accepted", days: [] }] },
   });
-  const uploads: string[] = [];
-  let receiptBucketAvailable = true;
-  await page.goto("./");
-  const png = await page.evaluate(() => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 400;
-    canvas.height = 600;
-    return canvas.toDataURL("image/png").split(",")[1];
-  });
-  const image = Buffer.from(png, "base64");
-  await page.route("https://*.supabase.co/storage/v1/object/expense-receipts/**", route => {
-    if (route.request().method() === "GET") {
-      return route.fulfill({ contentType: "image/png", body: image });
-    }
-    if (!receiptBucketAvailable) {
-      return route.fulfill({ status: 404, json: { message: "Bucket not found" } });
-    }
-    uploads.push(new URL(route.request().url()).pathname);
-    return route.fulfill({ json: { Key: uploads.at(-1) } });
-  });
-  // This fixture exercises the on-device fallback for accounts outside the vision pilot.
-  await page.route("https://*.supabase.co/functions/v1/read-receipt", route =>
-    route.fulfill({ status: 403, json: { error: "Receipt scan unavailable." } }),
-  );
-  // Keep the browser test independent of OCR model downloads.
-  let readable = false;
-  await page.route(/\/worker\.min[^/]*\.js(?:\?.*)?$/, route => route.fulfill({
-    contentType: "application/javascript",
-    body: `self.onmessage = ({data}) => self.postMessage({
-      ...data, status: 'resolve', data: data.action === 'recognize'
-        ? {text: ${JSON.stringify(readable ? "Cedar Cafe\nGrand Total USD 24.95" : "Cedar Cafe")}} : {}
-    });`,
-  }));
   await page.goto("./#/5");
   await page.reload();
   await page.getByRole("button", { name: "Receipt test trip", exact: true }).click();
   await page.goto("./#/12");
   await page.getByRole("button", { name: "Add expense", exact: true }).first().click();
-  const file = { name: "receipt.png", mimeType: "image/png", buffer: image };
-  if (isMobile) {
-    const chooser = page.waitForEvent("filechooser");
-    await page.getByRole("button", { name: "Take photo", exact: true }).click();
-    const camera = await chooser;
-    expect(await camera.element().getAttribute("capture")).toBe("environment");
-    await camera.setFiles(file);
-  } else {
-    await page.getByLabel("Receipt photo", { exact: true }).setInputFiles(file);
-  }
-  await expect(page.getByRole("img", { name: "Receipt photo" })).toBeVisible();
-  expect(uploads).toHaveLength(0);
-  await expect(page.getByLabel("What was it for?", { exact: true })).toHaveCount(0);
-  await expect(page.getByLabel("Amount (USD)", { exact: true })).toHaveCount(0);
-  await expect(page.getByLabel("Category", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Save expense", exact: true }).click();
-  await expect(page.getByText("Couldn’t read the total. Retake the photo with the full total visible.")).toBeVisible();
-  expect(uploads).toHaveLength(0);
-  expect(api.rows[0].content.expenses).toHaveLength(0);
-  readable = true;
-  await page.getByRole("slider", { name: "Receipt scan line position" }).press("ArrowDown");
-  await page.getByRole("button", { name: "Read selected line", exact: true }).click();
-  await expect(page.getByText("Found $24.95 USD. Check it against the receipt before saving.")).toBeVisible();
-  expect(uploads).toHaveLength(0);
-  await page.getByRole("button", { name: "Save expense", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.locator('input[type="file"]')).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Take photo" })).toHaveCount(0);
+  await dialog.getByLabel("What was it for?").fill("Cedar Cafe");
+  await dialog.getByLabel("Amount (USD)").fill("24.95");
+  await dialog.getByRole("button", { name: "Save expense" }).click();
   await expect.poll(() => api.rows[0].content.expenses).toHaveLength(1);
-  const [expense] = api.rows[0].content.expenses;
-  expect(expense).toMatchObject({ amount: 2495, purpose: "Cedar Cafe", category: "Food", source: "Receipt photo" });
-  expect(uploads).toEqual([`/storage/v1/object/expense-receipts/${owner.id}/${tripId}/${expense.id}`]);
+  expect(api.rows[0].content.expenses[0])
+    .toMatchObject({ amount: 2495, purpose: "Cedar Cafe", category: "Food", source: "Manual" });
   await page.reload();
-  await expect(page.locator(".expense-row").filter({ hasText: "Cedar Cafe" })).toContainText("$24.95");
-  await expect(page.getByText("$75.05", { exact: true }).first()).toBeVisible();
-  await page.locator(".expense-row").filter({ hasText: "Cedar Cafe" })
-    .getByRole("button", { name: "Edit", exact: true }).click();
-  await page.getByRole("button", { name: "View receipt", exact: true }).click();
-  await expect(page.getByRole("img", { name: "Receipt photo" })).toBeVisible();
-  await page.reload();
-  receiptBucketAvailable = false;
-  await page.getByRole("button", { name: "Add expense", exact: true }).first().click();
-  await page.getByLabel("Receipt photo", { exact: true }).setInputFiles(file);
-  await page.getByRole("button", { name: "Save expense", exact: true }).click();
-  await expect(page.getByText("Receipt scan (photo unavailable)", { exact: true })).toBeVisible();
-  await expect.poll(() => api.rows[0].content.expenses).toHaveLength(2);
-  expect(api.rows[0].content.expenses.find((item: { id: string }) => item.id !== expense.id))
-    .toMatchObject({ amount: 2495, source: "Receipt scan (photo unavailable)" });
-  expect(uploads).toHaveLength(1);
+  await expect(page.locator(".expense-row").filter({ hasText: "Cedar Cafe" })).toHaveCount(1);
 });

@@ -441,18 +441,6 @@ test('large budget values keep cents together and long group notes remain readab
   await expect(page.getByRole('button',{name:'Read note from Maya Chen',exact:true})).toBeFocused();
 });
 
-test('completed sample receipt collapses controls to reveal editable details', async ({ page }) => {
-  await page.setViewportSize({width:390,height:600});
-  await page.goto('./#/12');
-  await page.getByText('Sample tools',{exact:true}).click();
-  await page.getByRole('button',{name:'Try sample receipt',exact:true}).click();
-  await page.getByRole('button',{name:'Use sample receipt',exact:true}).click();
-  await expect(page.getByRole('status')).toContainText('Sample details added');
-  await expect(page.locator('.scan-box')).toHaveCount(0);
-  await expect(page.getByLabel('Amount (USD)',{exact:true})).toHaveValue('28.00');
-  await expect(page.getByLabel('Amount (USD)',{exact:true})).toBeInViewport();
-});
-
 test('large groups can read every preference voter and shared note without oversized dialog headings', async ({ page }) => {
   await page.setViewportSize({width:390,height:600});
   await page.goto('./#/13');
@@ -693,16 +681,7 @@ test('phone event editor keeps one action bar and restores trip navigation after
   await expect(page.getByText('A renamed museum visit').first()).toBeVisible();
 });
 
-test('receipt failure offers one manual recovery and direct demo dates open the time tab', async ({ page }) => {
-  await page.goto('./#/12');
-  await page.getByText('Sample tools',{exact:true}).click();
-  await page.getByRole('button',{name:'Try sample receipt'}).click();
-  await page.getByRole('button',{name:'Try scan failure'}).click();
-  await expect(page.getByRole('alert')).toContainText('scan didn’t work');
-  await expect(page.getByRole('button',{name:/Enter.*manually/})).toHaveCount(1);
-  await page.getByRole('button',{name:'Enter expense manually'}).click();
-  await expect(page.getByLabel('What was it for?')).toBeVisible();
-  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+test('direct demo dates open the time tab', async ({ page }) => {
   await page.goto('./#/10');
   await page.getByRole('button',{name:'Change demo date'}).click();
   await expect(page.getByLabel('Demo date',{exact:true})).toBeVisible();

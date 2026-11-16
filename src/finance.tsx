@@ -1,4 +1,4 @@
-/** Implementation status: Account budgets, expenses, splits, and repayment markers save through updateTrip to Supabase. Sample trips stay local. Receipt photos attach privately to expenses. Sample scans and Gmail/bank previews remain fixtures. See ../IMPLEMENTATION_STATUS.md. */
+/** Implementation status: Account budgets, expenses, splits, and repayment markers save through updateTrip to Supabase. Sample trips stay local. Existing receipt photos remain private. Gmail and bank previews are fixtures. See ../IMPLEMENTATION_STATUS.md. */
 import { TEXT_LIMITS, MONEY_LIMITS, textError, moneyError } from "./limits.ts";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -6,7 +6,6 @@ import {
   ArrowLeftRight,
   SlidersHorizontal,
   ArrowUpRight,
-  Camera,
   Check,
   ChevronRight,
   ChevronDown,
@@ -25,7 +24,7 @@ import { Badge, Button, Empty, ErrorBox, Field, Modal, PageHead } from "./ui";
 import { repaymentPaid, recordRepayment } from "./repayments";
 import { CurrencyConverter } from "./currency-converter";
 import { useChartColors } from "./theme";
-import { readReceipt, receiptPath, receiptSource, removeReceipt, scanReceiptPhoto, uploadReceipt } from "./receipt-photo";
+import { readReceipt, receiptPath, receiptSource } from "./receipt-photo";
 import {
   money,
   spent,
@@ -174,7 +173,7 @@ export function Budget() {
     if (!user?.connections.Gmail?.length) {
       open("message", {
         title: "Gmail isn’t connected",
-        body: "Automatic sample receipt matching needs separate Gmail consent during account setup. Manual expenses and sample receipt scans still work.",
+        body: "Automatic sample receipt matching needs separate Gmail consent during account setup. You can still enter expenses manually.",
       });
       return;
     }
@@ -438,7 +437,7 @@ export function Budget() {
               {!t.expenses.length && (
                 <Empty
                   title="A fresh start for the budget."
-                  body="Add your first expense or try a sample receipt."
+                  body="Add your first expense."
                   action={
                     <Button onClick={() => openExpense()}>
                       Add an expense
@@ -578,10 +577,6 @@ export function Budget() {
             <details className="budget-samples">
               <summary>Sample tools</summary>
               <div className="ledger-tools">
-                <button onClick={() => openExpense({ scan: true })}>
-                  <Camera size={16} />
-                  Try sample receipt
-                </button>
                 <button onClick={gmail}>
                   <Mail size={16} />
                   Match sample Gmail receipt
@@ -795,7 +790,7 @@ export function BudgetSetup() {
   );
 }
 export function ExpenseForm() {
-  const { trip: t, s, overlay, updateTrip, mutate, close, open, toast } = useApp();
+  const { trip: t, s, overlay, updateTrip, close, toast } = useApp();
   if (!t) return null;
   const travelerId = member(t, s.userId)!.id;
   const original = t.expenses.find((e) => e.id === overlay?.data?.id);
@@ -810,9 +805,7 @@ export function ExpenseForm() {
         ? Object.keys(original.shares)
         : t.members.filter((m) => m.status === "accepted").map((m) => m.id),
     ),
-    [scan, setScan] = useState(overlay?.data?.scan ? "ready" : ""),
-    [error, setError] = useState(""),
-    [source, setSource] = useState(original?.source || "Manual");
+    [error, setError] = useState("");
   const [splitMethod, setSplitMethod] = useState(() => {
     if (!original) return "equal";
     const ids = Object.keys(original.shares);
@@ -826,36 +819,12 @@ export function ExpenseForm() {
   const splitRef = useRef<HTMLFieldSetElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [photo, setPhoto] = useState<File>();
-  const receiptCamera = useRef<HTMLInputElement>(null);
-  const selectReceiptPhoto = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (file) choosePhoto(file);
-  };
-  const [guidedScan, setGuidedScan] = useState(false);
-  const [totalPosition, setTotalPosition] = useState<number>();
-  const [receiptDetails, setReceiptDetails] = useState<Awaited<ReturnType<typeof scanReceiptPhoto>>>();
-  const resetReceiptGuide = () => {
-    setGuidedScan(false);
-    setTotalPosition(undefined);
-    setReceiptDetails(undefined);
-  };
-  const [photoStatus, setPhotoStatus] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const draftId = useRef<string>(undefined);
-  const savingPhoto = useRef(false);
   const active = useRef(true);
   useEffect(() => {
     active.current = true;
     return () => { active.current = false; };
   }, []);
-  useEffect(() => {
-    if (!photo) return;
-    const url = URL.createObjectURL(photo);
-    setPhotoUrl(url);
-  }, [photo]);
   const photoPath = (id: string) => receiptPath(s.userId!, t.id, id);
   const viewPhoto = async () => {
     try {
@@ -868,16 +837,6 @@ export function ExpenseForm() {
   useEffect(() => () => {
     if (photoUrl) URL.revokeObjectURL(photoUrl);
   }, [photoUrl]);
-  const choosePhoto = (file: File) => {
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10485760 || !file.size) {
-      setError("Choose a JPEG, PNG, or WebP image up to 10 MB.");
-      return;
-    }
-    setError("");
-    setScan("");
-    resetReceiptGuide();
-    setPhoto(file);
-  };
   const purposeRef = useRef<HTMLTextAreaElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const purposeProblem = textError(purpose, "Expense description", TEXT_LIMITS.expense, true);
@@ -916,20 +875,6 @@ export function ExpenseForm() {
     : remainingShare > 0 ? `${money(remainingShare)} left to assign`
     : remainingShare < 0 ? `${money(-remainingShare)} over the bill total`
     : "Full bill assigned";
-  const scanReceipt = (fail = false) => {
-    setScan("loading");
-    setTimeout(() => {
-      if (fail) {
-        setScan("failed");
-        return;
-      }
-      setPurpose("Sample café receipt");
-      setAmount("28.00");
-      setCategory("Food");
-      setSource("Demo receipt scan");
-      setScan("review");
-    }, 650);
-  };
   const recordedShares = original ? Object.entries(original.shares).filter(([, value]) => value > 0) : [];
   if (original && (original.settled.length || original.payer !== travelerId)) return <Modal title="Expense details">
     <div className="expense-history">
@@ -973,67 +918,24 @@ export function ExpenseForm() {
       <form
         className="expense-form"
         noValidate
-        onSubmit={async (e) => {
+        onSubmit={(e) => {
           e.preventDefault();
-          if (savingPhoto.current || (guidedScan && totalPosition === undefined)) return;
           if (original && original.payer !== travelerId) {
             setError("Only the payer can edit this expense.");
             return;
           }
           setSubmitted(true);
           setError("");
-          let expensePurpose = purpose;
-          let expenseCategory = category;
-          let expenseAmount = amount;
-          if (photo) {
-            savingPhoto.current = true;
-            setUploading(true);
-            setPhotoStatus("Reading receipt…");
-            try {
-              const fields = receiptDetails?.amount ? receiptDetails : await scanReceiptPhoto(
-                photo, t.persistence === "account" && import.meta.env.VITE_RECEIPT_VISION === "true", totalPosition,
-              );
-              if (!active.current) return;
-              if (!fields.amount || moneyError(fields.amount, MONEY_LIMITS.expense)) {
-                setReceiptDetails(current => current ?? fields);
-                setGuidedScan(true);
-                setError(totalPosition !== undefined
-                  ? "Couldn’t read that line. Move the scan line to the total and try again."
-                  : fields.needsManualAmount
-                  ? "Couldn’t identify a single USD total. Try another receipt photo."
-                  : "Couldn’t read the total. Retake the photo with the full total visible.");
-                return;
-              }
-              if (guidedScan && !receiptDetails?.amount) {
-                setReceiptDetails({ ...fields,
-                  purpose: receiptDetails?.purpose || fields.purpose,
-                  category: receiptDetails?.category ?? fields.category,
-                });
-                return;
-              }
-              expenseAmount = fields.amount;
-              expensePurpose = fields.purpose.slice(0, TEXT_LIMITS.expense) || "Receipt expense";
-              expenseCategory = fields.category ?? "Other";
-            } catch {
-              if (active.current) setError("Couldn’t read the receipt. Try taking another photo.");
-              return;
-            } finally {
-              savingPhoto.current = false;
-              if (active.current) {
-                setUploading(false);
-                setPhotoStatus("");
-              }
-            }
-          } else if (purposeProblem || amountProblem) {
+          if (purposeProblem || amountProblem) {
             revealInvalidField(purposeProblem ? purposeRef.current : amountRef.current);
             return;
           }
-          const cents = Math.round(Number(expenseAmount) * 100);
-          if (!photo && shared && !customSplit && !people.length) {
+          const cents = Math.round(Number(amount) * 100);
+          if (shared && !customSplit && !people.length) {
             setError("Choose at least one participant.");
             return;
           }
-          if (!photo && customSplit && (invalidShare || remainingShare !== 0)) {
+          if (customSplit && (invalidShare || remainingShare !== 0)) {
             splitRef.current?.focus();
             return;
           }
@@ -1044,50 +946,25 @@ export function ExpenseForm() {
             return;
           }
           const record: Expense = {
-            id: original?.id || (draftId.current ??= uid()),
-            purpose: expensePurpose.trim(),
+            id: original?.id || uid(),
+            purpose: purpose.trim(),
             amount: cents,
-            category: expenseCategory,
+            category,
             payer: travelerId,
-            shares: !photo && customSplit ? customShares : splitCents(cents, !photo && shared ? people : [travelerId]),
+            shares: customSplit ? customShares : splitCents(cents, shared ? people : [travelerId]),
             date: original?.date || s.date,
-            source: photo ? "Receipt scan" : source,
+            source: original?.source || "Manual",
             settled: [],
           };
-          if (photo && t.persistence === "account") {
-            const path = photoPath(record.id);
-            savingPhoto.current = true;
-            setUploading(true);
-            try {
-              await uploadReceipt(path, photo);
-              if (!active.current) {
-                await removeReceipt(path);
-                return;
-              }
-              record.source = receiptSource;
-            } catch {
-              if (!active.current) return;
-              record.source = "Receipt scan (photo unavailable)";
-            } finally {
-              savingPhoto.current = false;
-            }
-          }
           const saveExpense = (trip: typeof t) => {
             const index = trip.expenses.findIndex(expense => expense.id === record.id);
             if (index >= 0) trip.expenses[index] = record;
             else trip.expenses.unshift(record);
           };
-          if (photo) {
-            mutate(store => {
-              const trip = store.trips.find(trip => trip.id === t.id);
-              if (trip) saveExpense(trip);
-            });
-          } else updateTrip(saveExpense);
+          updateTrip(saveExpense);
           // Saving a demo split should not open a pretend-message dialog.
           toast(
-            photo && t.persistence === "account" && record.source !== receiptSource
-              ? "Expense recorded. The receipt photo could not be attached."
-              : !photo && shared && t.persistence !== "account"
+            shared && t.persistence !== "account"
                 ? "Expense recorded. Shares updated; no message sent."
                 : "Expense recorded. Your totals are up to date.",
             "budget",
@@ -1114,95 +991,10 @@ export function ExpenseForm() {
               Delete expense
             </Button>
           )}
-          {scan === "review" ? (
-            <div className="receipt-review-status" role="status">
-              <span>Sample details added. Review the expense below.</span>
-              <Button variant="text" onClick={() => setScan("ready")}>Choose another</Button>
-            </div>
-          ) : scan && (
-            <div className="scan-box">
-              <h3>
-                {scan === "loading"
-                  ? "Reading the sample receipt…"
-                  : scan === "review"
-                    ? "A few details, ready to review."
-                    : "Try a sample receipt"}
-              </h3>
-              <p>Simulated scanning fills details for you to review.</p>
-              <div className="receipt-scan-actions">
-              <Button
-                variant="outline"
-                disabled={scan === "loading"}
-                onClick={() => scanReceipt()}
-              >
-                Use sample receipt
-              </Button>
-              <Button variant={scan === "failed" ? "primary" : "text"} disabled={scan === "loading"} onClick={() => setScan("")}>{scan === "failed" ? "Enter expense manually" : "Enter manually"}</Button>
-              </div>
-              {scan !== "failed" && <button
-                className="text-link"
-                type="button"
-                disabled={scan === "loading"}
-                onClick={() => scanReceipt(true)}
-              >
-                Try scan failure
-              </button>}
-              {scan === "failed" && (
-                <ErrorBox text="The scan didn’t work. Use the sample receipt or enter the details manually." />
-              )}
-            </div>
-          )}
-          {!original && !scan && (
-            <div className="scan-box">
-              <Field label="Receipt photo">
-                <input type="file" accept="image/png,image/jpeg,image/webp" disabled={uploading}
-                  onChange={selectReceiptPhoto} />
-              </Field>
-              <input ref={receiptCamera} type="file" accept="image/png,image/jpeg,image/webp"
-                capture="environment" hidden disabled={uploading} onChange={selectReceiptPhoto} />
-              <Button variant="outline" disabled={uploading} onClick={() => receiptCamera.current?.click()}>
-                <Camera size={16} aria-hidden="true" />
-                Take photo
-              </Button>
-              {photo && <Button variant="text" disabled={uploading} onClick={() => {
-                setPhoto(undefined);
-                resetReceiptGuide();
-                setError("");
-                setPhotoUrl("");
-                setPhotoStatus("");
-              }}>Remove photo</Button>}
-              {photoStatus && <p role="status">{photoStatus}</p>}
-            </div>
-          )}
           {original?.source === receiptSource && original.payer === travelerId && !photoUrl && (
             <Button variant="text" onClick={() => void viewPhoto()}>View receipt</Button>
           )}
-          {photoUrl && guidedScan ? (
-            <div>
-              <p>Tap the line with the total in USD. You can also move the scan line with the slider.</p>
-              <div className="receipt-scan-target" onClick={event => {
-                if (uploading) return;
-                const bounds = event.currentTarget.getBoundingClientRect();
-                setTotalPosition(Math.min(1, Math.max(0, (event.clientY - bounds.top) / bounds.height)));
-                setReceiptDetails(current => current && { ...current, amount: "" });
-                setError("");
-              }}>
-                <img src={photoUrl} alt="Receipt photo" />
-                {totalPosition !== undefined && <span aria-hidden="true" style={{ top: `${totalPosition * 100}%` }} />}
-              </div>
-              <input type="range" min="0" max="100" step="1" aria-label="Receipt scan line position"
-                disabled={uploading} value={(totalPosition ?? 0.75) * 100}
-                onChange={event => {
-                  setTotalPosition(Number(event.target.value) / 100);
-                  setReceiptDetails(current => current && { ...current, amount: "" });
-                  setError("");
-                }} />
-              {receiptDetails?.amount && <p role="status">
-                Found {money(Math.round(Number(receiptDetails.amount) * 100))} USD. Check it against the receipt before saving.
-              </p>}
-            </div>
-          ) : photoUrl && <img src={photoUrl} alt="Receipt photo" className="expense-receipt-photo" />}
-          {!photo && <>
+          {photoUrl && <img src={photoUrl} alt="Receipt photo" className="expense-receipt-photo" />}
           <p className="expense-date-context">Expense date: {dateText(original?.date || s.date)}{t.persistence !== "account" && " · Demo date"}</p>
           <div className="expense-validated-field">
           <Field label="What was it for?">
@@ -1312,19 +1104,16 @@ export function ExpenseForm() {
               </div>
             </fieldset>
           )}
-          </>}
           <ErrorBox text={error} />
         </div>
         <div className="form-actions">
-          {!photo && customSplit && <p id="expense-split-status" role="status" className="expense-split-status">
+          {customSplit && <p id="expense-split-status" role="status" className="expense-split-status">
             {splitFeedback}
           </p>}
           <Button variant="text" onClick={close}>
             Cancel
           </Button>
-          <Button type="submit" disabled={uploading || (guidedScan && totalPosition === undefined)}>
-            {uploading ? (photoStatus || "Attaching receipt…") : guidedScan && !receiptDetails?.amount ? "Read selected line" : "Save expense"}
-          </Button>
+          <Button type="submit">Save expense</Button>
         </div>
       </form>
     </Modal>

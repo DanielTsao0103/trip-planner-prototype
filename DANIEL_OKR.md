@@ -61,3 +61,11 @@ The additive migration was applied to the existing hosted project in one transac
 External evidence is under `outputs/daniel-okr-2026-11-14/` in the workspace and is intentionally excluded from the public source repository. Frontend build, browser and Pages release evidence is recorded separately by the release lead.
 
 Current Supabase references checked: [database functions](https://supabase.com/docs/guides/database/functions), [RLS and grants](https://supabase.com/docs/guides/database/postgres/row-level-security), [CLI v3 hosted-target changes](https://supabase.com/changelog/supabase-cli-v3), and [scoped token permissions](https://supabase.com/docs/guides/platform/personal-access-tokens).
+
+## OKR #4 — staying within trip budgets
+
+Target: **At least 50% of completed trips with a budget set before departure finish at or below that budget.** The second card on `#/21` shows the aggregate rate, trip counts, target status, and the number of eligible trips with no expenses recorded.
+
+A trip qualifies after its last day has passed in the trip's saved time zone. The database compares all logged expenses on that trip, including prepaid expenses, with the last positive combined group budget saved before the first day. Individual spending limits do not establish a trip-wide budget. A trip with no expenses logged stays in the denominator and is reported separately. Logged spending can be incomplete, and the result can change when expenses are edited or added.
+
+Migration `20261115223000_okr4_trip_budget_stats.sql` captures budgets in a private table as trips are saved and seeds existing upcoming trips. It cannot infer pre-departure budgets for trips that have already started. The browser receives only aggregate counts through the admin-only `okr4_trip_budget_stats` RPC.

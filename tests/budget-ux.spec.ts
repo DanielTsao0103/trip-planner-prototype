@@ -1,16 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 
-test("saving a sample receipt reveals its new row above phone navigation", async ({ page }) => {
+test("entering a receipt total reveals its new row above phone navigation", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 600 });
   await budget(page);
-  await page.getByText("Sample tools", { exact: true }).click();
-  await page.getByRole("button", { name: "Try sample receipt", exact: true }).click();
-  await page.getByRole("button", { name: "Use sample receipt", exact: true }).click();
-  await expect(page.getByLabel("What was it for?", { exact: true })).toHaveValue("Sample café receipt");
+  await page.getByRole("button", { name: "Add expense", exact: true }).click();
+  await page.getByLabel("What was it for?", { exact: true }).fill("Café receipt");
+  await page.getByLabel("Amount (USD)", { exact: true }).fill("28.00");
   await page.getByRole("button", { name: "Save expense", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByLabel("Filter expense category", { exact: true })).toHaveValue("All");
-  const row = page.locator(".expense-row").filter({ hasText: "Sample café receipt" });
+  const row = page.locator(".expense-row").filter({ hasText: "Café receipt" });
   await expect(row).toBeFocused();
   expect(await row.evaluate(element => {
     const bounds = element.getBoundingClientRect();
