@@ -132,6 +132,7 @@ test("account saves recover from lost responses without duplicate trips, reload,
       });
     }
     if (new URL(route.request().url()).pathname.endsWith("/record_trip_plan_access")) return route.fulfill({ json: null });
+    if (new URL(route.request().url()).pathname.endsWith("/pending_trip_recommendation_feedback")) return route.fulfill({ json: [] });
     throw new Error(`Unexpected request ${request.method()} ${url.pathname}`);
   });
   await login(page);
@@ -260,6 +261,7 @@ test("failed account load offers retry and never pretends the account is empty",
       return route.fulfill({ json: [] });
     }
     if (new URL(route.request().url()).pathname.endsWith("/record_trip_plan_access")) return route.fulfill({ json: null });
+    if (new URL(route.request().url()).pathname.endsWith("/pending_trip_recommendation_feedback")) return route.fulfill({ json: [] });
     throw new Error(`Unexpected request ${url.pathname}`);
   });
   await login(page);

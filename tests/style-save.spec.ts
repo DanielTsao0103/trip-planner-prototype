@@ -58,6 +58,7 @@ test("account style failure stays visible through navigation and retries the sel
       return route.fulfill({ json: [] });
     }
     if (new URL(route.request().url()).pathname.endsWith("/record_trip_plan_access")) return route.fulfill({ json: null });
+    if (new URL(route.request().url()).pathname.endsWith("/pending_trip_recommendation_feedback")) return route.fulfill({ json: [] });
     throw Error(`Unexpected mocked request: ${request.method()} ${path}`);
   });
   await page.goto("./");

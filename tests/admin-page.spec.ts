@@ -59,6 +59,7 @@ async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuar
       return route.fulfill({ json: [] });
     }
     if (new URL(route.request().url()).pathname.endsWith("/record_trip_plan_access")) return route.fulfill({ json: null });
+    if (path === "/rest/v1/rpc/pending_trip_recommendation_feedback") return route.fulfill({ json: [] });
     throw Error(`Unexpected mocked request: ${request.method()} ${path}`);
   });
   return log;
@@ -124,7 +125,7 @@ test("the Admin page is a menu of four OKR tracker pages, with live trackers and
   await expect(page.getByRole("heading", { name: "Admin", exact: true, level: 1 })).toBeVisible();
   const owners = ["Daniel", "Ivy", "Seth", "Drew"];
   const menu = page.locator(".admin-page .menu-links");
-  await expect(menu.locator(".tracker-availability")).toHaveText(["Available · account data", "Available · account data", "Not built yet", "Not built yet"]);
+  await expect(menu.locator(".tracker-availability")).toHaveText(["Available · account data", "Available · account data", "Not built yet", "Not built yet", "85% target · account data"]);
   // The access list is a secondary page now, not the main content here.
   await expect(page.getByLabel("Add an email")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Manage admin access" })).toBeVisible();
