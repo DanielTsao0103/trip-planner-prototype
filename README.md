@@ -76,6 +76,80 @@ flowchart LR
 
 Supabase Auth identifies the signed-in account. Database policies and membership-checked RPCs enforce authorization independently of the UI. Supabase Storage holds images; Edge Functions handle photo services and the separate rule-based booking import. External features depend on their service configuration.
 
+### Data flow diagrams
+
+These diagrams describe the **current customer app**. Level 0 shows its boundary; Level 1 expands the app into the main data-handling processes. A traveler includes an invited collaborator. The proposed email-to-admin receipt workflow is separate and is described under [Not complete and planned work](#not-complete-and-planned-work).
+
+#### Level 0 — context diagram
+
+```mermaid
+flowchart LR
+    T["Traveler / collaborator"]
+    A["Authorized admin"]
+    X["External services: email, places, maps, research, rates"]
+    App(["0. Stir Crazy trip planner"])
+
+    T -->|"Credentials, trip edits, invitations, receipts, place searches"| App
+    App -->|"Account status, shared plans, budgets, invitations, suggestions"| T
+    A -->|"Dashboard request"| App
+    App -->|"Authorized engagement metrics"| A
+    App -->|"Delivery requests and service queries"| X
+    X -->|"Delivery results, place and route data, research, rates"| App
+```
+
+#### Level 1 — app processes and data stores
+
+```mermaid
+flowchart LR
+    T["Traveler / collaborator"]
+    A["Authorized admin"]
+    X["External services"]
+
+    P1(["1.0 Account access"])
+    P2(["2.0 Plan and save trips"])
+    P3(["3.0 Manage collaboration"])
+    P4(["4.0 Track budgets and receipts"])
+    P5(["5.0 Find places and guide travel"])
+    P6(["6.0 Report engagement"])
+
+    D1[("D1 Supabase Auth")]
+    D2[("D2 Supabase trip and account data")]
+    D3[("D3 Private image storage")]
+    D4[("D4 Browser demo and recovery data")]
+
+    T -->|"Signup and sign-in details"| P1
+    P1 -->|"Account status"| T
+    P1 <-->|"Identity and session"| D1
+
+    T -->|"Trip, itinerary, reminder and saved-place edits"| P2
+    P2 -->|"Plans and save status"| T
+    P2 <-->|"Validated trip records, revisions and plan views"| D2
+    P2 <-->|"Sample trips and unsaved recovery drafts"| D4
+
+    T -->|"Invites, roles and preferences"| P3
+    P3 -->|"Membership and invitation status"| T
+    P3 <-->|"Memberships, preferences and invitations"| D2
+    P3 -->|"Invitation delivery request"| X
+    X -->|"Delivery result"| P3
+
+    T -->|"Budgets, expenses and receipt images"| P4
+    P4 -->|"Balances and reviewed receipt details"| T
+    P4 <-->|"Expense and split records"| D2
+    P4 <-->|"Private receipt images"| D3
+    P4 -->|"Exchange-rate query"| X
+    X -->|"Reference rates"| P4
+
+    T -->|"Place searches and travel choices"| P5
+    P5 -->|"Suggestions, maps and route estimates"| T
+    P5 <-->|"Trip context and saved suggestions"| D2
+    P5 -->|"Place, route and research queries"| X
+    X -->|"Place, route and cited research results"| P5
+
+    A -->|"Dashboard request"| P6
+    P6 -->|"Authorized engagement metrics"| A
+    D2 -->|"Activity and enrollment counts"| P6
+```
+
 ### Persistence and recovery
 
 All account-trip screens use the shared state and save queue:
