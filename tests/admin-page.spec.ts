@@ -8,7 +8,7 @@ const account = {
 const seeded = ["ivysanford13@gmail.com", "danieljuntsao@gmail.com", "thefergusondrew@gmail.com", "sethshireman@gmail.com"];
 
 /** Mocked Supabase with an in-memory admin list. `admin: false` mimics a signed-in account that is not listed. */
-async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuard?: boolean; stats?: { total_trips: number; shared_trips: number }[]; history?: { day: string; total_trips: number; shared_trips: number; is_estimate?: boolean }[] }) {
+async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuard?: boolean; stats?: { total_trips: number; shared_trips: number }[]; history?: { day: string; total_trips: number; shared_trips: number; is_estimate?: boolean }[]; oldBudgetMetric?: boolean }) {
   let rows = seeded.map((email, index) => ({ email, added_at: `2026-11-12T15:00:0${index}Z` }));
   const log = { rpc: 0, statsCalls: 0, inserts: [] as string[], deletes: [] as string[] };
   await page.route("https://*.supabase.co/**", async (route) => {
@@ -17,10 +17,17 @@ async function mockSupabase(page: Page, options: { admin: boolean; lastAdminGuar
     const path = url.pathname;
     if (path === "/rest/v1/rpc/okr4_trip_budget_stats") return route.fulfill({ json: { eligible_trips: 0, within_budget_trips: 0, trips_without_expenses: 0 } });
     if (path === "/rest/v1/rpc/pending_trip_experience_feedback") return route.fulfill({ json: [] });
+    if (path === "/rest/v1/rpc/get_budget_cadence_metrics" && options.oldBudgetMetric) return route.fulfill({ json: {
+      eligibleUsers: 5, consistentUsers: 4, percent: 80, targetPercent: 85,
+    } });
     if (path === "/rest/v1/rpc/get_budget_cadence_metrics") return route.fulfill({ json: {
-      windowStart: "2026-11-01", windowEnd: "2026-11-14", windowDays: 14,
-      observedDays: 14, eligibleUsers: 0, consistentUsers: 0, percent: null,
-      targetPercent: 85, definition: "test fixture",
+      windowStart: "2026-11-01", windowEnd: "2026-11-14", trackingStart: "2026-11-01", observedDays: 14,
+      eligibleUsers: 5, consistentUsers: 3, percent: 60,
+      targetPercent: 60, daily: [
+        { day: "2026-11-12", eligibleUsers: 5, loggingUsers: 2, percent: 40 },
+        { day: "2026-11-13", eligibleUsers: 5, loggingUsers: 3, percent: 60 },
+        { day: "2026-11-14", eligibleUsers: 5, loggingUsers: 4, percent: 80 },
+      ],
     } });
     if (path === "/rest/v1/rpc/get_daniel_okr_metrics") return route.fulfill({ status: 503, json: { message: "Metrics fixture is unavailable" } });
     if (path === "/rest/v1/rpc/is_admin") {
@@ -140,7 +147,15 @@ test("budget cadence lives in Seth's OKR tracker without a separate team section
     await menu.getByRole("button", { name: `${owner}’s OKR tracker`, exact: true }).click();
     await expect(page.getByRole("heading", { name: `${owner}’s OKR tracker`, exact: true, level: 1 })).toBeVisible();
     if (owner === "Daniel") await expect(page.getByText("Dashboard unavailable")).toBeVisible();
-    else if (owner === "Seth") await expect(page.getByRole("heading", { name: "Budget cadence", exact: true })).toBeVisible();
+    else if (owner === "Seth") {
+      await expect(page.getByRole("heading", { name: "Keep trip budgets up to date", exact: true })).toBeVisible();
+      await expect(page.getByText("Key result: At least 60% of users in an active trip log an expense at least every other day.")).toBeVisible();
+      await expect(page.getByTestId("okr3-percent")).toHaveText("60%");
+      await expect(page.getByTestId("okr3-consistent")).toHaveText("3");
+      await expect(page.getByTestId("okr3-eligible")).toHaveText("5");
+      await expect(page.getByTestId("okr3-trend")).toBeVisible();
+      await page.screenshot({ path: test.info().outputPath("seth-okr-desktop.png"), fullPage: true });
+    }
     else if (owner === "Drew") await expect(page.getByRole("heading", { name: "Help people stay within their trip budgets" })).toBeVisible();
     else if (owner !== "Ivy") await expect(page.getByText("Nothing here yet.")).toBeVisible();
     const trail = page.getByRole("navigation", { name: "Breadcrumb" });
@@ -150,6 +165,14 @@ test("budget cadence lives in Seth's OKR tracker without a separate team section
     await expect(page.getByRole("heading", { name: "Admin", exact: true, level: 1 })).toBeVisible();
   }
   await page.screenshot({ path: test.info().outputPath("admin-menu.png"), fullPage: true });
+});
+
+test("Seth's tracker does not present the old budget-change result as expense logging", async ({ page }) => {
+  await mockSupabase(page, { admin: true, oldBudgetMetric: true });
+  await signIn(page);
+  await page.goto("./#/23");
+  await expect(page.getByText("Expense logging results aren’t available yet. Please try again shortly.")).toBeVisible();
+  await expect(page.getByTestId("okr3-percent")).toHaveCount(0);
 });
 
 test("the database refusing to empty the list is reported, not shown as success", async ({ page }) => {
