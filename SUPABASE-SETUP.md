@@ -108,7 +108,7 @@ To repeat the role and bypass checks with disposable accounts, run `node scripts
 
 ## Admin access list (November 12, 2026)
 
-`20261112150000_admin_access_list.sql` creates `public.admin_email` (RLS on), `private.is_admin()`, `public.is_admin()` and a trigger that keeps at least one admin. Run it once in the SQL editor of the team project. It seeds the four starting admin emails. An account counts as admin only when it signed in with Google and the Google-verified email is on the list, because email/password signups are not verified in this prototype. If someone must use email/password instead, turn email confirmation on first.
+`20261112150000_admin_access_list.sql` creates `public.admin_email` (RLS on), `private.is_admin()`, `public.is_admin()` and a trigger that keeps at least one admin. Run it once in the SQL editor of the team project. It seeds the four starting admin emails. Migration `20261119220000_admin_any_login_method.sql` later changed `private.is_admin()` so an account counts as admin when its account email (email/password or Google) is on the list. Email confirmation is off in this prototype, so a typed address is not verified; turn confirmation on before using this beyond the class prototype.
 
 ## Sorting forwarded bookings into trips (November 13, 2026)
 

@@ -98,7 +98,7 @@ function AccessList({ ownEmail }: { ownEmail: string }) {
     <section className="card account-section" aria-labelledby="admin-approved">
       <h2 id="admin-approved">Approved emails</h2>
       <p className="account-note">
-        These emails can open the Admin pages. Each person must sign in with Google using the same email.
+        These emails can open the Admin pages. Each person signs in to Stir Crazy with the same email.
       </p>
 
       {loadError ? (
@@ -161,7 +161,7 @@ function AccessList({ ownEmail }: { ownEmail: string }) {
       )}
 
       <form className="account-form admin-add-form" onSubmit={add} noValidate>
-        <Field label="Add an email" hint="Use the Google account email they sign in with.">
+        <Field label="Add an email" hint="Use the email they sign in to Stir Crazy with.">
           <input
             type="email"
             autoComplete="off"
